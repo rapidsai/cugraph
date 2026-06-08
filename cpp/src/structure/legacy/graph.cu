@@ -90,10 +90,10 @@ void GraphCompressedSparseBaseView<VT, ET, WT>::get_source_indices(VT* src_indic
                          atomic_counter.fetch_add(VT{1}, cuda::std::memory_order_relaxed);
                        }
                      });
-    cugraph::inclusive_scan_wrapper(rmm::exec_policy(stream_view),
-                                    indices_span.begin(),
-                                    indices_span.end(),
-                                    indices_span.begin());
+    cugraph::inclusive_scan(rmm::exec_policy(stream_view),
+                            indices_span.begin(),
+                            indices_span.end(),
+                            indices_span.begin());
   }
 }
 

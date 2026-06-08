@@ -82,8 +82,7 @@ template <typename ExecutionPolicy>
 inline constexpr bool is_rmm_exec_policy_v =
   std::is_same_v<std::remove_cv_t<ExecutionPolicy>, rmm::exec_policy>;
 
-/** Input iterator value type for @ref cugraph::inclusive_scan_wrapper / @ref
- * cugraph::exclusive_scan. */
+/** Input iterator value type for @ref cugraph::inclusive_scan / @ref cugraph::exclusive_scan. */
 template <typename Iterator>
 using scan_iterator_value_t =
   std::remove_cv_t<typename std::iterator_traits<std::remove_cv_t<Iterator>>::value_type>;
@@ -214,62 +213,71 @@ void sort_wrapper(ExecutionPolicy const& policy,
  * @p policy is @c rmm::exec_policy and the input element type is @c size_t, @c int32_t, or
  * @c int64_t.
  */
-// FIXME: Would like to call this inclusive_scan, but there's an issue
-// with CCCL and nvcc which results in a runtime error.
-template <typename ExecutionPolicy, typename InputIterator, typename OutputIterator>
-OutputIterator inclusive_scan_wrapper(ExecutionPolicy const& policy,
-                                      InputIterator first,
-                                      InputIterator last,
-                                      OutputIterator result)
-{
-  using value_t = detail::scan_iterator_value_t<InputIterator>;
-  if constexpr (detail::is_rmm_exec_policy_v<ExecutionPolicy> &&
-                detail::scan_scalar_value_v<value_t>) {
-    return detail::inclusive_scan_impl(policy, first, last, result);
-  } else {
-    return thrust::inclusive_scan(policy, first, last, result);
+struct inclusive_scan_t {
+  template <typename ExecutionPolicy, typename InputIterator, typename OutputIterator>
+  OutputIterator operator()(ExecutionPolicy const& policy,
+                            InputIterator first,
+                            InputIterator last,
+                            OutputIterator result) const
+  {
+    using value_t = detail::scan_iterator_value_t<InputIterator>;
+    if constexpr (detail::is_rmm_exec_policy_v<ExecutionPolicy> &&
+                  detail::scan_scalar_value_v<value_t>) {
+      return detail::inclusive_scan_impl(policy, first, last, result);
+    } else {
+      return thrust::inclusive_scan(policy, first, last, result);
+    }
   }
-}
 
-/**
- * @ingroup utility_wrappers_cpp
- * @brief    Inclusive prefix sum on [first, last) with a custom associative operator.
- *
- * Similar to @c thrust::inclusive_scan.
- */
-template <typename ExecutionPolicy,
-          typename InputIterator,
-          typename OutputIterator,
-          typename BinaryFunction>
-OutputIterator inclusive_scan_wrapper(ExecutionPolicy const& policy,
-                                      InputIterator first,
-                                      InputIterator last,
-                                      OutputIterator result,
-                                      BinaryFunction binary_op)
-{
-  return thrust::inclusive_scan(policy, first, last, result, binary_op);
-}
+  /**
+   * @ingroup utility_wrappers_cpp
+   * @brief    Inclusive prefix sum on [first, last) with a custom associative operator.
+   *
+   * Similar to @c thrust::inclusive_scan.
+   */
+  template <typename ExecutionPolicy,
+            typename InputIterator,
+            typename OutputIterator,
+            typename BinaryFunction>
+  OutputIterator operator()(ExecutionPolicy const& policy,
+                            InputIterator first,
+                            InputIterator last,
+                            OutputIterator result,
+                            BinaryFunction binary_op) const
+  {
+    return thrust::inclusive_scan(policy, first, last, result, binary_op);
+  }
 
-/**
- * @ingroup utility_wrappers_cpp
- * @brief    Inclusive prefix sum on [first, last) with initial value and associative operator.
+  /**
+   * @ingroup utility_wrappers_cpp
+   * @brief    Inclusive prefix sum on [first, last) with initial value and associative operator.
+   *
+   * Similar to @c thrust::inclusive_scan.
+   */
+  template <typename ExecutionPolicy,
+            typename InputIterator,
+            typename OutputIterator,
+            typename T,
+            typename BinaryFunction>
+  OutputIterator operator()(ExecutionPolicy const& policy,
+                            InputIterator first,
+                            InputIterator last,
+                            OutputIterator result,
+                            T init,
+                            BinaryFunction binary_op) const
+  {
+    return thrust::inclusive_scan(policy, first, last, result, init, binary_op);
+  }
+};
+
+/** @brief Inclusive prefix sum on [first, last)
  *
- * Similar to @c thrust::inclusive_scan.
+ * This exposes cugraph::inclusive_scan using the inclusive_scan_wrapper_t functor.
+ * This is a workaround to avoid ADL issues with CCCL which result in a runtime error.
+ *
+ * Documentation of the individual inclusive_scan overloads is provided above.
  */
-template <typename ExecutionPolicy,
-          typename InputIterator,
-          typename OutputIterator,
-          typename T,
-          typename BinaryFunction>
-OutputIterator inclusive_scan_wrapper(ExecutionPolicy const& policy,
-                                      InputIterator first,
-                                      InputIterator last,
-                                      OutputIterator result,
-                                      T init,
-                                      BinaryFunction binary_op)
-{
-  return thrust::inclusive_scan(policy, first, last, result, init, binary_op);
-}
+inline constexpr inclusive_scan_t inclusive_scan{};
 
 /**
  * @ingroup utility_wrappers_cpp
@@ -279,62 +287,73 @@ OutputIterator inclusive_scan_wrapper(ExecutionPolicy const& policy,
  * @p policy is @c rmm::exec_policy and the input element type is @c size_t, @c int32_t, or
  * @c int64_t.
  */
-template <typename ExecutionPolicy, typename InputIterator, typename OutputIterator>
-OutputIterator exclusive_scan(ExecutionPolicy const& policy,
-                              InputIterator first,
-                              InputIterator last,
-                              OutputIterator result)
-{
-  using value_t = detail::scan_iterator_value_t<InputIterator>;
-  if constexpr (detail::is_rmm_exec_policy_v<ExecutionPolicy> &&
-                detail::scan_scalar_value_v<value_t>) {
-    return detail::exclusive_scan_impl(policy, first, last, result);
-  } else {
-    return thrust::exclusive_scan(policy, first, last, result);
+struct exclusive_scan_t {
+  template <typename ExecutionPolicy, typename InputIterator, typename OutputIterator>
+  OutputIterator operator()(ExecutionPolicy const& policy,
+                            InputIterator first,
+                            InputIterator last,
+                            OutputIterator result) const
+  {
+    using value_t = detail::scan_iterator_value_t<InputIterator>;
+    if constexpr (detail::is_rmm_exec_policy_v<ExecutionPolicy> &&
+                  detail::scan_scalar_value_v<value_t>) {
+      return detail::exclusive_scan_impl(policy, first, last, result);
+    } else {
+      return thrust::exclusive_scan(policy, first, last, result);
+    }
   }
-}
 
-/**
- * @ingroup utility_wrappers_cpp
- * @brief    Exclusive prefix sum on [first, last) with initial value.
- *
- * Similar to @c thrust::exclusive_scan.
- */
-template <typename ExecutionPolicy, typename InputIterator, typename OutputIterator, typename T>
-OutputIterator exclusive_scan(ExecutionPolicy const& policy,
-                              InputIterator first,
-                              InputIterator last,
-                              OutputIterator result,
-                              T init)
-{
-  using value_t = detail::scan_iterator_value_t<InputIterator>;
-  if constexpr (detail::is_rmm_exec_policy_v<ExecutionPolicy> &&
-                detail::scan_scalar_value_v<value_t>) {
-    return detail::exclusive_scan_impl(policy, first, last, result, init);
-  } else {
-    return thrust::exclusive_scan(policy, first, last, result, init);
+  /**
+   * @ingroup utility_wrappers_cpp
+   * @brief    Exclusive prefix sum on [first, last) with initial value.
+   *
+   * Similar to @c thrust::exclusive_scan.
+   */
+  template <typename ExecutionPolicy, typename InputIterator, typename OutputIterator, typename T>
+  OutputIterator operator()(ExecutionPolicy const& policy,
+                            InputIterator first,
+                            InputIterator last,
+                            OutputIterator result,
+                            T init) const
+  {
+    using value_t = detail::scan_iterator_value_t<InputIterator>;
+    if constexpr (detail::is_rmm_exec_policy_v<ExecutionPolicy> &&
+                  detail::scan_scalar_value_v<value_t>) {
+      return detail::exclusive_scan_impl(policy, first, last, result, init);
+    } else {
+      return thrust::exclusive_scan(policy, first, last, result, init);
+    }
   }
-}
 
-/**
- * @ingroup utility_wrappers_cpp
- * @brief    Exclusive prefix sum on [first, last) with initial value and associative operator.
+  /**
+   * @ingroup utility_wrappers_cpp
+   * @brief    Exclusive prefix sum on [first, last) with initial value and associative operator.
+   *
+   * Similar to @c thrust::exclusive_scan.
+   */
+  template <typename ExecutionPolicy,
+            typename InputIterator,
+            typename OutputIterator,
+            typename T,
+            typename BinaryFunction>
+  OutputIterator operator()(ExecutionPolicy const& policy,
+                            InputIterator first,
+                            InputIterator last,
+                            OutputIterator result,
+                            T init,
+                            BinaryFunction binary_op) const
+  {
+    return thrust::exclusive_scan(policy, first, last, result, init, binary_op);
+  }
+};
+
+/** @brief Exclusive prefix sum on [first, last)
  *
- * Similar to @c thrust::exclusive_scan.
+ * This exposes cugraph::exclusive_scan using the exclusive_scan_t functor.
+ * This is a workaround to avoid ADL issues with CCCL which result in a runtime error.
+ *
+ * Documentation of the individual exclusive_scan overloads is provided above.
  */
-template <typename ExecutionPolicy,
-          typename InputIterator,
-          typename OutputIterator,
-          typename T,
-          typename BinaryFunction>
-OutputIterator exclusive_scan(ExecutionPolicy const& policy,
-                              InputIterator first,
-                              InputIterator last,
-                              OutputIterator result,
-                              T init,
-                              BinaryFunction binary_op)
-{
-  return thrust::exclusive_scan(policy, first, last, result, init, binary_op);
-}
+inline constexpr exclusive_scan_t exclusive_scan{};
 
 }  // namespace CUGRAPH_EXPORT cugraph

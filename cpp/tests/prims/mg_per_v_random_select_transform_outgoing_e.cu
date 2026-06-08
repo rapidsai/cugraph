@@ -406,10 +406,10 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
           mg_aggregate_sample_offsets = rmm::device_uvector<size_t>(
             (*mg_aggregate_sample_counts).size() + 1, handle_->get_stream());
           (*mg_aggregate_sample_offsets).set_element_to_zero_async(0, handle_->get_stream());
-          cugraph::inclusive_scan_wrapper(handle_->get_thrust_policy(),
-                                          (*mg_aggregate_sample_counts).begin(),
-                                          (*mg_aggregate_sample_counts).end(),
-                                          (*mg_aggregate_sample_offsets).begin() + 1);
+          cugraph::inclusive_scan(handle_->get_thrust_policy(),
+                                  (*mg_aggregate_sample_counts).begin(),
+                                  (*mg_aggregate_sample_counts).end(),
+                                  (*mg_aggregate_sample_offsets).begin() + 1);
         }
 
         auto sg_graph_view = sg_graph.view();

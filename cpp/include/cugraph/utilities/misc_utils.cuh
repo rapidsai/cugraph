@@ -123,7 +123,7 @@ rmm::device_uvector<idx_t> expand_sparse_offsets(raft::device_span<offset_t cons
           atomic_counter.fetch_add(idx_t{1}, cuda::std::memory_order_relaxed);
         }
       });
-    cugraph::inclusive_scan_wrapper(
+    cugraph::inclusive_scan(
       rmm::exec_policy(stream_view), results.begin(), results.end(), results.begin());
   }
 

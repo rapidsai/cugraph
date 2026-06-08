@@ -881,10 +881,10 @@ nbr_intersection(raft::handle_t const& handle,
 
         rmm::device_uvector<size_t> d_rx_reordered_group_lasts(rx_reordered_group_counts.size(),
                                                                handle.get_stream());
-        cugraph::inclusive_scan_wrapper(handle.get_thrust_policy(),
-                                        rx_reordered_group_counts.begin(),
-                                        rx_reordered_group_counts.end(),
-                                        d_rx_reordered_group_lasts.begin());
+        cugraph::inclusive_scan(handle.get_thrust_policy(),
+                                rx_reordered_group_counts.begin(),
+                                rx_reordered_group_counts.end(),
+                                d_rx_reordered_group_lasts.begin());
         std::vector<size_t> h_rx_reordered_group_lasts(d_rx_reordered_group_lasts.size());
         raft::update_host(h_rx_reordered_group_lasts.data(),
                           d_rx_reordered_group_lasts.data(),
@@ -938,10 +938,10 @@ nbr_intersection(raft::handle_t const& handle,
         local_nbr_offsets_for_rx_majors.set_element_to_zero_async(size_t{0}, handle.get_stream());
         auto degree_first = cuda::make_transform_iterator(local_degrees_for_rx_majors.begin(),
                                                           detail::typecast_t<edge_t, size_t>{});
-        cugraph::inclusive_scan_wrapper(handle.get_thrust_policy(),
-                                        degree_first,
-                                        degree_first + local_degrees_for_rx_majors.size(),
-                                        local_nbr_offsets_for_rx_majors.begin() + 1);
+        cugraph::inclusive_scan(handle.get_thrust_policy(),
+                                degree_first,
+                                degree_first + local_degrees_for_rx_majors.size(),
+                                local_nbr_offsets_for_rx_majors.begin() + 1);
 
         local_nbrs_for_rx_majors.resize(
           local_nbr_offsets_for_rx_majors.back_element(handle.get_stream()), handle.get_stream());
@@ -1037,10 +1037,10 @@ nbr_intersection(raft::handle_t const& handle,
         (*major_nbr_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
         auto degree_first = cuda::make_transform_iterator(local_degrees_for_unique_majors.begin(),
                                                           detail::typecast_t<edge_t, size_t>{});
-        cugraph::inclusive_scan_wrapper(handle.get_thrust_policy(),
-                                        degree_first,
-                                        degree_first + local_degrees_for_unique_majors.size(),
-                                        (*major_nbr_offsets).begin() + 1);
+        cugraph::inclusive_scan(handle.get_thrust_policy(),
+                                degree_first,
+                                degree_first + local_degrees_for_unique_majors.size(),
+                                (*major_nbr_offsets).begin() + 1);
       }
 
       std::tie(major_nbr_indices, std::ignore) = shuffle_values(
@@ -1240,10 +1240,10 @@ nbr_intersection(raft::handle_t const& handle,
                                                                      handle.get_stream());
         auto size_first = cuda::make_transform_iterator(
           rx_v_pair_nbr_intersection_sizes.begin(), cugraph::detail::typecast_t<edge_t, size_t>{});
-        cugraph::inclusive_scan_wrapper(handle.get_thrust_policy(),
-                                        size_first,
-                                        size_first + rx_v_pair_nbr_intersection_sizes.size(),
-                                        rx_v_pair_nbr_intersection_offsets.begin() + 1);
+        cugraph::inclusive_scan(handle.get_thrust_policy(),
+                                size_first,
+                                size_first + rx_v_pair_nbr_intersection_sizes.size(),
+                                rx_v_pair_nbr_intersection_offsets.begin() + 1);
 
         rx_v_pair_nbr_intersection_indices.resize(
           rx_v_pair_nbr_intersection_offsets.back_element(handle.get_stream()),
@@ -1351,10 +1351,10 @@ nbr_intersection(raft::handle_t const& handle,
           rx_v_pair_nbr_intersection_e_property_values1.shrink_to_fit(handle.get_stream());
         }
 
-        cugraph::inclusive_scan_wrapper(handle.get_thrust_policy(),
-                                        size_first,
-                                        size_first + rx_v_pair_nbr_intersection_sizes.size(),
-                                        rx_v_pair_nbr_intersection_offsets.begin() + 1);
+        cugraph::inclusive_scan(handle.get_thrust_policy(),
+                                size_first,
+                                size_first + rx_v_pair_nbr_intersection_sizes.size(),
+                                rx_v_pair_nbr_intersection_offsets.begin() + 1);
 
         std::vector<size_t> h_rx_v_pair_lasts(rx_v_pair_counts.size());
         std::inclusive_scan(
@@ -1434,22 +1434,20 @@ nbr_intersection(raft::handle_t const& handle,
         combined_nbr_intersection_offsets.set_element_to_zero_async(size_t{0}, handle.get_stream());
         auto combined_size_first = cuda::make_transform_iterator(
           combined_nbr_intersection_sizes.begin(), detail::typecast_t<edge_t, size_t>{});
-        cugraph::inclusive_scan_wrapper(
-          handle.get_thrust_policy(),
-          combined_size_first,
-          combined_size_first + combined_nbr_intersection_sizes.size(),
-          combined_nbr_intersection_offsets.begin() + 1);
+        cugraph::inclusive_scan(handle.get_thrust_policy(),
+                                combined_size_first,
+                                combined_size_first + combined_nbr_intersection_sizes.size(),
+                                combined_nbr_intersection_offsets.begin() + 1);
 
         gathered_nbr_intersection_offsets.resize(gathered_nbr_intersection_sizes.size() + 1,
                                                  handle.get_stream());
         gathered_nbr_intersection_offsets.set_element_to_zero_async(size_t{0}, handle.get_stream());
         auto gathered_size_first = cuda::make_transform_iterator(
           gathered_nbr_intersection_sizes.begin(), detail::typecast_t<edge_t, size_t>{});
-        cugraph::inclusive_scan_wrapper(
-          handle.get_thrust_policy(),
-          gathered_size_first,
-          gathered_size_first + gathered_nbr_intersection_sizes.size(),
-          gathered_nbr_intersection_offsets.begin() + 1);
+        cugraph::inclusive_scan(handle.get_thrust_policy(),
+                                gathered_size_first,
+                                gathered_size_first + gathered_nbr_intersection_sizes.size(),
+                                gathered_nbr_intersection_offsets.begin() + 1);
 
         auto map_first = cuda::make_transform_iterator(
           thrust::make_counting_iterator(size_t{1}),
@@ -1667,10 +1665,10 @@ nbr_intersection(raft::handle_t const& handle,
     nbr_intersection_offsets.set_element_to_zero_async(size_t{0}, handle.get_stream());
     auto size_first = cuda::make_transform_iterator(nbr_intersection_sizes.begin(),
                                                     detail::typecast_t<edge_t, size_t>{});
-    cugraph::inclusive_scan_wrapper(handle.get_thrust_policy(),
-                                    size_first,
-                                    size_first + nbr_intersection_sizes.size(),
-                                    nbr_intersection_offsets.begin() + 1);
+    cugraph::inclusive_scan(handle.get_thrust_policy(),
+                            size_first,
+                            size_first + nbr_intersection_sizes.size(),
+                            nbr_intersection_offsets.begin() + 1);
   } else {
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
@@ -1706,10 +1704,10 @@ nbr_intersection(raft::handle_t const& handle,
     nbr_intersection_offsets.set_element_to_zero_async(size_t{0}, handle.get_stream());
     auto size_first = cuda::make_transform_iterator(nbr_intersection_sizes.begin(),
                                                     detail::typecast_t<edge_t, size_t>{});
-    cugraph::inclusive_scan_wrapper(handle.get_thrust_policy(),
-                                    size_first,
-                                    size_first + nbr_intersection_sizes.size(),
-                                    nbr_intersection_offsets.begin() + 1);
+    cugraph::inclusive_scan(handle.get_thrust_policy(),
+                            size_first,
+                            size_first + nbr_intersection_sizes.size(),
+                            nbr_intersection_offsets.begin() + 1);
 
     nbr_intersection_indices.resize(nbr_intersection_offsets.back_element(handle.get_stream()),
                                     handle.get_stream());
@@ -1855,10 +1853,10 @@ nbr_intersection(raft::handle_t const& handle,
     }
 #endif
 
-    cugraph::inclusive_scan_wrapper(handle.get_thrust_policy(),
-                                    size_first,
-                                    size_first + nbr_intersection_sizes.size(),
-                                    nbr_intersection_offsets.begin() + 1);
+    cugraph::inclusive_scan(handle.get_thrust_policy(),
+                            size_first,
+                            size_first + nbr_intersection_sizes.size(),
+                            nbr_intersection_offsets.begin() + 1);
   }
 
   // 5. Return

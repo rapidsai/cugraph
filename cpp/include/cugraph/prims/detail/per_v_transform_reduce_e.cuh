@@ -2251,7 +2251,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                     input_count_offsets.resize(
                       (rx_bitmap.size() - packed_bool_offset(range_offset_first)) + 1, loop_stream);
                     input_count_offsets.set_element_to_zero_async(0, loop_stream);
-                    cugraph::inclusive_scan_wrapper(
+                    cugraph::inclusive_scan(
                       rmm::exec_policy_nosync(loop_stream),
                       input_count_first,
                       input_count_first +
@@ -2349,10 +2349,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                       }));
                     output_count_offsets.resize(filtered_bitmap.size() + 1, loop_stream);
                     output_count_offsets.set_element_to_zero_async(0, loop_stream);
-                    cugraph::inclusive_scan_wrapper(rmm::exec_policy_nosync(loop_stream),
-                                                    output_count_first,
-                                                    output_count_first + filtered_bitmap.size(),
-                                                    output_count_offsets.begin() + 1);
+                    cugraph::inclusive_scan(rmm::exec_policy_nosync(loop_stream),
+                                            output_count_first,
+                                            output_count_first + filtered_bitmap.size(),
+                                            output_count_offsets.begin() + 1);
                   }
                 }
                 filtered_bitmap_vectors.push_back(std::move(filtered_bitmap));

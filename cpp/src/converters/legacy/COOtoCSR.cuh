@@ -111,7 +111,7 @@ void fill_offset(VT* source,
   off[src[0]]                = ET{0};
 
   auto iter = cuda::std::make_reverse_iterator(offsets + number_of_vertices + 1);
-  cugraph::inclusive_scan_wrapper(
+  cugraph::inclusive_scan(
     rmm::exec_policy(stream_view), iter, iter + number_of_vertices + 1, iter, cuda::minimum<ET>());
 }
 

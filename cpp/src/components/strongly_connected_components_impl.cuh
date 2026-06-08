@@ -1640,10 +1640,10 @@ intersect_reachable_sets(
     new_unresolved_component_offsets.resize(new_unresolved_component_ids.size() + 1,
                                             handle.get_stream());
     new_unresolved_component_offsets.set_element_to_zero_async(0, handle.get_stream());
-    cugraph::inclusive_scan_wrapper(handle.get_thrust_policy(),
-                                    new_unresolved_component_counts.begin(),
-                                    new_unresolved_component_counts.end(),
-                                    new_unresolved_component_offsets.begin() + 1);
+    cugraph::inclusive_scan(handle.get_thrust_policy(),
+                            new_unresolved_component_counts.begin(),
+                            new_unresolved_component_counts.end(),
+                            new_unresolved_component_offsets.begin() + 1);
 
     new_unresolved_component_vertices = concatenate3(
       raft::device_span<vertex_t const>(fwd_only_vertices.data() + num_fwd_only_size1_vertices,
@@ -1732,10 +1732,10 @@ intersect_reachable_sets(
                                         trivial_singleton_scc_vertices.size()));
     new_scc_component_offsets.resize(new_scc_component_counts.size() + 1, handle.get_stream());
     new_scc_component_offsets.set_element_to_zero_async(0, handle.get_stream());
-    cugraph::inclusive_scan_wrapper(handle.get_thrust_policy(),
-                                    new_scc_component_counts.begin(),
-                                    new_scc_component_counts.end(),
-                                    new_scc_component_offsets.begin() + 1);
+    cugraph::inclusive_scan(handle.get_thrust_policy(),
+                            new_scc_component_counts.begin(),
+                            new_scc_component_counts.end(),
+                            new_scc_component_offsets.begin() + 1);
   }
 
   return std::make_tuple(std::move(new_unresolved_component_ids),
