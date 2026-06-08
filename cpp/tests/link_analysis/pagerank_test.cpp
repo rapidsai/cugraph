@@ -327,7 +327,7 @@ class Tests_PageRank
 
       auto threshold_ratio = 1e-3;
       auto threshold_magnitude =
-        1e-6;  // skip comparison for low PageRank verties (lowly ranked vertices)
+        1e-6;  // skip comparison for low PageRank vertices (lowly ranked vertices)
       auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
         return std::abs(lhs - rhs) <
                std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
