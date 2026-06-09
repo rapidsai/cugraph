@@ -573,6 +573,10 @@ ConfigureTest(LOOKUP_SRC_DST_TEST lookup/lookup_src_dst_test.cpp)
 # - K-hop Neighbors tests -------------------------------------------------------------------------
 ConfigureTest(K_HOP_NBRS_TEST traversal/k_hop_nbrs_test.cpp)
 
+###################################################################################################
+# - Dynamic graph memory manager tests ------------------------------------------------------------
+ConfigureTest(DYNAMIC_BIT_TREE_TEST dynamic/memory_manager/bit_tree_test.cpp)
+
 
 ###################################################################################################
 # - install tests ---------------------------------------------------------------------------------
