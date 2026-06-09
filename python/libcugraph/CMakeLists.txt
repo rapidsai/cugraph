@@ -5,7 +5,7 @@
 # cmake-format: on
 # =============================================================================
 
-cmake_minimum_required(VERSION 3.30.4 FATAL_ERROR)
+cmake_minimum_required(VERSION 4.0 FATAL_ERROR)
 
 include(../../cmake/rapids_config.cmake)
 
@@ -36,10 +36,6 @@ set(CMAKE_CUDA_LINEINFO OFF)
 # --- raft -- #
 set(USE_RAFT_STATIC OFF)
 set(CUGRAPH_COMPILE_RAFT_LIB ON)
-
-# --- cuvs --- #
-set(CUGRAPH_COMPILE_CUVS ON)
-set(CUGRAPH_USE_CUVS_STATIC ON)
 
 add_subdirectory(../../cpp cugraph-cpp)
 

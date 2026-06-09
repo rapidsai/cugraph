@@ -22,6 +22,7 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -44,7 +45,6 @@
 #include <thrust/scan.h>
 #include <thrust/sequence.h>
 #include <thrust/shuffle.h>
-#include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/unique.h>
@@ -500,9 +500,9 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                                                        GraphViewType::is_multi_gpu>(
           handle, tmp_graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
       }
-      thrust::sort(handle.get_thrust_policy(),
-                   get_dataframe_buffer_begin(edge_buffer),
-                   get_dataframe_buffer_end(edge_buffer));
+      cugraph::sort_wrapper(handle.get_thrust_policy(),
+                            get_dataframe_buffer_begin(edge_buffer),
+                            get_dataframe_buffer_end(edge_buffer));
       resize_dataframe_buffer(
         edge_buffer,
         cuda::std::distance(get_dataframe_buffer_begin(edge_buffer),
@@ -710,7 +710,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           next_candidate_offset += num_scanned;
           edge_count += degree_sum;
 
-          thrust::sort(handle.get_thrust_policy(), new_roots.begin(), new_roots.end());
+          cugraph::sort_wrapper(handle.get_thrust_policy(), new_roots.begin(), new_roots.end());
 
           thrust::for_each(
             handle.get_thrust_policy(),
@@ -828,9 +828,9 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         auto new_num_edge_inserts = num_edge_inserts.value(handle.get_stream());
         if (new_num_edge_inserts > old_num_edge_inserts) {
           auto edge_first = get_dataframe_buffer_begin(edge_buffer);
-          thrust::sort(handle.get_thrust_policy(),
-                       edge_first + old_num_edge_inserts,
-                       edge_first + new_num_edge_inserts);
+          cugraph::sort_wrapper(handle.get_thrust_policy(),
+                                edge_first + old_num_edge_inserts,
+                                edge_first + new_num_edge_inserts);
           if (old_num_edge_inserts > 0) {
             auto tmp_edge_buffer = allocate_dataframe_buffer<cuda::std::tuple<vertex_t, vertex_t>>(
               new_num_edge_inserts, handle.get_stream());
@@ -910,7 +910,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                             GraphViewType::is_storage_transposed);
         auto edge_first = get_dataframe_buffer_begin(edge_buffer);
         auto edge_last  = get_dataframe_buffer_end(edge_buffer);
-        thrust::sort(handle.get_thrust_policy(), edge_first, edge_last);
+        cugraph::sort_wrapper(handle.get_thrust_policy(), edge_first, edge_last);
         auto unique_edge_last = thrust::unique(handle.get_thrust_policy(), edge_first, edge_last);
         resize_dataframe_buffer(
           edge_buffer,
@@ -982,7 +982,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                    current_level_components,
                    current_level_components + current_level_local_vertex_partition_range_size,
                    sorted_unique_keys.begin());
-      thrust::sort(
+      cugraph::sort_wrapper(
         handle.get_thrust_policy(), sorted_unique_keys.begin(), sorted_unique_keys.end());
       sorted_unique_keys.resize(cuda::std::distance(sorted_unique_keys.begin(),
                                                     thrust::unique(handle.get_thrust_policy(),

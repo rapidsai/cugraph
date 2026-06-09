@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <cugraph/utilities/thrust_wrappers.hpp>
+
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
 
@@ -37,7 +39,8 @@ remove_visited_vertices_from_frontier(
     if (frontier_vertex_labels) {
       auto sort_iter = thrust::make_zip_iterator(
         frontier_vertex_labels->begin(), frontier_vertices.begin(), frontier_vertex_times->begin());
-      thrust::sort(handle.get_thrust_policy(), sort_iter, sort_iter + frontier_vertices.size());
+      cugraph::sort_wrapper(
+        handle.get_thrust_policy(), sort_iter, sort_iter + frontier_vertices.size());
 
       auto begin_iter =
         thrust::make_zip_iterator(frontier_vertex_labels->begin(), frontier_vertices.begin());
@@ -59,7 +62,8 @@ remove_visited_vertices_from_frontier(
     } else {
       auto sort_iter =
         thrust::make_zip_iterator(frontier_vertices.begin(), frontier_vertex_times->begin());
-      thrust::sort(handle.get_thrust_policy(), sort_iter, sort_iter + frontier_vertices.size());
+      cugraph::sort_wrapper(
+        handle.get_thrust_policy(), sort_iter, sort_iter + frontier_vertices.size());
 
       auto new_end = thrust::reduce_by_key(handle.get_thrust_policy(),
                                            frontier_vertices.begin(),

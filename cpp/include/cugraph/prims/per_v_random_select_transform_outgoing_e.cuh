@@ -256,14 +256,13 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       typename EdgeValueInputWrapper::value_type>>;
 
   static_assert(GraphViewType::is_storage_transposed == incoming);
-  static_assert(std::is_same_v<
-                typename detail::edge_op_result_type<key_t,
-                                                     vertex_t,
-                                                     typename EdgeSrcValueInputWrapper::value_type,
-                                                     typename EdgeDstValueInputWrapper::value_type,
-                                                     typename EdgeValueInputWrapper::value_type,
-                                                     EdgeOp>::type,
-                T>);
+  static_assert(std::is_same_v<typename detail::edge_op_result_type<GraphViewType,
+                                                                    key_t,
+                                                                    EdgeSrcValueInputWrapper,
+                                                                    EdgeDstValueInputWrapper,
+                                                                    EdgeValueInputWrapper,
+                                                                    EdgeOp>::type,
+                               T>);
 
   CUGRAPH_EXPECTS(Ks.size() >= 1, "Invalid input argument: Ks.size() should be 1 or larger.");
 

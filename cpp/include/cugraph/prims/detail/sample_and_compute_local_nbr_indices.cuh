@@ -17,9 +17,11 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/iterator_utils.hpp>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/random/rng.cuh>
@@ -42,6 +44,7 @@
 
 #include <optional>
 #include <tuple>
+#include <type_traits>
 
 namespace CUGRAPH_EXPORT cugraph {
 
@@ -400,9 +403,9 @@ compute_unique_keys(raft::handle_t const& handle,
                  aggregate_local_frontier_key_first + local_frontier_offsets[i],
                  aggregate_local_frontier_key_first + local_frontier_offsets[i + 1],
                  get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i]);
-    thrust::sort(handle.get_thrust_policy(),
-                 get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
-                 get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i + 1]);
+    cugraph::sort_wrapper(handle.get_thrust_policy(),
+                          get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
+                          get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i + 1]);
     local_frontier_unique_key_sizes[i] = cuda::std::distance(
       get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
       thrust::unique(handle.get_thrust_policy(),
@@ -521,10 +524,22 @@ compute_valid_local_nbr_count_inclusive_sums(raft::handle_t const& handle,
             *edge_mask_view, i)
         : cuda::std::nullopt;
 
-    auto edge_partition_local_degrees = edge_partition.compute_local_degrees(
-      aggregate_local_frontier_major_first + local_frontier_offsets[i],
-      aggregate_local_frontier_major_first + local_frontier_offsets[i + 1],
-      handle.get_stream());
+    auto const frontier_partition_size = local_frontier_offsets[i + 1] - local_frontier_offsets[i];
+    auto edge_partition_major_first =
+      aggregate_local_frontier_major_first + local_frontier_offsets[i];
+
+    auto edge_partition_local_degrees = [&]() {
+      if constexpr (is_arithmetic_pointer_v<std::decay_t<decltype(edge_partition_major_first)>>) {
+        auto const majors_span = raft::device_span<vertex_t const>(
+          edge_partition_major_first, static_cast<size_t>(frontier_partition_size));
+        return edge_partition.compute_local_degrees(majors_span, handle.get_stream());
+      } else {
+        return edge_partition.compute_local_degrees(
+          edge_partition_major_first,
+          edge_partition_major_first + frontier_partition_size,
+          handle.get_stream());
+      }
+    }();
     auto inclusive_sum_offsets = rmm::device_uvector<size_t>(
       (local_frontier_offsets[i + 1] - local_frontier_offsets[i]) + 1, handle.get_stream());
     inclusive_sum_offsets.set_element_to_zero_async(0, handle.get_stream());
@@ -2409,19 +2424,37 @@ compute_aggregate_local_frontier_local_degrees(raft::handle_t const& handle,
             *edge_mask_view, i)
         : cuda::std::nullopt;
 
-    auto edge_partition_frontier_local_degrees =
-      !edge_partition_e_mask
-        ? edge_partition.compute_local_degrees(
-            aggregate_local_frontier_major_first + local_frontier_offsets[i],
-            aggregate_local_frontier_major_first + local_frontier_offsets[i + 1],
-            handle.get_stream())
-        : edge_partition.compute_local_degrees_with_mask(
-            raft::device_span<uint32_t const>(
-              (*edge_partition_e_mask).value_first(),
-              packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges()))),
-            aggregate_local_frontier_major_first + local_frontier_offsets[i],
-            aggregate_local_frontier_major_first + local_frontier_offsets[i + 1],
-            handle.get_stream());
+    auto const frontier_partition_size = local_frontier_offsets[i + 1] - local_frontier_offsets[i];
+    auto edge_partition_major_first =
+      aggregate_local_frontier_major_first + local_frontier_offsets[i];
+
+    auto edge_partition_frontier_local_degrees = [&]() {
+      if constexpr (is_arithmetic_pointer_v<std::decay_t<decltype(edge_partition_major_first)>>) {
+        auto const majors_span = raft::device_span<vertex_t const>(
+          edge_partition_major_first, static_cast<size_t>(frontier_partition_size));
+        return !edge_partition_e_mask
+                 ? edge_partition.compute_local_degrees(majors_span, handle.get_stream())
+                 : edge_partition.compute_local_degrees_with_mask(
+                     raft::device_span<uint32_t const>(
+                       (*edge_partition_e_mask).value_first(),
+                       packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges()))),
+                     majors_span,
+                     handle.get_stream());
+      } else {
+        return !edge_partition_e_mask
+                 ? edge_partition.compute_local_degrees(
+                     edge_partition_major_first,
+                     edge_partition_major_first + frontier_partition_size,
+                     handle.get_stream())
+                 : edge_partition.compute_local_degrees_with_mask(
+                     raft::device_span<uint32_t const>(
+                       (*edge_partition_e_mask).value_first(),
+                       packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges()))),
+                     edge_partition_major_first,
+                     edge_partition_major_first + frontier_partition_size,
+                     handle.get_stream());
+      }
+    }();
 
     // FIXME: this copy is unnecessary if edge_partition.compute_local_degrees() takes a pointer
     // to the output array
@@ -2491,11 +2524,11 @@ template <typename GraphViewType,
           typename EdgeValueInputWrapper,
           typename BiasEdgeOp>
 std::tuple<rmm::device_uvector<
-             typename edge_op_result_type<typename thrust::iterator_traits<KeyIterator>::value_type,
-                                          typename GraphViewType::vertex_type,
-                                          typename EdgeSrcValueInputWrapper::value_type,
-                                          typename EdgeDstValueInputWrapper::value_type,
-                                          typename EdgeValueInputWrapper::value_type,
+             typename edge_op_result_type<GraphViewType,
+                                          typename thrust::iterator_traits<KeyIterator>::value_type,
+                                          EdgeSrcValueInputWrapper,
+                                          EdgeDstValueInputWrapper,
+                                          EdgeValueInputWrapper,
                                           BiasEdgeOp>::type>,
            rmm::device_uvector<typename GraphViewType::edge_type>,
            rmm::device_uvector<size_t>>
@@ -2513,11 +2546,11 @@ compute_aggregate_local_frontier_biases(raft::handle_t const& handle,
   using edge_t   = typename GraphViewType::edge_type;
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
-  using bias_t = typename edge_op_result_type<key_t,
-                                              vertex_t,
-                                              typename EdgeSrcValueInputWrapper::value_type,
-                                              typename EdgeDstValueInputWrapper::value_type,
-                                              typename EdgeValueInputWrapper::value_type,
+  using bias_t = typename edge_op_result_type<GraphViewType,
+                                              key_t,
+                                              EdgeSrcValueInputWrapper,
+                                              EdgeDstValueInputWrapper,
+                                              EdgeValueInputWrapper,
                                               BiasEdgeOp>::type;
 
   // 1. collect bias values from local neighbors
@@ -2638,11 +2671,11 @@ template <typename GraphViewType,
           typename BiasEdgeOp,
           typename EdgeTypeInputWrapper>
 std::tuple<rmm::device_uvector<
-             typename edge_op_result_type<typename thrust::iterator_traits<KeyIterator>::value_type,
-                                          typename GraphViewType::vertex_type,
-                                          typename EdgeSrcValueInputWrapper::value_type,
-                                          typename EdgeDstValueInputWrapper::value_type,
-                                          typename EdgeValueInputWrapper::value_type,
+             typename edge_op_result_type<GraphViewType,
+                                          typename thrust::iterator_traits<KeyIterator>::value_type,
+                                          EdgeSrcValueInputWrapper,
+                                          EdgeDstValueInputWrapper,
+                                          EdgeValueInputWrapper,
                                           BiasEdgeOp>::type>,
            rmm::device_uvector<typename EdgeTypeInputWrapper::value_type>,
            rmm::device_uvector<typename GraphViewType::edge_type>,
@@ -2665,11 +2698,11 @@ compute_aggregate_local_frontier_bias_type_pairs(
 
   using edge_value_t = typename EdgeValueInputWrapper::value_type;
   using edge_type_t  = typename EdgeTypeInputWrapper::value_type;
-  using bias_t       = typename edge_op_result_type<key_t,
-                                                    vertex_t,
-                                                    typename EdgeSrcValueInputWrapper::value_type,
-                                                    typename EdgeDstValueInputWrapper::value_type,
-                                                    typename EdgeValueInputWrapper::value_type,
+  using bias_t       = typename edge_op_result_type<GraphViewType,
+                                                    key_t,
+                                                    EdgeSrcValueInputWrapper,
+                                                    EdgeDstValueInputWrapper,
+                                                    EdgeValueInputWrapper,
                                                     BiasEdgeOp>::type;
   static_assert(std::is_arithmetic_v<bias_t>);
   static_assert(std::is_integral_v<edge_type_t>);
@@ -5545,11 +5578,11 @@ homogeneous_biased_sample_and_compute_local_nbr_indices(
   using edge_t   = typename GraphViewType::edge_type;
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
-  using bias_t      = typename edge_op_result_type<key_t,
-                                                   vertex_t,
-                                                   typename EdgeSrcValueInputWrapper::value_type,
-                                                   typename EdgeDstValueInputWrapper::value_type,
-                                                   typename EdgeValueInputWrapper::value_type,
+  using bias_t      = typename edge_op_result_type<GraphViewType,
+                                                   key_t,
+                                                   EdgeSrcValueInputWrapper,
+                                                   EdgeDstValueInputWrapper,
+                                                   EdgeValueInputWrapper,
                                                    BiasEdgeOp>::type;
   using edge_type_t = int32_t;  // dummy
 
@@ -5734,11 +5767,11 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
   using edge_t   = typename GraphViewType::edge_type;
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
-  using bias_t      = typename edge_op_result_type<key_t,
-                                                   vertex_t,
-                                                   typename EdgeSrcValueInputWrapper::value_type,
-                                                   typename EdgeDstValueInputWrapper::value_type,
-                                                   typename EdgeValueInputWrapper::value_type,
+  using bias_t      = typename edge_op_result_type<GraphViewType,
+                                                   key_t,
+                                                   EdgeSrcValueInputWrapper,
+                                                   EdgeDstValueInputWrapper,
+                                                   EdgeValueInputWrapper,
                                                    BiasEdgeOp>::type;
   using edge_type_t = typename EdgeTypeInputWrapper::value_type;
 

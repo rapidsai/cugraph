@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -7,6 +7,7 @@
 #include "utilities/conversion_utilities.hpp"
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
@@ -141,7 +142,7 @@ egonet_reference(
           return !thrust::binary_search(thrust::seq, visited_begin, visited_end, v);
         });
       frontier.resize(cuda::std::distance(frontier.begin(), new_end), handle.get_stream());
-      thrust::sort(handle.get_thrust_policy(), frontier.begin(), frontier.end());
+      cugraph::sort_wrapper(handle.get_thrust_policy(), frontier.begin(), frontier.end());
       new_end = thrust::unique(handle.get_thrust_policy(), frontier.begin(), frontier.end());
       frontier.resize(cuda::std::distance(frontier.begin(), new_end), handle.get_stream());
 
@@ -151,7 +152,7 @@ egonet_reference(
                    frontier.begin(),
                    frontier.end(),
                    visited.begin() + old_visited_size);
-      thrust::sort(handle.get_thrust_policy(), visited.begin(), visited.end());
+      cugraph::sort_wrapper(handle.get_thrust_policy(), visited.begin(), visited.end());
 
       offset += new_entries;
     }
@@ -256,24 +257,24 @@ void egonet_validate(raft::handle_t const& handle,
 
   for (size_t i = 0; i < (h_offsets.size() - 1); ++i) {
     if (d_reference_egonet_wgt) {
-      thrust::sort(handle.get_thrust_policy(),
-                   thrust::make_zip_iterator(d_reference_egonet_src.begin(),
-                                             d_reference_egonet_dst.begin(),
-                                             d_reference_egonet_wgt->begin()) +
-                     h_offsets[i],
-                   thrust::make_zip_iterator(d_reference_egonet_src.begin(),
-                                             d_reference_egonet_dst.begin(),
-                                             d_reference_egonet_wgt->begin()) +
-                     h_offsets[i + 1]);
-      thrust::sort(handle.get_thrust_policy(),
-                   thrust::make_zip_iterator(d_cugraph_egonet_src.begin(),
-                                             d_cugraph_egonet_dst.begin(),
-                                             d_cugraph_egonet_wgt->begin()) +
-                     h_offsets[i],
-                   thrust::make_zip_iterator(d_cugraph_egonet_src.begin(),
-                                             d_cugraph_egonet_dst.begin(),
-                                             d_cugraph_egonet_wgt->begin()) +
-                     h_offsets[i + 1]);
+      cugraph::sort_wrapper(handle.get_thrust_policy(),
+                            thrust::make_zip_iterator(d_reference_egonet_src.begin(),
+                                                      d_reference_egonet_dst.begin(),
+                                                      d_reference_egonet_wgt->begin()) +
+                              h_offsets[i],
+                            thrust::make_zip_iterator(d_reference_egonet_src.begin(),
+                                                      d_reference_egonet_dst.begin(),
+                                                      d_reference_egonet_wgt->begin()) +
+                              h_offsets[i + 1]);
+      cugraph::sort_wrapper(handle.get_thrust_policy(),
+                            thrust::make_zip_iterator(d_cugraph_egonet_src.begin(),
+                                                      d_cugraph_egonet_dst.begin(),
+                                                      d_cugraph_egonet_wgt->begin()) +
+                              h_offsets[i],
+                            thrust::make_zip_iterator(d_cugraph_egonet_src.begin(),
+                                                      d_cugraph_egonet_dst.begin(),
+                                                      d_cugraph_egonet_wgt->begin()) +
+                              h_offsets[i + 1]);
 
       ASSERT_TRUE(thrust::equal(handle.get_thrust_policy(),
                                 thrust::make_zip_iterator(d_reference_egonet_src.begin(),
@@ -308,13 +309,13 @@ void egonet_validate(raft::handle_t const& handle,
         << "Extracted egonet edges do not match with the edges extracted by the reference "
            "implementation.";
     } else {
-      thrust::sort(
+      cugraph::sort_wrapper(
         handle.get_thrust_policy(),
         thrust::make_zip_iterator(d_reference_egonet_src.begin(), d_reference_egonet_dst.begin()) +
           h_offsets[i],
         thrust::make_zip_iterator(d_reference_egonet_src.begin(), d_reference_egonet_dst.begin()) +
           h_offsets[i + 1]);
-      thrust::sort(
+      cugraph::sort_wrapper(
         handle.get_thrust_policy(),
         thrust::make_zip_iterator(d_cugraph_egonet_src.begin(), d_cugraph_egonet_dst.begin()) +
           h_offsets[i],

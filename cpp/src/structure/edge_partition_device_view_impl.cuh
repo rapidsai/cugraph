@@ -17,10 +17,11 @@ namespace cugraph {
 
 namespace detail {
 // ============================================================================
-// MG specialization: out-of-line definitions
+// MG specialization: out-of-line definitions (explicitly instantiated in
+// edge_partition_device_view_mg_v32_e32.cu and edge_partition_device_view_mg_v64_e64.cu)
 // ============================================================================
 template <typename vertex_t, typename edge_t>
-__host__ void compute_number_of_edges_with_mask_async_mg(
+CUGRAPH_EXPORT __host__ void compute_number_of_edges_with_mask_async_mg(
   cuda::std::optional<uint32_t const*> edge_mask,
   raft::device_span<vertex_t const> majors,
   raft::device_span<size_t> count,
@@ -42,7 +43,7 @@ __host__ void compute_number_of_edges_with_mask_async_mg(
 }
 
 template <typename vertex_t, typename edge_t>
-__host__ void compute_number_of_edges_with_mask_async_mg(
+CUGRAPH_EXPORT __host__ void compute_number_of_edges_with_mask_async_mg(
   cuda::std::optional<uint32_t const*> edge_mask,
   std::tuple<vertex_t, vertex_t> local_vertex_partition_range,
   raft::device_span<size_t> count,
@@ -65,7 +66,31 @@ __host__ void compute_number_of_edges_with_mask_async_mg(
 }
 
 template <typename vertex_t, typename edge_t>
-__host__ rmm::device_uvector<edge_t> compute_local_degrees_with_mask_mg(
+CUGRAPH_EXPORT __host__ void compute_number_of_edges_with_mask_async_mg(
+  cuda::std::optional<uint32_t const*> edge_mask,
+  majors_from_offsets_t<uint32_t, vertex_t> majors,
+  raft::device_span<size_t> count,
+  cuda::std::optional<raft::device_span<vertex_t const>> dcs_nzd_vertices,
+  vertex_t major_range_first,
+  cuda::std::optional<vertex_t> major_hypersparse_first,
+  raft::device_span<edge_t const> offsets,
+  rmm::cuda_stream_view stream)
+{
+  auto major_first = cuda::make_transform_iterator(majors.offsets.data(),
+                                                   shift_right_t<vertex_t>{majors.base_major});
+  compute_number_of_edges_with_mask_async_mg(edge_mask,
+                                             major_first,
+                                             major_first + majors.offsets.size(),
+                                             count,
+                                             dcs_nzd_vertices,
+                                             major_range_first,
+                                             major_hypersparse_first,
+                                             offsets,
+                                             stream);
+}
+
+template <typename vertex_t, typename edge_t>
+CUGRAPH_EXPORT __host__ rmm::device_uvector<edge_t> compute_local_degrees_with_mask_mg(
   cuda::std::optional<uint32_t const*> edge_mask,
   raft::device_span<vertex_t const> majors,
   cuda::std::optional<raft::device_span<vertex_t const>> dcs_nzd_vertices,
@@ -85,7 +110,7 @@ __host__ rmm::device_uvector<edge_t> compute_local_degrees_with_mask_mg(
 }
 
 template <typename vertex_t, typename edge_t>
-__host__ rmm::device_uvector<edge_t> compute_local_degrees_with_mask_mg(
+CUGRAPH_EXPORT __host__ rmm::device_uvector<edge_t> compute_local_degrees_with_mask_mg(
   cuda::std::optional<uint32_t const*> edge_mask,
   std::tuple<vertex_t, vertex_t> local_vertex_partition_range,
   cuda::std::optional<raft::device_span<vertex_t const>> dcs_nzd_vertices,
@@ -110,7 +135,7 @@ __host__ rmm::device_uvector<edge_t> compute_local_degrees_with_mask_mg(
 // ============================================================================
 
 template <typename vertex_t, typename edge_t>
-__host__ void compute_number_of_edges_with_mask_async_sg(
+CUGRAPH_EXPORT __host__ void compute_number_of_edges_with_mask_async_sg(
   cuda::std::optional<uint32_t const*> edge_mask,
   raft::device_span<vertex_t const> majors,
   raft::device_span<size_t> count,
@@ -122,7 +147,7 @@ __host__ void compute_number_of_edges_with_mask_async_sg(
 }
 
 template <typename vertex_t, typename edge_t>
-__host__ void compute_number_of_edges_with_mask_async_sg(
+CUGRAPH_EXPORT __host__ void compute_number_of_edges_with_mask_async_sg(
   cuda::std::optional<uint32_t const*> edge_mask,
   std::tuple<vertex_t, vertex_t> vertex_partition_range,
   raft::device_span<size_t> count,
@@ -139,7 +164,7 @@ __host__ void compute_number_of_edges_with_mask_async_sg(
 }
 
 template <typename vertex_t, typename edge_t>
-__host__ rmm::device_uvector<edge_t> compute_local_degrees_with_mask_sg(
+CUGRAPH_EXPORT __host__ rmm::device_uvector<edge_t> compute_local_degrees_with_mask_sg(
   cuda::std::optional<uint32_t const*> edge_mask,
   raft::device_span<vertex_t const> majors,
   raft::device_span<edge_t const> offsets,
@@ -150,7 +175,7 @@ __host__ rmm::device_uvector<edge_t> compute_local_degrees_with_mask_sg(
 }
 
 template <typename vertex_t, typename edge_t>
-__host__ rmm::device_uvector<edge_t> compute_local_degrees_with_mask_sg(
+CUGRAPH_EXPORT __host__ rmm::device_uvector<edge_t> compute_local_degrees_with_mask_sg(
   cuda::std::optional<uint32_t const*> edge_mask,
   std::tuple<vertex_t, vertex_t> vertex_partition_range,
   raft::device_span<edge_t const> offsets,

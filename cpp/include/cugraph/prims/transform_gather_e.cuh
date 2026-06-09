@@ -16,6 +16,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/packed_bool_utils.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -43,13 +44,12 @@ template <typename GraphViewType,
           typename EdgePartitionEdgeValueInputWrapper,
           typename EdgeOp>
 struct return_e_value_t {
-  using e_op_result_t =
-    typename detail::edge_op_result_type<typename GraphViewType::vertex_type,
-                                         typename GraphViewType::vertex_type,
-                                         typename EdgePartitionSrcValueInputWrapper::value_type,
-                                         typename EdgePartitionDstValueInputWrapper::value_type,
-                                         typename EdgePartitionEdgeValueInputWrapper::value_type,
-                                         EdgeOp>::type;
+  using e_op_result_t = typename detail::edge_op_result_type<GraphViewType,
+                                                             typename GraphViewType::vertex_type,
+                                                             EdgePartitionSrcValueInputWrapper,
+                                                             EdgePartitionDstValueInputWrapper,
+                                                             EdgePartitionEdgeValueInputWrapper,
+                                                             EdgeOp>::type;
 
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
@@ -233,12 +233,12 @@ void transform_gather_e(raft::handle_t const& handle,
   if constexpr (!EdgeBucketType::is_sorted_unique) {
     thrust::sequence(
       handle.get_thrust_policy(), output_indices.begin(), output_indices.end(), size_t{0});
-    thrust::sort(handle.get_thrust_policy(),
-                 output_indices.begin(),
-                 output_indices.end(),
-                 cuda::proclaim_return_type<bool>([edge_first] __device__(auto l, auto r) {
-                   return *(edge_first + l) < *(edge_first + r);
-                 }));
+    cugraph::sort_wrapper(handle.get_thrust_policy(),
+                          output_indices.begin(),
+                          output_indices.end(),
+                          cuda::proclaim_return_type<bool>([edge_first] __device__(auto l, auto r) {
+                            return *(edge_first + l) < *(edge_first + r);
+                          }));
   }
 
   std::vector<size_t> edge_partition_offsets(graph_view.number_of_local_edge_partitions() + 1, 0);

@@ -5,7 +5,7 @@
 # cmake-format: on
 #=============================================================================
 
-cmake_minimum_required(VERSION 3.30.4 FATAL_ERROR)
+cmake_minimum_required(VERSION 4.0 FATAL_ERROR)
 
 include(../cmake/rapids_config.cmake)
 include(rapids-cmake)
@@ -43,13 +43,6 @@ option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cud
 option(BUILD_TESTS "Configure CMake to build tests" ON)
 option(USE_RAFT_STATIC "Build raft as a static library" OFF)
 option(CUGRAPH_COMPILE_RAFT_LIB "Compile the raft library instead of using it header-only" ON)
-option(CUGRAPH_COMPILE_CUVS "Always compile cuVS from source" OFF)
-cmake_dependent_option(CUGRAPH_USE_CUVS_STATIC
-  "Build and statically link the cuVS library" ON
-  "CUGRAPH_COMPILE_CUVS" OFF)
-
-message(VERBOSE "CUGRAPH: CUGRAPH_COMPILE_CUVS=${CUGRAPH_COMPILE_CUVS}")
-message(VERBOSE "CUGRAPH: CUGRAPH_USE_CUVS_STATIC=${CUGRAPH_USE_CUVS_STATIC}")
 
 ################################################################################
 # - compiler options -----------------------------------------------------------
@@ -164,6 +157,7 @@ set(CUGRAPH_COMMON_UTILITY_SOURCES
     src/detail/permute_range_common_v32.cu
     src/detail/permute_range_common_v64.cu
     src/utilities/invert_flags_common.cu
+    src/utilities/thrust_wrappers.cu
 )
 
 set(CUGRAPH_COMMON_DISTRIBUTED_SOURCES
@@ -623,7 +617,7 @@ foreach(suffix IN LISTS cugraph_suffixes)
             $<BUILD_LOCAL_INTERFACE:CUDA::toolkit>
         PRIVATE
             ${COMPILED_RAFT_LIB}
-            $<IF:$<BOOL:${CUGRAPH_USE_CUVS_STATIC}>,cuvs::cuvs_static,cuvs::cuvs> #
+            cuvs::cuvs
             cuco::cuco
             rmm::rmm
         INTERFACE $<COMPILE_ONLY:rmm::rmm>

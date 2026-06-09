@@ -93,7 +93,8 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
   edge_src_property_t<vertex_t, weight_t> const& src_vertex_weights_cache,
   edge_src_property_t<vertex_t, vertex_t> const& src_clusters_cache,
   edge_dst_property_t<vertex_t, vertex_t> const& dst_clusters_cache,
-  bool up_down);
+  bool up_down,
+  weight_t threshold);
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>

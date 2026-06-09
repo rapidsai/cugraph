@@ -25,6 +25,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -150,7 +151,8 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
             return (cur_in_degrees[v_offset] == 0) || (cur_out_degrees[v_offset] == 0);
           }))),
     handle.get_stream());
-  thrust::sort(handle.get_thrust_policy(), frontier_vertices.begin(), frontier_vertices.end());
+  cugraph::sort_wrapper(
+    handle.get_thrust_policy(), frontier_vertices.begin(), frontier_vertices.end());
 
   rmm::device_uvector<vertex_t> peeled_vertices(0, handle.get_stream());
   peeled_vertices.reserve(candidate_vertices.size(), handle.get_stream());
@@ -246,7 +248,7 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
                                  repetitively rebuilding a kv_store_t object for the entire local
                                  vertex partition range */
 
-      thrust::sort(
+      cugraph::sort_wrapper(
         handle.get_thrust_policy(), inv_frontier_vertices.begin(), inv_frontier_vertices.end());
 
       key_bucket_t<vertex_t, void, multi_gpu, true> inv_frontier(handle,
@@ -331,7 +333,8 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
                            is_newly_peeled);
     frontier_vertices.resize(cuda::std::distance(frontier_vertices.begin(), last),
                              handle.get_stream());
-    thrust::sort(handle.get_thrust_policy(), frontier_vertices.begin(), frontier_vertices.end());
+    cugraph::sort_wrapper(
+      handle.get_thrust_policy(), frontier_vertices.begin(), frontier_vertices.end());
     frontier_vertices.resize(cuda::std::distance(frontier_vertices.begin(),
                                                  thrust::unique(handle.get_thrust_policy(),
                                                                 frontier_vertices.begin(),
@@ -339,7 +342,7 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
                              handle.get_stream());
     ++iter;
   }
-  thrust::sort(handle.get_thrust_policy(), peeled_vertices.begin(), peeled_vertices.end());
+  cugraph::sort_wrapper(handle.get_thrust_policy(), peeled_vertices.begin(), peeled_vertices.end());
 
   if (aggregate_frontier_size > 0) {  // check for chains from or to peeled vertices
     // find in-degree 1 and out-degree 1 vertices and their predecessors and successors
@@ -369,8 +372,9 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
 
     rmm::device_uvector<vertex_t> descendants(one_vertices.size(), handle.get_stream());
     {
-      thrust::sort(handle.get_thrust_policy(), peeled_vertices.begin(), peeled_vertices.end());
-      thrust::sort(handle.get_thrust_policy(), one_vertices.begin(), one_vertices.end());
+      cugraph::sort_wrapper(
+        handle.get_thrust_policy(), peeled_vertices.begin(), peeled_vertices.end());
+      cugraph::sort_wrapper(handle.get_thrust_policy(), one_vertices.begin(), one_vertices.end());
       auto edge_dst_peeled_flags = make_initialized_edge_dst_property(handle, graph_view, false);
       fill_edge_dst_property(
         handle,
@@ -432,9 +436,10 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
         handle.get_stream()); /* functionally identical to renumber_local_ext_vertices but to avoid
                                  repetitively rebuilding a kv_store_t object for the entire local
                                  vertex partition range */
-      thrust::sort(
+      cugraph::sort_wrapper(
         handle.get_thrust_policy(), inv_peeled_vertices.begin(), inv_peeled_vertices.end());
-      thrust::sort(handle.get_thrust_policy(), inv_one_vertices.begin(), inv_one_vertices.end());
+      cugraph::sort_wrapper(
+        handle.get_thrust_policy(), inv_one_vertices.begin(), inv_one_vertices.end());
       auto edge_dst_peeled_flags =
         make_initialized_edge_dst_property(handle, inverse_graph_view, false);
       fill_edge_dst_property(
@@ -746,7 +751,8 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
       }
     }
 
-    thrust::sort(handle.get_thrust_policy(), peeled_vertices.begin(), peeled_vertices.end());
+    cugraph::sort_wrapper(
+      handle.get_thrust_policy(), peeled_vertices.begin(), peeled_vertices.end());
   }
 
   peeled_vertices.shrink_to_fit(handle.get_stream());
@@ -1071,7 +1077,7 @@ reachable_sets(
 
   {
     auto pair_first = thrust::make_zip_iterator(idxs.begin(), vertices.begin());
-    thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + idxs.size());
+    cugraph::sort_wrapper(handle.get_thrust_policy(), pair_first, pair_first + idxs.size());
   }
 
   // starting_vertices => component indices
@@ -1945,7 +1951,7 @@ forward_backward_intersect(
         std::move(std::get<rmm::device_uvector<vertex_t>>(vertex_properties[0]));
       auto pair_first = thrust::make_zip_iterator(tmp_unresolved_component_idxs.begin(),
                                                   backward_set_vertices.begin());
-      thrust::sort(
+      cugraph::sort_wrapper(
         handle.get_thrust_policy(), pair_first, pair_first + tmp_unresolved_component_idxs.size());
       backward_set_offsets.set_element_to_zero_async(0, handle.get_stream());
       thrust::upper_bound(
@@ -1958,7 +1964,7 @@ forward_backward_intersect(
     } else {
       auto pair_first = thrust::make_zip_iterator(tmp_unresolved_component_idxs.begin(),
                                                   backward_set_vertices.begin());
-      thrust::sort(
+      cugraph::sort_wrapper(
         handle.get_thrust_policy(), pair_first, pair_first + tmp_unresolved_component_idxs.size());
     }
   } else {
@@ -2228,7 +2234,7 @@ void strongly_connected_components_impl(
                    scc_component_vertices.begin(),
                    scc_component_vertices.end(),
                    tmp_vertices.begin() + unresolved_component_vertices.size());
-      thrust::sort(handle.get_thrust_policy(), tmp_vertices.begin(), tmp_vertices.end());
+      cugraph::sort_wrapper(handle.get_thrust_policy(), tmp_vertices.begin(), tmp_vertices.end());
       rmm::device_uvector<vertex_t> tmp_components(tmp_vertices.size(), handle.get_stream());
       auto map_first = cuda::make_transform_iterator(
         tmp_vertices.begin(),

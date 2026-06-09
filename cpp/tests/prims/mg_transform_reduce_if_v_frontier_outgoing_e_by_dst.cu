@@ -19,6 +19,7 @@
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
@@ -308,7 +309,7 @@ class Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst
 
       if (handle_->get_comms().get_rank() == int{0}) {
         if constexpr (std::is_same_v<payload_t, void>) {
-          thrust::sort(
+          cugraph::sort_wrapper(
             handle_->get_thrust_policy(),
             cugraph::get_dataframe_buffer_begin(mg_reduce_by_dst_aggregate_new_frontier_key_buffer),
             cugraph::get_dataframe_buffer_end(mg_reduce_by_dst_aggregate_new_frontier_key_buffer));
@@ -390,7 +391,7 @@ class Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst
         }
 
         if constexpr (std::is_same_v<payload_t, void>) {
-          thrust::sort(
+          cugraph::sort_wrapper(
             handle_->get_thrust_policy(),
             cugraph::get_dataframe_buffer_begin(sg_reduce_by_dst_new_frontier_key_buffer),
             cugraph::get_dataframe_buffer_end(sg_reduce_by_dst_new_frontier_key_buffer));

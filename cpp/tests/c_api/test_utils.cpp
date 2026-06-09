@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -15,7 +15,12 @@
 #include <raft/core/span.hpp>
 #include <raft/util/cudart_utils.hpp>
 
+#include <rmm/device_uvector.hpp>
+
 #include <math.h>
+
+#include <cstdio>
+#include <vector>
 
 namespace {
 template <typename T>
@@ -851,6 +856,7 @@ extern "C" int validate_sample_result(const cugraph_resource_handle_t* handle,
 
   raft::update_host(h_result_srcs, renumbered_srcs.data(), result_size, raft_handle.get_stream());
   raft::update_host(h_result_dsts, renumbered_dsts.data(), result_size, raft_handle.get_stream());
+  raft_handle.sync_stream();
 
   for (int label_id = 0;
        label_id < (h_start_label_offsets != NULL ? (num_start_label_offsets - 1) : 1);
@@ -1064,6 +1070,56 @@ extern "C" int validate_sample_result(const cugraph_resource_handle_t* handle,
         }
       }
     }
+  }
+
+  if ((test_ret_value == 0) && (internal_sampling_options->disjoint_sampling_ == TRUE)) {
+    rmm::device_uvector<vertex_t> d_starting_vertices(num_start_vertices, raft_handle.get_stream());
+    raft::update_device(
+      d_starting_vertices.data(), h_start_vertices, num_start_vertices, raft_handle.get_stream());
+
+    std::optional<raft::device_span<size_t const>> label_offsets_dev{std::nullopt};
+    std::optional<raft::device_span<int32_t const>> batch_nums_dev{std::nullopt};
+    rmm::device_uvector<size_t> d_label_offsets(0, raft_handle.get_stream());
+    rmm::device_uvector<int32_t> d_batch_nums(0, raft_handle.get_stream());
+
+    if (h_start_label_offsets != NULL) {
+      d_label_offsets.resize(num_start_label_offsets, raft_handle.get_stream());
+      raft::update_device(d_label_offsets.data(),
+                          h_start_label_offsets,
+                          num_start_label_offsets,
+                          raft_handle.get_stream());
+      label_offsets_dev =
+        raft::device_span<size_t const>{d_label_offsets.data(), d_label_offsets.size()};
+
+      d_batch_nums.resize(num_start_vertices, raft_handle.get_stream());
+      std::vector<int32_t> h_batch_nums(num_start_vertices);
+      for (size_t i = 0; i < num_start_vertices; ++i) {
+        int32_t lab = -1;
+        for (size_t j = 0; j + 1 < num_start_label_offsets; ++j) {
+          if (i >= h_start_label_offsets[j] && i < h_start_label_offsets[j + 1]) {
+            lab = static_cast<int32_t>(j);
+            break;
+          }
+        }
+        h_batch_nums[i] = lab;
+      }
+      raft::update_device(
+        d_batch_nums.data(), h_batch_nums.data(), num_start_vertices, raft_handle.get_stream());
+      batch_nums_dev = raft::device_span<int32_t const>{d_batch_nums.data(), d_batch_nums.size()};
+    }
+
+    raft_handle.sync_stream();
+
+    TEST_ASSERT(
+      test_ret_value,
+      cugraph::test::validate_disjoint_sampling<vertex_t>(
+        raft_handle,
+        raft::device_span<vertex_t const>{renumbered_srcs.data(), renumbered_srcs.size()},
+        raft::device_span<vertex_t const>{renumbered_dsts.data(), renumbered_dsts.size()},
+        raft::device_span<vertex_t const>{d_starting_vertices.data(), d_starting_vertices.size()},
+        label_offsets_dev,
+        batch_nums_dev),
+      "validate_disjoint_sampling failed");
   }
 
   // FIXME: Add other C++ checks here

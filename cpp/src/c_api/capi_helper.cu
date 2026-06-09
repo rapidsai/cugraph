@@ -9,12 +9,12 @@
 #include <cugraph/export.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/iterator>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/sort.h>
 
 namespace cugraph {
 namespace c_api {
@@ -34,9 +34,9 @@ shuffle_vertex_ids_and_offsets(raft::handle_t const& handle,
     cugraph::shuffle_ext_vertices(handle, std::move(vertices), std::move(vertex_properties));
   ids = std::move(std::get<rmm::device_uvector<vertex_t>>(vertex_properties[0]));
 
-  thrust::sort(handle.get_thrust_policy(),
-               thrust::make_zip_iterator(ids.begin(), vertices.begin()),
-               thrust::make_zip_iterator(ids.end(), vertices.end()));
+  cugraph::sort_wrapper(handle.get_thrust_policy(),
+                        thrust::make_zip_iterator(ids.begin(), vertices.begin()),
+                        thrust::make_zip_iterator(ids.end(), vertices.end()));
 
   auto return_offsets = cugraph::detail::compute_sparse_offsets<size_t>(
     handle, ids.begin(), ids.end(), size_t{0}, size_t{offsets.size() - 1}, true);
@@ -151,7 +151,8 @@ reorder_extracted_egonets(raft::handle_t const& handle,
                         triplet_first + sort_indices.size(),
                         (*edge_weights).begin());
   } else {
-    thrust::sort(handle.get_thrust_policy(), triplet_first, triplet_first + sort_indices.size());
+    cugraph::sort_wrapper(
+      handle.get_thrust_policy(), triplet_first, triplet_first + sort_indices.size());
   }
 
   thrust::tabulate(

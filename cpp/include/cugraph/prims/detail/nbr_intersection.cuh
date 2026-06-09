@@ -19,6 +19,7 @@
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -666,7 +667,7 @@ nbr_intersection(raft::handle_t const& handle,
                  EdgeValueInputWrapper edge_value_input,
                  VertexPairIterator vertex_pair_first,
                  VertexPairIterator vertex_pair_last,
-                 std::array<bool, 2> intersect_dst_nbr,
+                 std::array<bool, 2> intersect_minor_nbr,
                  bool do_expensive_check = false)
 {
   using vertex_t = typename GraphViewType::vertex_type;
@@ -703,10 +704,6 @@ nbr_intersection(raft::handle_t const& handle,
                                cuda::std::tuple<vertex_t, vertex_t>>);
 
   size_t input_size = static_cast<size_t>(cuda::std::distance(vertex_pair_first, vertex_pair_last));
-
-  std::array<bool, 2> intersect_minor_nbr = {
-    intersect_dst_nbr[0] != GraphViewType::is_storage_transposed,
-    intersect_dst_nbr[1] != GraphViewType::is_storage_transposed};
 
   // 1. Check input arguments
 
@@ -764,7 +761,8 @@ nbr_intersection(raft::handle_t const& handle,
                      second_element_first + input_size,
                      unique_majors.begin());
 
-        thrust::sort(handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end());
+        cugraph::sort_wrapper(
+          handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end());
         unique_majors.resize(
           cuda::std::distance(
             unique_majors.begin(),
@@ -793,7 +791,8 @@ nbr_intersection(raft::handle_t const& handle,
             handle.get_stream());
           unique_majors = std::move(rx_unique_majors);
 
-          thrust::sort(handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end());
+          cugraph::sort_wrapper(
+            handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end());
           unique_majors.resize(cuda::std::distance(unique_majors.begin(),
                                                    thrust::unique(handle.get_thrust_policy(),
                                                                   unique_majors.begin(),

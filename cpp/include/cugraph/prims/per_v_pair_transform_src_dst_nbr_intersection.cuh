@@ -16,6 +16,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/error_check_utils.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -170,51 +171,13 @@ struct call_intersection_op_t {
   }
 };
 
-}  // namespace detail
-
-/**
- * @brief Iterate over each input vertex pair and apply a functor to the common destination neighbor
- * list of the pair.
- *
- * Iterate over every vertex pair; intersect destination neighbor lists of the two vertices in the
- * pair; invoke a user-provided functor, and store the functor output.
- *
- * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam VertexPairIterator Type of the iterator for input vertex pairs.
- * @tparam VertexValueInputIterator Type of the iterator for vertex property values.
- * @tparam EdgeValueInputIterator Type of the iterator for edge property values.
- * @tparam IntersectionOp Type of the quinary per intersection operator.
- * @tparam VertexPairValueOutputIterator Type of the iterator for vertex pair output property
- * variables.
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Non-owning graph object.
- * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
- * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
- * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
- * access edge property values).
- * @param vertex_pair_first Iterator pointing to the first (inclusive) input vertex pair.
- * @param vertex_pair_last Iterator pointing to the last (exclusive) input vertex pair.
- * @param vertex_value_input_first Iterator pointing to the vertex property value for the first
- * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
- * `vertex_value_input_last` (exclusive) is deduced as @p vertex_value_input_first + @p
- * graph_view.local_vertex_partition_range_size().
- * @param intersection_op quinary operator takes first vertex of the pair, second vertex of the
- * pair, property values for the first vertex, property values for the second vertex, and a list of
- * vertices in the intersection of the first & second vertices' destination neighbors and returns an
- * output value for the input pair.
- * @param vertex_pair_value_output_first Iterator pointing to the vertex pair property variables for
- * the first vertex pair (inclusive). `vertex_pair_value_output_last` (exclusive) is deduced as @p
- * vertex_pair_value_output_first + @p cuda::std::distance(vertex_pair_first, vertex_pair_last).
- * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- */
 template <typename GraphViewType,
           typename VertexPairIterator,
           typename VertexValueInputIterator,
           typename EdgeValueInputWrapper,
           typename IntersectionOp,
           typename VertexPairValueOutputIterator>
-void per_v_pair_transform_dst_nbr_intersection(
+void per_v_pair_transform_minor_nbr_intersection(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   EdgeValueInputWrapper edge_value_input,
@@ -225,8 +188,6 @@ void per_v_pair_transform_dst_nbr_intersection(
   VertexPairValueOutputIterator vertex_pair_value_output_first,
   bool do_expensive_check = false)
 {
-  static_assert(!GraphViewType::is_storage_transposed);
-
   using vertex_t   = typename GraphViewType::vertex_type;
   using edge_t     = typename GraphViewType::edge_type;
   using property_t = typename thrust::iterator_traits<VertexValueInputIterator>::value_type;
@@ -266,9 +227,9 @@ void per_v_pair_transform_dst_nbr_intersection(
                  elem1_first,
                  elem1_first + num_input_pairs,
                  (*sorted_unique_vertices).begin() + num_input_pairs);
-    thrust::sort(handle.get_thrust_policy(),
-                 (*sorted_unique_vertices).begin(),
-                 (*sorted_unique_vertices).end());
+    cugraph::sort_wrapper(handle.get_thrust_policy(),
+                          (*sorted_unique_vertices).begin(),
+                          (*sorted_unique_vertices).end());
     (*sorted_unique_vertices)
       .resize(cuda::std::distance((*sorted_unique_vertices).begin(),
                                   thrust::unique(handle.get_thrust_policy(),
@@ -292,7 +253,11 @@ void per_v_pair_transform_dst_nbr_intersection(
   std::vector<vertex_t> h_edge_partition_major_range_lasts(
     graph_view.number_of_local_edge_partitions());
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-    h_edge_partition_major_range_lasts[i] = graph_view.local_edge_partition_src_range_last(i);
+    if constexpr (GraphViewType::is_storage_transposed) {
+      h_edge_partition_major_range_lasts[i] = graph_view.local_edge_partition_dst_range_last(i);
+    } else {
+      h_edge_partition_major_range_lasts[i] = graph_view.local_edge_partition_src_range_last(i);
+    }
   }
   rmm::device_uvector<vertex_t> d_edge_partition_major_range_lasts(
     h_edge_partition_major_range_lasts.size(), handle.get_stream());
@@ -362,12 +327,12 @@ void per_v_pair_transform_dst_nbr_intersection(
     for (size_t j = 0; j < h_chunk_sizes.size(); ++j) {
       auto this_chunk_size = h_chunk_sizes[j];
 
-      thrust::sort(handle.get_thrust_policy(),
-                   chunk_vertex_pair_index_first,
-                   chunk_vertex_pair_index_first + this_chunk_size,
-                   detail::indirection_compare_less_t<VertexPairIterator>{
-                     vertex_pair_first});  // detail::nbr_intersection() requires the input vertex
-                                           // pairs to be sorted.
+      cugraph::sort_wrapper(handle.get_thrust_policy(),
+                            chunk_vertex_pair_index_first,
+                            chunk_vertex_pair_index_first + this_chunk_size,
+                            detail::indirection_compare_less_t<VertexPairIterator>{
+                              vertex_pair_first});  // detail::nbr_intersection() requires the input
+                                                    // vertex pairs to be sorted.
 
       // FIXME: better restrict detail::nbr_intersection input vertex pairs to a single edge
       // partition? This may provide additional performance improvement opportunities???
@@ -461,6 +426,140 @@ void per_v_pair_transform_dst_nbr_intersection(
       chunk_vertex_pair_index_first += this_chunk_size;
     }
   }
+}
+
+}  // namespace detail
+
+/**
+ * @brief Iterate over each input vertex pair and apply a functor to the common source neighbor
+ * list of the pair.
+ *
+ * Iterate over every vertex pair; intersect source neighbor lists of the two vertices in the
+ * pair; invoke a user-provided functor, and store the functor output.
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam VertexPairIterator Type of the iterator for input vertex pairs.
+ * @tparam VertexValueInputIterator Type of the iterator for vertex property values.
+ * @tparam EdgeValueInputIterator Type of the iterator for edge property values.
+ * @tparam IntersectionOp Type of the quinary per intersection operator.
+ * @tparam VertexPairValueOutputIterator Type of the iterator for vertex pair output property
+ * variables.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Non-owning graph object.
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
+ * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
+ * access edge property values).
+ * @param vertex_pair_first Iterator pointing to the first (inclusive) input vertex pair.
+ * @param vertex_pair_last Iterator pointing to the last (exclusive) input vertex pair.
+ * @param vertex_value_input_first Iterator pointing to the vertex property value for the first
+ * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
+ * `vertex_value_input_last` (exclusive) is deduced as @p vertex_value_input_first + @p
+ * graph_view.local_vertex_partition_range_size().
+ * @param intersection_op quinary operator takes first vertex of the pair, second vertex of the
+ * pair, property values for the first vertex, property values for the second vertex, and a list of
+ * vertices in the intersection of the first & second vertices' source neighbors and returns an
+ * output value for the input pair.
+ * @param vertex_pair_value_output_first Iterator pointing to the vertex pair property variables for
+ * the first vertex pair (inclusive). `vertex_pair_value_output_last` (exclusive) is deduced as @p
+ * vertex_pair_value_output_first + @p cuda::std::distance(vertex_pair_first, vertex_pair_last).
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ */
+template <typename GraphViewType,
+          typename VertexPairIterator,
+          typename VertexValueInputIterator,
+          typename EdgeValueInputWrapper,
+          typename IntersectionOp,
+          typename VertexPairValueOutputIterator>
+void per_v_pair_transform_src_nbr_intersection(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  EdgeValueInputWrapper edge_value_input,
+  VertexPairIterator vertex_pair_first,
+  VertexPairIterator vertex_pair_last,
+  VertexValueInputIterator vertex_value_input_first,
+  IntersectionOp intersection_op,
+  VertexPairValueOutputIterator vertex_pair_value_output_first,
+  bool do_expensive_check = false)
+{
+  static_assert(GraphViewType::is_storage_transposed);
+
+  detail::per_v_pair_transform_minor_nbr_intersection(handle,
+                                                      graph_view,
+                                                      edge_value_input,
+                                                      vertex_pair_first,
+                                                      vertex_pair_last,
+                                                      vertex_value_input_first,
+                                                      intersection_op,
+                                                      vertex_pair_value_output_first,
+                                                      do_expensive_check);
+}
+
+/**
+ * @brief Iterate over each input vertex pair and apply a functor to the common destination neighbor
+ * list of the pair.
+ *
+ * Iterate over every vertex pair; intersect destination neighbor lists of the two vertices in the
+ * pair; invoke a user-provided functor, and store the functor output.
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam VertexPairIterator Type of the iterator for input vertex pairs.
+ * @tparam VertexValueInputIterator Type of the iterator for vertex property values.
+ * @tparam EdgeValueInputIterator Type of the iterator for edge property values.
+ * @tparam IntersectionOp Type of the quinary per intersection operator.
+ * @tparam VertexPairValueOutputIterator Type of the iterator for vertex pair output property
+ * variables.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Non-owning graph object.
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
+ * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
+ * access edge property values).
+ * @param vertex_pair_first Iterator pointing to the first (inclusive) input vertex pair.
+ * @param vertex_pair_last Iterator pointing to the last (exclusive) input vertex pair.
+ * @param vertex_value_input_first Iterator pointing to the vertex property value for the first
+ * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
+ * `vertex_value_input_last` (exclusive) is deduced as @p vertex_value_input_first + @p
+ * graph_view.local_vertex_partition_range_size().
+ * @param intersection_op quinary operator takes first vertex of the pair, second vertex of the
+ * pair, property values for the first vertex, property values for the second vertex, and a list of
+ * vertices in the intersection of the first & second vertices' destination neighbors and returns an
+ * output value for the input pair.
+ * @param vertex_pair_value_output_first Iterator pointing to the vertex pair property variables for
+ * the first vertex pair (inclusive). `vertex_pair_value_output_last` (exclusive) is deduced as @p
+ * vertex_pair_value_output_first + @p cuda::std::distance(vertex_pair_first, vertex_pair_last).
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ */
+template <typename GraphViewType,
+          typename VertexPairIterator,
+          typename VertexValueInputIterator,
+          typename EdgeValueInputWrapper,
+          typename IntersectionOp,
+          typename VertexPairValueOutputIterator>
+void per_v_pair_transform_dst_nbr_intersection(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  EdgeValueInputWrapper edge_value_input,
+  VertexPairIterator vertex_pair_first,
+  VertexPairIterator vertex_pair_last,
+  VertexValueInputIterator vertex_value_input_first,
+  IntersectionOp intersection_op,
+  VertexPairValueOutputIterator vertex_pair_value_output_first,
+  bool do_expensive_check = false)
+{
+  static_assert(!GraphViewType::is_storage_transposed);
+
+  detail::per_v_pair_transform_minor_nbr_intersection(handle,
+                                                      graph_view,
+                                                      edge_value_input,
+                                                      vertex_pair_first,
+                                                      vertex_pair_last,
+                                                      vertex_value_input_first,
+                                                      intersection_op,
+                                                      vertex_pair_value_output_first,
+                                                      do_expensive_check);
 }
 
 }  // namespace CUGRAPH_EXPORT cugraph

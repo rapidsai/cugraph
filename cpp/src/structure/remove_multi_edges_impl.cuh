@@ -12,6 +12,7 @@
 // FIXME: mem_frugal_partition should probably not be in shuffle_comm.hpp
 //        It's used here without any notion of shuffling
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -189,7 +190,7 @@ std::vector<rmm::device_uvector<bool>> compute_multi_edge_flags(
   size_t num_possibly_multi_edges{0};
   {
     if (tot_edges < mem_frugal_threshold) {
-      thrust::sort(handle.get_thrust_policy(), hashes.begin(), hashes.end());
+      cugraph::sort_wrapper(handle.get_thrust_policy(), hashes.begin(), hashes.end());
     } else {
       auto second_first =
         mem_frugal_partition(hashes.begin(),
@@ -198,8 +199,8 @@ std::vector<rmm::device_uvector<bool>> compute_multi_edge_flags(
                                [] __device__(auto hash) { return static_cast<int>(hash % 2); }),
                              int{1},
                              handle.get_stream());
-      thrust::sort(handle.get_thrust_policy(), hashes.begin(), second_first);
-      thrust::sort(handle.get_thrust_policy(), second_first, hashes.end());
+      cugraph::sort_wrapper(handle.get_thrust_policy(), hashes.begin(), second_first);
+      cugraph::sort_wrapper(handle.get_thrust_policy(), second_first, hashes.end());
     }
     auto is_definitely_not_multi_edge_hashes =
       large_buffer_type
@@ -237,9 +238,9 @@ std::vector<rmm::device_uvector<bool>> compute_multi_edge_flags(
     is_definitely_not_multi_edge_hashes.resize(0, handle.get_stream());
     is_definitely_not_multi_edge_hashes.shrink_to_fit(handle.get_stream());
 
-    thrust::sort(handle.get_thrust_policy(),
-                 unique_possibly_multi_edge_hashes.begin(),
-                 unique_possibly_multi_edge_hashes.end());
+    cugraph::sort_wrapper(handle.get_thrust_policy(),
+                          unique_possibly_multi_edge_hashes.begin(),
+                          unique_possibly_multi_edge_hashes.end());
     unique_possibly_multi_edge_hashes.resize(
       cuda::std::distance(unique_possibly_multi_edge_hashes.begin(),
                           thrust::unique(handle.get_thrust_policy(),
@@ -279,9 +280,9 @@ std::vector<rmm::device_uvector<bool>> compute_multi_edge_flags(
       offset += cuda::std::distance(output_pair_first + offset, output_pair_last);
     }
 
-    thrust::sort(handle.get_thrust_policy(),
-                 output_pair_first,
-                 output_pair_first + unique_multi_edge_srcs.size());
+    cugraph::sort_wrapper(handle.get_thrust_policy(),
+                          output_pair_first,
+                          output_pair_first + unique_multi_edge_srcs.size());
     unique_multi_edge_srcs.resize(
       cuda::std::distance(output_pair_first,
                           thrust::unique(handle.get_thrust_policy(),
@@ -332,7 +333,8 @@ void sort_multi_edges(raft::handle_t const& handle,
     if (keep_min_value_edge) {
       auto edge_first = thrust::make_zip_iterator(
         edgelist_srcs.begin(), edgelist_dsts.begin(), edgelist_values->begin());
-      thrust::sort(handle.get_thrust_policy(), edge_first, edge_first + edgelist_srcs.size());
+      cugraph::sort_wrapper(
+        handle.get_thrust_policy(), edge_first, edge_first + edgelist_srcs.size());
     } else {
       thrust::sort_by_key(handle.get_thrust_policy(),
                           pair_first,
@@ -340,7 +342,8 @@ void sort_multi_edges(raft::handle_t const& handle,
                           edgelist_values->begin());
     }
   } else {
-    thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + edgelist_srcs.size());
+    cugraph::sort_wrapper(
+      handle.get_thrust_policy(), pair_first, pair_first + edgelist_srcs.size());
   }
 
   return;
@@ -374,7 +377,7 @@ void sort_multi_edges(
     };
     auto edge_first = thrust::make_zip_iterator(
       edgelist_srcs.begin(), edgelist_dsts.begin(), edgelist_indices.begin());
-    thrust::sort(
+    cugraph::sort_wrapper(
       handle.get_thrust_policy(), edge_first, edge_first + edgelist_srcs.size(), edge_compare);
   } else {
     thrust::sort_by_key(handle.get_thrust_policy(),

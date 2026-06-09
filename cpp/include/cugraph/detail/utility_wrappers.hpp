@@ -64,20 +64,6 @@ void scalar_fill(raft::handle_t const& handle, value_t* d_value, size_t size, va
 
 /**
  * @ingroup utility_wrappers_cpp
- * @brief    Sort a device span
- *
- * @tparam      value_t      type of the value to operate on. Must be either int32_t or int64_t.
- *
- * @param [in]  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
- * and handles to various CUDA libraries) to run graph algorithms.
- * @param[out]  values      device span to sort
- *
- */
-template <typename value_t>
-void sort_ints(raft::handle_t const& handle, raft::device_span<value_t> values);
-
-/**
- * @ingroup utility_wrappers_cpp
  * @brief    Keep unique element from a device span
  *
  * @tparam      value_t      type of the value to operate on. Must be either int32_t or int64_t.

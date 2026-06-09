@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "structure/detail/structure_utils.cuh"
@@ -16,6 +16,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
@@ -203,7 +204,7 @@ class Tests_MGInducedSubgraph
                             triplet_first + graph_ids_v.size(),
                             d_subgraph_edgelist_weights->begin());
       } else {
-        thrust::sort(
+        cugraph::sort_wrapper(
           handle_->get_thrust_policy(), triplet_first, triplet_first + graph_ids_v.size());
       }
 

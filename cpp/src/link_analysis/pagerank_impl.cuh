@@ -17,6 +17,7 @@
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -158,7 +159,7 @@ centrality_algorithm_metadata_t pagerank(
                    std::get<0>(*personalization).end(),
                    check_for_duplicates.begin());
 
-      thrust::sort(
+      cugraph::sort_wrapper(
         handle.get_thrust_policy(), check_for_duplicates.begin(), check_for_duplicates.end());
 
       auto num_uniques =

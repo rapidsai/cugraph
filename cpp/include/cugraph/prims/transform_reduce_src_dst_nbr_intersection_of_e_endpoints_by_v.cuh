@@ -16,6 +16,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -168,59 +169,13 @@ struct accumulate_vertex_property_t {
   }
 };
 
-}  // namespace detail
-
-/**
- * @brief Iterate over each edge and apply a functor to the common destination neighbor list of the
- * edge endpoints, reduce the functor output values per-vertex.
- *
- * Iterate over every edge; intersect destination neighbor lists of source vertex & destination
- * vertex; invoke a user-provided functor per intersection, and reduce the functor output
- * values (cuda::std::tuple of three values having the same type: one for source, one for
- * destination, and one for every vertex in the intersection) per-vertex. We may add
- * transform_reduce_triplet_of_dst_nbr_intersection_of_e_endpoints_by_v in the future to allow
- * emitting different values for different vertices in the intersection of edge endpoints. This
- * function is inspired by thrust::transform_reduce().
- *
- * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
- * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
- * @tparam IntersectionOp Type of the quinary per intersection operator.
- * @tparam T Type of the initial value for per-vertex reduction.
- * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Non-owning graph object.
- * @param edge_src_value_input Wrapper used to access source input property values (for the edge
- * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
- * (if @p intersection_op needs to access source property values) or
- * cugraph::edge_src_dummy_property_t::view() (if @p intersection_op does not access source property
- * values). Use update_edge_src_property to fill the wrapper.
- * @param edge_dst_value_input Wrapper used to access destination input property values (for the
- * edge destinations assigned to this process in multi-GPU). Use either
- * cugraph::edge_dst_property_t::view() (if @p intersection_op needs to access destination property
- * values) or cugraph::edge_dst_dummy_property_t::view() (if @p intersection_op does not access
- * destination property values). Use update_edge_dst_property to fill the wrapper.
- * @param intersection_op quinary operator takes edge source, edge destination, property values for
- * the source, property values for the destination, and a list of vertices in the intersection of
- * edge source & destination vertices' destination neighbors and returns a cuda::std::tuple of three
- * values: one value per source vertex, one value for destination vertex, and one value for every
- * vertex in the intersection.
- * @param init Initial value to be added to the reduced @p intersection_op return values for each
- * vertex.
- * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
- * first (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
- * (exclusive) is deduced as @p vertex_value_output_first + @p
- * graph_view.local_vertex_partition_range_size().
- * @param A flag to run expensive checks for input arguments (if set to `true`).
- */
 template <typename GraphViewType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
           typename IntersectionOp,
           typename T,
           typename VertexValueOutputIterator>
-void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
+void transform_reduce_minor_nbr_intersection_of_e_endpoints_by_v(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   EdgeSrcValueInputWrapper edge_src_value_input,
@@ -345,7 +300,7 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
     for (size_t j = 0; j < h_chunk_sizes.size(); ++j) {
       auto this_chunk_size = h_chunk_sizes[j];
 
-      thrust::sort(
+      cugraph::sort_wrapper(
         handle.get_thrust_policy(),
         chunk_vertex_pair_first,
         chunk_vertex_pair_first + this_chunk_size);  // detail::nbr_intersection() requires the
@@ -530,6 +485,152 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
       chunk_vertex_pair_first += this_chunk_size;
     }
   }
+}
+
+}  // namespace detail
+
+/**
+ * @brief Iterate over each edge and apply a functor to the common source neighbor list of the
+ * edge endpoints, reduce the functor output values per-vertex.
+ *
+ * Iterate over every edge; intersect source neighbor lists of source vertex & destination
+ * vertex; invoke a user-provided functor per intersection, and reduce the functor output
+ * values (cuda::std::tuple of three values having the same type: one for source, one for
+ * destination, and one for every vertex in the intersection) per-vertex. We may add
+ * transform_reduce_triplet_of_src_nbr_intersection_of_e_endpoints_by_v in the future to allow
+ * emitting different values for different vertices in the intersection of edge endpoints. This
+ * function is inspired by thrust::transform_reduce().
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam IntersectionOp Type of the quinary per intersection operator.
+ * @tparam T Type of the initial value for per-vertex reduction.
+ * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Non-owning graph object.
+ * @param edge_src_value_input Wrapper used to access source input property values (for the edge
+ * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
+ * (if @p intersection_op needs to access source property values) or
+ * cugraph::edge_src_dummy_property_t::view() (if @p intersection_op does not access source property
+ * values). Use update_edge_src_property to fill the wrapper.
+ * @param edge_dst_value_input Wrapper used to access destination input property values (for the
+ * edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_dst_property_t::view() (if @p intersection_op needs to access destination property
+ * values) or cugraph::edge_dst_dummy_property_t::view() (if @p intersection_op does not access
+ * destination property values). Use update_edge_dst_property to fill the wrapper.
+ * @param intersection_op quinary operator takes edge source, edge destination, property values for
+ * the source, property values for the destination, and a list of vertices in the intersection of
+ * edge source & destination vertices' source neighbors and returns a cuda::std::tuple of three
+ * values: one value per source vertex, one value for destination vertex, and one value for every
+ * vertex in the intersection.
+ * @param init Initial value to be added to the reduced @p intersection_op return values for each
+ * vertex.
+ * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
+ * first (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
+ * (exclusive) is deduced as @p vertex_value_output_first + @p
+ * graph_view.local_vertex_partition_range_size().
+ * @param A flag to run expensive checks for input arguments (if set to `true`).
+ */
+template <typename GraphViewType,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
+          typename IntersectionOp,
+          typename T,
+          typename VertexValueOutputIterator>
+void transform_reduce_src_nbr_intersection_of_e_endpoints_by_v(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  EdgeSrcValueInputWrapper edge_src_value_input,
+  EdgeDstValueInputWrapper edge_dst_value_input,
+  IntersectionOp intersection_op,
+  T init,
+  VertexValueOutputIterator vertex_value_output_first,
+  bool do_expensive_check = false)
+{
+  static_assert(GraphViewType::is_storage_transposed);
+
+  detail::transform_reduce_minor_nbr_intersection_of_e_endpoints_by_v(handle,
+                                                                      graph_view,
+                                                                      edge_src_value_input,
+                                                                      edge_dst_value_input,
+                                                                      intersection_op,
+                                                                      init,
+                                                                      vertex_value_output_first,
+                                                                      do_expensive_check);
+}
+
+/**
+ * @brief Iterate over each edge and apply a functor to the common destination neighbor list of the
+ * edge endpoints, reduce the functor output values per-vertex.
+ *
+ * Iterate over every edge; intersect destination neighbor lists of source vertex & destination
+ * vertex; invoke a user-provided functor per intersection, and reduce the functor output
+ * values (cuda::std::tuple of three values having the same type: one for source, one for
+ * destination, and one for every vertex in the intersection) per-vertex. We may add
+ * transform_reduce_triplet_of_dst_nbr_intersection_of_e_endpoints_by_v in the future to allow
+ * emitting different values for different vertices in the intersection of edge endpoints. This
+ * function is inspired by thrust::transform_reduce().
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam IntersectionOp Type of the quinary per intersection operator.
+ * @tparam T Type of the initial value for per-vertex reduction.
+ * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Non-owning graph object.
+ * @param edge_src_value_input Wrapper used to access source input property values (for the edge
+ * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
+ * (if @p intersection_op needs to access source property values) or
+ * cugraph::edge_src_dummy_property_t::view() (if @p intersection_op does not access source property
+ * values). Use update_edge_src_property to fill the wrapper.
+ * @param edge_dst_value_input Wrapper used to access destination input property values (for the
+ * edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_dst_property_t::view() (if @p intersection_op needs to access destination property
+ * values) or cugraph::edge_dst_dummy_property_t::view() (if @p intersection_op does not access
+ * destination property values). Use update_edge_dst_property to fill the wrapper.
+ * @param intersection_op quinary operator takes edge source, edge destination, property values for
+ * the source, property values for the destination, and a list of vertices in the intersection of
+ * edge source & destination vertices' destination neighbors and returns a cuda::std::tuple of three
+ * values: one value per source vertex, one value for destination vertex, and one value for every
+ * vertex in the intersection.
+ * @param init Initial value to be added to the reduced @p intersection_op return values for each
+ * vertex.
+ * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
+ * first (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
+ * (exclusive) is deduced as @p vertex_value_output_first + @p
+ * graph_view.local_vertex_partition_range_size().
+ * @param A flag to run expensive checks for input arguments (if set to `true`).
+ */
+template <typename GraphViewType,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
+          typename IntersectionOp,
+          typename T,
+          typename VertexValueOutputIterator>
+void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  EdgeSrcValueInputWrapper edge_src_value_input,
+  EdgeDstValueInputWrapper edge_dst_value_input,
+  IntersectionOp intersection_op,
+  T init,
+  VertexValueOutputIterator vertex_value_output_first,
+  bool do_expensive_check = false)
+{
+  static_assert(!GraphViewType::is_storage_transposed);
+
+  detail::transform_reduce_minor_nbr_intersection_of_e_endpoints_by_v(handle,
+                                                                      graph_view,
+                                                                      edge_src_value_input,
+                                                                      edge_dst_value_input,
+                                                                      intersection_op,
+                                                                      init,
+                                                                      vertex_value_output_first,
+                                                                      do_expensive_check);
 }
 
 }  // namespace CUGRAPH_EXPORT cugraph

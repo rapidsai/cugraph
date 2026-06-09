@@ -24,6 +24,7 @@
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/core/handle.hpp>
@@ -264,9 +265,9 @@ sort_and_reduce_buffer_elements(
                 if (invalid_key && key == *invalid_key) { return false; }
                 return key < threshold;
               }))));
-        thrust::sort(handle.get_thrust_policy(),
-                     get_dataframe_buffer_begin(key_buffer),
-                     get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements);
+        cugraph::sort_wrapper(handle.get_thrust_policy(),
+                              get_dataframe_buffer_begin(key_buffer),
+                              get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements);
 
       } else {
         auto pair_first = thrust::make_zip_iterator(get_dataframe_buffer_begin(key_buffer),
@@ -395,9 +396,9 @@ sort_and_reduce_buffer_elements(
                         get_dataframe_buffer_begin(tmp_key_buffer) + num_unique_prefix_elements,
                         is_equal_t<bool>{true});
         key_buffer = std::move(tmp_key_buffer);
-        thrust::sort(handle.get_thrust_policy(),
-                     get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
-                     get_dataframe_buffer_end(key_buffer));
+        cugraph::sort_wrapper(handle.get_thrust_policy(),
+                              get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
+                              get_dataframe_buffer_end(key_buffer));
       } else {
         static_assert(std::is_same_v<ReduceOp, reduce_op::any<typename ReduceOp::value_type>>);
         auto tmp_key_buffer = allocate_dataframe_buffer<input_key_t>(
@@ -448,9 +449,9 @@ sort_and_reduce_buffer_elements(
   }
 
   if constexpr (std::is_same_v<payload_t, void>) {
-    thrust::sort(handle.get_thrust_policy(),
-                 get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
-                 get_dataframe_buffer_end(key_buffer));
+    cugraph::sort_wrapper(handle.get_thrust_policy(),
+                          get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
+                          get_dataframe_buffer_end(key_buffer));
   } else {
     thrust::sort_by_key(handle.get_thrust_policy(),
                         get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,

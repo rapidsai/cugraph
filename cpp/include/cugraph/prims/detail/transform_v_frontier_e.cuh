@@ -14,6 +14,7 @@
 #include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/iterator_utils.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/core/handle.hpp>
@@ -368,13 +369,12 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
   using edge_t   = typename GraphViewType::edge_type;
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
-  using e_op_result_t =
-    typename detail::edge_op_result_type<key_t,
-                                         vertex_t,
-                                         typename EdgeSrcValueInputWrapper::value_type,
-                                         typename EdgeDstValueInputWrapper::value_type,
-                                         typename EdgeValueInputWrapper::value_type,
-                                         EdgeOp>::type;
+  using e_op_result_t = typename detail::edge_op_result_type<GraphViewType,
+                                                             key_t,
+                                                             EdgeSrcValueInputWrapper,
+                                                             EdgeDstValueInputWrapper,
+                                                             EdgeValueInputWrapper,
+                                                             EdgeOp>::type;
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<e_op_result_t>::value);
 
   using edge_partition_src_input_device_view_t = std::conditional_t<
@@ -433,18 +433,30 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
         packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
     }
 
-    auto edge_partition_frontier_local_degrees =
-      edge_partition_e_mask ? edge_partition.compute_local_degrees_with_mask(
-                                edge_partition_mask_span.value(),
-                                edge_partition_frontier_major_first,
-                                edge_partition_frontier_major_first +
-                                  (local_frontier_offsets[i + 1] - local_frontier_offsets[i]),
-                                handle.get_stream())
-                            : edge_partition.compute_local_degrees(
-                                edge_partition_frontier_major_first,
-                                edge_partition_frontier_major_first +
-                                  (local_frontier_offsets[i + 1] - local_frontier_offsets[i]),
-                                handle.get_stream());
+    auto const frontier_partition_size = local_frontier_offsets[i + 1] - local_frontier_offsets[i];
+
+    auto edge_partition_frontier_local_degrees = [&]() {
+      if constexpr (is_arithmetic_pointer_v<
+                      std::decay_t<decltype(edge_partition_frontier_major_first)>>) {
+        auto const majors_span = raft::device_span<vertex_t const>(
+          edge_partition_frontier_major_first, static_cast<size_t>(frontier_partition_size));
+        return edge_partition_e_mask
+                 ? edge_partition.compute_local_degrees_with_mask(
+                     edge_partition_mask_span.value(), majors_span, handle.get_stream())
+                 : edge_partition.compute_local_degrees(majors_span, handle.get_stream());
+      } else {
+        return edge_partition_e_mask
+                 ? edge_partition.compute_local_degrees_with_mask(
+                     edge_partition_mask_span.value(),
+                     edge_partition_frontier_major_first,
+                     edge_partition_frontier_major_first + frontier_partition_size,
+                     handle.get_stream())
+                 : edge_partition.compute_local_degrees(
+                     edge_partition_frontier_major_first,
+                     edge_partition_frontier_major_first + frontier_partition_size,
+                     handle.get_stream());
+      }
+    }();
 
     // FIXME: this copy is unnecessary if edge_partition.compute_local_degrees() takes a pointer
     // to the output array

@@ -7,6 +7,7 @@
 
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <rmm/exec_policy.hpp>
 
@@ -44,9 +45,9 @@ cugraph::dataframe_buffer_type_t<value_t> sort(
                cugraph::get_dataframe_buffer_end(values),
                cugraph::get_dataframe_buffer_begin(sorted_values));
 
-  thrust::sort(handle.get_thrust_policy(),
-               cugraph::get_dataframe_buffer_begin(sorted_values),
-               cugraph::get_dataframe_buffer_end(sorted_values));
+  cugraph::sort_wrapper(handle.get_thrust_policy(),
+                        cugraph::get_dataframe_buffer_begin(sorted_values),
+                        cugraph::get_dataframe_buffer_end(sorted_values));
 
   return sorted_values;
 }
@@ -63,9 +64,9 @@ cugraph::dataframe_buffer_type_t<value_t> sort(raft::handle_t const& handle,
 {
   auto sorted_values = std::move(values);
 
-  thrust::sort(handle.get_thrust_policy(),
-               cugraph::get_dataframe_buffer_begin(sorted_values),
-               cugraph::get_dataframe_buffer_end(sorted_values));
+  cugraph::sort_wrapper(handle.get_thrust_policy(),
+                        cugraph::get_dataframe_buffer_begin(sorted_values),
+                        cugraph::get_dataframe_buffer_end(sorted_values));
 
   return sorted_values;
 }
@@ -95,7 +96,7 @@ sort(raft::handle_t const& handle,
                input_first,
                input_first + size_dataframe_buffer(first),
                output_first);
-  thrust::sort(
+  cugraph::sort_wrapper(
     handle.get_thrust_policy(), output_first, output_first + size_dataframe_buffer(sorted_first));
 
   return std::make_tuple(std::move(sorted_first), std::move(sorted_second));
