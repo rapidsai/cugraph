@@ -35,6 +35,9 @@
   - [Latest News](https://docs.rapids.ai/api/cugraph/nightly/)
   - [Current list of algorithms](https://docs.rapids.ai/api/cugraph/stable/graph_support/algorithms/)
   - [Blogs and Presentation](https://docs.rapids.ai/api/cugraph/nightly/tutorials/cugraph_blogs/)
+- Security
+  - [Security Policy](SECURITY.md)
+  - [ATGC Detection](SECURITY.md#atgc-adversarial-topology-against-gpu-compute-vulnerability)
 - Packages
   - [cuGraph Python](./readme_pages/cugraph_python.md)
     - [External Data Types](./readme_pages/data_types.md)
@@ -105,6 +108,25 @@ df_page.sort_values('pagerank', ascending=False).head(10)
 
 ------
 <br>
+
+## Security Features
+
+### ATGC (Adversarial Topology Against GPU Compute) Detection
+
+cuGraph now includes built-in protection against adversarial graph topologies that can cause GPU kernel hangs. This feature was developed in collaboration with security researchers who responsibly disclosed the vulnerability.
+
+**Key Features:**
+- Automatic detection of clique-chain topologies at graph ingestion
+- Configurable security policies via environment variables
+- Zero overhead on legitimate graphs
+- Full protection against CWE-400 (Uncontrolled Resource Consumption)
+
+**Configuration:**
+- `CUGRAPH_ENABLE_ATGC_GUARD=true` - Enable/disable detection (default: true)
+- `CUGRAPH_ATGC_ACTION=reject` - Action on detection: reject, warn, or allow (default: reject)
+- `CUGRAPH_ATGC_LOG_LEVEL=WARNING` - Logging level (default: WARNING)
+
+For more details, see [SECURITY.md](SECURITY.md).
 
 ## <div align="center"><img src="img/rapids_logo.png" width="265px"/></div> Open GPU Data Science <a name="rapids"></a>
 
