@@ -490,6 +490,12 @@ __device__ void nbr_intersection_emit_intersecting_w(vertex_t v0,
   // Defer to the first occurrence of w in the sorted short list.
   if (s > edge_t{0} && short_indices[p - 1] == w) { return; }
 
+  // Binary search for w in the longer list. Could equivalently use the sequential thrust version:
+  //   auto first = long_indices + long_off;
+  //   auto last  = long_indices + long_off + long_deg;
+  //   auto it    = thrust::lower_bound(thrust::seq, first, last, w);
+  //   if (it == last || *it != w) { return; }
+  //   edge_t lo = static_cast<edge_t>(it - long_indices);
   edge_t lo = long_off;
   edge_t hi = long_off + long_deg;
   while (lo < hi) {
