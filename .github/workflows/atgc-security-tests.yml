@@ -1,0 +1,106 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
+
+name: ATGC Security Tests
+
+on:
+  push:
+    branches:
+      - main
+      - branch-*
+    paths:
+      - 'python/cugraph/cugraph/security/**'
+      - 'python/cugraph/cugraph/tests/security/**'
+      - 'python/cugraph/benchmark_atgc_detection.py'
+  pull_request:
+    branches:
+      - main
+      - branch-*
+    paths:
+      - 'python/cugraph/cugraph/security/**'
+      - 'python/cugraph/cugraph/tests/security/**'
+      - 'python/cugraph/benchmark_atgc_detection.py'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov pytest-xdist
+        pip install cudf-cu12 cugraph-cu12
+        pip install numpy pandas
+    
+    - name: Run ATGC security tests
+      run: |
+        cd python/cugraph
+        pytest cugraph/tests/security/ -v \
+          --cov=cugraph.security \
+          --cov-report=xml \
+          --cov-report=html \
+          -x \
+          --timeout=300
+    
+    - name: Run ATGC benchmarks
+      run: |
+        cd python/cugraph
+        python benchmark_atgc_detection.py
+    
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: coverage-report-${{ matrix.python-version }}
+        path: |
+          python/cugraph/htmlcov/
+          python/cugraph/coverage.xml
+        retention-days: 7
+    
+    - name: Check code formatting
+      run: |
+        pip install black isort
+        cd python/cugraph
+        black --check cugraph/security/
+        isort --check-only cugraph/security/
+    
+    - name: Check type hints
+      run: |
+        pip install mypy
+        cd python/cugraph
+        mypy cugraph/security/ --ignore-missing-imports
+    
+    - name: Lint with flake8
+      run: |
+        pip install flake8
+        cd python/cugraph
+        flake8 cugraph/security/ --max-line-length=100 --extend-ignore=E203,W503
+    
+    - name: Security scan
+      run: |
+        pip install bandit
+        cd python/cugraph
+        bandit -r cugraph/security/ -f json -o bandit-report.json || true
+    
+    - name: Upload security scan
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: security-scan-${{ matrix.python-version }}
+        path: python/cugraph/bandit-report.json
+        retention-days: 7
