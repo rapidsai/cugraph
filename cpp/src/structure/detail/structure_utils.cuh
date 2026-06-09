@@ -124,7 +124,7 @@ rmm::device_uvector<edge_t> compute_sparse_offsets(
                        });
     }
 
-    thrust::exclusive_scan(
+    cugraph::exclusive_scan(
       handle.get_thrust_policy(), offsets.begin(), offsets.end(), offsets.begin());
   }
 

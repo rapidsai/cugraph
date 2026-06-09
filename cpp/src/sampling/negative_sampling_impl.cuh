@@ -70,10 +70,10 @@ normalize_biases(raft::handle_t const& handle,
                     normalized_biases->begin(),
                     divider_t<weight_t>{sum});
 
-  thrust::inclusive_scan(handle.get_thrust_policy(),
-                         normalized_biases->begin(),
-                         normalized_biases->end(),
-                         normalized_biases->begin());
+  cugraph::inclusive_scan(handle.get_thrust_policy(),
+                          normalized_biases->begin(),
+                          normalized_biases->end(),
+                          normalized_biases->begin());
 
   if constexpr (multi_gpu) {
     rmm::device_scalar<weight_t> d_sum(sum, handle.get_stream());
@@ -103,7 +103,7 @@ normalize_biases(raft::handle_t const& handle,
                       gpu_biases->begin(),
                       divider_t<weight_t>{aggregate_sum});
 
-    thrust::inclusive_scan(
+    cugraph::inclusive_scan(
       handle.get_thrust_policy(), gpu_biases->begin(), gpu_biases->end(), gpu_biases->begin());
 
     // FIXME: conclusion of above.  Using 1.1 since it is > 1.0 and easy to type

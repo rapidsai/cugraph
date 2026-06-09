@@ -22,6 +22,7 @@
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
@@ -405,10 +406,10 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
           mg_aggregate_sample_offsets = rmm::device_uvector<size_t>(
             (*mg_aggregate_sample_counts).size() + 1, handle_->get_stream());
           (*mg_aggregate_sample_offsets).set_element_to_zero_async(0, handle_->get_stream());
-          thrust::inclusive_scan(handle_->get_thrust_policy(),
-                                 (*mg_aggregate_sample_counts).begin(),
-                                 (*mg_aggregate_sample_counts).end(),
-                                 (*mg_aggregate_sample_offsets).begin() + 1);
+          cugraph::inclusive_scan(handle_->get_thrust_policy(),
+                                  (*mg_aggregate_sample_counts).begin(),
+                                  (*mg_aggregate_sample_counts).end(),
+                                  (*mg_aggregate_sample_offsets).begin() + 1);
         }
 
         auto sg_graph_view = sg_graph.view();
