@@ -463,6 +463,8 @@ template <bool check_edge_mask,
           typename vertex_t,
           typename edge_t,
           typename CheckBitSet,
+          typename EdgeProperty0,
+          typename EdgeProperty1,
           typename IntersectionOp>
 __device__ void nbr_intersection_emit_intersecting_w(vertex_t v0,
                                                      vertex_t v1,
@@ -479,6 +481,8 @@ __device__ void nbr_intersection_emit_intersecting_w(vertex_t v0,
                                                      bool v0_is_short,
                                                      edge_t s,
                                                      CheckBitSet check_bit_set,
+                                                     EdgeProperty0 v0_e_property,
+                                                     EdgeProperty1 v1_e_property,
                                                      IntersectionOp intersection_op)
 {
   auto p = short_off + s;
@@ -516,13 +520,24 @@ __device__ void nbr_intersection_emit_intersecting_w(vertex_t v0,
     }
     edge_t v0_w_edge_offset = v0_is_short ? sk : lk;
     edge_t v1_w_edge_offset = v0_is_short ? lk : sk;
-    intersection_op(v0, v1, w, v0_v1_edge_offset, v0_w_edge_offset, v1_w_edge_offset, pair_idx);
+    intersection_op(v0,
+                    v1,
+                    w,
+                    v0_v1_edge_offset,
+                    v0_w_edge_offset,
+                    v1_w_edge_offset,
+                    v0_e_property,
+                    v1_e_property,
+                    pair_idx);
     ++sk;
     ++lk;
   }
 }
 
 // Single thread per pair: merge-walk the two endpoints' sorted neighbor lists.
+// v0_e_property / v1_e_property are the edge-property bases for v0's and v1's neighbor lists
+// (parallel to v0_indices / v1_indices, indexed by the same edge offset), or void* when no edge
+// property is requested. They are forwarded to intersection_op for each common neighbor.
 template <bool check_edge_mask,
           typename vertex_t,
           typename edge_t,
@@ -530,6 +545,8 @@ template <bool check_edge_mask,
           typename VertexPairIterator,
           typename FirstElementToIdxMap,
           typename SecondElementToIdxMap,
+          typename EdgeProperty0,
+          typename EdgeProperty1,
           typename IntersectionOp>
 __global__ static void nbr_intersection_low_degree(
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition,
@@ -541,6 +558,8 @@ __global__ static void nbr_intersection_low_degree(
   SecondElementToIdxMap second_element_to_idx_map,
   raft::device_span<edge_t const> second_element_offsets,
   raft::device_span<vertex_t const> second_element_indices,
+  EdgeProperty0 v0_e_property,
+  EdgeProperty1 v1_e_property,
   IntersectionOp intersection_op,
   uint32_t const* edge_mask)
 {
@@ -605,7 +624,8 @@ __global__ static void nbr_intersection_low_degree(
       } else if (n0 > n1) {
         ++i1;
       } else {
-        intersection_op(v0, v1, n0, v0_v1_edge_offset, v0_off + i0, v1_off + i1, i);
+        intersection_op(
+          v0, v1, n0, v0_v1_edge_offset, v0_off + i0, v1_off + i1, v0_e_property, v1_e_property, i);
         ++i0;
         ++i1;
       }
@@ -723,6 +743,8 @@ template <bool check_edge_mask,
           typename VertexPairIterator,
           typename FirstElementToIdxMap,
           typename SecondElementToIdxMap,
+          typename EdgeProperty0,
+          typename EdgeProperty1,
           typename IntersectionOp>
 __global__ static void nbr_intersection_mid_degree(
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition,
@@ -734,6 +756,8 @@ __global__ static void nbr_intersection_mid_degree(
   SecondElementToIdxMap second_element_to_idx_map,
   raft::device_span<edge_t const> second_element_offsets,
   raft::device_span<vertex_t const> second_element_indices,
+  EdgeProperty0 v0_e_property,
+  EdgeProperty1 v1_e_property,
   IntersectionOp intersection_op,
   uint32_t const* edge_mask)
 {
@@ -808,6 +832,8 @@ __global__ static void nbr_intersection_mid_degree(
                                                             v0_is_short,
                                                             s,
                                                             check_bit_set,
+                                                            v0_e_property,
+                                                            v1_e_property,
                                                             intersection_op);
     }
 
@@ -824,6 +850,8 @@ template <bool check_edge_mask,
           typename VertexPairIterator,
           typename FirstElementToIdxMap,
           typename SecondElementToIdxMap,
+          typename EdgeProperty0,
+          typename EdgeProperty1,
           typename IntersectionOp>
 __global__ static void nbr_intersection_high_degree(
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition,
@@ -835,6 +863,8 @@ __global__ static void nbr_intersection_high_degree(
   SecondElementToIdxMap second_element_to_idx_map,
   raft::device_span<edge_t const> second_element_offsets,
   raft::device_span<vertex_t const> second_element_indices,
+  EdgeProperty0 v0_e_property,
+  EdgeProperty1 v1_e_property,
   IntersectionOp intersection_op,
   uint32_t const* edge_mask)
 {
@@ -909,6 +939,8 @@ __global__ static void nbr_intersection_high_degree(
                                                             v0_is_short,
                                                             s,
                                                             check_bit_set,
+                                                            v0_e_property,
+                                                            v1_e_property,
                                                             intersection_op);
     }
 
@@ -919,23 +951,45 @@ __global__ static void nbr_intersection_high_degree(
 
 // Multi-GPU only: gather the neighbor lists of the unique second pair elements so the
 // non-materializing kernels can resolve a remote endpoint (the first element is always local).
-// Returns the vertex -> idx map and the gathered (offsets, indices). Mirrors the second-element
-// collection in the materializing nbr_intersection; intersection-edge values are omitted because
-// this path carries none.
-template <typename GraphViewType, typename VertexPairIterator>
+// Returns the vertex -> idx map, the gathered (offsets, indices), and (when an edge property is
+// requested) the gathered per-edge property values parallel to the indices. Mirrors the
+// second-element collection in the materializing nbr_intersection.
+template <typename GraphViewType, typename EdgeValueInputWrapper, typename VertexPairIterator>
 std::tuple<
   std::unique_ptr<
     kv_store_t<typename GraphViewType::vertex_type, typename GraphViewType::vertex_type, false>>,
   rmm::device_uvector<typename GraphViewType::edge_type>,
-  rmm::device_uvector<typename GraphViewType::vertex_type>>
+  rmm::device_uvector<typename GraphViewType::vertex_type>,
+  rmm::device_uvector<std::conditional_t<
+    !std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
+    typename EdgeValueInputWrapper::value_type,
+    std::byte>>>
 nbr_intersection_collect_second_nbrs(raft::handle_t const& handle,
                                      GraphViewType const& graph_view,
+                                     EdgeValueInputWrapper edge_value_input,
                                      VertexPairIterator vertex_pair_first,
                                      VertexPairIterator vertex_pair_last)
 {
-  using vertex_t      = typename GraphViewType::vertex_type;
-  using edge_t        = typename GraphViewType::edge_type;
-  using e_dummy_t     = detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>;
+  using vertex_t  = typename GraphViewType::vertex_type;
+  using edge_t    = typename GraphViewType::edge_type;
+  using e_dummy_t = detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>;
+
+  using edge_property_value_t = typename EdgeValueInputWrapper::value_type;
+  constexpr bool has_e_property =
+    !std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>;
+  using e_property_buffer_t = std::conditional_t<has_e_property, edge_property_value_t, std::byte>;
+  using edge_partition_e_input_device_view_t = std::conditional_t<
+    has_e_property,
+    detail::edge_partition_edge_property_device_view_t<edge_t,
+                                                       typename EdgeValueInputWrapper::value_iterator,
+                                                       edge_property_value_t>,
+    e_dummy_t>;
+  using optional_e_property_mutable_view_t =
+    std::conditional_t<has_e_property, edge_property_value_t*, void*>;
+
+  // Gathered second-endpoint edge properties (parallel to major_nbr_indices); empty when no edge
+  // property is requested.
+  rmm::device_uvector<e_property_buffer_t> major_nbr_e_values(size_t{0}, handle.get_stream());
 
   auto input_size = static_cast<size_t>(cuda::std::distance(vertex_pair_first, vertex_pair_last));
   auto edge_mask_view = graph_view.edge_mask_view();
@@ -964,6 +1018,11 @@ nbr_intersection_collect_second_nbrs(raft::handle_t const& handle,
       handle.get_stream());
     unique_majors.shrink_to_fit(handle.get_stream());
 
+    // FIXME (optimization): if the caller already broadcast the pairs across minor_comm (as the
+    // streaming caller transform_reduce_triplet_of_src_dst_nbr_intersection_of_e_endpoints_by_e does),
+    // this all-gather is redundant; a local sort + unique on the second elements suffices. Skipping it
+    // unconditionally would wrongly assume every caller pre-broadcasts (untrue for owned-pair callers
+    // like the materializing path), so gate it behind a caller-asserted flag (e.g. input_already_broadcast).
     if (minor_comm_size > 1) {
       auto rx_counts = host_scalar_allgather(minor_comm, unique_majors.size(), handle.get_stream());
       std::vector<size_t> rx_displacements(rx_counts.size());
@@ -1121,10 +1180,22 @@ nbr_intersection_collect_second_nbrs(raft::handle_t const& handle,
     local_nbrs_for_rx_majors.resize(
       local_nbr_offsets_for_rx_majors.back_element(handle.get_stream()), handle.get_stream());
 
+    // Edge-property values for the gathered neighbors (parallel to local_nbrs_for_rx_majors), filled
+    // only when an edge property is requested.
+    rmm::device_uvector<e_property_buffer_t> local_e_property_values_for_rx_majors(
+      size_t{0}, handle.get_stream());
+    optional_e_property_mutable_view_t optional_local_e_property_values{};
+    if constexpr (has_e_property) {
+      local_e_property_values_for_rx_majors.resize(local_nbrs_for_rx_majors.size(),
+                                                   handle.get_stream());
+      optional_local_e_property_values = local_e_property_values_for_rx_majors.data();
+    }
+
     for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
       auto edge_partition =
         edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
           graph_view.local_edge_partition_view(i));
+      auto edge_partition_e_value_input = edge_partition_e_input_device_view_t(edge_value_input, i);
       auto edge_partition_e_mask =
         edge_mask_view
           ? cuda::std::make_optional<
@@ -1140,13 +1211,13 @@ nbr_intersection_collect_second_nbrs(raft::handle_t const& handle,
         thrust::make_counting_iterator(reordered_idx_last),
         update_rx_major_local_nbrs_t<vertex_t,
                                      edge_t,
-                                     e_dummy_t,
-                                     void*,
+                                     edge_partition_e_input_device_view_t,
+                                     optional_e_property_mutable_view_t,
                                      GraphViewType::is_multi_gpu>{
           major_comm_size,
           minor_comm_size,
           edge_partition,
-          e_dummy_t{},
+          edge_partition_e_value_input,
           edge_partition_e_mask,
           reordered_idx_first,
           i,
@@ -1158,7 +1229,7 @@ nbr_intersection_collect_second_nbrs(raft::handle_t const& handle,
                                           local_nbr_offsets_for_rx_majors.size()),
           raft::device_span<vertex_t>(local_nbrs_for_rx_majors.data(),
                                       local_nbrs_for_rx_majors.size()),
-          static_cast<void*>(nullptr)});
+          optional_local_e_property_values});
     }
 
     std::vector<size_t> h_rx_offsets(rx_major_counts.size() + size_t{1}, size_t{0});
@@ -1205,6 +1276,15 @@ nbr_intersection_collect_second_nbrs(raft::handle_t const& handle,
                      raft::host_span<size_t const>(local_nbr_counts.data(), local_nbr_counts.size()),
                      handle.get_stream());
 
+    // Send the gathered edge-property values back (parallel to major_nbr_indices).
+    if constexpr (has_e_property) {
+      std::tie(major_nbr_e_values, std::ignore) = shuffle_values(
+        major_comm,
+        local_e_property_values_for_rx_majors.begin(),
+        raft::host_span<size_t const>(local_nbr_counts.data(), local_nbr_counts.size()),
+        handle.get_stream());
+    }
+
     auto major_to_idx_map = std::make_unique<kv_store_t<vertex_t, vertex_t, false>>(
       unique_majors.begin(),
       unique_majors.end(),
@@ -1213,8 +1293,10 @@ nbr_intersection_collect_second_nbrs(raft::handle_t const& handle,
       invalid_vertex_id<vertex_t>::value,
       handle.get_stream());
 
-    return std::make_tuple(
-      std::move(major_to_idx_map), std::move(major_nbr_offsets), std::move(major_nbr_indices));
+    return std::make_tuple(std::move(major_to_idx_map),
+                           std::move(major_nbr_offsets),
+                           std::move(major_nbr_indices),
+                           std::move(major_nbr_e_values));
   }
 }
 
@@ -1222,48 +1304,110 @@ nbr_intersection_collect_second_nbrs(raft::handle_t const& handle,
 constexpr size_t nbr_intersection_low_degree_threshold = 32;
 constexpr size_t nbr_intersection_mid_degree_threshold = 1024;
 
-// Non-materializing neighbor intersection. For every input pair, invokes intersection_op once per
-// common neighbor (see the kernels above) instead of returning the intersection. The pairs are
-// degree-binned by min(degree(v0), degree(v1)) and each bin is dispatched to the thread-, warp-, or
-// block-per-pair kernel.
-template <typename GraphViewType, typename VertexPairIterator, typename IntersectionOp>
+// Non-materializing neighbor intersection: for every input vertex pair (v0, v1), invokes
+// intersection_op once per common neighbor of v0's and v1's neighbor lists, instead of returning the
+// materialized intersection. The pairs are degree-binned by min(degree(v0), degree(v1)) and each bin
+// is dispatched to a thread-, warp-, or block-per-pair kernel.
+//
+// [vertex_pair_first, vertex_pair_last) should be sorted using the first element of each pair as the
+// primary key and the second element as the secondary key.
+//
+// In multi-GPU, the first element of every pair is in this process's edge-partition major range.
+// Unlike the materializing overload, this overload imposes no ownership precondition on the second
+// element: callers broadcast each row's pairs across minor_comm (both overloads broadcast across
+// minor_comm; what differs is the ownership precondition), so a process receives pairs whose second
+// element lies in another row member's minor slice (i.e. it processes pairs whose edge it does not
+// own). This process intersects v0's local (minor-slice) neighbor list against v1's gathered neighbor
+// list and invokes intersection_op only for the common neighbors in its minor slice; the caller
+// combines the per-process partials. v1's neighbor list is gathered from its owner over the major
+// (column) communicator.
+//
+// This differs from the materializing nbr_intersection (the std::array<bool, 2> overload below) in
+// two ways, both consequences of not materializing the intersection:
+//   - No input-ownership precondition. The materializing overload requires every pair's second
+//     element to be in this process's minor range (the edge is locally owned; the first element is
+//     in the major range either way). This overload does not: callers broadcast each row's pairs
+//     across minor_comm, so a process receives pairs whose second element lies in another row
+//     member's minor slice, i.e. pairs whose edge it does not own. It intersects v0's local minor
+//     slice of neighbors against the gathered N(v1), emitting only the common neighbors w in this
+//     process's minor slice (a partial); the per-process partials are combined by the caller. The
+//     reason is that a vertex's neighbor list is split across the minor_comm row, so no single
+//     process can finish a pair alone without materializing v0's full adjacency, which this path
+//     avoids by design.
+//   - It emits per common neighbor through intersection_op instead of writing the intersection to
+//     (offsets, indices) arrays.
+// The second-endpoint gather is functionally equivalent to the one inlined in the materializing
+// overload (same minor_comm all-gather + major_comm fetch), but here it is factored into the
+// standalone nbr_intersection_collect_second_nbrs: N(v1) (and, when requested, v1's edge-property
+// values) are fetched from v1's owner over major_comm. Pairs must still be sorted (first element
+// primary key, second element secondary key).
+template <typename GraphViewType,
+          typename VertexPairIterator,
+          typename EdgeValueInputWrapper,
+          typename EdgePartitionEValueInputWrapper,
+          typename IntersectionOp>
 void nbr_intersection(raft::handle_t const& handle,
                       GraphViewType const& graph_view,
                       edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                                    typename GraphViewType::edge_type,
                                                    GraphViewType::is_multi_gpu> edge_partition,
+                      EdgeValueInputWrapper edge_value_input,
+                      EdgePartitionEValueInputWrapper edge_partition_e_value_input,
                       VertexPairIterator vertex_pair_first,
                       VertexPairIterator vertex_pair_last,
+                      std::array<bool, 2> intersect_minor_nbr,
                       IntersectionOp intersection_op,
                       uint32_t const* edge_mask)
 {
   using vertex_t           = typename GraphViewType::vertex_type;
   using edge_t             = typename GraphViewType::edge_type;
   constexpr bool multi_gpu = GraphViewType::is_multi_gpu;
+  using edge_property_value_t =
+    typename EdgePartitionEValueInputWrapper::value_type;  // nullopt_t when no edge property
+  constexpr bool has_e_property =
+    !std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>;
 
-  auto stream    = handle.get_stream();
+  if (!intersect_minor_nbr[0] || !intersect_minor_nbr[1]) {
+    // FIXME: currently no use case, but this can be necessary to supporting triangle counting for
+    // directed graphs
+    CUGRAPH_FAIL("unimplemented.");
+  }
+
   auto num_pairs = static_cast<size_t>(cuda::std::distance(vertex_pair_first, vertex_pair_last));
   if (num_pairs == 0) { return; }
 
-  // Multi-GPU: gather the second pair elements' neighbor lists so the kernels can resolve a remote
-  // endpoint without materializing the intersection. The first element is always local.
+  // Multi-GPU: gather the second pair elements' neighbor lists (and, when requested, their edge
+  // property values) so the kernels can resolve a remote endpoint. The first element is always local.
+  // nbr_intersection_collect_second_nbrs performs both communication steps of this gather in one
+  // call: (1) a minor_comm all-gather that pools and deduplicates the row's needed second
+  // endpoints (each row member contributes the v1's it processes), then (2) a major_comm fetch that
+  // pulls each unique v1's neighbor list (and edge-property values) from v1's owner.
+  // The returned map keys those gathered lists back to v1.
+
+  // FIXME: this v1 -> idx map uses a hash store (use_binary_search=false): O(1) average lookups at
+  // the cost of more memory and a build pass. A binary-search store (use_binary_search=true) would be
+  // more compact with a near-free build (unique_majors is already sorted), but O(log n) lookups.
+  // The map is queried repeatedly (binning + count + accumulate passes), so benchmark both.
   std::optional<std::unique_ptr<kv_store_t<vertex_t, vertex_t, false>>> major_to_idx_map_ptr{
     std::nullopt};
   std::optional<rmm::device_uvector<edge_t>> major_nbr_offsets{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> major_nbr_indices{std::nullopt};
+  std::optional<rmm::device_uvector<std::conditional_t<has_e_property, edge_property_value_t, std::byte>>>
+    major_nbr_e_values{std::nullopt};
   if constexpr (multi_gpu) {
-    auto [m, o, n] = nbr_intersection_collect_second_nbrs(
-      handle, graph_view, vertex_pair_first, vertex_pair_last);
-    major_to_idx_map_ptr = std::move(m);
-    major_nbr_offsets    = std::move(o);
-    major_nbr_indices    = std::move(n);
+    auto [idx_map, offsets, indices, e_values] = nbr_intersection_collect_second_nbrs(
+      handle, graph_view, edge_value_input, vertex_pair_first, vertex_pair_last);
+    major_to_idx_map_ptr = std::move(idx_map);
+    major_nbr_offsets    = std::move(offsets);
+    major_nbr_indices    = std::move(indices);
+    major_nbr_e_values   = std::move(e_values);
   }
 
   // min(degree(v0), degree(v1)) for each pair, used only to choose the per-pair kernel. v0 is local
   // (degree from the edge partition); v1's degree is local in single-GPU and comes from the gathered
   // offsets (via the map) in multi-GPU. The full (unmasked) degree is fine here, since this only
   // selects the kernel; the kernels themselves honor the edge mask.
-  rmm::device_uvector<edge_t> min_degrees(num_pairs, stream);
+  rmm::device_uvector<edge_t> min_degrees(num_pairs, handle.get_stream());
   if constexpr (multi_gpu) {
     auto map_view = detail::kv_cuco_store_find_device_view_t((*major_to_idx_map_ptr)->view());
     auto nbr_offsets =
@@ -1313,9 +1457,9 @@ void nbr_intersection(raft::handle_t const& handle,
     thrust::count_if(handle.get_thrust_policy(), counting, counting + num_pairs, high_band));
   auto num_mid  = num_pairs - num_low - num_high;
 
-  rmm::device_uvector<size_t> low_indices(num_low, stream);
-  rmm::device_uvector<size_t> mid_indices(num_mid, stream);
-  rmm::device_uvector<size_t> high_indices(num_high, stream);
+  rmm::device_uvector<size_t> low_indices(num_low, handle.get_stream());
+  rmm::device_uvector<size_t> mid_indices(num_mid, handle.get_stream());
+  rmm::device_uvector<size_t> high_indices(num_high, handle.get_stream());
 
   if (num_low > 0) {
     thrust::copy_if(
@@ -1339,12 +1483,19 @@ void nbr_intersection(raft::handle_t const& handle,
 
   auto max_grid_size = handle.get_device_properties().maxGridSize[0];
 
+  // Edge-property base for v0 (the always-local first endpoint), indexed by local CSR edge offset;
+  // void* when no edge property is requested. v1's base is passed per launch (local value_first in
+  // single-GPU, the gathered major_nbr_e_values in multi-GPU).
+  std::conditional_t<has_e_property, edge_property_value_t const*, void*> v0_e_property{};
+  if constexpr (has_e_property) { v0_e_property = edge_partition_e_value_input.value_first(); }
+
   // Launch the three degree-binned kernels. The first endpoint is always local (void* map); the
   // second endpoint is local in single-GPU (void* map) and resolved through the gathered arrays in
   // multi-GPU (the kv_store find view + major_nbr_offsets / major_nbr_indices).
   auto launch_all = [&](auto second_element_to_idx_map,
                         raft::device_span<edge_t const> second_element_offsets,
-                        raft::device_span<vertex_t const> second_element_indices) {
+                        raft::device_span<vertex_t const> second_element_indices,
+                        auto v1_e_property) {
     void* first_element_to_idx_map = nullptr;
     auto first_element_offsets     = raft::device_span<edge_t const>{};
     auto first_element_indices     = raft::device_span<vertex_t const>{};
@@ -1354,16 +1505,18 @@ void nbr_intersection(raft::handle_t const& handle,
       auto pairs = raft::device_span<size_t const>(low_indices.data(), num_low);
       if (edge_mask != nullptr) {
         nbr_intersection_low_degree<true, vertex_t, edge_t, multi_gpu>
-          <<<grid.num_blocks, grid.block_size, 0, stream>>>(
+          <<<grid.num_blocks, grid.block_size, 0, handle.get_stream()>>>(
             edge_partition, vertex_pair_first, pairs, first_element_to_idx_map,
             first_element_offsets, first_element_indices, second_element_to_idx_map,
-            second_element_offsets, second_element_indices, intersection_op, edge_mask);
+            second_element_offsets, second_element_indices, v0_e_property, v1_e_property,
+            intersection_op, edge_mask);
       } else {
         nbr_intersection_low_degree<false, vertex_t, edge_t, multi_gpu>
-          <<<grid.num_blocks, grid.block_size, 0, stream>>>(
+          <<<grid.num_blocks, grid.block_size, 0, handle.get_stream()>>>(
             edge_partition, vertex_pair_first, pairs, first_element_to_idx_map,
             first_element_offsets, first_element_indices, second_element_to_idx_map,
-            second_element_offsets, second_element_indices, intersection_op, nullptr);
+            second_element_offsets, second_element_indices, v0_e_property, v1_e_property,
+            intersection_op, nullptr);
       }
     }
 
@@ -1372,16 +1525,18 @@ void nbr_intersection(raft::handle_t const& handle,
       auto pairs = raft::device_span<size_t const>(mid_indices.data(), num_mid);
       if (edge_mask != nullptr) {
         nbr_intersection_mid_degree<true, vertex_t, edge_t, multi_gpu>
-          <<<grid.num_blocks, grid.block_size, 0, stream>>>(
+          <<<grid.num_blocks, grid.block_size, 0, handle.get_stream()>>>(
             edge_partition, vertex_pair_first, pairs, first_element_to_idx_map,
             first_element_offsets, first_element_indices, second_element_to_idx_map,
-            second_element_offsets, second_element_indices, intersection_op, edge_mask);
+            second_element_offsets, second_element_indices, v0_e_property, v1_e_property,
+            intersection_op, edge_mask);
       } else {
         nbr_intersection_mid_degree<false, vertex_t, edge_t, multi_gpu>
-          <<<grid.num_blocks, grid.block_size, 0, stream>>>(
+          <<<grid.num_blocks, grid.block_size, 0, handle.get_stream()>>>(
             edge_partition, vertex_pair_first, pairs, first_element_to_idx_map,
             first_element_offsets, first_element_indices, second_element_to_idx_map,
-            second_element_offsets, second_element_indices, intersection_op, nullptr);
+            second_element_offsets, second_element_indices, v0_e_property, v1_e_property,
+            intersection_op, nullptr);
       }
     }
 
@@ -1390,30 +1545,38 @@ void nbr_intersection(raft::handle_t const& handle,
       auto pairs = raft::device_span<size_t const>(high_indices.data(), num_high);
       if (edge_mask != nullptr) {
         nbr_intersection_high_degree<true, vertex_t, edge_t, multi_gpu>
-          <<<grid.num_blocks, grid.block_size, 0, stream>>>(
+          <<<grid.num_blocks, grid.block_size, 0, handle.get_stream()>>>(
             edge_partition, vertex_pair_first, pairs, first_element_to_idx_map,
             first_element_offsets, first_element_indices, second_element_to_idx_map,
-            second_element_offsets, second_element_indices, intersection_op, edge_mask);
+            second_element_offsets, second_element_indices, v0_e_property, v1_e_property,
+            intersection_op, edge_mask);
       } else {
         nbr_intersection_high_degree<false, vertex_t, edge_t, multi_gpu>
-          <<<grid.num_blocks, grid.block_size, 0, stream>>>(
+          <<<grid.num_blocks, grid.block_size, 0, handle.get_stream()>>>(
             edge_partition, vertex_pair_first, pairs, first_element_to_idx_map,
             first_element_offsets, first_element_indices, second_element_to_idx_map,
-            second_element_offsets, second_element_indices, intersection_op, nullptr);
+            second_element_offsets, second_element_indices, v0_e_property, v1_e_property,
+            intersection_op, nullptr);
       }
     }
   };
 
   if constexpr (multi_gpu) {
+    // v1's edge property comes from the gathered major_nbr_e_values (parallel to major_nbr_indices).
+    std::conditional_t<has_e_property, edge_property_value_t const*, void*> v1_e_property{};
+    if constexpr (has_e_property) { v1_e_property = (*major_nbr_e_values).data(); }
     launch_all(detail::kv_cuco_store_find_device_view_t((*major_to_idx_map_ptr)->view()),
                raft::device_span<edge_t const>((*major_nbr_offsets).data(),
                                                (*major_nbr_offsets).size()),
                raft::device_span<vertex_t const>((*major_nbr_indices).data(),
-                                                 (*major_nbr_indices).size()));
+                                                 (*major_nbr_indices).size()),
+               v1_e_property);
   } else {
+    // Single-GPU: v1 is local, so it shares v0's local edge-property base.
     launch_all(static_cast<void*>(nullptr),
                raft::device_span<edge_t const>{},
-               raft::device_span<vertex_t const>{});
+               raft::device_span<vertex_t const>{},
+               v0_e_property);
   }
 }
 
