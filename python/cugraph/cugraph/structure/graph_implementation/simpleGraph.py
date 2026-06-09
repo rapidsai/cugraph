@@ -30,12 +30,6 @@ from pylibcugraph import (
     SGGraph,
 )
 
-from cugraph.security.atgc_detection import (
-    validate_graph_input,
-    ATGC_GUARD_ENABLED,
-)
-
-
 # FIXME: Change to consistent camel case naming
 class simpleGraphImpl:
     edgeWeightCol = "weights"
@@ -253,19 +247,28 @@ class simpleGraphImpl:
         # Validate graph input to prevent adversarial topologies from
         # reaching GPU kernels and causing TDR timeouts.
         # Reference: ATGC Security Research - CVE-2026-XXXX (pending)
-        if ATGC_GUARD_ENABLED:
-            try:
-                validate_graph_input(elist, source_col=source, dest_col=destination)
-            except ValueError as exc:
-                # Re-raise with additional context about the defensive measure
-                raise ValueError(
-                    f"{exc}\n\n"
-                    "This graph has been identified as potentially adversarial.\n"
-                    "If you believe this is a false positive, you can:\n"
-                    "  1. Set CUGRAPH_ATGC_ACTION=warn to allow with warning\n"
-                    "  2. Set CUGRAPH_ATGC_ACTION=allow to disable this check\n"
-                    "  3. Set CUGRAPH_ENABLE_ATGC_GUARD=false to disable the guard\n"
-                ) from exc
+        # Lazy import to avoid circular dependency
+        try:
+            from cugraph.security.atgc_detection import (
+                validate_graph_input,
+                ATGC_GUARD_ENABLED,
+            )
+            if ATGC_GUARD_ENABLED:
+                try:
+                    validate_graph_input(elist, source_col=source, dest_col=destination)
+                except ValueError as exc:
+                    # Re-raise with additional context about the defensive measure
+                    raise ValueError(
+                        f"{exc}\n\n"
+                        "This graph has been identified as potentially adversarial.\n"
+                        "If you believe this is a false positive, you can:\n"
+                        "  1. Set CUGRAPH_ATGC_ACTION=warn to allow with warning\n"
+                        "  2. Set CUGRAPH_ATGC_ACTION=allow to disable this check\n"
+                        "  3. Set CUGRAPH_ENABLE_ATGC_GUARD=false to disable the guard\n"
+                    ) from exc
+        except ImportError:
+            # ATGC security module not available, skip validation
+            pass
 
         # Renumbering
         self.renumber_map = None
