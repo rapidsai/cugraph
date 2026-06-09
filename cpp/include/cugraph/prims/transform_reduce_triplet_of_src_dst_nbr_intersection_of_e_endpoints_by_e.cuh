@@ -58,13 +58,26 @@ template <typename vertex_t, typename edge_t>
 struct count_intersections_op_t {
   size_t* count{nullptr};
 
+  template <typename EdgeProperty0, typename EdgeProperty1>
   __device__ void operator()(
-    vertex_t, vertex_t, vertex_t, edge_t, edge_t, edge_t, size_t) const
+    vertex_t, vertex_t, vertex_t, edge_t, edge_t, edge_t, EdgeProperty0, EdgeProperty1, size_t) const
   {
     cuda::atomic_ref<size_t, cuda::thread_scope_device> counter(*count);
     counter.fetch_add(size_t{1}, cuda::memory_order_relaxed);
   }
 };
+
+// Reads a supporting edge's property value at the given local edge offset, or returns
+// cuda::std::nullopt when no edge property is carried (the base pointer is void*).
+template <typename EdgeProperty, typename edge_t>
+__device__ auto nbr_intersection_get_e_property(EdgeProperty e_property, edge_t offset)
+{
+  if constexpr (std::is_same_v<EdgeProperty, void*>) {
+    return cuda::std::nullopt;
+  } else {
+    return e_property[offset];
+  }
+}
 
 // Multi-GPU only: compute the GPU that owns an edge from a (src, dst, value) triplet. The triplet
 // is shuffled as a single value buffer, so the GPU-id operator reads the endpoints out of the
@@ -116,12 +129,15 @@ struct accumulate_triplet_op_t {
   T* remote_values{nullptr};
   size_t* remote_count{nullptr};
 
+  template <typename EdgeProperty0, typename EdgeProperty1>
   __device__ void operator()(vertex_t v0,
                              vertex_t v1,
                              vertex_t w,
                              edge_t v0_v1_edge_offset,
                              edge_t v0_w_edge_offset,
                              edge_t v1_w_edge_offset,
+                             EdgeProperty0 v0_e_property,
+                             EdgeProperty1 v1_e_property,
                              size_t pair_idx) const
   {
     auto major_offset = edge_partition.major_offset_from_major_nocheck(v0);
@@ -131,11 +147,15 @@ struct accumulate_triplet_op_t {
     auto src_offset   = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
     auto dst_offset   = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
 
+    // Supporting-edge property values for (v0, w) and (v1, w) (cuda::std::nullopt when no edge
+    // property is requested), passed to the user operator alongside the endpoint vertex properties.
     auto result = intersection_op(src,
                                   dst,
                                   edge_partition_src_value_input.get(src_offset),
                                   edge_partition_dst_value_input.get(dst_offset),
-                                  w);
+                                  w,
+                                  nbr_intersection_get_e_property(v0_e_property, v0_w_edge_offset),
+                                  nbr_intersection_get_e_property(v1_e_property, v1_w_edge_offset));
     auto edge_value       = cuda::std::get<0>(result);
     auto supporting_value = cuda::std::get<1>(result);
 
@@ -180,6 +200,7 @@ struct accumulate_triplet_op_t {
 template <typename GraphViewType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
           typename IntersectionOp,
           typename T>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
@@ -190,6 +211,7 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
   GraphViewType const& graph_view,
   EdgeSrcValueInputWrapper edge_src_value_input,
   EdgeDstValueInputWrapper edge_dst_value_input,
+  EdgeValueInputWrapper edge_value_input,
   IntersectionOp intersection_op,
   T init,
   bool do_expensive_check = false)
@@ -197,7 +219,16 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = float;  // dummy
-  
+
+  // Edge-property device view for the supporting edges (dummy when no edge property is requested).
+  using edge_partition_e_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
+    detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
+    detail::edge_partition_edge_property_device_view_t<
+      edge_t,
+      typename EdgeValueInputWrapper::value_iterator,
+      typename EdgeValueInputWrapper::value_type>>;
+
   using edge_partition_src_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, cuda::std::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
@@ -232,6 +263,12 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
 
   auto edge_mask_view = graph_view.edge_mask_view();
 
+  // Per-edge-partition loop kept in the caller (nbr_intersection could own it, as the materializing
+  // overload does). Keeping it here keeps nbr_intersection thin/operator-agnostic; moving it in would
+  // pull this primitive's per-partition buffer machinery (accumulator/base/remote) into the callee.
+  // Consequence: nbr_intersection is then a per-partition callee with no partition index i, so the
+  // caller must hand it the already-built edge_partition and the per-partition edge_mask (both of
+  // which would otherwise need i to derive/slice from graph_view).
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     // retrieve the i-th local edge partition
     auto edge_partition =
@@ -256,6 +293,9 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
         edge_partition_src_input_device_view_t(edge_src_value_input, i);
       edge_partition_dst_value_input = edge_partition_dst_input_device_view_t(edge_dst_value_input);
     }
+
+    // This partition's supporting-edge property view (for v0's local edges and, in single-GPU, v1's).
+    auto edge_partition_e_value_input = edge_partition_e_input_device_view_t(edge_value_input, i);
 
     rmm::device_uvector<vertex_t> majors(
       edge_partition_e_mask
@@ -379,8 +419,11 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
       detail::nbr_intersection(handle,
                                graph_view,
                                edge_partition,
+                               edge_value_input,
+                               edge_partition_e_value_input,
                                vertex_pair_first,
                                vertex_pair_first + majors.size(),
+                               std::array<bool, 2>{true, true},
                                count_intersections_op_t<vertex_t, edge_t>{match_count.data()},
                                edge_mask);
       auto match_count_h = match_count.value(handle.get_stream());
@@ -396,8 +439,11 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
       handle,
       graph_view,
       edge_partition,
+      edge_value_input,
+      edge_partition_e_value_input,
       vertex_pair_first,
       vertex_pair_first + majors.size(),
+      std::array<bool, 2>{true, true},
       accumulate_triplet_op_t<GraphViewType,
                               edge_partition_src_input_device_view_t,
                               edge_partition_dst_input_device_view_t,
@@ -536,7 +582,7 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
         cuda::proclaim_return_type<bool>([init] __device__(auto v) { return v != init; }));
     }
 
-    // agg_* accumulates all local edge partitions' contributions (mostly remote_*, ~O(this rank's
+    // FIXME: agg_* accumulates all local edge partitions' contributions (mostly remote_*, ~O(this rank's
     // total intersection)) before the single post-loop shuffle + reduce, so its peak scales with the
     // rank's whole intersection, not one partition's. If that peak becomes a concern, shuffle +
     // reduce_by_key per partition instead, bounding the footprint to ~one partition's contributions
@@ -715,7 +761,10 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
- * @tparam IntersectionOp Type of the quinary per (edge, intersection vertex) operator.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for supporting-edge property values (the
+ * (src, r) and (dst, r) edges); use cugraph::edge_dummy_property_t::view() if @p intersection_op
+ * does not access supporting-edge property values.
+ * @tparam IntersectionOp Type of the septenary per (edge, intersection vertex) operator.
  * @tparam T Type of the per-edge reduction value. Currently restricted to a scalar arithmetic type:
  * contributions are accumulated with cuda::atomic_ref<T>::fetch_add and merged with a plain
  * reduce_by_key (cuda::std::plus). Supporting a tuple T (or non-additive reductions) would accumulate
@@ -735,10 +784,15 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
  * cugraph::edge_dst_property_t::view() (if @p intersection_op needs to access destination property
  * values) or cugraph::edge_dst_dummy_property_t::view() (if @p intersection_op does not access
  * destination property values). Use update_edge_dst_property to fill the wrapper.
- * @param intersection_op quinary operator takes edge source, edge destination, property values for
- * the source, property values for the destination, and one vertex r in the intersection of edge
- * source & destination vertices' source neighbors and returns a cuda::std::tuple of two values:
- * one value for the edge (src, dst) and one value for each supporting edge (src, r) and (dst, r).
+ * @param edge_value_input Wrapper used to access supporting-edge property values for the (src, r)
+ * and (dst, r) edges. Use cugraph::edge_property_t::view() (if @p intersection_op needs them) or
+ * cugraph::edge_dummy_property_t::view() (if it does not).
+ * @param intersection_op septenary operator takes edge source, edge destination, property values for
+ * the source, property values for the destination, one vertex r in the intersection of edge
+ * source & destination vertices' source neighbors, and the property values of the supporting edges
+ * (src, r) and (dst, r) (cuda::std::nullopt when @p edge_value_input is a dummy property), and
+ * returns a cuda::std::tuple of two values: one value for the edge (src, dst) and one value for each
+ * supporting edge (src, r) and (dst, r).
  * @param init Initial value to be added to the reduced @p intersection_op return values for each
  * edge.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
@@ -748,6 +802,7 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
 template <typename GraphViewType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
           typename IntersectionOp,
           typename T>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
@@ -758,6 +813,7 @@ transform_reduce_triplet_of_src_nbr_intersection_of_e_endpoints_by_e(
   GraphViewType const& graph_view,
   EdgeSrcValueInputWrapper edge_src_value_input,
   EdgeDstValueInputWrapper edge_dst_value_input,
+  EdgeValueInputWrapper edge_value_input,
   IntersectionOp intersection_op,
   T init,
   bool do_expensive_check = false)
@@ -769,6 +825,7 @@ transform_reduce_triplet_of_src_nbr_intersection_of_e_endpoints_by_e(
     graph_view,
     edge_src_value_input,
     edge_dst_value_input,
+    edge_value_input,
     intersection_op,
     init,
     do_expensive_check);
@@ -794,7 +851,10 @@ transform_reduce_triplet_of_src_nbr_intersection_of_e_endpoints_by_e(
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
- * @tparam IntersectionOp Type of the quinary per (edge, intersection vertex) operator.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for supporting-edge property values (the
+ * (src, r) and (dst, r) edges); use cugraph::edge_dummy_property_t::view() if @p intersection_op
+ * does not access supporting-edge property values.
+ * @tparam IntersectionOp Type of the septenary per (edge, intersection vertex) operator.
  * @tparam T Type of the per-edge reduction value. Currently restricted to a scalar arithmetic type:
  * contributions are accumulated with cuda::atomic_ref<T>::fetch_add and merged with a plain
  * reduce_by_key (cuda::std::plus). Supporting a tuple T (or non-additive reductions) would accumulate
@@ -814,11 +874,15 @@ transform_reduce_triplet_of_src_nbr_intersection_of_e_endpoints_by_e(
  * cugraph::edge_dst_property_t::view() (if @p intersection_op needs to access destination property
  * values) or cugraph::edge_dst_dummy_property_t::view() (if @p intersection_op does not access
  * destination property values). Use update_edge_dst_property to fill the wrapper.
- * @param intersection_op quinary operator takes edge source, edge destination, property values for
- * the source, property values for the destination, and one vertex r in the intersection of edge
- * source & destination vertices' destination neighbors and returns a cuda::std::tuple of two
- * values: one value for the edge (src, dst) and one value for each supporting edge (src, r) and
- * (dst, r).
+ * @param edge_value_input Wrapper used to access supporting-edge property values for the (src, r)
+ * and (dst, r) edges. Use cugraph::edge_property_t::view() (if @p intersection_op needs them) or
+ * cugraph::edge_dummy_property_t::view() (if it does not).
+ * @param intersection_op septenary operator takes edge source, edge destination, property values for
+ * the source, property values for the destination, one vertex r in the intersection of edge
+ * source & destination vertices' destination neighbors, and the property values of the supporting
+ * edges (src, r) and (dst, r) (cuda::std::nullopt when @p edge_value_input is a dummy property), and
+ * returns a cuda::std::tuple of two values: one value for the edge (src, dst) and one value for each
+ * supporting edge (src, r) and (dst, r).
  * @param init Initial value to be added to the reduced @p intersection_op return values for each
  * edge.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
@@ -828,6 +892,7 @@ transform_reduce_triplet_of_src_nbr_intersection_of_e_endpoints_by_e(
 template <typename GraphViewType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
           typename IntersectionOp,
           typename T>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
@@ -838,6 +903,7 @@ transform_reduce_triplet_of_dst_nbr_intersection_of_e_endpoints_by_e(
   GraphViewType const& graph_view,
   EdgeSrcValueInputWrapper edge_src_value_input,
   EdgeDstValueInputWrapper edge_dst_value_input,
+  EdgeValueInputWrapper edge_value_input,
   IntersectionOp intersection_op,
   T init,
   bool do_expensive_check = false)
@@ -849,6 +915,7 @@ transform_reduce_triplet_of_dst_nbr_intersection_of_e_endpoints_by_e(
     graph_view,
     edge_src_value_input,
     edge_dst_value_input,
+    edge_value_input,
     intersection_op,
     init,
     do_expensive_check);
