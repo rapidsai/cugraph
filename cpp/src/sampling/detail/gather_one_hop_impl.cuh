@@ -235,9 +235,11 @@ filter_edge_by_type(raft::handle_t const& handle,
                               edge_type.begin());
 
   auto [keep_count, marked_entries] = detail::mark_entries(
-    handle, edge_type.size(), [d_edge_type = edge_type.data(), gather_flags] __device__(auto idx) {
+    edge_type.size(),
+    [d_edge_type = edge_type.data(), gather_flags] __device__(auto idx) {
       return gather_flags[d_edge_type[idx]];
-    });
+    },
+    handle.get_stream());
 
   raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(), marked_entries.size()};
 
@@ -359,7 +361,6 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
     auto [keep_count, marked_entries] =
       visited_minor_labels
         ? detail::mark_entries(
-            handle,
             result_minors.size(),
             [minors              = result_minors.data(),
              labels              = result_labels->data(),
@@ -371,16 +372,17 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
                                             iter_begin,
                                             iter_begin + visited_minors_size,
                                             cuda::std::make_tuple(minors[index], labels[index]));
-            })
+            },
+            handle.get_stream())
         : detail::mark_entries(
-            handle,
             result_minors.size(),
             [minors              = result_minors.data(),
              visited_minors      = visited_minors.data(),
              visited_minors_size = visited_minors.size()] __device__(auto index) {
               return !thrust::binary_search(
                 thrust::seq, visited_minors, visited_minors + visited_minors_size, minors[index]);
-            });
+            },
+            handle.get_stream());
 
     raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(),
                                                         marked_entries.size()};
@@ -628,50 +630,51 @@ temporal_gather_one_hop_edgelist(
 
     auto [keep_count, marked_entries] =
       tmp_positions
-        ? detail::mark_entries(handle,
-                               edge_times.size(),
-                               [temporal_sampling_comparison,
-                                d_tmp           = edge_times.data(),
-                                d_tmp_positions = tmp_positions->data(),
-                                kv_store_view =
-                                  kv_binary_search_store_device_view_t<decltype(kv_store.view())>{
-                                    kv_store.view()}] __device__(auto index) {
-                                 auto edge_time = d_tmp[index];
-                                 auto key_time =
-                                   cuda::std::get<0>(kv_store_view.find(d_tmp_positions[index]));
+        ? detail::mark_entries(
+            edge_times.size(),
+            [temporal_sampling_comparison,
+             d_tmp           = edge_times.data(),
+             d_tmp_positions = tmp_positions->data(),
+             kv_store_view =
+               kv_binary_search_store_device_view_t<decltype(kv_store.view())>{
+                 kv_store.view()}] __device__(auto index) {
+              auto edge_time = d_tmp[index];
+              auto key_time  = cuda::std::get<0>(kv_store_view.find(d_tmp_positions[index]));
 
-                                 switch (temporal_sampling_comparison) {
-                                   case temporal_sampling_comparison_t::STRICTLY_INCREASING:
-                                     return (edge_time > key_time);
-                                   case temporal_sampling_comparison_t::MONOTONICALLY_INCREASING:
-                                     return (edge_time >= key_time);
-                                   case temporal_sampling_comparison_t::STRICTLY_DECREASING:
-                                     return (edge_time < key_time);
-                                   case temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
-                                     return (edge_time <= key_time);
-                                 }
-                                 CUGRAPH_UNREACHABLE("Unsupported temporal sampling comparison");
-                               })
-        : detail::mark_entries(handle,
-                               edge_times.size(),
-                               [temporal_sampling_comparison,
-                                d_tmp      = edge_times.data(),
-                                d_tmp_time = tmp_times->data()] __device__(auto index) {
-                                 auto edge_time = d_tmp[index];
-                                 auto key_time  = d_tmp_time[index];
+              switch (temporal_sampling_comparison) {
+                case temporal_sampling_comparison_t::STRICTLY_INCREASING:
+                  return (edge_time > key_time);
+                case temporal_sampling_comparison_t::MONOTONICALLY_INCREASING:
+                  return (edge_time >= key_time);
+                case temporal_sampling_comparison_t::STRICTLY_DECREASING:
+                  return (edge_time < key_time);
+                case temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
+                  return (edge_time <= key_time);
+              }
+              CUGRAPH_UNREACHABLE("Unsupported temporal sampling comparison");
+            },
+            handle.get_stream())
+        : detail::mark_entries(
+            edge_times.size(),
+            [temporal_sampling_comparison,
+             d_tmp      = edge_times.data(),
+             d_tmp_time = tmp_times->data()] __device__(auto index) {
+              auto edge_time = d_tmp[index];
+              auto key_time  = d_tmp_time[index];
 
-                                 switch (temporal_sampling_comparison) {
-                                   case temporal_sampling_comparison_t::STRICTLY_INCREASING:
-                                     return (edge_time > key_time);
-                                   case temporal_sampling_comparison_t::MONOTONICALLY_INCREASING:
-                                     return (edge_time >= key_time);
-                                   case temporal_sampling_comparison_t::STRICTLY_DECREASING:
-                                     return (edge_time < key_time);
-                                   case temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
-                                     return (edge_time <= key_time);
-                                 }
-                                 CUGRAPH_UNREACHABLE("Unsupported temporal sampling comparison");
-                               });
+              switch (temporal_sampling_comparison) {
+                case temporal_sampling_comparison_t::STRICTLY_INCREASING:
+                  return (edge_time > key_time);
+                case temporal_sampling_comparison_t::MONOTONICALLY_INCREASING:
+                  return (edge_time >= key_time);
+                case temporal_sampling_comparison_t::STRICTLY_DECREASING:
+                  return (edge_time < key_time);
+                case temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
+                  return (edge_time <= key_time);
+              }
+              CUGRAPH_UNREACHABLE("Unsupported temporal sampling comparison");
+            },
+            handle.get_stream());
 
     raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(),
                                                         marked_entries.size()};

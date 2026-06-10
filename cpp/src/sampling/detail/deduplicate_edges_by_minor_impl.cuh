@@ -176,16 +176,16 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
   rmm::device_uvector<uint32_t> keep_flags(0, handle.get_stream());
   if (has_labels) {
     std::tie(keep_count, keep_flags) = detail::mark_entries(
-      handle,
       result_minors.size(),
       detail::is_first_in_run_t<decltype(thrust::make_zip_iterator(result_labels->begin(),
                                                                    result_minors.begin()))>{
-        thrust::make_zip_iterator(result_labels->begin(), result_minors.begin())});
+        thrust::make_zip_iterator(result_labels->begin(), result_minors.begin())},
+      handle.get_stream());
   } else {
     std::tie(keep_count, keep_flags) = detail::mark_entries(
-      handle,
       result_minors.size(),
-      detail::is_first_in_run_t<decltype(result_minors.begin())>{result_minors.begin()});
+      detail::is_first_in_run_t<decltype(result_minors.begin())>{result_minors.begin()},
+      handle.get_stream());
   }
 
   // split to new result_majors and discarded_majors, then minors, edge_property, types and labels

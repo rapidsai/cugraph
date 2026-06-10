@@ -202,41 +202,30 @@ std::vector<rmm::device_uvector<bool>> compute_multi_edge_flags(
       cugraph::sort_wrapper(handle.get_thrust_policy(), hashes.begin(), second_first);
       cugraph::sort_wrapper(handle.get_thrust_policy(), second_first, hashes.end());
     }
-    auto is_definitely_not_multi_edge_hashes =
-      large_buffer_type
-        ? large_buffer_manager::allocate_memory_buffer<bool>(hashes.size(), handle.get_stream())
-        : rmm::device_uvector<bool>(hashes.size(), handle.get_stream());
-    thrust::tabulate(
-      handle.get_thrust_policy(),
-      is_definitely_not_multi_edge_hashes.begin(),
-      is_definitely_not_multi_edge_hashes.end(),
+    auto [possibly_multi_edge_count, possibly_multi_edge_flags] = detail::mark_entries(
+      hashes.size(),
       cuda::proclaim_return_type<bool>([hashes = raft::device_span<hash_result_type const>(
                                           hashes.data(), hashes.size())] __device__(size_t i) {
         if ((i != 0) && (hashes[i] == hashes[i - 1])) {  // compare with the previous element
-          return false;
+          return true;
         }
         if ((i != hashes.size() - 1) &&
             (hashes[i] == hashes[i + 1])) {  // compare with the next element
-          return false;
+          return true;
         }
-        return true;  // definitely unique (src, dst) pair
-      }));
-
-    num_possibly_multi_edges = thrust::count(handle.get_thrust_policy(),
-                                             is_definitely_not_multi_edge_hashes.begin(),
-                                             is_definitely_not_multi_edge_hashes.end(),
-                                             false);
+        return false;
+      }),
+      handle.get_stream(),
+      large_buffer_type);
+    num_possibly_multi_edges = possibly_multi_edge_count;
     unique_possibly_multi_edge_hashes.resize(num_possibly_multi_edges, handle.get_stream());
-    thrust::copy_if(handle.get_thrust_policy(),
-                    hashes.begin(),
-                    hashes.end(),
-                    is_definitely_not_multi_edge_hashes.begin(),
-                    unique_possibly_multi_edge_hashes.begin(),
-                    cuda::proclaim_return_type<bool>([] __device__(bool definitely_not_multi_edge) {
-                      return !definitely_not_multi_edge;
-                    }));
-    is_definitely_not_multi_edge_hashes.resize(0, handle.get_stream());
-    is_definitely_not_multi_edge_hashes.shrink_to_fit(handle.get_stream());
+    detail::copy_if_mask_set(handle,
+                             hashes.begin(),
+                             hashes.end(),
+                             possibly_multi_edge_flags.begin(),
+                             unique_possibly_multi_edge_hashes.begin());
+    possibly_multi_edge_flags.resize(0, handle.get_stream());
+    possibly_multi_edge_flags.shrink_to_fit(handle.get_stream());
 
     cugraph::sort_wrapper(handle.get_thrust_policy(),
                           unique_possibly_multi_edge_hashes.begin(),
@@ -820,9 +809,9 @@ remove_multi_edges_impl(
 
       auto pair_first = thrust::make_zip_iterator(multi_edge_srcs.begin(), multi_edge_dsts.begin());
       auto [keep_count, keep_flags] =
-        detail::mark_entries(handle,
-                             multi_edge_srcs.size(),
-                             detail::is_first_in_run_t<decltype(pair_first)>{pair_first});
+        detail::mark_entries(multi_edge_srcs.size(),
+                             detail::is_first_in_run_t<decltype(pair_first)>{pair_first},
+                             handle.get_stream());
       multi_edge_srcs = detail::keep_marked_entries(
         handle,
         std::move(multi_edge_srcs),
@@ -947,7 +936,6 @@ remove_multi_edges_impl(
         d_group_valid_counts.data(), group_valid_counts[i].data(), num_chunks, handle.get_stream());
 
       auto [keep_count, keep_flags] = detail::mark_entries(
-        handle,
         edgelist_srcs[i].size(),
         [lasts              = raft::device_span<size_t const>(d_lasts.data(), d_lasts.size()),
          group_valid_counts = raft::device_span<size_t const>(
@@ -957,6 +945,7 @@ remove_multi_edges_impl(
           auto intra_group_idx = i - (group_idx == 0 ? 0 : lasts[group_idx - 1]);
           return intra_group_idx < group_valid_counts[group_idx];
         },
+        handle.get_stream(),
         large_buffer_type);
 
       edgelist_srcs[i] = detail::keep_marked_entries(
@@ -1207,9 +1196,9 @@ remove_multi_edges_impl(
 
     auto pair_first = thrust::make_zip_iterator(edgelist_srcs[0].begin(), edgelist_dsts[0].begin());
     auto [keep_count, keep_flags] =
-      detail::mark_entries(handle,
-                           edgelist_srcs[0].size(),
+      detail::mark_entries(edgelist_srcs[0].size(),
                            detail::is_first_in_run_t<decltype(pair_first)>{pair_first},
+                           handle.get_stream(),
                            large_buffer_type);
 
     edgelist_srcs[0] = detail::keep_marked_entries(

@@ -856,7 +856,6 @@ sample_unvisited_with_one_property(
           random_numbers.shrink_to_fit(handle.get_stream());
 
           std::tie(keep_count, keep_flags) = detail::mark_entries(
-            handle,
             majors.size(),
             cuda::proclaim_return_type<bool>(
               [majors_size             = majors.size(),
@@ -888,6 +887,7 @@ sample_unvisited_with_one_property(
                 auto position_count = (i - cuda::std::distance(d_begin, lb2));
                 return position_count < needed_count;
               }),
+            handle.get_stream(),
             std::nullopt);
 
         } else {
@@ -901,7 +901,6 @@ sample_unvisited_with_one_property(
           random_numbers.shrink_to_fit(handle.get_stream());
 
           std::tie(keep_count, keep_flags) = detail::mark_entries(
-            handle,
             majors.size(),
             cuda::proclaim_return_type<bool>(
               [majors_size             = majors.size(),
@@ -931,6 +930,7 @@ sample_unvisited_with_one_property(
                 auto position_count = (i - cuda::std::distance(d_begin, lb2));
                 return position_count < needed_count;
               }),
+            handle.get_stream(),
             std::nullopt);
         }
       } else {
@@ -945,7 +945,6 @@ sample_unvisited_with_one_property(
           random_numbers.shrink_to_fit(handle.get_stream());
 
           std::tie(keep_count, keep_flags) = detail::mark_entries(
-            handle,
             majors.size(),
             cuda::proclaim_return_type<bool>(
               [majors_size             = majors.size(),
@@ -975,6 +974,7 @@ sample_unvisited_with_one_property(
                 auto position_count = (i - cuda::std::distance(d_begin, lb2));
                 return position_count < needed_count;
               }),
+            handle.get_stream(),
             std::nullopt);
 
         } else {
@@ -987,7 +987,6 @@ sample_unvisited_with_one_property(
           random_numbers.shrink_to_fit(handle.get_stream());
 
           std::tie(keep_count, keep_flags) = detail::mark_entries(
-            handle,
             majors.size(),
             cuda::proclaim_return_type<bool>(
               [majors_size             = majors.size(),
@@ -1012,6 +1011,7 @@ sample_unvisited_with_one_property(
                 auto position_count = (i - cuda::std::distance(d_majors, lb2));
                 return position_count < needed_count;
               }),
+            handle.get_stream(),
             std::nullopt);
         }
       }

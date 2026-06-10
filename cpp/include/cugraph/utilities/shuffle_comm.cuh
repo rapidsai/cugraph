@@ -8,6 +8,7 @@
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_comm.hpp>
+#include <cugraph/utilities/mask_utils.cuh>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -22,14 +23,12 @@
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
-#include <thrust/count.h>
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/partition.h>
 #include <thrust/reduce.h>
-#include <thrust/remove.h>
 #include <thrust/scatter.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
@@ -439,6 +438,93 @@ void swap_partitions(KeyIterator key_first,
   }
 }
 
+// Reorder @p input_first..@p input_last in-place into [set bits | unset bits] using @p mask_first.
+// Set bits are compacted to the front; unset bits are moved to the back via a temp buffer of size
+// @p second_size.
+template <typename InputIterator>
+void partition_mask_scalar(InputIterator input_first,
+                           InputIterator input_last,
+                           uint32_t const* mask_first,
+                           size_t first_size,
+                           size_t second_size,
+                           rmm::cuda_stream_view stream_view,
+                           std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
+{
+  using element_t = typename thrust::iterator_traits<InputIterator>::value_type;
+
+  CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
+
+  auto tmp_buffer =
+    large_buffer_type
+      ? large_buffer_manager::allocate_memory_buffer<element_t>(second_size, stream_view)
+      : allocate_dataframe_buffer<element_t>(second_size, stream_view);
+
+  raft::handle_t handle{stream_view};
+
+  copy_if_mask_unset(
+    handle, input_first, input_last, mask_first, get_dataframe_buffer_begin(tmp_buffer));
+  copy_if_mask_set(handle, input_first, input_last, mask_first, input_first);
+  thrust::copy(rmm::exec_policy(stream_view),
+               get_dataframe_buffer_cbegin(tmp_buffer),
+               get_dataframe_buffer_cend(tmp_buffer),
+               input_first + first_size);
+}
+
+template <typename ZipIterator, size_t I, size_t N>
+struct partition_mask_zip_split_impl {
+  static void run(ZipIterator input_first,
+                  ZipIterator input_last,
+                  uint32_t const* mask_first,
+                  size_t first_size,
+                  size_t second_size,
+                  rmm::cuda_stream_view stream_view,
+                  std::optional<large_buffer_type_t> large_buffer_type)
+  {
+    auto const& input_tuple      = input_first.get_iterator_tuple();
+    auto const& input_last_tuple = input_last.get_iterator_tuple();
+
+    partition_mask_scalar(cuda::std::get<I>(input_tuple),
+                          cuda::std::get<I>(input_last_tuple),
+                          mask_first,
+                          first_size,
+                          second_size,
+                          stream_view,
+                          large_buffer_type);
+    partition_mask_zip_split_impl<ZipIterator, I + 1, N>::run(
+      input_first, input_last, mask_first, first_size, second_size, stream_view, large_buffer_type);
+  }
+};
+
+template <typename ZipIterator, size_t I>
+struct partition_mask_zip_split_impl<ZipIterator, I, I> {
+  static void run(ZipIterator,
+                  ZipIterator,
+                  uint32_t const*,
+                  size_t,
+                  size_t,
+                  rmm::cuda_stream_view,
+                  std::optional<large_buffer_type_t>)
+  {
+  }
+};
+
+// Reorder each component of @p input_first..@p input_last in-place into [set bits | unset bits].
+template <typename ZipIterator>
+void partition_mask_zip_split(ZipIterator input_first,
+                              ZipIterator input_last,
+                              uint32_t const* mask_first,
+                              size_t first_size,
+                              size_t second_size,
+                              rmm::cuda_stream_view stream_view,
+                              std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
+{
+  constexpr size_t tuple_size = zip_iterator_arity_v<ZipIterator>;
+
+  partition_mask_zip_split_impl<ZipIterator, 0, tuple_size>::run(
+    input_first, input_last, mask_first, first_size, second_size, stream_view, large_buffer_type);
+}
+
 // Use roughly half temporary buffer than thrust::partition (if first & second partition sizes are
 // comparable). This also uses multiple smaller allocations than one single allocation (thrust::sort
 // does this) of the same aggregate size if the input iterators are the zip iterators (this is more
@@ -452,49 +538,30 @@ ValueIterator mem_frugal_partition(
   rmm::cuda_stream_view stream_view,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
-  using value_t = typename thrust::iterator_traits<ValueIterator>::value_type;
-
   CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
                   "Invalid input argument: large memory buffer is not initialized.");
 
   auto num_elements = static_cast<size_t>(cuda::std::distance(value_first, value_last));
-  auto first_size   = static_cast<size_t>(thrust::count_if(
-    rmm::exec_policy(stream_view),
-    value_first,
-    value_last,
-    value_group_id_less_t<value_t, ValueToGroupIdOp>{value_to_group_id_op, pivot}));
-  auto second_size  = num_elements - first_size;
+  auto [marked_count, marked_entries] =
+    mark_entries(num_elements,
+                 cuda::proclaim_return_type<bool>(
+                   [value_first, value_to_group_id_op, pivot] __device__(size_t i) {
+                     return value_to_group_id_op(*(value_first + i)) < pivot;
+                   }),
+                 stream_view,
+                 large_buffer_type);
 
-  auto tmp_buffer =
-    large_buffer_type
-      ? large_buffer_manager::allocate_memory_buffer<value_t>(second_size, stream_view)
-      : allocate_dataframe_buffer<value_t>(second_size, stream_view);
+  auto const first_size      = marked_count;
+  auto const second_size     = num_elements - first_size;
+  uint32_t const* mask_first = marked_entries.data();
 
-  // to limit memory footprint (16 * 1024 * 1024 is a tuning parameter)
-  // thrust::copy_if (1.15.0) also uses temporary buffer
-  auto constexpr max_elements_per_iteration = size_t{16} * 1024 * 1024;
-  auto num_chunks = (num_elements + max_elements_per_iteration - 1) / max_elements_per_iteration;
-  auto output_chunk_first = get_dataframe_buffer_begin(tmp_buffer);
-  for (size_t i = 0; i < num_chunks; ++i) {
-    output_chunk_first = thrust::copy_if(
-      rmm::exec_policy(stream_view),
-      value_first + max_elements_per_iteration * i,
-      value_first + std::min(max_elements_per_iteration * (i + 1), num_elements),
-      output_chunk_first,
-      value_group_id_greater_equal_t<typename thrust::iterator_traits<ValueIterator>::value_type,
-                                     ValueToGroupIdOp>{value_to_group_id_op, pivot});
+  if constexpr (is_thrust_zip_iterator_v<ValueIterator>) {
+    partition_mask_zip_split(
+      value_first, value_last, mask_first, first_size, second_size, stream_view, large_buffer_type);
+  } else {
+    partition_mask_scalar(
+      value_first, value_last, mask_first, first_size, second_size, stream_view, large_buffer_type);
   }
-
-  thrust::remove_if(
-    rmm::exec_policy(stream_view),
-    value_first,
-    value_last,
-    value_group_id_greater_equal_t<typename thrust::iterator_traits<ValueIterator>::value_type,
-                                   ValueToGroupIdOp>{value_to_group_id_op, pivot});
-  thrust::copy(rmm::exec_policy(stream_view),
-               get_dataframe_buffer_cbegin(tmp_buffer),
-               get_dataframe_buffer_cend(tmp_buffer),
-               value_first + first_size);
 
   return value_first + first_size;
 }
@@ -513,58 +580,37 @@ std::tuple<KeyIterator, ValueIterator> mem_frugal_partition(
   rmm::cuda_stream_view stream_view,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
-  using key_t   = typename thrust::iterator_traits<KeyIterator>::value_type;
-  using value_t = typename thrust::iterator_traits<ValueIterator>::value_type;
-
   CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
                   "Invalid input argument: large memory buffer is not initialized.");
 
   auto num_elements = static_cast<size_t>(cuda::std::distance(key_first, key_last));
-  auto first_size   = static_cast<size_t>(
-    thrust::count_if(rmm::exec_policy(stream_view),
-                     key_first,
-                     key_last,
-                     key_group_id_less_t<key_t, KeyToGroupIdOp>{key_to_group_id_op, pivot}));
-  auto second_size = num_elements - first_size;
+  auto [marked_count, marked_entries] = mark_entries(
+    num_elements,
+    [key_first, key_to_group_id_op, pivot] __device__(size_t i) {
+      return key_to_group_id_op(*(key_first + i)) < pivot;
+    },
+    stream_view,
+    large_buffer_type);
 
-  auto tmp_key_buffer =
-    large_buffer_type
-      ? large_buffer_manager::allocate_memory_buffer<key_t>(second_size, stream_view)
-      : allocate_dataframe_buffer<key_t>(second_size, stream_view);
-  auto tmp_value_buffer =
-    large_buffer_type
-      ? large_buffer_manager::allocate_memory_buffer<value_t>(second_size, stream_view)
-      : allocate_dataframe_buffer<value_t>(second_size, stream_view);
+  auto const first_size      = marked_count;
+  auto const second_size     = num_elements - first_size;
+  uint32_t const* mask_first = marked_entries.data();
 
-  // to limit memory footprint (16 * 1024 * 1024 is a tuning parameter)
-  // thrust::copy_if (1.15.0) also uses temporary buffer
-  auto max_elements_per_iteration = size_t{16} * 1024 * 1024;
-  auto num_chunks    = (num_elements + max_elements_per_iteration - 1) / max_elements_per_iteration;
-  auto kv_pair_first = thrust::make_zip_iterator(key_first, value_first);
-  auto output_chunk_first = thrust::make_zip_iterator(get_dataframe_buffer_begin(tmp_key_buffer),
-                                                      get_dataframe_buffer_begin(tmp_value_buffer));
-  for (size_t i = 0; i < num_chunks; ++i) {
-    output_chunk_first = thrust::copy_if(
-      rmm::exec_policy(stream_view),
-      kv_pair_first + max_elements_per_iteration * i,
-      kv_pair_first + std::min(max_elements_per_iteration * (i + 1), num_elements),
-      output_chunk_first,
-      kv_pair_group_id_greater_equal_t<key_t, value_t, KeyToGroupIdOp>{key_to_group_id_op, pivot});
+  if constexpr (is_thrust_zip_iterator_v<KeyIterator>) {
+    partition_mask_zip_split(
+      key_first, key_last, mask_first, first_size, second_size, stream_view, large_buffer_type);
+  } else {
+    partition_mask_scalar(
+      key_first, key_last, mask_first, first_size, second_size, stream_view, large_buffer_type);
   }
 
-  thrust::remove_if(
-    rmm::exec_policy(stream_view),
-    kv_pair_first,
-    kv_pair_first + num_elements,
-    kv_pair_group_id_greater_equal_t<key_t, value_t, KeyToGroupIdOp>{key_to_group_id_op, pivot});
-  thrust::copy(rmm::exec_policy(stream_view),
-               get_dataframe_buffer_cbegin(tmp_key_buffer),
-               get_dataframe_buffer_cend(tmp_key_buffer),
-               key_first + first_size);
-  thrust::copy(rmm::exec_policy(stream_view),
-               get_dataframe_buffer_cbegin(tmp_value_buffer),
-               get_dataframe_buffer_cend(tmp_value_buffer),
-               value_first + first_size);
+  partition_mask_scalar(value_first,
+                        value_first + num_elements,
+                        mask_first,
+                        first_size,
+                        second_size,
+                        stream_view,
+                        large_buffer_type);
 
   return std::make_tuple(key_first + first_size, value_first + first_size);
 }

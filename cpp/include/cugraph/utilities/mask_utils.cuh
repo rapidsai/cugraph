@@ -8,20 +8,29 @@
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/packed_bool_utils.hpp>
+#include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/core/handle.hpp>
 
+#include <rmm/exec_policy.hpp>
+
 #include <cuda/functional>
 #include <cuda/iterator>
+#include <cuda/std/iterator>
 #include <thrust/copy.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 
+#include <cstdint>
+#include <type_traits>
+
 namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
+
+#ifdef __CUDACC__
 
 template <typename MaskIterator>  // should be packed bool
 __device__ size_t count_set_bits(MaskIterator mask_first, size_t start_offset, size_t num_bits)
@@ -142,79 +151,296 @@ __device__ size_t copy_if_mask_set(InputIterator input_first,
       is_equal_t<bool>{true})));
 }
 
-template <typename MaskIterator>  // should be packed bool
-size_t count_set_bits(raft::handle_t const& handle, MaskIterator mask_first, size_t num_bits)
-{
-  static_assert(
-    std::is_same_v<typename thrust::iterator_traits<MaskIterator>::value_type, uint32_t>);
+#endif  // __CUDACC__
 
-  return thrust::transform_reduce(
-    handle.get_thrust_policy(),
-    thrust::make_counting_iterator(size_t{0}),
-    thrust::make_counting_iterator(packed_bool_size(num_bits)),
-    cuda::proclaim_return_type<size_t>([mask_first, num_bits] __device__(size_t i) -> size_t {
-      auto word = *(mask_first + i);
-      if ((i + 1) * packed_bools_per_word() > num_bits) {
-        word &= packed_bool_partial_mask(num_bits % packed_bools_per_word());
-      }
-      return static_cast<size_t>(__popc(word));
-    }),
-    size_t{0},
-    cuda::std::plus<size_t>{});
-}
+size_t count_set_bits(raft::handle_t const& handle, uint32_t const* mask_first, size_t num_bits);
 
-template <typename InputIterator,
-          typename MaskIterator,  // should be packed bool
-          typename OutputIterator>
-OutputIterator copy_if_mask_set(raft::handle_t const& handle,
-                                InputIterator input_first,
-                                InputIterator input_last,
-                                MaskIterator mask_first,
-                                OutputIterator output_first)
+size_t count_set_bits(rmm::cuda_stream_view stream_view,
+                      uint32_t const* mask_first,
+                      size_t num_bits);
+
+/** Value type of @p Iterator for @ref copy_if_mask_supported_scalar_v (C++17-friendly). */
+template <typename Iterator>
+using copy_if_mask_iterator_value_t =
+  std::remove_cv_t<typename thrust::iterator_traits<std::remove_cv_t<Iterator>>::value_type>;
+
+/** Whether @p InputIterator / @p OutputIterator match an out-of-line @ref copy_if_mask_set_impl. */
+template <typename InputIterator, typename OutputIterator>
+inline constexpr bool copy_if_mask_supported_scalar_v =
+  std::is_same_v<std::remove_cv_t<InputIterator>, std::remove_cv_t<OutputIterator>> &&
+  std::disjunction_v<std::is_same<copy_if_mask_iterator_value_t<InputIterator>, std::int32_t>,
+                     std::is_same<copy_if_mask_iterator_value_t<InputIterator>, std::int64_t>,
+                     std::is_same<copy_if_mask_iterator_value_t<InputIterator>, float>,
+                     std::is_same<copy_if_mask_iterator_value_t<InputIterator>, double>>;
+
+template <typename Iterator>
+inline constexpr bool is_thrust_zip_iterator_v =
+  is_thrust_tuple_of_arithmetic_v<copy_if_mask_iterator_value_t<std::remove_cv_t<Iterator>>>;
+
+template <typename ZipIterator>
+using zip_iterator_tuple_t = typename ZipIterator::iterator_tuple;
+
+template <typename ZipIterator>
+inline constexpr size_t zip_iterator_arity_v =
+  cuda::std::tuple_size<zip_iterator_tuple_t<ZipIterator>>::value;
+
+template <typename InputIterator, typename OutputIterator>
+OutputIterator copy_if_mask_set_impl(raft::handle_t const& handle,
+                                     InputIterator input_first,
+                                     InputIterator input_last,
+                                     uint32_t const* mask_first,
+                                     OutputIterator output_first);
+
+template <typename InputIterator, typename OutputIterator>
+OutputIterator copy_if_mask_unset_impl(raft::handle_t const& handle,
+                                       InputIterator input_first,
+                                       InputIterator input_last,
+                                       uint32_t const* mask_first,
+                                       OutputIterator output_first);
+
+template <typename InputIterator, typename OutputIterator>
+OutputIterator copy_if_mask_set_inline(raft::handle_t const& handle,
+                                       InputIterator input_first,
+                                       InputIterator input_last,
+                                       uint32_t const* mask_first,
+                                       OutputIterator output_first)
 {
   return thrust::copy_if(
     handle.get_thrust_policy(),
     input_first,
     input_last,
     cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
-                                  check_bit_set_t<MaskIterator, size_t>{mask_first, size_t{0}}),
+                                  check_bit_set_t<uint32_t const*, size_t>{mask_first, size_t{0}}),
     output_first,
     is_equal_t<bool>{true});
 }
 
-template <typename InputIterator,
-          typename MaskIterator,  // should be packed bool
-          typename OutputIterator>
-OutputIterator copy_if_mask_unset(raft::handle_t const& handle,
-                                  InputIterator input_first,
-                                  InputIterator input_last,
-                                  MaskIterator mask_first,
-                                  OutputIterator output_first)
+template <typename InputIterator, typename OutputIterator>
+OutputIterator copy_if_mask_unset_inline(raft::handle_t const& handle,
+                                         InputIterator input_first,
+                                         InputIterator input_last,
+                                         uint32_t const* mask_first,
+                                         OutputIterator output_first)
 {
   return thrust::copy_if(
     handle.get_thrust_policy(),
     input_first,
     input_last,
     cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
-                                  check_bit_set_t<MaskIterator, size_t>{mask_first, size_t{0}}),
+                                  check_bit_set_t<uint32_t const*, size_t>{mask_first, size_t{0}}),
     output_first,
     is_equal_t<bool>{false});
 }
 
+template <typename InputIterator, typename OutputIterator>
+OutputIterator copy_if_mask_set_scalar(raft::handle_t const& handle,
+                                       InputIterator input_first,
+                                       InputIterator input_last,
+                                       uint32_t const* mask_first,
+                                       OutputIterator output_first)
+{
+  if constexpr (copy_if_mask_supported_scalar_v<InputIterator, OutputIterator>) {
+    return copy_if_mask_set_impl(handle, input_first, input_last, mask_first, output_first);
+  } else {
+    return copy_if_mask_set_inline(handle, input_first, input_last, mask_first, output_first);
+  }
+}
+
+template <typename InputIterator, typename OutputIterator>
+OutputIterator copy_if_mask_unset_scalar(raft::handle_t const& handle,
+                                         InputIterator input_first,
+                                         InputIterator input_last,
+                                         uint32_t const* mask_first,
+                                         OutputIterator output_first)
+{
+  if constexpr (copy_if_mask_supported_scalar_v<InputIterator, OutputIterator>) {
+    return copy_if_mask_unset_impl(handle, input_first, input_last, mask_first, output_first);
+  } else {
+    return copy_if_mask_unset_inline(handle, input_first, input_last, mask_first, output_first);
+  }
+}
+
+template <typename InputZipIterator, typename OutputZipIterator, size_t I, size_t N>
+struct copy_if_mask_set_zip_split_impl {
+  static void run(raft::handle_t const& handle,
+                  InputZipIterator input_first,
+                  InputZipIterator input_last,
+                  uint32_t const* mask_first,
+                  OutputZipIterator output_first)
+  {
+    auto const& input_tuple      = input_first.get_iterator_tuple();
+    auto const& input_last_tuple = input_last.get_iterator_tuple();
+    auto const& output_tuple     = output_first.get_iterator_tuple();
+
+    copy_if_mask_set_scalar(handle,
+                            cuda::std::get<I>(input_tuple),
+                            cuda::std::get<I>(input_last_tuple),
+                            mask_first,
+                            cuda::std::get<I>(output_tuple));
+    copy_if_mask_set_zip_split_impl<InputZipIterator, OutputZipIterator, I + 1, N>::run(
+      handle, input_first, input_last, mask_first, output_first);
+  }
+};
+
+template <typename InputZipIterator, typename OutputZipIterator, size_t I>
+struct copy_if_mask_set_zip_split_impl<InputZipIterator, OutputZipIterator, I, I> {
+  static void run(
+    raft::handle_t const&, InputZipIterator, InputZipIterator, uint32_t const*, OutputZipIterator)
+  {
+  }
+};
+
+template <typename InputZipIterator, typename OutputZipIterator, size_t I, size_t N>
+struct copy_if_mask_unset_zip_split_impl {
+  static void run(raft::handle_t const& handle,
+                  InputZipIterator input_first,
+                  InputZipIterator input_last,
+                  uint32_t const* mask_first,
+                  OutputZipIterator output_first)
+  {
+    auto const& input_tuple      = input_first.get_iterator_tuple();
+    auto const& input_last_tuple = input_last.get_iterator_tuple();
+    auto const& output_tuple     = output_first.get_iterator_tuple();
+
+    copy_if_mask_unset_scalar(handle,
+                              cuda::std::get<I>(input_tuple),
+                              cuda::std::get<I>(input_last_tuple),
+                              mask_first,
+                              cuda::std::get<I>(output_tuple));
+    copy_if_mask_unset_zip_split_impl<InputZipIterator, OutputZipIterator, I + 1, N>::run(
+      handle, input_first, input_last, mask_first, output_first);
+  }
+};
+
+template <typename InputZipIterator, typename OutputZipIterator, size_t I>
+struct copy_if_mask_unset_zip_split_impl<InputZipIterator, OutputZipIterator, I, I> {
+  static void run(
+    raft::handle_t const&, InputZipIterator, InputZipIterator, uint32_t const*, OutputZipIterator)
+  {
+  }
+};
+
+template <typename InputZipIterator, typename OutputZipIterator>
+OutputZipIterator copy_if_mask_set_zip_split(raft::handle_t const& handle,
+                                             InputZipIterator input_first,
+                                             InputZipIterator input_last,
+                                             uint32_t const* mask_first,
+                                             OutputZipIterator output_first)
+{
+  static_assert(zip_iterator_arity_v<InputZipIterator> == zip_iterator_arity_v<OutputZipIterator>,
+                "copy_if_mask_set zip overload requires matching tuple arity.");
+
+  constexpr size_t tuple_size = zip_iterator_arity_v<InputZipIterator>;
+
+  auto const& input_tuple      = input_first.get_iterator_tuple();
+  auto const& input_last_tuple = input_last.get_iterator_tuple();
+  auto const& output_tuple     = output_first.get_iterator_tuple();
+
+  auto output_end = copy_if_mask_set_scalar(handle,
+                                            cuda::std::get<0>(input_tuple),
+                                            cuda::std::get<0>(input_last_tuple),
+                                            mask_first,
+                                            cuda::std::get<0>(output_tuple));
+  if constexpr (tuple_size > 1) {
+    copy_if_mask_set_zip_split_impl<InputZipIterator, OutputZipIterator, 1, tuple_size>::run(
+      handle, input_first, input_last, mask_first, output_first);
+  }
+  return output_first + (output_end - cuda::std::get<0>(output_tuple));
+}
+
+template <typename InputZipIterator, typename OutputZipIterator>
+OutputZipIterator copy_if_mask_unset_zip_split(raft::handle_t const& handle,
+                                               InputZipIterator input_first,
+                                               InputZipIterator input_last,
+                                               uint32_t const* mask_first,
+                                               OutputZipIterator output_first)
+{
+  static_assert(zip_iterator_arity_v<InputZipIterator> == zip_iterator_arity_v<OutputZipIterator>,
+                "copy_if_mask_unset zip overload requires matching tuple arity.");
+
+  constexpr size_t tuple_size = zip_iterator_arity_v<InputZipIterator>;
+
+  auto const& input_tuple      = input_first.get_iterator_tuple();
+  auto const& input_last_tuple = input_last.get_iterator_tuple();
+  auto const& output_tuple     = output_first.get_iterator_tuple();
+
+  auto output_end = copy_if_mask_unset_scalar(handle,
+                                              cuda::std::get<0>(input_tuple),
+                                              cuda::std::get<0>(input_last_tuple),
+                                              mask_first,
+                                              cuda::std::get<0>(output_tuple));
+  if constexpr (tuple_size > 1) {
+    copy_if_mask_unset_zip_split_impl<InputZipIterator, OutputZipIterator, 1, tuple_size>::run(
+      handle, input_first, input_last, mask_first, output_first);
+  }
+  return output_first + (output_end - cuda::std::get<0>(output_tuple));
+}
+
+template <typename InputIterator,
+          typename OutputIterator,
+          std::enable_if_t<is_thrust_zip_iterator_v<InputIterator>, bool> = true>
+OutputIterator copy_if_mask_set(raft::handle_t const& handle,
+                                InputIterator input_first,
+                                InputIterator input_last,
+                                uint32_t const* mask_first,
+                                OutputIterator output_first)
+{
+  static_assert(is_thrust_zip_iterator_v<OutputIterator>,
+                "copy_if_mask_set zip overload requires a zip output iterator.");
+  return copy_if_mask_set_zip_split(handle, input_first, input_last, mask_first, output_first);
+}
+
+template <typename InputIterator,
+          typename OutputIterator,
+          std::enable_if_t<!is_thrust_zip_iterator_v<InputIterator>, bool> = true>
+OutputIterator copy_if_mask_set(raft::handle_t const& handle,
+                                InputIterator input_first,
+                                InputIterator input_last,
+                                uint32_t const* mask_first,
+                                OutputIterator output_first)
+{
+  return copy_if_mask_set_scalar(handle, input_first, input_last, mask_first, output_first);
+}
+
+template <typename InputIterator,
+          typename OutputIterator,
+          std::enable_if_t<is_thrust_zip_iterator_v<InputIterator>, bool> = true>
+OutputIterator copy_if_mask_unset(raft::handle_t const& handle,
+                                  InputIterator input_first,
+                                  InputIterator input_last,
+                                  uint32_t const* mask_first,
+                                  OutputIterator output_first)
+{
+  static_assert(is_thrust_zip_iterator_v<OutputIterator>,
+                "copy_if_mask_unset zip overload requires a zip output iterator.");
+  return copy_if_mask_unset_zip_split(handle, input_first, input_last, mask_first, output_first);
+}
+
+template <typename InputIterator,
+          typename OutputIterator,
+          std::enable_if_t<!is_thrust_zip_iterator_v<InputIterator>, bool> = true>
+OutputIterator copy_if_mask_unset(raft::handle_t const& handle,
+                                  InputIterator input_first,
+                                  InputIterator input_last,
+                                  uint32_t const* mask_first,
+                                  OutputIterator output_first)
+{
+  return copy_if_mask_unset_scalar(handle, input_first, input_last, mask_first, output_first);
+}
+
 template <typename comparison_t>
 std::tuple<size_t, rmm::device_uvector<uint32_t>> mark_entries(
-  raft::handle_t const& handle,
   size_t num_entries,
   comparison_t comparison,
+  rmm::cuda_stream_view stream_view,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
-  auto marked_entries =
-    large_buffer_type
-      ? large_buffer_manager::allocate_memory_buffer<uint32_t>(
-          cugraph::packed_bool_size(num_entries), handle.get_stream())
-      : rmm::device_uvector<uint32_t>(cugraph::packed_bool_size(num_entries), handle.get_stream());
+  auto marked_entries = large_buffer_type ? large_buffer_manager::allocate_memory_buffer<uint32_t>(
+                                              cugraph::packed_bool_size(num_entries), stream_view)
+                                          : rmm::device_uvector<uint32_t>(
+                                              cugraph::packed_bool_size(num_entries), stream_view);
 
-  thrust::tabulate(handle.get_thrust_policy(),
+  thrust::tabulate(rmm::exec_policy(stream_view),
                    marked_entries.begin(),
                    marked_entries.end(),
                    [comparison, num_entries] __device__(size_t idx) {
@@ -232,7 +458,7 @@ std::tuple<size_t, rmm::device_uvector<uint32_t>> mark_entries(
                      return word;
                    });
 
-  size_t bit_count = detail::count_set_bits(handle, marked_entries.begin(), num_entries);
+  size_t bit_count = detail::count_set_bits(stream_view, marked_entries.begin(), num_entries);
 
   return std::make_tuple(bit_count, std::move(marked_entries));
 }
@@ -256,11 +482,6 @@ rmm::device_uvector<T> keep_marked_entries(
 
   return result;
 }
-
-/** Bitwise invert packed-bool @p flags for @p num_entries logical bits (XOR each word). */
-void invert_flags(raft::handle_t const& handle,
-                  raft::device_span<uint32_t> flags,
-                  size_t num_entries);
 
 }  // namespace detail
 }  // namespace CUGRAPH_EXPORT cugraph

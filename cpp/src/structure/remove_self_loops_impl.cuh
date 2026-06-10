@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -44,11 +44,11 @@ remove_self_loops(raft::handle_t const& handle,
                   std::optional<large_buffer_type_t> large_buffer_type)
 {
   auto [keep_count, keep_flags] = detail::mark_entries(
-    handle,
     edgelist_srcs.size(),
     [d_srcs = edgelist_srcs.data(), d_dsts = edgelist_dsts.data()] __device__(size_t i) {
       return d_srcs[i] != d_dsts[i];
     },
+    handle.get_stream(),
     large_buffer_type);
 
   if (keep_count < edgelist_srcs.size()) {

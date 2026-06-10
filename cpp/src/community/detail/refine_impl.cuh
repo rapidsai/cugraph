@@ -558,13 +558,13 @@ refine_clustering(raft::handle_t const& handle,
     // Filter out moves with -ve gains
     //
     auto [keep_count, keep_flags] = detail::mark_entries(
-      handle,
       static_cast<size_t>(n_local_vertices),
       cuda::proclaim_return_type<bool>([gain_ptr    = vertex_best_move_gain.data(),
                                         cluster_ptr = vertex_best_move_cluster_id.data(),
                                         min_gain    = POSITIVE_GAIN] __device__(size_t i) {
         return (gain_ptr[i] > min_gain) && (cluster_ptr[i] >= vertex_t{0});
-      }));
+      }),
+      handle.get_stream());
 
     vertex_best_move_gain.resize(0, handle.get_stream());
     vertex_best_move_gain.shrink_to_fit(handle.get_stream());
