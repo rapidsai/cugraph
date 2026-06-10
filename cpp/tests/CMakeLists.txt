@@ -577,6 +577,11 @@ ConfigureTest(K_HOP_NBRS_TEST traversal/k_hop_nbrs_test.cpp)
 # - Dynamic graph memory manager tests ------------------------------------------------------------
 ConfigureTest(DYNAMIC_BIT_TREE_TEST dynamic/memory_manager/bit_tree_test.cpp)
 
+ConfigureTest(DYNAMIC_BLOCK_ARRAY_TEST dynamic/memory_manager/block_array_test.cpp)
+
+ConfigureTest(DYNAMIC_BLOCK_ARRAY_MANAGER_TEST
+              dynamic/memory_manager/block_array_manager_test.cpp)
+
 
 ###################################################################################################
 # - install tests ---------------------------------------------------------------------------------
