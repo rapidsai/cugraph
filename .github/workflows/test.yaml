@@ -30,6 +30,7 @@ jobs:
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
       symbol_exclusions: (cugraph::ops|hornet|void writeEdgeCountsKernel|void markUniqueOffsetsKernel)
+      package_name: libcugraph
     permissions:
       actions: read
       contents: read
