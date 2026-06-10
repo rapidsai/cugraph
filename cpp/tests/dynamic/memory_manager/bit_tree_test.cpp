@@ -50,7 +50,9 @@ class Tests_BitTree : public ::testing::Test {
 
     std::vector<size_t> slots;
     slots.reserve(4);
-    for (size_t i = 0; i < size_t{4}; ++i) { slots.push_back(tree.insert()); }
+    for (size_t i = 0; i < size_t{4}; ++i) {
+      slots.push_back(tree.insert());
+    }
 
     tree.remove(slots[1]);
     EXPECT_FALSE(tree.full());
@@ -62,14 +64,8 @@ class Tests_BitTree : public ::testing::Test {
   }
 };
 
-TEST_F(Tests_BitTree, InsertUntilFull)
-{
-  run_insert_until_full_test();
-}
+TEST_F(Tests_BitTree, InsertUntilFull) { run_insert_until_full_test(); }
 
-TEST_F(Tests_BitTree, RemoveAndReuse)
-{
-  run_remove_and_reuse_test();
-}
+TEST_F(Tests_BitTree, RemoveAndReuse) { run_remove_and_reuse_test(); }
 
 CUGRAPH_TEST_PROGRAM_MAIN()
