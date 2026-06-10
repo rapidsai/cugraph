@@ -16,6 +16,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/iterator_utils.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -465,10 +466,10 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
                  edge_partition_frontier_local_degrees.end(),
                  aggregate_local_frontier_local_degree_offsets.begin() + local_frontier_offsets[i]);
   }
-  thrust::exclusive_scan(handle.get_thrust_policy(),
-                         aggregate_local_frontier_local_degree_offsets.begin(),
-                         aggregate_local_frontier_local_degree_offsets.end(),
-                         aggregate_local_frontier_local_degree_offsets.begin());
+  cugraph::exclusive_scan(handle.get_thrust_policy(),
+                          aggregate_local_frontier_local_degree_offsets.begin(),
+                          aggregate_local_frontier_local_degree_offsets.end(),
+                          aggregate_local_frontier_local_degree_offsets.begin());
 
   // 2. update aggregate_value_buffer
 
