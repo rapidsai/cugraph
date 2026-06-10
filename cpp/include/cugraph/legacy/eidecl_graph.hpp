@@ -1,10 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
-namespace cugraph {
+#include <cugraph/export.hpp>
+
+namespace CUGRAPH_EXPORT cugraph {
 namespace legacy {
 extern template class GraphViewBase<int32_t, int32_t, float>;
 extern template class GraphViewBase<int32_t, int32_t, double>;
@@ -63,4 +65,4 @@ extern template class GraphCSR<int64_t, int32_t, double>;
 extern template class GraphCSR<int64_t, int64_t, float>;
 extern template class GraphCSR<int64_t, int64_t, double>;
 }  // namespace legacy
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

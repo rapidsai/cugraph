@@ -1,15 +1,17 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
+#include <cugraph/export.hpp>
+
 #include <raft/core/handle.hpp>
 
 #include <rmm/device_uvector.hpp>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 /**
  * @brief Takes the results of BFS or SSSP function call and sums the given
@@ -74,4 +76,4 @@ template <typename index_t>
 std::tuple<rmm::device_uvector<index_t>, rmm::device_uvector<index_t>, rmm::device_uvector<index_t>>
 query_rw_sizes_offsets(raft::handle_t const& handle, index_t num_paths, index_t const* ptr_d_sizes);
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

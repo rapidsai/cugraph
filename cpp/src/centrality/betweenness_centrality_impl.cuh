@@ -11,7 +11,7 @@
 #include <cugraph/prims/detail/prim_functors.cuh>
 #include <cugraph/prims/edge_bucket.cuh>
 #include <cugraph/prims/extract_transform_if_e.cuh>
-#include <cugraph/prims/extract_transform_if_v_frontier_outgoing_e.cuh>
+#include <cugraph/prims/extract_transform_if_v_frontier_incoming_outgoing_e.cuh>
 #include <cugraph/prims/fill_edge_property.cuh>
 #include <cugraph/prims/make_initialized_edge_property.cuh>
 #include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
@@ -22,6 +22,7 @@
 #include <cugraph/prims/update_v_frontier.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/core/handle.hpp>
@@ -457,7 +458,7 @@ void accumulate_edge_results(
                                                              do_expensive_check);
 
       auto triplet_first = thrust::make_zip_iterator(srcs.begin(), dsts.begin(), indices->begin());
-      thrust::sort(handle.get_thrust_policy(), triplet_first, triplet_first + srcs.size());
+      cugraph::sort_wrapper(handle.get_thrust_policy(), triplet_first, triplet_first + srcs.size());
     } else {
       std::tie(srcs, dsts) = extract_transform_if_e(handle,
                                                     graph_view,
@@ -468,7 +469,7 @@ void accumulate_edge_results(
                                                     extract_edge_pred_op_t<vertex_t>{d},
                                                     do_expensive_check);
       auto pair_first      = thrust::make_zip_iterator(srcs.begin(), dsts.begin());
-      thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + srcs.size());
+      cugraph::sort_wrapper(handle.get_thrust_policy(), pair_first, pair_first + srcs.size());
     }
     edge_list.insert(srcs.begin(),
                      srcs.end(),
@@ -574,10 +575,10 @@ batch_partition_frontier(raft::handle_t const& handle,
       max_pushes_per_batch = (max_pushes + num_batches - 1) / num_batches;
       rmm::device_uvector<size_t> source_out_edge_count_inclusive_sums(num_sources,
                                                                        handle.get_stream());
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             source_out_edge_counts.begin(),
-                             source_out_edge_counts.end(),
-                             source_out_edge_count_inclusive_sums.begin());
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              source_out_edge_counts.begin(),
+                              source_out_edge_counts.end(),
+                              source_out_edge_count_inclusive_sums.begin());
       source_lasts     = rmm::device_uvector<size_t>(num_batches, handle.get_stream());
       auto count_first = cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{1}),
                                                        multiplier_t<size_t>{max_pushes_per_batch});
@@ -592,7 +593,7 @@ batch_partition_frontier(raft::handle_t const& handle,
 
   std::vector<size_t> batch_offsets{0, frontier.size()};
   if (source_lasts) {
-    thrust::sort(
+    cugraph::sort_wrapper(
       handle.get_thrust_policy(),
       frontier.begin(),
       frontier.end(),

@@ -8,6 +8,7 @@
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/host_staging_buffer_manager.hpp>
 #include <cugraph/partition_manager.hpp>
@@ -54,7 +55,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -1589,7 +1590,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         if (v_list_size > 0) {
           auto h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer_view.data());
           assert(h_staging_buffer_view.size() >= size_t{2});
-          if constexpr (std::is_pointer_v<std::decay<OptionalKeyIterator>>) {
+          if constexpr (std::is_pointer_v<std::decay_t<OptionalKeyIterator>>) {
             raft::update_host(
               h_staging_buffer_ptr, sorted_unique_key_first, size_t{1}, handle.get_stream());
             raft::update_host(h_staging_buffer_ptr + 1,
@@ -2250,7 +2251,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                     input_count_offsets.resize(
                       (rx_bitmap.size() - packed_bool_offset(range_offset_first)) + 1, loop_stream);
                     input_count_offsets.set_element_to_zero_async(0, loop_stream);
-                    thrust::inclusive_scan(
+                    cugraph::inclusive_scan(
                       rmm::exec_policy_nosync(loop_stream),
                       input_count_first,
                       input_count_first +
@@ -2348,10 +2349,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                       }));
                     output_count_offsets.resize(filtered_bitmap.size() + 1, loop_stream);
                     output_count_offsets.set_element_to_zero_async(0, loop_stream);
-                    thrust::inclusive_scan(rmm::exec_policy_nosync(loop_stream),
-                                           output_count_first,
-                                           output_count_first + filtered_bitmap.size(),
-                                           output_count_offsets.begin() + 1);
+                    cugraph::inclusive_scan(rmm::exec_policy_nosync(loop_stream),
+                                            output_count_first,
+                                            output_count_first + filtered_bitmap.size(),
+                                            output_count_offsets.begin() + 1);
                   }
                 }
                 filtered_bitmap_vectors.push_back(std::move(filtered_bitmap));
@@ -3497,4 +3498,4 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
 }  // namespace detail
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

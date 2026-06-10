@@ -8,6 +8,7 @@
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/detail/optional_dataframe_buffer.hpp>
 #include <cugraph/prims/kv_store.cuh>
@@ -20,6 +21,7 @@
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/core/handle.hpp>
@@ -44,9 +46,10 @@
 #include <thrust/transform.h>
 #include <thrust/unique.h>
 
+#include <tuple>
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -353,6 +356,9 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
 
     std::optional<rmm::device_uvector<edge_t>> offsets_with_mask{std::nullopt};
     if (edge_partition_e_mask) {
+      auto edge_partition_mask_span = raft::device_span<uint32_t const>(
+        (*edge_partition_e_mask).value_first(),
+        packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
       rmm::device_uvector<edge_t> degrees_with_mask(0, handle.get_stream());
       if (edge_partition.dcs_nzd_vertices()) {
         auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
@@ -363,35 +369,27 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
           major_sparse_range_size + *(edge_partition.dcs_nzd_vertex_count()), handle.get_stream());
         auto major_first = cuda::make_transform_iterator(
           thrust::make_counting_iterator(vertex_t{0}),
-          cuda::proclaim_return_type<vertex_t>(
-            [major_sparse_range_size,
-             major_range_first = edge_partition.major_range_first(),
-             dcs_nzd_vertices  = *(edge_partition.dcs_nzd_vertices())] __device__(vertex_t i) {
-              if (i < major_sparse_range_size) {  // sparse
-                return major_range_first + i;
-              } else {  // hypersparse
-                return *(dcs_nzd_vertices + (i - major_sparse_range_size));
-              }
-            }));
+          detail::sparse_hypersparse_major_op_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>{
+            edge_partition});
         degrees_with_mask =
-          edge_partition.compute_local_degrees_with_mask((*edge_partition_e_mask).value_first(),
+          edge_partition.compute_local_degrees_with_mask(edge_partition_mask_span,
                                                          major_first,
                                                          major_first + degrees_with_mask.size(),
                                                          handle.get_stream());
       } else {
         degrees_with_mask = edge_partition.compute_local_degrees_with_mask(
-          (*edge_partition_e_mask).value_first(),
-          thrust::make_counting_iterator(edge_partition.major_range_first()),
-          thrust::make_counting_iterator(edge_partition.major_range_last()),
+          edge_partition_mask_span,
+          std::tuple<vertex_t, vertex_t>{edge_partition.major_range_first(),
+                                         edge_partition.major_range_last()},
           handle.get_stream());
       }
       offsets_with_mask =
         rmm::device_uvector<edge_t>(degrees_with_mask.size() + 1, handle.get_stream());
       (*offsets_with_mask).set_element_to_zero_async(0, handle.get_stream());
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             degrees_with_mask.begin(),
-                             degrees_with_mask.end(),
-                             (*offsets_with_mask).begin() + 1);
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              degrees_with_mask.begin(),
+                              degrees_with_mask.end(),
+                              (*offsets_with_mask).begin() + 1);
     }
 
     rmm::device_uvector<vertex_t> tmp_majors(
@@ -658,10 +656,10 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         {
           rmm::device_uvector<size_t> minor_comm_rank_lasts(d_tx_value_counts.size(),
                                                             handle.get_stream());
-          thrust::inclusive_scan(handle.get_thrust_policy(),
-                                 d_tx_value_counts.begin(),
-                                 d_tx_value_counts.end(),
-                                 minor_comm_rank_lasts.begin());
+          cugraph::inclusive_scan(handle.get_thrust_policy(),
+                                  d_tx_value_counts.begin(),
+                                  d_tx_value_counts.end(),
+                                  minor_comm_rank_lasts.begin());
           rmm::device_uvector<int> minor_comm_ranks(tmp_majors.size(), handle.get_stream());
           thrust::tabulate(
             handle.get_thrust_policy(),
@@ -678,7 +676,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
             handle.get_thrust_policy(), tmp_majors.begin(), tmp_majors.end(), majors.begin());
 
           auto pair_first = thrust::make_zip_iterator(minor_comm_ranks.begin(), majors.begin());
-          thrust::sort(
+          cugraph::sort_wrapper(
             handle.get_thrust_policy(), pair_first, pair_first + minor_comm_ranks.size());
           auto unique_pair_last = thrust::unique(
             handle.get_thrust_policy(), pair_first, pair_first + minor_comm_ranks.size());
@@ -886,11 +884,12 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                                          int{1},
                                          handle.get_stream());
 
-          thrust::sort(handle.get_thrust_policy(), key_pair_first, second_first);
+          cugraph::sort_wrapper(handle.get_thrust_policy(), key_pair_first, second_first);
 
-          thrust::sort(handle.get_thrust_policy(), second_first, key_pair_first + rx_majors.size());
+          cugraph::sort_wrapper(
+            handle.get_thrust_policy(), second_first, key_pair_first + rx_majors.size());
         } else {
-          thrust::sort(
+          cugraph::sort_wrapper(
             handle.get_thrust_policy(), key_pair_first, key_pair_first + rx_majors.size());
         }
 
@@ -922,7 +921,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                    tmp_minor_keys.begin(),
                    tmp_minor_keys.end(),
                    unique_minor_keys.begin());
-      thrust::sort(handle.get_thrust_policy(), unique_minor_keys.begin(), unique_minor_keys.end());
+      cugraph::sort_wrapper(
+        handle.get_thrust_policy(), unique_minor_keys.begin(), unique_minor_keys.end());
       unique_minor_keys.resize(cuda::std::distance(unique_minor_keys.begin(),
                                                    thrust::unique(handle.get_thrust_policy(),
                                                                   unique_minor_keys.begin(),
@@ -1124,4 +1124,4 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
   }
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

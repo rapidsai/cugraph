@@ -1,10 +1,11 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
+#include <cugraph_c/export.h>
 #include <cugraph_c/resource_handle.h>
 
 #ifdef __cplusplus
@@ -25,17 +26,20 @@ typedef struct {
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_rng_state_create(const cugraph_resource_handle_t* handle,
-                                              uint64_t seed,
-                                              cugraph_rng_state_t** state,
-                                              cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_rng_state_create(const cugraph_resource_handle_t* handle,
+                         uint64_t seed,
+                         cugraph_rng_state_t** state,
+                         cugraph_error_t** error);
 
 /**
  * @brief    Destroy a Random Number Generator State
  *
  * @param [in]  p    Pointer to the Random Number Generator State
  */
-void cugraph_rng_state_free(cugraph_rng_state_t* p);
+CUGRAPH_EXPORT void cugraph_rng_state_free(cugraph_rng_state_t* p);
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 }

@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/prims/transform_reduce_e.cuh>
@@ -12,7 +13,7 @@
 
 #include <cstdint>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 /**
  * @brief Count the number of edges that satisfies the given predicate.
@@ -81,4 +82,4 @@ typename GraphViewType::edge_type count_if_e(raft::handle_t const& handle,
                             edge_t{0});
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

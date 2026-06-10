@@ -9,6 +9,7 @@
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_partition_view.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/detail/prim_functors.cuh>
 #include <cugraph/prims/property_op_utils.cuh>
@@ -34,7 +35,7 @@
 #include <cstdint>
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -648,12 +649,13 @@ auto transform_reduce_e(raft::handle_t const& handle,
                         EdgeOp e_op,
                         bool do_expensive_check = false)
 {
-  using vertex_t    = typename GraphViewType::vertex_type;
-  using src_value_t = typename EdgeSrcValueInputWrapper::value_type;
-  using dst_value_t = typename EdgeDstValueInputWrapper::value_type;
-  using e_value_t   = typename EdgeValueInputWrapper::value_type;
-  using T           = typename detail::
-    edge_op_result_type<vertex_t, vertex_t, src_value_t, dst_value_t, e_value_t, EdgeOp>::type;
+  using vertex_t = typename GraphViewType::vertex_type;
+  using T        = typename detail::edge_op_result_type<GraphViewType,
+                                                        typename GraphViewType::vertex_type,
+                                                        EdgeSrcValueInputWrapper,
+                                                        EdgeDstValueInputWrapper,
+                                                        EdgeValueInputWrapper,
+                                                        EdgeOp>::type;
   static_assert(!std::is_same_v<T, void>);
 
   if (do_expensive_check) {
@@ -664,4 +666,4 @@ auto transform_reduce_e(raft::handle_t const& handle,
     handle, graph_view, edge_src_value_input, edge_dst_value_input, edge_value_input, e_op, T{});
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

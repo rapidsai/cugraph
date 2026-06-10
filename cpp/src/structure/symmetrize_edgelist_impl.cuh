@@ -7,6 +7,7 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -207,18 +208,19 @@ merge_lower_triangular(raft::handle_t const& handle,
   auto lower_triangular_edge_first = thrust::make_zip_iterator(lower_triangular_majors.begin(),
                                                                lower_triangular_minors.begin(),
                                                                lower_triangular_properties.begin());
-  thrust::sort(handle.get_thrust_policy(),
-               lower_triangular_edge_first,
-               lower_triangular_edge_first + lower_triangular_majors.size());
+  cugraph::sort_wrapper(handle.get_thrust_policy(),
+                        lower_triangular_edge_first,
+                        lower_triangular_edge_first + lower_triangular_majors.size());
   auto upper_triangular_edge_first = thrust::make_zip_iterator(
     upper_triangular_majors.begin(),
     upper_triangular_minors.begin(),
     upper_triangular_properties
       .begin());  // do not flip here to use "lower_triangular = major > minor"
-  thrust::sort(handle.get_thrust_policy(),
-               upper_triangular_edge_first,
-               upper_triangular_edge_first + upper_triangular_majors.size(),
-               compare_upper_triangular_edges_as_lower_triangular_t<vertex_t, property_t>{});
+  cugraph::sort_wrapper(
+    handle.get_thrust_policy(),
+    upper_triangular_edge_first,
+    upper_triangular_edge_first + upper_triangular_majors.size(),
+    compare_upper_triangular_edges_as_lower_triangular_t<vertex_t, property_t>{});
 
   merged_majors.resize(lower_triangular_majors.size() + upper_triangular_majors.size(),
                        handle.get_stream());
@@ -298,14 +300,14 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> merge_l
 
   auto lower_triangular_edge_first =
     thrust::make_zip_iterator(lower_triangular_majors.begin(), lower_triangular_minors.begin());
-  thrust::sort(handle.get_thrust_policy(),
-               lower_triangular_edge_first,
-               lower_triangular_edge_first + lower_triangular_majors.size());
+  cugraph::sort_wrapper(handle.get_thrust_policy(),
+                        lower_triangular_edge_first,
+                        lower_triangular_edge_first + lower_triangular_majors.size());
   auto upper_triangular_edge_first = thrust::make_zip_iterator(
     upper_triangular_minors.begin(), upper_triangular_majors.begin());  // flip
-  thrust::sort(handle.get_thrust_policy(),
-               upper_triangular_edge_first,
-               upper_triangular_edge_first + upper_triangular_majors.size());
+  cugraph::sort_wrapper(handle.get_thrust_policy(),
+                        upper_triangular_edge_first,
+                        upper_triangular_edge_first + upper_triangular_majors.size());
 
   merged_majors.resize(reciprocal
                          ? std::min(num_lower_triangular_edges, upper_triangular_majors.size())

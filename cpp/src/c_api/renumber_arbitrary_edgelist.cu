@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -9,8 +9,10 @@
 #include <cugraph_c/error.h>
 #include <cugraph_c/graph_functions.h>
 
+#include <cugraph/export.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <cuda/std/iterator>
 #include <thrust/binary_search.h>
@@ -34,7 +36,7 @@ cugraph_error_code_t renumber_arbitrary_edgelist(
                  dsts->size_,
                  vertices.data() + srcs->size_);
 
-  thrust::sort(handle.get_thrust_policy(), vertices.begin(), vertices.end());
+  cugraph::sort_wrapper(handle.get_thrust_policy(), vertices.begin(), vertices.end());
   vertices.resize(cuda::std::distance(
                     vertices.begin(),
                     thrust::unique(handle.get_thrust_policy(), vertices.begin(), vertices.end())),

@@ -1,13 +1,15 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "community/detail/common_methods.cuh"
 
+#include <cugraph/export.hpp>
+
 namespace cugraph {
 namespace detail {
 
-template float compute_modularity(
+template CUGRAPH_EXPORT float compute_modularity(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int32_t, int32_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
@@ -18,7 +20,7 @@ template float compute_modularity(
   float total_edge_weight,
   float resolution);
 
-template double compute_modularity(
+template CUGRAPH_EXPORT double compute_modularity(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int32_t, int32_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int32_t, double const*>> edge_weight_view,
@@ -29,21 +31,21 @@ template double compute_modularity(
   double total_edge_weight,
   double resolution);
 
-template std::tuple<cugraph::graph_t<int32_t, int32_t, false, false>,
-                    std::optional<edge_property_t<int32_t, float>>>
+template CUGRAPH_EXPORT std::tuple<cugraph::graph_t<int32_t, int32_t, false, false>,
+                                   std::optional<edge_property_t<int32_t, float>>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<int32_t, int32_t, false, false> const& graph_view,
                   std::optional<edge_property_view_t<int32_t, float const*>> edge_weights,
                   raft::device_span<int32_t> labels);
 
-template std::tuple<cugraph::graph_t<int32_t, int32_t, false, false>,
-                    std::optional<edge_property_t<int32_t, double>>>
+template CUGRAPH_EXPORT std::tuple<cugraph::graph_t<int32_t, int32_t, false, false>,
+                                   std::optional<edge_property_t<int32_t, double>>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<int32_t, int32_t, false, false> const& graph_view,
                   std::optional<edge_property_view_t<int32_t, double const*>> edge_weights,
                   raft::device_span<int32_t> labels);
 
-template rmm::device_uvector<int32_t> update_clustering_by_delta_modularity(
+template CUGRAPH_EXPORT rmm::device_uvector<int32_t> update_clustering_by_delta_modularity(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int32_t, int32_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
@@ -56,9 +58,10 @@ template rmm::device_uvector<int32_t> update_clustering_by_delta_modularity(
   edge_src_property_t<int32_t, float> const& src_vertex_weights_cache,
   edge_src_property_t<int32_t, int32_t> const& src_clusters_cache,
   edge_dst_property_t<int32_t, int32_t> const& dst_clusters_cache,
-  bool up_down);
+  bool up_down,
+  float threshold);
 
-template rmm::device_uvector<int32_t> update_clustering_by_delta_modularity(
+template CUGRAPH_EXPORT rmm::device_uvector<int32_t> update_clustering_by_delta_modularity(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int32_t, int32_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int32_t, double const*>> edge_weight_view,
@@ -71,9 +74,10 @@ template rmm::device_uvector<int32_t> update_clustering_by_delta_modularity(
   edge_src_property_t<int32_t, double> const& src_vertex_weights_cache,
   edge_src_property_t<int32_t, int32_t> const& src_clusters_cache,
   edge_dst_property_t<int32_t, int32_t> const& dst_clusters_cache,
-  bool up_down);
+  bool up_down,
+  double threshold);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>>
 compute_cluster_keys_and_values(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int32_t, int32_t, false, false> const& graph_view,
@@ -81,7 +85,7 @@ compute_cluster_keys_and_values(
   rmm::device_uvector<int32_t> const& next_clusters_v,
   edge_src_property_t<int32_t, int32_t> const& src_clusters_cache);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<double>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<double>>
 compute_cluster_keys_and_values(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int32_t, int32_t, false, false> const& graph_view,

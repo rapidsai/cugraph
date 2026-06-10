@@ -70,6 +70,7 @@ sccache --show-adv-stats
 sccache --stop-server >/dev/null 2>&1 || true
 
 EXCLUDE_ARGS=(
+  --exclude "libcuvs.so"
   --exclude "libraft.so"
 )
 
@@ -93,7 +94,9 @@ if [[ "${package_dir}" != "python/libcugraph" ]]; then
     EXCLUDE_ARGS+=(
       --exclude "libcugraph.so"
       --exclude "libcugraph_c.so"
+      --exclude "libcugraph_common.so"
       --exclude "libcugraph_mg.so"
+      --exclude "libcugraph_mtmg.so"
     )
 fi
 

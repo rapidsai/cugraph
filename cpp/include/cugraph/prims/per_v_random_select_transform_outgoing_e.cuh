@@ -7,6 +7,7 @@
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
+#include <cugraph/export.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/prims/detail/sample_and_compute_local_nbr_indices.cuh>
@@ -36,7 +37,7 @@
 #include <optional>
 #include <tuple>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -255,14 +256,13 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       typename EdgeValueInputWrapper::value_type>>;
 
   static_assert(GraphViewType::is_storage_transposed == incoming);
-  static_assert(std::is_same_v<
-                typename detail::edge_op_result_type<key_t,
-                                                     vertex_t,
-                                                     typename EdgeSrcValueInputWrapper::value_type,
-                                                     typename EdgeDstValueInputWrapper::value_type,
-                                                     typename EdgeValueInputWrapper::value_type,
-                                                     EdgeOp>::type,
-                T>);
+  static_assert(std::is_same_v<typename detail::edge_op_result_type<GraphViewType,
+                                                                    key_t,
+                                                                    EdgeSrcValueInputWrapper,
+                                                                    EdgeDstValueInputWrapper,
+                                                                    EdgeValueInputWrapper,
+                                                                    EdgeOp>::type,
+                               T>);
 
   CUGRAPH_EXPECTS(Ks.size() >= 1, "Invalid input argument: Ks.size() should be 1 or larger.");
 
@@ -571,10 +571,10 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       (*sample_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
       auto typecasted_sample_count_first =
         cuda::make_transform_iterator(sample_counts.begin(), typecast_t<int32_t, size_t>{});
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             typecasted_sample_count_first,
-                             typecasted_sample_count_first + sample_counts.size(),
-                             (*sample_offsets).begin() + 1);
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              typecasted_sample_count_first,
+                              typecasted_sample_count_first + sample_counts.size(),
+                              (*sample_offsets).begin() + 1);
       sample_counts.resize(0, handle.get_stream());
       sample_counts.shrink_to_fit(handle.get_stream());
 
@@ -610,10 +610,10 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       (*sample_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
       auto typecasted_sample_count_first =
         cuda::make_transform_iterator(sample_counts.begin(), typecast_t<int32_t, size_t>{});
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             typecasted_sample_count_first,
-                             typecasted_sample_count_first + sample_counts.size(),
-                             (*sample_offsets).begin() + 1);
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              typecasted_sample_count_first,
+                              typecasted_sample_count_first + sample_counts.size(),
+                              (*sample_offsets).begin() + 1);
       sample_counts.resize(0, handle.get_stream());
       sample_counts.shrink_to_fit(handle.get_stream());
 
@@ -1116,4 +1116,4 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
                                                         do_expensive_check);
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

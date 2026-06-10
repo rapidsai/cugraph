@@ -23,6 +23,7 @@
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
@@ -521,7 +522,8 @@ bool check_edge_endpoint_distances(
         cuda::proclaim_return_type<vertex_t>(
           [v_first = mg_subgraph_view.local_vertex_partition_range_first()] __device__(
             auto v_offset) { return v_first + v_offset; }));
-      thrust::sort(handle.get_thrust_policy(), subgraph_level_vs.begin(), subgraph_level_vs.end());
+      cugraph::sort_wrapper(
+        handle.get_thrust_policy(), subgraph_level_vs.begin(), subgraph_level_vs.end());
       cugraph::fill_edge_src_property(
         handle, mg_subgraph_view, edge_src_flags.mutable_view(), false);
       cugraph::fill_edge_src_property(handle,
@@ -539,9 +541,9 @@ bool check_edge_endpoint_distances(
         cuda::proclaim_return_type<vertex_t>(
           [v_first = mg_subgraph_view.local_vertex_partition_range_first()] __device__(
             auto v_offset) { return v_first + v_offset; }));
-      thrust::sort(handle.get_thrust_policy(),
-                   subgraph_adjacent_level_vs.begin(),
-                   subgraph_adjacent_level_vs.end());
+      cugraph::sort_wrapper(handle.get_thrust_policy(),
+                            subgraph_adjacent_level_vs.begin(),
+                            subgraph_adjacent_level_vs.end());
       cugraph::fill_edge_dst_property(
         handle, mg_subgraph_view, edge_dst_flags.mutable_view(), false);
       cugraph::fill_edge_dst_property(handle,
@@ -905,9 +907,9 @@ bool check_has_edge_from_parents(
       }
       auto forest_edge_first =
         thrust::make_zip_iterator(forest_edge_vertices.begin(), forest_edge_parents.begin());
-      thrust::sort(handle.get_thrust_policy(),
-                   forest_edge_first,
-                   forest_edge_first + forest_edge_vertices.size());
+      cugraph::sort_wrapper(handle.get_thrust_policy(),
+                            forest_edge_first,
+                            forest_edge_first + forest_edge_vertices.size());
       query_edge_first = thrust::make_zip_iterator(query_preds.begin(), query_vertices.begin());
       query_preds.resize(
         cuda::std::distance(

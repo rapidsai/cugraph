@@ -9,6 +9,7 @@
 
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/util/cuda_utils.cuh>
 
@@ -22,7 +23,6 @@
 #include <thrust/for_each.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/partition.h>
-#include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/unique.h>
 
@@ -123,9 +123,10 @@ combine_edgelists(raft::handle_t const& handle,
     size_t number_of_edges{srcs_v.size()};
 
     if (optional_d_weights) {
-      thrust::sort(handle.get_thrust_policy(),
-                   thrust::make_zip_iterator(srcs_v.begin(), dsts_v.begin(), weights_v.begin()),
-                   thrust::make_zip_iterator(srcs_v.end(), dsts_v.end(), weights_v.end()));
+      cugraph::sort_wrapper(
+        handle.get_thrust_policy(),
+        thrust::make_zip_iterator(srcs_v.begin(), dsts_v.begin(), weights_v.begin()),
+        thrust::make_zip_iterator(srcs_v.end(), dsts_v.end(), weights_v.end()));
 
       auto pair_first = thrust::make_zip_iterator(srcs_v.begin(), dsts_v.begin());
       auto end_iter   = thrust::unique_by_key(
@@ -133,9 +134,9 @@ combine_edgelists(raft::handle_t const& handle,
 
       number_of_edges = cuda::std::distance(pair_first, cuda::std::get<0>(end_iter));
     } else {
-      thrust::sort(handle.get_thrust_policy(),
-                   thrust::make_zip_iterator(srcs_v.begin(), dsts_v.begin()),
-                   thrust::make_zip_iterator(srcs_v.end(), dsts_v.end()));
+      cugraph::sort_wrapper(handle.get_thrust_policy(),
+                            thrust::make_zip_iterator(srcs_v.begin(), dsts_v.begin()),
+                            thrust::make_zip_iterator(srcs_v.end(), dsts_v.end()));
 
       auto pair_first = thrust::make_zip_iterator(srcs_v.begin(), dsts_v.begin());
 

@@ -1,17 +1,19 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "structure/induced_subgraph_impl.cuh"
+
+#include <cugraph/export.hpp>
 
 namespace cugraph {
 
 // MG instantiation
 
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<float>>,
-                    rmm::device_uvector<size_t>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   std::optional<rmm::device_uvector<float>>,
+                                   rmm::device_uvector<size_t>>
 extract_induced_subgraphs(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, false, true> const& graph_view,
@@ -20,10 +22,10 @@ extract_induced_subgraphs(
   raft::device_span<int32_t const> subgraph_vertices,
   bool do_expensive_check);
 
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<double>>,
-                    rmm::device_uvector<size_t>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   std::optional<rmm::device_uvector<double>>,
+                                   rmm::device_uvector<size_t>>
 extract_induced_subgraphs(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, false, true> const& graph_view,

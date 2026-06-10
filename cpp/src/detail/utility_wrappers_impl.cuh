@@ -54,12 +54,6 @@ void scalar_fill(raft::handle_t const& handle, value_t* d_value, size_t size, va
 }
 
 template <typename value_t>
-void sort_ints(raft::handle_t const& handle, raft::device_span<value_t> values)
-{
-  thrust::sort(handle.get_thrust_policy(), values.begin(), values.end());
-}
-
-template <typename value_t>
 size_t unique_ints(raft::handle_t const& handle, raft::device_span<value_t> values)
 {
   auto unique_element_last =

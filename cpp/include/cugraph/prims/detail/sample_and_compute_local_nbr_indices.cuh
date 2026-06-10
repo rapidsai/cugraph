@@ -8,16 +8,20 @@
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
+#include <cugraph/export.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/prims/detail/partition_v_frontier.cuh>
 #include <cugraph/prims/detail/transform_v_frontier_e.cuh>
 #include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/iterator_utils.hpp>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/random/rng.cuh>
@@ -40,8 +44,9 @@
 
 #include <optional>
 #include <tuple>
+#include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -398,9 +403,9 @@ compute_unique_keys(raft::handle_t const& handle,
                  aggregate_local_frontier_key_first + local_frontier_offsets[i],
                  aggregate_local_frontier_key_first + local_frontier_offsets[i + 1],
                  get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i]);
-    thrust::sort(handle.get_thrust_policy(),
-                 get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
-                 get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i + 1]);
+    cugraph::sort_wrapper(handle.get_thrust_policy(),
+                          get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
+                          get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i + 1]);
     local_frontier_unique_key_sizes[i] = cuda::std::distance(
       get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
       thrust::unique(handle.get_thrust_policy(),
@@ -519,10 +524,22 @@ compute_valid_local_nbr_count_inclusive_sums(raft::handle_t const& handle,
             *edge_mask_view, i)
         : cuda::std::nullopt;
 
-    auto edge_partition_local_degrees = edge_partition.compute_local_degrees(
-      aggregate_local_frontier_major_first + local_frontier_offsets[i],
-      aggregate_local_frontier_major_first + local_frontier_offsets[i + 1],
-      handle.get_stream());
+    auto const frontier_partition_size = local_frontier_offsets[i + 1] - local_frontier_offsets[i];
+    auto edge_partition_major_first =
+      aggregate_local_frontier_major_first + local_frontier_offsets[i];
+
+    auto edge_partition_local_degrees = [&]() {
+      if constexpr (is_arithmetic_pointer_v<std::decay_t<decltype(edge_partition_major_first)>>) {
+        auto const majors_span = raft::device_span<vertex_t const>(
+          edge_partition_major_first, static_cast<size_t>(frontier_partition_size));
+        return edge_partition.compute_local_degrees(majors_span, handle.get_stream());
+      } else {
+        return edge_partition.compute_local_degrees(
+          edge_partition_major_first,
+          edge_partition_major_first + frontier_partition_size,
+          handle.get_stream());
+      }
+    }();
     auto inclusive_sum_offsets = rmm::device_uvector<size_t>(
       (local_frontier_offsets[i + 1] - local_frontier_offsets[i]) + 1, handle.get_stream());
     inclusive_sum_offsets.set_element_to_zero_async(0, handle.get_stream());
@@ -532,10 +549,10 @@ compute_valid_local_nbr_count_inclusive_sums(raft::handle_t const& handle,
         return static_cast<size_t>((local_degree + packed_bools_per_word() - 1) /
                                    packed_bools_per_word());
       }));
-    thrust::inclusive_scan(handle.get_thrust_policy(),
-                           size_first,
-                           size_first + edge_partition_local_degrees.size(),
-                           inclusive_sum_offsets.begin() + 1);
+    cugraph::inclusive_scan(handle.get_thrust_policy(),
+                            size_first,
+                            size_first + edge_partition_local_degrees.size(),
+                            inclusive_sum_offsets.begin() + 1);
 
     auto [edge_partition_frontier_indices, frontier_partition_offsets] = partition_v_frontier(
       handle,
@@ -694,7 +711,7 @@ void sample_nbr_index_with_replacement(
       std::get<1>(*frontier_index_type_pairs).begin(),
       cuda::proclaim_return_type<size_t>(
         [K_offsets] __device__(auto type) { return K_offsets[type + 1] - K_offsets[type]; }));
-    thrust::inclusive_scan(
+    cugraph::inclusive_scan(
       handle.get_thrust_policy(), k_first, k_first + num_keys, (*input_r_offsets).begin() + 1);
   }
 
@@ -819,10 +836,10 @@ void sample_nbr_index_without_replacement(
           auto d = static_cast<size_t>(frontier_degrees[i]);
           return d > K ? (d - K) : size_t{0};
         }));
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             count_first,
-                             count_first + num_keys,
-                             input_r_offsets.begin() + 1);
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              count_first,
+                              count_first + num_keys,
+                              input_r_offsets.begin() + 1);
 
     } else {
       auto count_first = cuda::make_transform_iterator(
@@ -830,10 +847,10 @@ void sample_nbr_index_without_replacement(
           auto d = static_cast<size_t>(degree);
           return d > K ? (d - K) : size_t{0};
         }));
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             count_first,
-                             count_first + num_keys,
-                             input_r_offsets.begin() + 1);
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              count_first,
+                              count_first + num_keys,
+                              input_r_offsets.begin() + 1);
     }
 
     rmm::device_uvector<bias_t> sample_random_numbers(
@@ -904,7 +921,7 @@ void sample_nbr_index_without_replacement(
       std::get<1>(*frontier_index_type_pairs).begin(),
       cuda::proclaim_return_type<size_t>(
         [K_offsets] __device__(auto type) { return K_offsets[type + 1] - K_offsets[type]; }));
-    thrust::inclusive_scan(
+    cugraph::inclusive_scan(
       handle.get_thrust_policy(), k_first, k_first + num_keys, sample_size_offsets.begin() + 1);
 
     thrust::for_each(
@@ -971,10 +988,10 @@ void sample_nbr_index_without_replacement(
             auto K = K_offsets[type + 1] - K_offsets[type];
             return d > K ? (d - K) : size_t{0};
           }));
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             count_first,
-                             count_first + num_keys,
-                             input_r_offsets.begin() + 1);
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              count_first,
+                              count_first + num_keys,
+                              input_r_offsets.begin() + 1);
     } else {
       auto count_first = cuda::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
@@ -986,10 +1003,10 @@ void sample_nbr_index_without_replacement(
             auto K              = K_offsets[type + 1] - K_offsets[type];
             return d > K ? (d - K) : size_t{0};
           }));
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             count_first,
-                             count_first + num_keys,
-                             input_r_offsets.begin() + 1);
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              count_first,
+                              count_first + num_keys,
+                              input_r_offsets.begin() + 1);
     }
 
     rmm::device_uvector<bias_t> sample_random_numbers(
@@ -1852,10 +1869,10 @@ rmm::device_uvector<edge_t> compute_heterogeneous_uniform_sampling_index_without
         segment_frontier_type_first,
         cuda::proclaim_return_type<size_t>(
           [K_offsets] __device__(auto type) { return K_offsets[type + 1] - K_offsets[type]; }));
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             k_first,
-                             k_first + num_segments,
-                             output_count_offsets.begin() + 1);
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              k_first,
+                              k_first + num_segments,
+                              output_count_offsets.begin() + 1);
       thrust::for_each(
         handle.get_thrust_policy(),
         thrust::make_counting_iterator(size_t{0}),
@@ -1920,10 +1937,10 @@ void compute_homogeneous_biased_sampling_index_without_replacement(
         cuda::proclaim_return_type<size_t>([input_degree_offsets] __device__(size_t i) {
           return input_degree_offsets[i + 1] - input_degree_offsets[i];
         }));
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             degree_first,
-                             degree_first + (*input_frontier_indices).size(),
-                             (*packed_input_degree_offsets).begin() + 1);
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              degree_first,
+                              degree_first + (*input_frontier_indices).size(),
+                              (*packed_input_degree_offsets).begin() + 1);
     }
 
     // generate (key, nbr_index) pairs
@@ -2181,10 +2198,10 @@ void compute_heterogeneous_biased_sampling_index_without_replacement(
             return input_per_type_degree_offsets[idx * num_edge_types + type + 1] -
                    input_per_type_degree_offsets[idx * num_edge_types + type];
           }));
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             per_type_degree_first,
-                             per_type_degree_first + (*input_frontier_indices).size(),
-                             (*packed_input_per_type_degree_offsets).begin() + 1);
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              per_type_degree_first,
+                              per_type_degree_first + (*input_frontier_indices).size(),
+                              (*packed_input_per_type_degree_offsets).begin() + 1);
     }
 
     // generate (key, nbr_index) pairs
@@ -2407,17 +2424,37 @@ compute_aggregate_local_frontier_local_degrees(raft::handle_t const& handle,
             *edge_mask_view, i)
         : cuda::std::nullopt;
 
-    auto edge_partition_frontier_local_degrees =
-      !edge_partition_e_mask
-        ? edge_partition.compute_local_degrees(
-            aggregate_local_frontier_major_first + local_frontier_offsets[i],
-            aggregate_local_frontier_major_first + local_frontier_offsets[i + 1],
-            handle.get_stream())
-        : edge_partition.compute_local_degrees_with_mask(
-            (*edge_partition_e_mask).value_first(),
-            aggregate_local_frontier_major_first + local_frontier_offsets[i],
-            aggregate_local_frontier_major_first + local_frontier_offsets[i + 1],
-            handle.get_stream());
+    auto const frontier_partition_size = local_frontier_offsets[i + 1] - local_frontier_offsets[i];
+    auto edge_partition_major_first =
+      aggregate_local_frontier_major_first + local_frontier_offsets[i];
+
+    auto edge_partition_frontier_local_degrees = [&]() {
+      if constexpr (is_arithmetic_pointer_v<std::decay_t<decltype(edge_partition_major_first)>>) {
+        auto const majors_span = raft::device_span<vertex_t const>(
+          edge_partition_major_first, static_cast<size_t>(frontier_partition_size));
+        return !edge_partition_e_mask
+                 ? edge_partition.compute_local_degrees(majors_span, handle.get_stream())
+                 : edge_partition.compute_local_degrees_with_mask(
+                     raft::device_span<uint32_t const>(
+                       (*edge_partition_e_mask).value_first(),
+                       packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges()))),
+                     majors_span,
+                     handle.get_stream());
+      } else {
+        return !edge_partition_e_mask
+                 ? edge_partition.compute_local_degrees(
+                     edge_partition_major_first,
+                     edge_partition_major_first + frontier_partition_size,
+                     handle.get_stream())
+                 : edge_partition.compute_local_degrees_with_mask(
+                     raft::device_span<uint32_t const>(
+                       (*edge_partition_e_mask).value_first(),
+                       packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges()))),
+                     edge_partition_major_first,
+                     edge_partition_major_first + frontier_partition_size,
+                     handle.get_stream());
+      }
+    }();
 
     // FIXME: this copy is unnecessary if edge_partition.compute_local_degrees() takes a pointer
     // to the output array
@@ -2487,11 +2524,11 @@ template <typename GraphViewType,
           typename EdgeValueInputWrapper,
           typename BiasEdgeOp>
 std::tuple<rmm::device_uvector<
-             typename edge_op_result_type<typename thrust::iterator_traits<KeyIterator>::value_type,
-                                          typename GraphViewType::vertex_type,
-                                          typename EdgeSrcValueInputWrapper::value_type,
-                                          typename EdgeDstValueInputWrapper::value_type,
-                                          typename EdgeValueInputWrapper::value_type,
+             typename edge_op_result_type<GraphViewType,
+                                          typename thrust::iterator_traits<KeyIterator>::value_type,
+                                          EdgeSrcValueInputWrapper,
+                                          EdgeDstValueInputWrapper,
+                                          EdgeValueInputWrapper,
                                           BiasEdgeOp>::type>,
            rmm::device_uvector<typename GraphViewType::edge_type>,
            rmm::device_uvector<size_t>>
@@ -2509,11 +2546,11 @@ compute_aggregate_local_frontier_biases(raft::handle_t const& handle,
   using edge_t   = typename GraphViewType::edge_type;
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
-  using bias_t = typename edge_op_result_type<key_t,
-                                              vertex_t,
-                                              typename EdgeSrcValueInputWrapper::value_type,
-                                              typename EdgeDstValueInputWrapper::value_type,
-                                              typename EdgeValueInputWrapper::value_type,
+  using bias_t = typename edge_op_result_type<GraphViewType,
+                                              key_t,
+                                              EdgeSrcValueInputWrapper,
+                                              EdgeDstValueInputWrapper,
+                                              EdgeValueInputWrapper,
                                               BiasEdgeOp>::type;
 
   // 1. collect bias values from local neighbors
@@ -2614,10 +2651,10 @@ compute_aggregate_local_frontier_biases(raft::handle_t const& handle,
     aggregate_local_frontier_biases = std::move(nz_biases);
   }
 
-  thrust::inclusive_scan(handle.get_thrust_policy(),
-                         aggregate_local_frontier_local_degrees.begin(),
-                         aggregate_local_frontier_local_degrees.end(),
-                         aggregate_local_frontier_local_degree_offsets.begin() + 1);
+  cugraph::inclusive_scan(handle.get_thrust_policy(),
+                          aggregate_local_frontier_local_degrees.begin(),
+                          aggregate_local_frontier_local_degrees.end(),
+                          aggregate_local_frontier_local_degree_offsets.begin() + 1);
 
   return std::make_tuple(std::move(aggregate_local_frontier_biases),
                          std::move(aggregate_local_frontier_nz_bias_indices),
@@ -2634,11 +2671,11 @@ template <typename GraphViewType,
           typename BiasEdgeOp,
           typename EdgeTypeInputWrapper>
 std::tuple<rmm::device_uvector<
-             typename edge_op_result_type<typename thrust::iterator_traits<KeyIterator>::value_type,
-                                          typename GraphViewType::vertex_type,
-                                          typename EdgeSrcValueInputWrapper::value_type,
-                                          typename EdgeDstValueInputWrapper::value_type,
-                                          typename EdgeValueInputWrapper::value_type,
+             typename edge_op_result_type<GraphViewType,
+                                          typename thrust::iterator_traits<KeyIterator>::value_type,
+                                          EdgeSrcValueInputWrapper,
+                                          EdgeDstValueInputWrapper,
+                                          EdgeValueInputWrapper,
                                           BiasEdgeOp>::type>,
            rmm::device_uvector<typename EdgeTypeInputWrapper::value_type>,
            rmm::device_uvector<typename GraphViewType::edge_type>,
@@ -2661,11 +2698,11 @@ compute_aggregate_local_frontier_bias_type_pairs(
 
   using edge_value_t = typename EdgeValueInputWrapper::value_type;
   using edge_type_t  = typename EdgeTypeInputWrapper::value_type;
-  using bias_t       = typename edge_op_result_type<key_t,
-                                                    vertex_t,
-                                                    typename EdgeSrcValueInputWrapper::value_type,
-                                                    typename EdgeDstValueInputWrapper::value_type,
-                                                    typename EdgeValueInputWrapper::value_type,
+  using bias_t       = typename edge_op_result_type<GraphViewType,
+                                                    key_t,
+                                                    EdgeSrcValueInputWrapper,
+                                                    EdgeDstValueInputWrapper,
+                                                    EdgeValueInputWrapper,
                                                     BiasEdgeOp>::type;
   static_assert(std::is_arithmetic_v<bias_t>);
   static_assert(std::is_integral_v<edge_type_t>);
@@ -2785,10 +2822,10 @@ compute_aggregate_local_frontier_bias_type_pairs(
                      });
   }
 
-  thrust::inclusive_scan(handle.get_thrust_policy(),
-                         aggregate_local_frontier_local_degrees.begin(),
-                         aggregate_local_frontier_local_degrees.end(),
-                         aggregate_local_frontier_local_degree_offsets.begin() + 1);
+  cugraph::inclusive_scan(handle.get_thrust_policy(),
+                          aggregate_local_frontier_local_degrees.begin(),
+                          aggregate_local_frontier_local_degrees.end(),
+                          aggregate_local_frontier_local_degree_offsets.begin() + 1);
 
   {
     auto triplet_first =
@@ -2895,7 +2932,7 @@ shuffle_and_compute_local_nbr_values(
       minor_comm_size,
       invalid_value});
   rmm::device_uvector<size_t> tx_displacements(minor_comm_size, handle.get_stream());
-  thrust::exclusive_scan(
+  cugraph::exclusive_scan(
     handle.get_thrust_policy(), d_tx_counts.begin(), d_tx_counts.end(), tx_displacements.begin());
   auto tmp_sample_local_nbr_values =
     rmm::device_uvector<value_t>(tx_displacements.back_element(handle.get_stream()) +
@@ -3007,7 +3044,7 @@ shuffle_and_compute_per_type_local_nbr_values(
                      minor_comm_size,
                      invalid_value});
   rmm::device_uvector<size_t> tx_displacements(minor_comm_size, handle.get_stream());
-  thrust::exclusive_scan(
+  cugraph::exclusive_scan(
     handle.get_thrust_policy(), d_tx_counts.begin(), d_tx_counts.end(), tx_displacements.begin());
   auto tmp_sample_per_type_local_nbr_values =
     rmm::device_uvector<value_t>(tx_displacements.back_element(handle.get_stream()) +
@@ -3621,10 +3658,12 @@ homogeneous_biased_sample_without_replacement(
           aggregate_mid_local_frontier_local_degrees.size() + 1, handle.get_stream());
         aggregate_mid_local_frontier_local_degree_offsets.set_element_to_zero_async(
           0, handle.get_stream());
-        thrust::inclusive_scan(handle.get_thrust_policy(),
-                               aggregate_mid_local_frontier_local_degrees.begin(),
-                               aggregate_mid_local_frontier_local_degrees.end(),
-                               aggregate_mid_local_frontier_local_degree_offsets.begin() + 1);
+        cugraph::inclusive_scan(handle.get_thrust_policy(),
+                                aggregate_mid_local_frontier_local_degrees.begin(),
+                                aggregate_mid_local_frontier_local_degrees.end(),
+                                aggregate_mid_local_frontier_local_degree_offsets.begin() + 1,
+                                size_t{0},
+                                converting_plus_t<edge_t, size_t>{});
         aggregate_mid_local_frontier_biases.resize(
           aggregate_mid_local_frontier_local_degree_offsets.back_element(handle.get_stream()),
           handle.get_stream());
@@ -3713,10 +3752,12 @@ homogeneous_biased_sample_without_replacement(
           mid_frontier_gathered_local_degrees.size() + 1, handle.get_stream());
         mid_frontier_gathered_local_degree_offsets.set_element_to_zero_async(0,
                                                                              handle.get_stream());
-        thrust::inclusive_scan(handle.get_thrust_policy(),
-                               mid_frontier_gathered_local_degrees.begin(),
-                               mid_frontier_gathered_local_degrees.end(),
-                               mid_frontier_gathered_local_degree_offsets.begin() + 1);
+        cugraph::inclusive_scan(handle.get_thrust_policy(),
+                                mid_frontier_gathered_local_degrees.begin(),
+                                mid_frontier_gathered_local_degrees.end(),
+                                mid_frontier_gathered_local_degree_offsets.begin() + 1,
+                                size_t{0},
+                                converting_plus_t<edge_t, size_t>{});
       }
 
       rmm::device_uvector<bias_t> mid_frontier_gathered_biases(0, handle.get_stream());
@@ -3738,10 +3779,12 @@ homogeneous_biased_sample_without_replacement(
       rmm::device_uvector<size_t> mid_frontier_degree_offsets(mid_frontier_size + 1,
                                                               handle.get_stream());
       mid_frontier_degree_offsets.set_element_to_zero_async(0, handle.get_stream());
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             mid_frontier_degree_first,
-                             mid_frontier_degree_first + mid_frontier_size,
-                             mid_frontier_degree_offsets.begin() + 1);
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              mid_frontier_degree_first,
+                              mid_frontier_degree_first + mid_frontier_size,
+                              mid_frontier_degree_offsets.begin() + 1,
+                              size_t{0},
+                              converting_plus_t<edge_t, size_t>{});
       rmm::device_uvector<bias_t> mid_frontier_biases(mid_frontier_gathered_biases.size(),
                                                       handle.get_stream());
       thrust::for_each(
@@ -4262,11 +4305,13 @@ heterogeneous_biased_sample_without_replacement(
           aggregate_mid_local_frontier_per_type_local_degrees.size() + 1, handle.get_stream());
         aggregate_mid_local_frontier_per_type_local_degree_offsets.set_element_to_zero_async(
           0, handle.get_stream());
-        thrust::inclusive_scan(
+        cugraph::inclusive_scan(
           handle.get_thrust_policy(),
           aggregate_mid_local_frontier_per_type_local_degrees.begin(),
           aggregate_mid_local_frontier_per_type_local_degrees.end(),
-          aggregate_mid_local_frontier_per_type_local_degree_offsets.begin() + 1);
+          aggregate_mid_local_frontier_per_type_local_degree_offsets.begin() + 1,
+          size_t{0},
+          converting_plus_t<edge_t, size_t>{});
         aggregate_mid_local_frontier_biases.resize(
           aggregate_mid_local_frontier_per_type_local_degree_offsets.back_element(
             handle.get_stream()),
@@ -4363,10 +4408,12 @@ heterogeneous_biased_sample_without_replacement(
           mid_frontier_gathered_per_type_local_degrees.size() + 1, handle.get_stream());
         mid_frontier_gathered_per_type_local_degree_offsets.set_element_to_zero_async(
           0, handle.get_stream());
-        thrust::inclusive_scan(handle.get_thrust_policy(),
-                               mid_frontier_gathered_per_type_local_degrees.begin(),
-                               mid_frontier_gathered_per_type_local_degrees.end(),
-                               mid_frontier_gathered_per_type_local_degree_offsets.begin() + 1);
+        cugraph::inclusive_scan(handle.get_thrust_policy(),
+                                mid_frontier_gathered_per_type_local_degrees.begin(),
+                                mid_frontier_gathered_per_type_local_degrees.end(),
+                                mid_frontier_gathered_per_type_local_degree_offsets.begin() + 1,
+                                size_t{0},
+                                converting_plus_t<edge_t, size_t>{});
       }
 
       rmm::device_uvector<bias_t> mid_frontier_gathered_biases(0, handle.get_stream());
@@ -4391,10 +4438,12 @@ heterogeneous_biased_sample_without_replacement(
       rmm::device_uvector<size_t> mid_frontier_per_type_degree_offsets(mid_frontier_size + 1,
                                                                        handle.get_stream());
       mid_frontier_per_type_degree_offsets.set_element_to_zero_async(0, handle.get_stream());
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             mid_frontier_per_type_degree_first,
-                             mid_frontier_per_type_degree_first + mid_frontier_size,
-                             mid_frontier_per_type_degree_offsets.begin() + 1);
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              mid_frontier_per_type_degree_first,
+                              mid_frontier_per_type_degree_first + mid_frontier_size,
+                              mid_frontier_per_type_degree_offsets.begin() + 1,
+                              size_t{0},
+                              converting_plus_t<edge_t, size_t>{});
       rmm::device_uvector<bias_t> mid_frontier_biases(mid_frontier_gathered_biases.size(),
                                                       handle.get_stream());
       thrust::for_each(
@@ -4506,7 +4555,7 @@ heterogeneous_biased_sample_without_replacement(
             }));
         aggregate_high_local_frontier_output_offsets.set_element_to_zero_async(0,
                                                                                handle.get_stream());
-        thrust::inclusive_scan(
+        cugraph::inclusive_scan(
           handle.get_thrust_policy(),
           K_first,
           K_first + std::get<1>(aggregate_high_local_frontier_index_type_pairs).size(),
@@ -4612,10 +4661,10 @@ heterogeneous_biased_sample_without_replacement(
               return K_offsets[type + 1] - K_offsets[type];
             }));
         high_frontier_output_offsets.set_element_to_zero_async(0, handle.get_stream());
-        thrust::inclusive_scan(handle.get_thrust_policy(),
-                               K_first,
-                               K_first + high_frontier_size,
-                               high_frontier_output_offsets.begin() + 1);
+        cugraph::inclusive_scan(handle.get_thrust_policy(),
+                                K_first,
+                                K_first + high_frontier_size,
+                                high_frontier_output_offsets.begin() + 1);
       }
 
       rmm::device_uvector<edge_t> high_frontier_per_type_nbr_indices(
@@ -5425,11 +5474,13 @@ heterogeneous_uniform_sample_and_compute_local_nbr_indices(
 
       aggregate_local_frontier_unique_key_per_type_local_degree_offsets.set_element_to_zero_async(
         0, handle.get_stream());
-      thrust::inclusive_scan(
+      cugraph::inclusive_scan(
         handle.get_thrust_policy(),
         aggregate_local_frontier_unique_key_per_type_local_degrees.begin(),
         aggregate_local_frontier_unique_key_per_type_local_degrees.end(),
-        aggregate_local_frontier_unique_key_per_type_local_degree_offsets.begin() + 1);
+        aggregate_local_frontier_unique_key_per_type_local_degree_offsets.begin() + 1,
+        size_t{0},
+        converting_plus_t<edge_t, size_t>{});
     }
 
     assert(edge_types.has_value() == key_indices.has_value());
@@ -5527,11 +5578,11 @@ homogeneous_biased_sample_and_compute_local_nbr_indices(
   using edge_t   = typename GraphViewType::edge_type;
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
-  using bias_t      = typename edge_op_result_type<key_t,
-                                                   vertex_t,
-                                                   typename EdgeSrcValueInputWrapper::value_type,
-                                                   typename EdgeDstValueInputWrapper::value_type,
-                                                   typename EdgeValueInputWrapper::value_type,
+  using bias_t      = typename edge_op_result_type<GraphViewType,
+                                                   key_t,
+                                                   EdgeSrcValueInputWrapper,
+                                                   EdgeDstValueInputWrapper,
+                                                   EdgeValueInputWrapper,
                                                    BiasEdgeOp>::type;
   using edge_type_t = int32_t;  // dummy
 
@@ -5716,11 +5767,11 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
   using edge_t   = typename GraphViewType::edge_type;
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
-  using bias_t      = typename edge_op_result_type<key_t,
-                                                   vertex_t,
-                                                   typename EdgeSrcValueInputWrapper::value_type,
-                                                   typename EdgeDstValueInputWrapper::value_type,
-                                                   typename EdgeValueInputWrapper::value_type,
+  using bias_t      = typename edge_op_result_type<GraphViewType,
+                                                   key_t,
+                                                   EdgeSrcValueInputWrapper,
+                                                   EdgeDstValueInputWrapper,
+                                                   EdgeValueInputWrapper,
                                                    BiasEdgeOp>::type;
   using edge_type_t = typename EdgeTypeInputWrapper::value_type;
 
@@ -5890,11 +5941,13 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
         aggregate_local_frontier_unique_key_per_type_local_degrees.size() + 1, handle.get_stream());
       aggregate_local_frontier_unique_key_per_type_local_degree_offsets.set_element_to_zero_async(
         0, handle.get_stream());
-      thrust::inclusive_scan(
+      cugraph::inclusive_scan(
         handle.get_thrust_policy(),
         aggregate_local_frontier_unique_key_per_type_local_degrees.begin(),
         aggregate_local_frontier_unique_key_per_type_local_degrees.end(),
-        aggregate_local_frontier_unique_key_per_type_local_degree_offsets.begin() + 1);
+        aggregate_local_frontier_unique_key_per_type_local_degree_offsets.begin() + 1,
+        size_t{0},
+        converting_plus_t<edge_t, size_t>{});
       aggregate_local_frontier_unique_key_edge_types.resize(0, handle.get_stream());
       aggregate_local_frontier_unique_key_edge_types.shrink_to_fit(handle.get_stream());
     }
@@ -5987,4 +6040,4 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
 
 }  // namespace detail
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

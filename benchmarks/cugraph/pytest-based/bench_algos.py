@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -197,31 +197,31 @@ def dataset(request, rmm_config):
 @pytest.fixture(scope="module")
 def edgelist(request, dataset):
     df = dataset.get_edgelist()
-    return df
+    yield df
 
 
 @pytest.fixture(scope="module")
 def graph(request, dataset):
     G = dataset.get_graph()
-    return G
+    yield G
 
 
 @pytest.fixture(scope="module")
 def unweighted_graph(request, dataset):
     G = dataset.get_graph(ignore_weights=True)
-    return G
+    yield G
 
 
 @pytest.fixture(scope="module")
 def directed_graph(request, dataset):
     G = dataset.get_graph(create_using=cugraph.Graph(directed=True))
-    return G
+    yield G
 
 
 @pytest.fixture(scope="module")
 def transposed_graph(request, dataset):
     G = dataset.get_graph(store_transposed=True)
-    return G
+    yield G
 
 
 ###############################################################################

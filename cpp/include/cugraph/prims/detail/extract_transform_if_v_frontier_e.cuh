@@ -9,6 +9,7 @@
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/host_staging_buffer_manager.hpp>
 #include <cugraph/partition_manager.hpp>
@@ -21,6 +22,7 @@
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
@@ -49,7 +51,7 @@
 #include <utility>
 #include <vector>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -136,16 +138,15 @@ __global__ static void extract_transform_if_v_frontier_e_hypersparse_or_low_degr
   EdgeOp e_op,
   PredOp pred_op)
 {
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
-  using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
-  using e_op_result_t =
-    typename edge_op_result_type<key_t,
-                                 typename GraphViewType::vertex_type,
-                                 typename EdgePartitionSrcValueInputWrapper::value_type,
-                                 typename EdgePartitionDstValueInputWrapper::value_type,
-                                 typename EdgePartitionEdgeValueInputWrapper::value_type,
-                                 EdgeOp>::type;
+  using vertex_t      = typename GraphViewType::vertex_type;
+  using edge_t        = typename GraphViewType::edge_type;
+  using key_t         = typename thrust::iterator_traits<KeyIterator>::value_type;
+  using e_op_result_t = typename edge_op_result_type<GraphViewType,
+                                                     key_t,
+                                                     EdgePartitionSrcValueInputWrapper,
+                                                     EdgePartitionDstValueInputWrapper,
+                                                     EdgePartitionEdgeValueInputWrapper,
+                                                     EdgeOp>::type;
 
   auto const tid     = threadIdx.x + blockIdx.x * blockDim.x;
   auto const warp_id = threadIdx.x / raft::warp_size();
@@ -319,16 +320,15 @@ __global__ static void extract_transform_if_v_frontier_e_mid_degree(
   EdgeOp e_op,
   PredOp pred_op)
 {
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
-  using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
-  using e_op_result_t =
-    typename edge_op_result_type<key_t,
-                                 typename GraphViewType::vertex_type,
-                                 typename EdgePartitionSrcValueInputWrapper::value_type,
-                                 typename EdgePartitionDstValueInputWrapper::value_type,
-                                 typename EdgePartitionEdgeValueInputWrapper::value_type,
-                                 EdgeOp>::type;
+  using vertex_t      = typename GraphViewType::vertex_type;
+  using edge_t        = typename GraphViewType::edge_type;
+  using key_t         = typename thrust::iterator_traits<KeyIterator>::value_type;
+  using e_op_result_t = typename edge_op_result_type<GraphViewType,
+                                                     key_t,
+                                                     EdgePartitionSrcValueInputWrapper,
+                                                     EdgePartitionDstValueInputWrapper,
+                                                     EdgePartitionEdgeValueInputWrapper,
+                                                     EdgeOp>::type;
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   static_assert(extract_transform_if_v_frontier_e_kernel_block_size % raft::warp_size() == 0);
@@ -433,16 +433,15 @@ __global__ static void extract_transform_if_v_frontier_e_high_degree(
   EdgeOp e_op,
   PredOp pred_op)
 {
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
-  using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
-  using e_op_result_t =
-    typename edge_op_result_type<key_t,
-                                 typename GraphViewType::vertex_type,
-                                 typename EdgePartitionSrcValueInputWrapper::value_type,
-                                 typename EdgePartitionDstValueInputWrapper::value_type,
-                                 typename EdgePartitionEdgeValueInputWrapper::value_type,
-                                 EdgeOp>::type;
+  using vertex_t      = typename GraphViewType::vertex_type;
+  using edge_t        = typename GraphViewType::edge_type;
+  using key_t         = typename thrust::iterator_traits<KeyIterator>::value_type;
+  using e_op_result_t = typename edge_op_result_type<GraphViewType,
+                                                     key_t,
+                                                     EdgePartitionSrcValueInputWrapper,
+                                                     EdgePartitionDstValueInputWrapper,
+                                                     EdgePartitionEdgeValueInputWrapper,
+                                                     EdgeOp>::type;
 
   auto const tid     = threadIdx.x + blockIdx.x * blockDim.x;
   auto const lane_id = threadIdx.x % raft::warp_size();
@@ -707,11 +706,11 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
   using output_key_t   = OutputKeyT;
   using output_value_t = OutputValueT;
 
-  using e_op_result_t = typename edge_op_result_type<key_t,
-                                                     typename GraphViewType::vertex_type,
-                                                     typename EdgeSrcValueInputWrapper::value_type,
-                                                     typename EdgeDstValueInputWrapper::value_type,
-                                                     typename EdgeValueInputWrapper::value_type,
+  using e_op_result_t = typename edge_op_result_type<GraphViewType,
+                                                     key_t,
+                                                     EdgeSrcValueInputWrapper,
+                                                     EdgeDstValueInputWrapper,
+                                                     EdgeValueInputWrapper,
                                                      EdgeOp>::type;
 
   using edge_partition_src_input_device_view_t = std::conditional_t<
@@ -844,9 +843,9 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
                  frontier_key_first,
                  frontier_key_last,
                  get_dataframe_buffer_begin(frontier_keys));
-    thrust::sort(handle.get_thrust_policy(),
-                 get_dataframe_buffer_begin(frontier_keys),
-                 get_dataframe_buffer_end(frontier_keys));
+    cugraph::sort_wrapper(handle.get_thrust_policy(),
+                          get_dataframe_buffer_begin(frontier_keys),
+                          get_dataframe_buffer_end(frontier_keys));
     frontier_key_first = get_dataframe_buffer_begin(frontier_keys);
     frontier_key_last  = get_dataframe_buffer_end(frontier_keys);
   }
@@ -896,19 +895,38 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
             detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
             *edge_mask_view, partition_idx)
         : cuda::std::nullopt;
-    auto frontier_major_first =
+    auto frontier_majors_first =
       thrust_tuple_get_or_identity<decltype(frontier_key_first), 0>(frontier_key_first);
-    auto frontier_major_last =
-      thrust_tuple_get_or_identity<decltype(frontier_key_last), 0>(frontier_key_last);
-    if (edge_partition_e_mask) {
-      local_max_pushes =
-        edge_partition.compute_number_of_edges_with_mask(edge_partition_e_mask->value_first(),
-                                                         frontier_major_first,
-                                                         frontier_major_last,
-                                                         handle.get_stream());
+    size_t frontier_majors_size =
+      static_cast<size_t>(cuda::std::distance(frontier_key_first, frontier_key_last));
+
+    if constexpr (std::is_pointer_v<std::decay_t<decltype(frontier_majors_first)>>) {
+      auto frontier_majors =
+        raft::device_span<vertex_t const>(frontier_majors_first, frontier_majors_size);
+      if (edge_partition_e_mask) {
+        auto edge_partition_e_mask_span = raft::device_span<uint32_t const>(
+          edge_partition_e_mask->value_first(),
+          packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
+        local_max_pushes = edge_partition.compute_number_of_edges_with_mask(
+          edge_partition_e_mask_span, frontier_majors, handle.get_stream());
+      } else {
+        local_max_pushes =
+          edge_partition.compute_number_of_edges(frontier_majors, handle.get_stream());
+      }
     } else {
-      local_max_pushes = edge_partition.compute_number_of_edges(
-        frontier_major_first, frontier_major_last, handle.get_stream());
+      if (edge_partition_e_mask) {
+        auto edge_partition_e_mask_span = raft::device_span<uint32_t const>(
+          edge_partition_e_mask->value_first(),
+          packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
+        local_max_pushes = edge_partition.compute_number_of_edges_with_mask(
+          edge_partition_e_mask_span,
+          frontier_majors_first,
+          frontier_majors_first + frontier_majors_size,
+          handle.get_stream());
+      } else {
+        local_max_pushes = edge_partition.compute_number_of_edges(
+          frontier_majors_first, frontier_majors_first + frontier_majors_size, handle.get_stream());
+      }
     }
   }
 
@@ -957,7 +975,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
       if (key_list_size > 0) {
         auto h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer_view.data());
         assert(h_staging_buffer_view.size() >= size_t{2});
-        if constexpr (std::is_pointer_v<std::decay<decltype(frontier_key_first)>>) {
+        if constexpr (std::is_pointer_v<std::decay_t<decltype(frontier_key_first)>>) {
           raft::update_host(
             h_staging_buffer_ptr, frontier_key_first, size_t{1}, handle.get_stream());
           raft::update_host(h_staging_buffer_ptr + 1,
@@ -1427,26 +1445,23 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
             bool computed{false};
             if constexpr (try_bitmap) {
               if (keys.index() == 0) {
-                auto major_first = cuda::make_transform_iterator(
-                  std::get<0>(keys).begin(),
-                  cuda::proclaim_return_type<vertex_t>(
-                    [range_first =
-                       local_frontier_range_firsts[partition_idx]] __device__(uint32_t v_offset) {
-                      return range_first + static_cast<vertex_t>(v_offset);
-                    }));
+                auto const& keys_uint32 = std::get<0>(keys);
+                auto local_majors_span =
+                  raft::device_span<uint32_t const>(keys_uint32.data(), keys_uint32.size());
+                auto majors = majors_from_offsets_t<uint32_t, vertex_t>{
+                  local_majors_span, local_frontier_range_firsts[partition_idx]};
                 if (edge_partition_e_mask) {
-                  edge_partition.compute_number_of_edges_with_mask_async(
+                  auto edge_partition_e_mask_span = raft::device_span<uint32_t const>(
                     edge_partition_e_mask->value_first(),
-                    major_first,
-                    major_first + std::get<0>(keys).size(),
+                    packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
+                  edge_partition.compute_number_of_edges_with_mask_async(
+                    edge_partition_e_mask_span,
+                    majors,
                     raft::device_span<size_t>(counters.data() + j, size_t{1}),
                     loop_stream);
                 } else {
                   edge_partition.compute_number_of_edges_async(
-                    major_first,
-                    major_first + std::get<0>(keys).size(),
-                    raft::device_span<size_t>(counters.data() + j, size_t{1}),
-                    loop_stream);
+                    majors, raft::device_span<size_t>(counters.data() + j, size_t{1}), loop_stream);
                 }
                 computed = true;
               }
@@ -1464,16 +1479,17 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
               }
               auto major_first = thrust_tuple_get_or_identity<decltype(key_first), 0>(key_first);
               if (edge_partition_e_mask) {
-                edge_partition.compute_number_of_edges_with_mask_async(
+                auto edge_partition_e_mask_span = raft::device_span<uint32_t const>(
                   edge_partition_e_mask->value_first(),
-                  major_first,
-                  major_first + num_keys,
+                  packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
+                edge_partition.compute_number_of_edges_with_mask_async(
+                  edge_partition_e_mask_span,
+                  raft::device_span<vertex_t const>(major_first, num_keys),
                   raft::device_span<size_t>(counters.data() + j, size_t{1}),
                   loop_stream);
               } else {
                 edge_partition.compute_number_of_edges_async(
-                  major_first,
-                  major_first + num_keys,
+                  raft::device_span<vertex_t const>(major_first, num_keys),
                   raft::device_span<size_t>(counters.data() + j, size_t{1}),
                   loop_stream);
               }
@@ -1556,10 +1572,10 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
                     auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
                     return static_cast<size_t>(edge_partition.local_degree(major_offset));
                   }));
-              thrust::inclusive_scan(rmm::exec_policy_nosync(loop_stream),
-                                     key_local_degree_first,
-                                     key_local_degree_first + key_segment_offsets[1],
-                                     high_segment_key_local_degree_offsets.begin() + 1);
+              cugraph::inclusive_scan(rmm::exec_policy_nosync(loop_stream),
+                                      key_local_degree_first,
+                                      key_local_degree_first + key_segment_offsets[1],
+                                      high_segment_key_local_degree_offsets.begin() + 1);
               computed = true;
             }
           }
@@ -1580,10 +1596,10 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
                 auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
                 return static_cast<size_t>(edge_partition.local_degree(major_offset));
               }));
-            thrust::inclusive_scan(rmm::exec_policy_nosync(loop_stream),
-                                   key_local_degree_first,
-                                   key_local_degree_first + key_segment_offsets[1],
-                                   high_segment_key_local_degree_offsets.begin() + 1);
+            cugraph::inclusive_scan(rmm::exec_policy_nosync(loop_stream),
+                                    key_local_degree_first,
+                                    key_local_degree_first + key_segment_offsets[1],
+                                    high_segment_key_local_degree_offsets.begin() + 1);
           }
           thrust::copy(rmm::exec_policy_nosync(loop_stream),
                        high_segment_key_local_degree_offsets.begin() + key_segment_offsets[1],
@@ -1827,4 +1843,4 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
 
 }  // namespace detail
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

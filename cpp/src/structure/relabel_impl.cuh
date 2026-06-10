@@ -11,6 +11,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -47,7 +48,7 @@ void relabel(raft::handle_t const& handle,
              bool skip_missing_labels,
              bool do_expensive_check)
 {
-  if (multi_gpu) {
+  if constexpr (multi_gpu) {
     auto& comm                 = handle.get_comms();
     auto const comm_size       = comm.get_size();
     auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
@@ -62,7 +63,8 @@ void relabel(raft::handle_t const& handle,
 
     rmm::device_uvector<vertex_t> unique_old_labels(num_labels, handle.get_stream());
     thrust::copy(handle.get_thrust_policy(), labels, labels + num_labels, unique_old_labels.data());
-    thrust::sort(handle.get_thrust_policy(), unique_old_labels.begin(), unique_old_labels.end());
+    cugraph::sort_wrapper(
+      handle.get_thrust_policy(), unique_old_labels.begin(), unique_old_labels.end());
     unique_old_labels.resize(cuda::std::distance(unique_old_labels.begin(),
                                                  thrust::unique(handle.get_thrust_policy(),
                                                                 unique_old_labels.begin(),

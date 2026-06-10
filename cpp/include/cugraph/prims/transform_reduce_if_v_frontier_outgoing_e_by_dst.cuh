@@ -7,6 +7,7 @@
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/host_staging_buffer_manager.hpp>
@@ -23,6 +24,7 @@
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/core/handle.hpp>
@@ -61,7 +63,7 @@
 #include <utility>
 #include <vector>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -263,9 +265,9 @@ sort_and_reduce_buffer_elements(
                 if (invalid_key && key == *invalid_key) { return false; }
                 return key < threshold;
               }))));
-        thrust::sort(handle.get_thrust_policy(),
-                     get_dataframe_buffer_begin(key_buffer),
-                     get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements);
+        cugraph::sort_wrapper(handle.get_thrust_policy(),
+                              get_dataframe_buffer_begin(key_buffer),
+                              get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements);
 
       } else {
         auto pair_first = thrust::make_zip_iterator(get_dataframe_buffer_begin(key_buffer),
@@ -394,9 +396,9 @@ sort_and_reduce_buffer_elements(
                         get_dataframe_buffer_begin(tmp_key_buffer) + num_unique_prefix_elements,
                         is_equal_t<bool>{true});
         key_buffer = std::move(tmp_key_buffer);
-        thrust::sort(handle.get_thrust_policy(),
-                     get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
-                     get_dataframe_buffer_end(key_buffer));
+        cugraph::sort_wrapper(handle.get_thrust_policy(),
+                              get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
+                              get_dataframe_buffer_end(key_buffer));
       } else {
         static_assert(std::is_same_v<ReduceOp, reduce_op::any<typename ReduceOp::value_type>>);
         auto tmp_key_buffer = allocate_dataframe_buffer<input_key_t>(
@@ -447,9 +449,9 @@ sort_and_reduce_buffer_elements(
   }
 
   if constexpr (std::is_same_v<payload_t, void>) {
-    thrust::sort(handle.get_thrust_policy(),
-                 get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
-                 get_dataframe_buffer_end(key_buffer));
+    cugraph::sort_wrapper(handle.get_thrust_policy(),
+                          get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
+                          get_dataframe_buffer_end(key_buffer));
   } else {
     thrust::sort_by_key(handle.get_thrust_policy(),
                         get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
@@ -1178,30 +1180,33 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
                    local_frontier_sizes[i],
                    static_cast<int>(i),
                    handle.get_stream());
+      auto edge_partition_frontier_vertices_span = raft::device_span<vertex_t const>{
+        edge_partition_frontier_vertices.data(), edge_partition_frontier_vertices.size()};
 
       if (edge_partition_e_mask) {
-        ret +=
-          edge_partition.compute_number_of_edges_with_mask((*edge_partition_e_mask).value_first(),
-                                                           edge_partition_frontier_vertices.begin(),
-                                                           edge_partition_frontier_vertices.end(),
-                                                           handle.get_stream());
+        auto edge_partition_mask_span = raft::device_span<uint32_t const>(
+          (*edge_partition_e_mask).value_first(),
+          packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
+        ret += edge_partition.compute_number_of_edges_with_mask(
+          edge_partition_mask_span, edge_partition_frontier_vertices_span, handle.get_stream());
       } else {
-        ret += edge_partition.compute_number_of_edges(edge_partition_frontier_vertices.begin(),
-                                                      edge_partition_frontier_vertices.end(),
+        ret += edge_partition.compute_number_of_edges(edge_partition_frontier_vertices_span,
                                                       handle.get_stream());
       }
     } else {
       assert(i == 0);
       if (edge_partition_e_mask) {
-        ret += edge_partition.compute_number_of_edges_with_mask(
+        auto edge_partition_mask_span = raft::device_span<uint32_t const>(
           (*edge_partition_e_mask).value_first(),
-          local_frontier_vertex_first,
-          local_frontier_vertex_first + frontier.size(),
+          packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
+        ret += edge_partition.compute_number_of_edges_with_mask(
+          edge_partition_mask_span,
+          raft::device_span<vertex_t const>(local_frontier_vertex_first, frontier.size()),
           handle.get_stream());
       } else {
-        ret += edge_partition.compute_number_of_edges(local_frontier_vertex_first,
-                                                      local_frontier_vertex_first + frontier.size(),
-                                                      handle.get_stream());
+        ret += edge_partition.compute_number_of_edges(
+          raft::device_span<vertex_t const>(local_frontier_vertex_first, frontier.size()),
+          handle.get_stream());
       }
     }
   }
@@ -1299,4 +1304,4 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                                                                   do_expensive_check);
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

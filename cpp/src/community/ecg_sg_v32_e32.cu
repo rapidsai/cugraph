@@ -1,12 +1,14 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "community/ecg_impl.cuh"
 
+#include <cugraph/export.hpp>
+
 namespace cugraph {
-template std::tuple<rmm::device_uvector<int32_t>, size_t, float> ecg(
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>, size_t, float> ecg(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<int32_t, int32_t, false, false> const& graph_view,
@@ -18,7 +20,7 @@ template std::tuple<rmm::device_uvector<int32_t>, size_t, float> ecg(
   float threshold,
   float resolution);
 
-template std::tuple<rmm::device_uvector<int32_t>, size_t, double> ecg(
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>, size_t, double> ecg(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<int32_t, int32_t, false, false> const& graph_view,

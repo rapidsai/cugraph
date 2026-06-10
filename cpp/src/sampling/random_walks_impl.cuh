@@ -23,6 +23,7 @@
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/random/rng.cuh>
@@ -375,10 +376,10 @@ struct node2vec_selector {
         raft::host_span<size_t const>(displacements.data(), displacements.size()),
         handle.get_stream());
 
-      thrust::exclusive_scan(handle.get_thrust_policy(),
-                             aggregate_offsets.begin(),
-                             aggregate_offsets.end(),
-                             aggregate_offsets.begin());
+      cugraph::exclusive_scan(handle.get_thrust_policy(),
+                              aggregate_offsets.begin(),
+                              aggregate_offsets.end(),
+                              aggregate_offsets.begin());
 
       aggregate_currents.resize(displacements.back() + recv_counts.back(), handle.get_stream());
 
@@ -642,17 +643,17 @@ random_walk_impl(raft::handle_t const& handle,
     //  Sort for nbr_intersection, must sort all together
     if (previous_vertices) {
       if constexpr (multi_gpu) {
-        thrust::sort(handle.get_thrust_policy(),
-                     thrust::make_zip_iterator(current_vertices.begin(),
-                                               (*previous_vertices).begin(),
-                                               current_position.begin(),
-                                               current_gpu.begin()),
-                     thrust::make_zip_iterator(current_vertices.end(),
-                                               (*previous_vertices).end(),
-                                               current_position.end(),
-                                               current_gpu.end()));
+        cugraph::sort_wrapper(handle.get_thrust_policy(),
+                              thrust::make_zip_iterator(current_vertices.begin(),
+                                                        (*previous_vertices).begin(),
+                                                        current_position.begin(),
+                                                        current_gpu.begin()),
+                              thrust::make_zip_iterator(current_vertices.end(),
+                                                        (*previous_vertices).end(),
+                                                        current_position.end(),
+                                                        current_gpu.end()));
       } else {
-        thrust::sort(
+        cugraph::sort_wrapper(
           handle.get_thrust_policy(),
           thrust::make_zip_iterator(
             current_vertices.begin(), (*previous_vertices).begin(), current_position.begin()),

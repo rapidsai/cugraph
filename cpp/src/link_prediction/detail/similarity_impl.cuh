@@ -11,11 +11,12 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/count_if_e.cuh>
-#include <cugraph/prims/per_v_pair_transform_dst_nbr_intersection.cuh>
+#include <cugraph/prims/per_v_pair_transform_src_dst_nbr_intersection.cuh>
 #include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error_check_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -369,10 +370,10 @@ all_pairs_similarity(raft::handle_t const& handle,
                         tmp_vertices.begin(),
                         cuda::std::greater<size_t>{});
 
-    thrust::exclusive_scan(handle.get_thrust_policy(),
-                           two_hop_degrees.begin(),
-                           two_hop_degrees.end(),
-                           two_hop_degrees.begin());
+    cugraph::exclusive_scan(handle.get_thrust_policy(),
+                            two_hop_degrees.begin(),
+                            two_hop_degrees.end(),
+                            two_hop_degrees.begin());
 
     auto two_hop_degree_offsets = std::move(two_hop_degrees);
 

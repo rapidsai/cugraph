@@ -5,6 +5,8 @@
 
 #include "gather_one_hop_impl.cuh"
 
+#include <cugraph/export.hpp>
+
 namespace cugraph {
 namespace detail {
 
@@ -12,10 +14,10 @@ using vertex_t = int64_t;
 using edge_t   = int64_t;
 constexpr bool multi_gpu{true};
 
-template std::tuple<rmm::device_uvector<vertex_t>,
-                    rmm::device_uvector<vertex_t>,
-                    arithmetic_device_uvector_t,
-                    std::optional<rmm::device_uvector<int32_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<vertex_t>,
+                                   rmm::device_uvector<vertex_t>,
+                                   arithmetic_device_uvector_t,
+                                   std::optional<rmm::device_uvector<int32_t>>>
 gather_one_hop_edgelist(raft::handle_t const& handle,
                         graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                         size_t number_of_edge_properties,
@@ -25,12 +27,12 @@ gather_one_hop_edgelist(raft::handle_t const& handle,
                         std::optional<raft::device_span<bool const>> gather_flags,
                         bool do_expensive_check);
 
-template std::tuple<rmm::device_uvector<vertex_t>,
-                    rmm::device_uvector<vertex_t>,
-                    arithmetic_device_uvector_t,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    rmm::device_uvector<vertex_t>,
-                    std::optional<rmm::device_uvector<int32_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<vertex_t>,
+                                   rmm::device_uvector<vertex_t>,
+                                   arithmetic_device_uvector_t,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   rmm::device_uvector<vertex_t>,
+                                   std::optional<rmm::device_uvector<int32_t>>>
 gather_one_hop_edgelist_to_unvisited_neighbors(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
@@ -43,10 +45,10 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
   std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
   bool do_expensive_check);
 
-template std::tuple<rmm::device_uvector<vertex_t>,
-                    rmm::device_uvector<vertex_t>,
-                    std::vector<arithmetic_device_uvector_t>,
-                    std::optional<rmm::device_uvector<int32_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<vertex_t>,
+                                   rmm::device_uvector<vertex_t>,
+                                   std::vector<arithmetic_device_uvector_t>,
+                                   std::optional<rmm::device_uvector<int32_t>>>
 temporal_gather_one_hop_edgelist(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
@@ -60,10 +62,10 @@ temporal_gather_one_hop_edgelist(
   temporal_sampling_comparison_t temporal_sampling_comparison,
   bool do_expensive_check);
 
-template std::tuple<rmm::device_uvector<vertex_t>,
-                    rmm::device_uvector<vertex_t>,
-                    std::vector<arithmetic_device_uvector_t>,
-                    std::optional<rmm::device_uvector<int32_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<vertex_t>,
+                                   rmm::device_uvector<vertex_t>,
+                                   std::vector<arithmetic_device_uvector_t>,
+                                   std::optional<rmm::device_uvector<int32_t>>>
 temporal_gather_one_hop_edgelist(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,

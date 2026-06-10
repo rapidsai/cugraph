@@ -1,5 +1,4 @@
 name: test
-
 on:
   workflow_dispatch:
     inputs:
@@ -21,10 +20,9 @@ on:
         description: "build_type: one of [branch, nightly, pull-request]"
         type: string
         default: nightly
-
+permissions: {}
 jobs:
   conda-cpp-checks:
-    secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@main
     with:
       build_type: ${{ inputs.build_type }}
@@ -32,8 +30,15 @@ jobs:
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
       symbol_exclusions: (cugraph::ops|hornet|void writeEdgeCountsKernel|void markUniqueOffsetsKernel)
+      package_name: libcugraph
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   conda-cpp-tests:
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@main
     with:
       build_type: ${{ inputs.build_type }}
@@ -41,8 +46,14 @@ jobs:
       date: ${{ inputs.date }}
       script: ci/test_cpp.sh
       sha: ${{ inputs.sha }}
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   conda-python-tests:
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@main
     with:
       build_type: ${{ inputs.build_type }}
@@ -50,8 +61,14 @@ jobs:
       date: ${{ inputs.date }}
       script: ci/test_python.sh
       sha: ${{ inputs.sha }}
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   wheel-tests-pylibcugraph:
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
     with:
       build_type: ${{ inputs.build_type }}
@@ -59,8 +76,14 @@ jobs:
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
       script: ci/test_wheel_pylibcugraph.sh
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   wheel-tests-cugraph:
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
     with:
       build_type: ${{ inputs.build_type }}
@@ -68,3 +91,9 @@ jobs:
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
       script: ci/test_wheel_cugraph.sh
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read

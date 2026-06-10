@@ -12,8 +12,8 @@
 #include <cugraph/detail/device_comm_wrapper.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/prims/edge_bucket.cuh>
-#include <cugraph/prims/extract_transform_if_v_frontier_outgoing_e.cuh>
-#include <cugraph/prims/extract_transform_v_frontier_outgoing_e.cuh>
+#include <cugraph/prims/extract_transform_if_v_frontier_incoming_outgoing_e.cuh>
+#include <cugraph/prims/extract_transform_v_frontier_incoming_outgoing_e.cuh>
 #include <cugraph/prims/kv_store.cuh>
 #include <cugraph/prims/transform_gather_e.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
@@ -401,15 +401,21 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
     }
   }
 
-  std::tie(
-    result_majors, result_minors, tmp_edge_indices, result_labels, std::ignore, std::ignore) =
-    deduplicate_edges_by_minor(handle,
-                               graph_view,
-                               std::move(result_majors),
-                               std::move(result_minors),
-                               std::move(tmp_edge_indices),
-                               std::move(result_labels),
-                               false);
+  std::tie(result_majors,
+           result_minors,
+           tmp_edge_indices,
+           result_labels,
+           std::ignore,
+           std::ignore,
+           std::ignore,
+           std::ignore,
+           std::ignore) = deduplicate_edges_by_minor(handle,
+                                                     graph_view,
+                                                     std::move(result_majors),
+                                                     std::move(result_minors),
+                                                     std::move(tmp_edge_indices),
+                                                     arithmetic_device_uvector_t{std::monostate{}},
+                                                     std::move(result_labels));
 
   std::tie(visited_minors, visited_minor_labels) =
     detail::update_dst_visited_vertices_and_labels<vertex_t, edge_t, multi_gpu>(
@@ -483,7 +489,7 @@ temporal_gather_one_hop_edgelist(
                                                             handle.get_stream());
 
     size_t starting_pos{0};
-    if (multi_gpu) {
+    if constexpr (multi_gpu) {
       auto sizes = cugraph::host_scalar_allgather(
         handle.get_comms(), active_majors.size(), handle.get_stream());
       std::exclusive_scan(sizes.begin(), sizes.end(), sizes.begin(), size_t{0});
@@ -495,7 +501,7 @@ temporal_gather_one_hop_edgelist(
                      vertex_label_time_positions.end(),
                      starting_pos);
 
-    if (multi_gpu) {
+    if constexpr (multi_gpu) {
       auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
 
       auto all_minor_keys =

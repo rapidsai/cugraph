@@ -19,6 +19,7 @@
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/util/cudart_utils.hpp>
@@ -348,7 +349,9 @@ kv_store_t<key_t, weight_t, false /* use_binary_search */> filter_key_to_dist_ma
       edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(0));
     auto num_edges = edge_partition.compute_number_of_edges(
-      near_bucket.vertex_begin(), near_bucket.vertex_end(), handle.get_stream());
+      raft::device_span<vertex_t const>{near_bucket.vertex_begin(), near_bucket.size()},
+      handle.get_stream());
+
     for (size_t i = 0; i < far_buffers.size(); ++i) {
       auto far_vertex_first = cuda::make_transform_iterator(
         far_buffers[i].begin(),
@@ -492,7 +495,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
 
     rmm::device_uvector<vertex_t> tmp_origins(origins.size(), handle.get_stream());
     thrust::copy(handle.get_thrust_policy(), origins.begin(), origins.end(), tmp_origins.begin());
-    thrust::sort(handle.get_thrust_policy(), tmp_origins.begin(), tmp_origins.end());
+    cugraph::sort_wrapper(handle.get_thrust_policy(), tmp_origins.begin(), tmp_origins.end());
     CUGRAPH_EXPECTS(
       thrust::unique(handle.get_thrust_policy(), tmp_origins.begin(), tmp_origins.end()) ==
         tmp_origins.end(),
@@ -503,7 +506,8 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                  destinations.begin(),
                  destinations.end(),
                  tmp_destinations.begin());
-    thrust::sort(handle.get_thrust_policy(), tmp_destinations.begin(), tmp_destinations.end());
+    cugraph::sort_wrapper(
+      handle.get_thrust_policy(), tmp_destinations.begin(), tmp_destinations.end());
     CUGRAPH_EXPECTS(thrust::unique(handle.get_thrust_policy(),
                                    tmp_destinations.begin(),
                                    tmp_destinations.end()) == tmp_destinations.end(),
@@ -837,7 +841,8 @@ rmm::device_uvector<weight_t> od_shortest_distances(
         num_copied += this_loop_size;
       }
 
-      thrust::sort(handle.get_thrust_policy(), tmp_near_q_keys.begin(), tmp_near_q_keys.end());
+      cugraph::sort_wrapper(
+        handle.get_thrust_policy(), tmp_near_q_keys.begin(), tmp_near_q_keys.end());
       tmp_near_q_keys.resize(cuda::std::distance(tmp_near_q_keys.begin(),
                                                  thrust::unique(handle.get_thrust_policy(),
                                                                 tmp_near_q_keys.begin(),
@@ -1000,7 +1005,8 @@ rmm::device_uvector<weight_t> od_shortest_distances(
             }
           }
 
-          thrust::sort(handle.get_thrust_policy(), new_near_q_keys.begin(), new_near_q_keys.end());
+          cugraph::sort_wrapper(
+            handle.get_thrust_policy(), new_near_q_keys.begin(), new_near_q_keys.end());
           new_near_q_keys.resize(cuda::std::distance(new_near_q_keys.begin(),
                                                      thrust::unique(handle.get_thrust_policy(),
                                                                     new_near_q_keys.begin(),

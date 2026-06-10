@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/host_staging_buffer_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
@@ -19,7 +20,7 @@
 #include <type_traits>
 #include <variant>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -552,4 +553,4 @@ host_scalar_gather(raft::comms::comms_t const& comm, T input, int root, cudaStre
   return ret;
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

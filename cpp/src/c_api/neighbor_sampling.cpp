@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -21,6 +21,7 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -173,9 +174,8 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
 
           // Get unique labels
           // sort the start_vertex_labels
-          cugraph::detail::sort_ints(
-            handle_.get_stream(),
-            raft::device_span<label_t>{unique_labels.data(), unique_labels.size()});
+          cugraph::sort_wrapper(
+            handle_.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
 
           auto num_unique_labels = cugraph::detail::unique_ints(
             handle_.get_stream(),

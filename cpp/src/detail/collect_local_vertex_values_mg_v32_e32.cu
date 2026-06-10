@@ -1,10 +1,11 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "detail/collect_local_vertex_values.cuh"
 
+#include <cugraph/export.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
@@ -13,7 +14,7 @@
 namespace cugraph {
 namespace detail {
 
-template rmm::device_uvector<float>
+template CUGRAPH_EXPORT rmm::device_uvector<float>
 collect_local_vertex_values_from_ext_vertex_value_pairs<int32_t, float, true>(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& d_vertices,
@@ -24,7 +25,7 @@ collect_local_vertex_values_from_ext_vertex_value_pairs<int32_t, float, true>(
   float default_value,
   bool do_expensive_check);
 
-template rmm::device_uvector<int32_t>
+template CUGRAPH_EXPORT rmm::device_uvector<int32_t>
 collect_local_vertex_values_from_ext_vertex_value_pairs<int32_t, int32_t, true>(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& d_vertices,
@@ -35,7 +36,7 @@ collect_local_vertex_values_from_ext_vertex_value_pairs<int32_t, int32_t, true>(
   int32_t default_value,
   bool do_expensive_check);
 
-template rmm::device_uvector<double>
+template CUGRAPH_EXPORT rmm::device_uvector<double>
 collect_local_vertex_values_from_ext_vertex_value_pairs<int32_t, double, true>(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& d_vertices,

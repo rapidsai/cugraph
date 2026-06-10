@@ -19,6 +19,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -73,7 +74,8 @@ void expensive_check_edgelist(raft::handle_t const& handle,
     rmm::device_uvector<vertex_t> sorted_vertices((*vertices).size(), handle.get_stream());
     thrust::copy(
       handle.get_thrust_policy(), (*vertices).begin(), (*vertices).end(), sorted_vertices.begin());
-    thrust::sort(handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end());
+    cugraph::sort_wrapper(
+      handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end());
     CUGRAPH_EXPECTS(static_cast<size_t>(cuda::std::distance(
                       sorted_vertices.begin(),
                       thrust::unique(handle.get_thrust_policy(),
@@ -190,7 +192,8 @@ void expensive_check_edgelist(raft::handle_t const& handle,
                           raft::host_span<size_t const>(recvcounts.data(), recvcounts.size()),
                           raft::host_span<size_t const>(displacements.data(), displacements.size()),
                           handle.get_stream());
-        thrust::sort(handle.get_thrust_policy(), sorted_majors.begin(), sorted_majors.end());
+        cugraph::sort_wrapper(
+          handle.get_thrust_policy(), sorted_majors.begin(), sorted_majors.end());
       }
 
       rmm::device_uvector<vertex_t> sorted_minors(0, handle.get_stream());
@@ -211,7 +214,8 @@ void expensive_check_edgelist(raft::handle_t const& handle,
                           raft::host_span<size_t const>(recvcounts.data(), recvcounts.size()),
                           raft::host_span<size_t const>(displacements.data(), displacements.size()),
                           handle.get_stream());
-        thrust::sort(handle.get_thrust_policy(), sorted_minors.begin(), sorted_minors.end());
+        cugraph::sort_wrapper(
+          handle.get_thrust_policy(), sorted_minors.begin(), sorted_minors.end());
       }
 
       auto edge_first = thrust::make_zip_iterator(edgelist_majors.begin(), edgelist_minors.begin());
@@ -233,7 +237,8 @@ void expensive_check_edgelist(raft::handle_t const& handle,
                    (*vertices).begin(),
                    (*vertices).end(),
                    sorted_vertices.begin());
-      thrust::sort(handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end());
+      cugraph::sort_wrapper(
+        handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end());
       auto edge_first = thrust::make_zip_iterator(edgelist_majors.begin(), edgelist_minors.begin());
       CUGRAPH_EXPECTS(
         thrust::count_if(handle.get_thrust_policy(),
@@ -293,12 +298,13 @@ bool check_symmetric(raft::handle_t const& handle,
   if (org_srcs.size() != symmetrized_srcs.size()) { return false; }
 
   auto org_edge_first = thrust::make_zip_iterator(org_srcs.begin(), org_dsts.begin());
-  thrust::sort(handle.get_thrust_policy(), org_edge_first, org_edge_first + org_srcs.size());
+  cugraph::sort_wrapper(
+    handle.get_thrust_policy(), org_edge_first, org_edge_first + org_srcs.size());
   auto symmetrized_edge_first =
     thrust::make_zip_iterator(symmetrized_srcs.begin(), symmetrized_dsts.begin());
-  thrust::sort(handle.get_thrust_policy(),
-               symmetrized_edge_first,
-               symmetrized_edge_first + symmetrized_srcs.size());
+  cugraph::sort_wrapper(handle.get_thrust_policy(),
+                        symmetrized_edge_first,
+                        symmetrized_edge_first + symmetrized_srcs.size());
 
   return thrust::equal(handle.get_thrust_policy(),
                        org_edge_first,
@@ -319,7 +325,8 @@ bool check_no_parallel_edge(raft::handle_t const& handle,
     handle.get_thrust_policy(), edgelist_dsts.begin(), edgelist_dsts.end(), org_dsts.begin());
 
   auto org_edge_first = thrust::make_zip_iterator(org_srcs.begin(), org_dsts.begin());
-  thrust::sort(handle.get_thrust_policy(), org_edge_first, org_edge_first + org_srcs.size());
+  cugraph::sort_wrapper(
+    handle.get_thrust_policy(), org_edge_first, org_edge_first + org_srcs.size());
   return thrust::unique(
            handle.get_thrust_policy(), org_edge_first, org_edge_first + edgelist_srcs.size()) ==
          (org_edge_first + edgelist_srcs.size());

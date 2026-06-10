@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.  All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.  All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "utilities/base_fixture.hpp"
@@ -173,9 +173,6 @@ TEST_P(Tests_Leiden_File64, CheckInt64Int64FloatFloat)
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-#if 0
-// FIXME:  We should use these tests, gtest-1.11.0 makes it a runtime error
-//         to define and not instantiate these.
 TEST_P(Tests_Leiden_Rmat, CheckInt32Int32FloatFloat)
 {
   run_current_test<int32_t, int32_t, float, float>(
@@ -199,9 +196,7 @@ TEST_P(Tests_Leiden_Rmat64, CheckInt64Int64FloatFloat)
   run_current_test<int64_t, int64_t, float, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
-#endif
 
-// FIXME: Expand testing once we evaluate RMM memory use
 INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_Leiden_File,
@@ -231,5 +226,33 @@ INSTANTIATE_TEST_SUITE_P(
     // disable correctness checks for large graphs
     ::testing::Values(Leiden_Usecase{}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(rmat_small_tests,
+                         Tests_Leiden_Rmat,
+                         ::testing::Combine(::testing::Values(Leiden_Usecase{100, 1.0, false}),
+                                            ::testing::Values(cugraph::test::Rmat_Usecase(
+                                              10, 16, 0.57, 0.19, 0.19, 0, true, false))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+                          --gtest_filter to select only the rmat_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one Rmat_Usecase that differ only in scale or edge
+                          factor (to avoid running same benchmarks more than once) */
+  Tests_Leiden_Rmat32,
+  ::testing::Combine(
+    ::testing::Values(Leiden_Usecase{}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(12, 32, 0.57, 0.19, 0.19, 0, true, false))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat64_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+                          --gtest_filter to select only the rmat64_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one Rmat_Usecase that differ only in scale or edge
+                          factor (to avoid running same benchmarks more than once) */
+  Tests_Leiden_Rmat64,
+  ::testing::Combine(
+    ::testing::Values(Leiden_Usecase{}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(12, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

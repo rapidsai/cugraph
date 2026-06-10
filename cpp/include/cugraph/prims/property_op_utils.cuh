@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
@@ -21,36 +22,28 @@
 #include <array>
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
-template <typename key_t,
-          typename vertex_t,
-          typename src_value_t,
-          typename dst_value_t,
-          typename e_value_t,
-          typename EdgeOp,
-          typename Enable = void>
-struct edge_op_result_type;
-
-template <typename key_t,
-          typename vertex_t,
-          typename src_value_t,
-          typename dst_value_t,
-          typename e_value_t,
+template <typename GraphViewType,
+          typename key_t,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
+          typename EdgePartitionEdgeValueInputWrapper,
           typename EdgeOp>
-struct edge_op_result_type<
-  key_t,
-  vertex_t,
-  src_value_t,
-  dst_value_t,
-  e_value_t,
-  EdgeOp,
-  std::enable_if_t<
-    std::is_invocable_v<EdgeOp, key_t, vertex_t, src_value_t, dst_value_t, e_value_t>>> {
+struct edge_op_result_type {
   using type =
-    typename std::invoke_result<EdgeOp, key_t, vertex_t, src_value_t, dst_value_t, e_value_t>::type;
+    typename std::invoke_result<EdgeOp,
+                                std::conditional_t<GraphViewType::is_storage_transposed,
+                                                   typename GraphViewType::vertex_type,
+                                                   key_t>,
+                                std::conditional_t<GraphViewType::is_storage_transposed,
+                                                   key_t,
+                                                   typename GraphViewType::vertex_type>,
+                                typename EdgePartitionSrcValueInputWrapper::value_type,
+                                typename EdgePartitionDstValueInputWrapper::value_type,
+                                typename EdgePartitionEdgeValueInputWrapper::value_type>::type;
 };
 
 template <typename vertex_t,
@@ -157,4 +150,4 @@ constexpr std::enable_if_t<std::is_arithmetic<T>::value, T> max_identity_element
   return std::numeric_limits<T>::max();
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

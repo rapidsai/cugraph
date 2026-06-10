@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -20,6 +20,10 @@
 #include <raft/core/host_span.hpp>
 
 #include <rmm/device_uvector.hpp>
+
+#include <cstdio>
+#include <optional>
+#include <vector>
 
 namespace {
 template <typename T>
@@ -1133,6 +1137,69 @@ int mg_validate_sample_result(const cugraph_resource_handle_t* handle,
     raft_handle, raft::device_span<vertex_t const>{renumbered_dsts.data(), renumbered_dsts.size()});
   raft::update_host(
     h_result_dsts, renumbered_dsts.data(), renumbered_dsts.size(), raft_handle.get_stream());
+
+  // Global disjoint validation uses a concatenation of each rank's local start list (same layout as
+  // device_gatherv elsewhere in this file). This gatherv is collective — all ranks must call it
+  // whenever disjoint sampling is enabled, not only rank 0 (see disjoint validation block below).
+  rmm::device_uvector<vertex_t> gathered_starts(0, raft_handle.get_stream());
+  if (internal_sampling_options->disjoint_sampling_ == TRUE) {
+    rmm::device_uvector<vertex_t> d_starting_vertices(num_start_vertices, raft_handle.get_stream());
+    if (num_start_vertices > 0) {
+      raft::update_device(
+        d_starting_vertices.data(), h_start_vertices, num_start_vertices, raft_handle.get_stream());
+    }
+    gathered_starts = cugraph::test::device_gatherv(
+      raft_handle,
+      raft::device_span<vertex_t const>{d_starting_vertices.data(), d_starting_vertices.size()});
+  }
+
+  if ((test_ret_value == 0) && (internal_sampling_options->disjoint_sampling_ == TRUE) &&
+      (cugraph_resource_handle_get_rank(handle) == 0)) {
+    std::optional<raft::device_span<size_t const>> label_offsets_dev{std::nullopt};
+    std::optional<raft::device_span<int32_t const>> batch_nums_dev{std::nullopt};
+    rmm::device_uvector<size_t> d_label_offsets(0, raft_handle.get_stream());
+    rmm::device_uvector<int32_t> d_batch_nums(0, raft_handle.get_stream());
+    std::vector<int32_t> h_batch_nums_host;
+
+    if (h_start_label_offsets != NULL && num_start_label_offsets > 0) {
+      d_label_offsets.resize(num_start_label_offsets, raft_handle.get_stream());
+      raft::update_device(d_label_offsets.data(),
+                          h_start_label_offsets,
+                          num_start_label_offsets,
+                          raft_handle.get_stream());
+      label_offsets_dev =
+        raft::device_span<size_t const>{d_label_offsets.data(), d_label_offsets.size()};
+
+      auto const global_num_starts = gathered_starts.size();
+      d_batch_nums.resize(global_num_starts, raft_handle.get_stream());
+      h_batch_nums_host.resize(global_num_starts);
+      for (size_t i = 0; i < global_num_starts; ++i) {
+        int32_t lab = -1;
+        for (size_t j = 0; j + 1 < num_start_label_offsets; ++j) {
+          if (i >= h_start_label_offsets[j] && i < h_start_label_offsets[j + 1]) {
+            lab = static_cast<int32_t>(j);
+            break;
+          }
+        }
+        h_batch_nums_host[i] = lab;
+      }
+      raft::update_device(
+        d_batch_nums.data(), h_batch_nums_host.data(), global_num_starts, raft_handle.get_stream());
+      batch_nums_dev = raft::device_span<int32_t const>{d_batch_nums.data(), d_batch_nums.size()};
+    }
+
+    raft_handle.sync_stream();
+
+    bool const disjoint_ok = cugraph::test::validate_disjoint_sampling<vertex_t>(
+      raft_handle,
+      raft::device_span<vertex_t const>{renumbered_srcs.data(), renumbered_srcs.size()},
+      raft::device_span<vertex_t const>{renumbered_dsts.data(), renumbered_dsts.size()},
+      raft::device_span<vertex_t const>{gathered_starts.data(), gathered_starts.size()},
+      label_offsets_dev,
+      batch_nums_dev);
+
+    TEST_ASSERT(test_ret_value, disjoint_ok, "validate_disjoint_sampling failed");
+  }
 
   original_srcs = cugraph::test::device_gatherv(
     raft_handle, raft::device_span<vertex_t const>{original_srcs.data(), original_srcs.size()});

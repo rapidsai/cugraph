@@ -11,12 +11,12 @@
 #include <cugraph/prims/extract_transform_if_e.cuh>
 #include <cugraph/prims/fill_edge_property.cuh>
 #include <cugraph/prims/make_initialized_edge_property.cuh>
-#include <cugraph/prims/per_v_pair_dst_nbr_intersection.cuh>
+#include <cugraph/prims/per_v_pair_src_dst_nbr_intersection.cuh>
 #include <cugraph/prims/transform_e.cuh>
-#include <cugraph/prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/util/integer_utils.hpp>
 
@@ -25,11 +25,13 @@
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <cuda/std/utility>
+#include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
+#include <thrust/unique.h>
 
 namespace cugraph {
 
@@ -325,7 +327,7 @@ k_truss(raft::handle_t const& handle,
       auto weak_edgelist_last =
         thrust::make_zip_iterator(weak_edgelist_srcs.end(), weak_edgelist_dsts.end());
 
-      thrust::sort(handle.get_thrust_policy(), weak_edgelist_first, weak_edgelist_last);
+      cugraph::sort_wrapper(handle.get_thrust_policy(), weak_edgelist_first, weak_edgelist_last);
 
       // Perform nbr_intersection of the weak edges from the undirected
       // graph view
@@ -356,9 +358,9 @@ k_truss(raft::handle_t const& handle,
           raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()),
           raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size())});
 
-      thrust::sort(handle.get_thrust_policy(),
-                   get_dataframe_buffer_begin(triangles_endpoints),
-                   get_dataframe_buffer_end(triangles_endpoints));
+      cugraph::sort_wrapper(handle.get_thrust_policy(),
+                            get_dataframe_buffer_begin(triangles_endpoints),
+                            get_dataframe_buffer_end(triangles_endpoints));
 
       auto unique_triangle_end = thrust::unique(handle.get_thrust_policy(),
                                                 get_dataframe_buffer_begin(triangles_endpoints),
@@ -396,9 +398,9 @@ k_truss(raft::handle_t const& handle,
             std::move(std::get<rmm::device_uvector<vertex_t>>(edge_properties[0]));
         }
 
-        thrust::sort(handle.get_thrust_policy(),
-                     get_dataframe_buffer_begin(triangles_endpoints),
-                     get_dataframe_buffer_end(triangles_endpoints));
+        cugraph::sort_wrapper(handle.get_thrust_policy(),
+                              get_dataframe_buffer_begin(triangles_endpoints),
+                              get_dataframe_buffer_end(triangles_endpoints));
 
         unique_triangle_end = thrust::unique(handle.get_thrust_policy(),
                                              get_dataframe_buffer_begin(triangles_endpoints),
@@ -461,9 +463,9 @@ k_truss(raft::handle_t const& handle,
                                                   cur_graph_view.vertex_partition_range_lasts());
       }
 
-      thrust::sort(handle.get_thrust_policy(),
-                   get_dataframe_buffer_begin(edgelist_to_update_count),
-                   get_dataframe_buffer_end(edgelist_to_update_count));
+      cugraph::sort_wrapper(handle.get_thrust_policy(),
+                            get_dataframe_buffer_begin(edgelist_to_update_count),
+                            get_dataframe_buffer_end(edgelist_to_update_count));
 
       auto unique_pair_count =
         thrust::unique_count(handle.get_thrust_policy(),
@@ -476,6 +478,30 @@ k_truss(raft::handle_t const& handle,
 
       rmm::device_uvector<edge_t> decrease_count(unique_pair_count, handle.get_stream());
 
+      // FIXME: thrust::reduce_by_key produces corrupted output when compiled with
+      // nvcc 13.0 + CCCL 3.4.0 on Blackwell (sm_120). The bug does not occur in nvcc 13.1+.
+      // See https://github.com/rapidsai/cugraph/issues/5494
+#if defined(__CUDACC_VER_MAJOR__) && defined(__CUDACC_VER_MINOR__) && \
+  (__CUDACC_VER_MAJOR__ == 13) && (__CUDACC_VER_MINOR__ == 0)
+      thrust::unique_copy(handle.get_thrust_policy(),
+                          get_dataframe_buffer_begin(edgelist_to_update_count),
+                          get_dataframe_buffer_end(edgelist_to_update_count),
+                          get_dataframe_buffer_begin(vertex_pair_buffer_unique));
+
+      thrust::transform(
+        handle.get_thrust_policy(),
+        get_dataframe_buffer_begin(vertex_pair_buffer_unique),
+        get_dataframe_buffer_begin(vertex_pair_buffer_unique) + unique_pair_count,
+        decrease_count.begin(),
+        cuda::proclaim_return_type<edge_t>(
+          [edgelist_first = get_dataframe_buffer_begin(edgelist_to_update_count),
+           edgelist_last =
+             get_dataframe_buffer_end(edgelist_to_update_count)] __device__(auto pair) {
+            return static_cast<edge_t>(cuda::std::distance(
+              thrust::lower_bound(thrust::seq, edgelist_first, edgelist_last, pair),
+              thrust::upper_bound(thrust::seq, edgelist_first, edgelist_last, pair)));
+          }));
+#else
       thrust::reduce_by_key(handle.get_thrust_policy(),
                             get_dataframe_buffer_begin(edgelist_to_update_count),
                             get_dataframe_buffer_end(edgelist_to_update_count),
@@ -483,6 +509,7 @@ k_truss(raft::handle_t const& handle,
                             get_dataframe_buffer_begin(vertex_pair_buffer_unique),
                             decrease_count.begin(),
                             cuda::std::equal_to<cuda::std::tuple<vertex_t, vertex_t>>{});
+#endif
 
       std::tie(std::get<0>(vertex_pair_buffer_unique),
                std::get<1>(vertex_pair_buffer_unique),
@@ -564,7 +591,7 @@ k_truss(raft::handle_t const& handle,
 
       edgelist_weak.clear();
 
-      thrust::sort(
+      cugraph::sort_wrapper(
         handle.get_thrust_policy(),
         thrust::make_zip_iterator(weak_edgelist_srcs.begin(), weak_edgelist_dsts.begin()),
         thrust::make_zip_iterator(weak_edgelist_srcs.end(), weak_edgelist_dsts.end()));
@@ -610,7 +637,7 @@ k_truss(raft::handle_t const& handle,
                             cur_graph_view.vertex_partition_range_lasts());
       }
 
-      thrust::sort(
+      cugraph::sort_wrapper(
         handle.get_thrust_policy(),
         thrust::make_zip_iterator(weak_edgelist_dsts.begin(), weak_edgelist_srcs.begin()),
         thrust::make_zip_iterator(weak_edgelist_dsts.end(), weak_edgelist_srcs.end()));

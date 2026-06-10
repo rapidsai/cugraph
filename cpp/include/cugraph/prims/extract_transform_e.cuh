@@ -9,6 +9,7 @@
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/detail/extract_transform_if_v_frontier_e.cuh>
 #include <cugraph/prims/property_op_utils.cuh>
@@ -29,7 +30,7 @@
 #include <tuple>
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 /**
  * @brief Iterate over the entire set of edges and extract all edge functor outputs.
@@ -68,13 +69,12 @@ template <typename GraphViewType,
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
           typename EdgeOp>
-dataframe_buffer_type_t<
-  typename detail::edge_op_result_type<typename GraphViewType::vertex_type,
-                                       typename GraphViewType::vertex_type,
-                                       typename EdgeSrcValueInputWrapper::value_type,
-                                       typename EdgeDstValueInputWrapper::value_type,
-                                       typename EdgeValueInputWrapper::value_type,
-                                       EdgeOp>::type>
+dataframe_buffer_type_t<typename detail::edge_op_result_type<GraphViewType,
+                                                             typename GraphViewType::vertex_type,
+                                                             EdgeSrcValueInputWrapper,
+                                                             EdgeDstValueInputWrapper,
+                                                             EdgeValueInputWrapper,
+                                                             EdgeOp>::type>
 extract_transform_e(raft::handle_t const& handle,
                     GraphViewType const& graph_view,
                     EdgeSrcValueInputWrapper edge_src_value_input,
@@ -83,14 +83,13 @@ extract_transform_e(raft::handle_t const& handle,
                     EdgeOp e_op,
                     bool do_expensive_check = false)
 {
-  using vertex_t = typename GraphViewType::vertex_type;
-  using e_op_result_t =
-    typename detail::edge_op_result_type<typename GraphViewType::vertex_type,
-                                         typename GraphViewType::vertex_type,
-                                         typename EdgeSrcValueInputWrapper::value_type,
-                                         typename EdgeDstValueInputWrapper::value_type,
-                                         typename EdgeValueInputWrapper::value_type,
-                                         EdgeOp>::type;
+  using vertex_t      = typename GraphViewType::vertex_type;
+  using e_op_result_t = typename detail::edge_op_result_type<GraphViewType,
+                                                             typename GraphViewType::vertex_type,
+                                                             EdgeSrcValueInputWrapper,
+                                                             EdgeDstValueInputWrapper,
+                                                             EdgeValueInputWrapper,
+                                                             EdgeOp>::type;
   static_assert(!std::is_same_v<e_op_result_t, void>);
 
   // FIXME: Consider updating detail::extract_transform_if_v_forntier_e to take std::nullopt to as a
@@ -122,4 +121,4 @@ extract_transform_e(raft::handle_t const& handle,
   return value_buffer;
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

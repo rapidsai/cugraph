@@ -32,6 +32,7 @@
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
@@ -39,7 +40,7 @@
 
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
-#include <rmm/mr/host/pinned_memory_resource.hpp>
+#include <rmm/mr/pinned_host_memory_resource.hpp>
 
 #include <cuda/functional>
 #include <cuda/iterator>
@@ -76,11 +77,11 @@ class Tests_GRAPH500_MGSSSP
       12;  // note that CUDA_DEVICE_MAX_CONNECTIONS (default: 8) should be set to a value larger
            // than pool_size to avoid false dependency among different streams
     handle_    = cugraph::test::initialize_mg_handle(pool_size);
-    pinned_mr_ = std::make_shared<rmm::mr::pinned_memory_resource>();
+    pinned_mr_ = rmm::mr::pinned_host_memory_resource();
 
     cugraph::large_buffer_manager::init(
       *handle_,
-      cugraph::large_buffer_manager::create_memory_buffer_resource(pinned_mr_),
+      cugraph::large_buffer_manager::create_memory_buffer_resource(pinned_mr_.value()),
       std::nullopt);
   }
 
@@ -903,7 +904,7 @@ class Tests_GRAPH500_MGSSSP
             cugraph::edge_bucket_t<vertex_t, edge_t, !store_transposed, multi_gpu, true> edge_list(
               *handle_, false);
             auto edge_pair_first = thrust::make_zip_iterator(tree_srcs.begin(), tree_dsts.begin());
-            thrust::sort(
+            cugraph::sort_wrapper(
               handle_->get_thrust_policy(), edge_pair_first, edge_pair_first + tree_srcs.size());
             edge_list.insert(tree_srcs.begin(),
                              tree_srcs.end(),
@@ -1091,14 +1092,14 @@ class Tests_GRAPH500_MGSSSP
 
  private:
   static std::unique_ptr<raft::handle_t> handle_;
-  static std::shared_ptr<rmm::mr::pinned_memory_resource> pinned_mr_;
+  static std::optional<rmm::mr::pinned_host_memory_resource> pinned_mr_;
 };
 
 template <typename input_usecase_t>
 std::unique_ptr<raft::handle_t> Tests_GRAPH500_MGSSSP<input_usecase_t>::handle_ = nullptr;
 template <typename input_usecase_t>
-std::shared_ptr<rmm::mr::pinned_memory_resource>
-  Tests_GRAPH500_MGSSSP<input_usecase_t>::pinned_mr_ = nullptr;
+std::optional<rmm::mr::pinned_host_memory_resource>
+  Tests_GRAPH500_MGSSSP<input_usecase_t>::pinned_mr_ = std::nullopt;
 
 using Tests_GRAPH500_MGSSSP_Rmat = Tests_GRAPH500_MGSSSP<cugraph::test::Rmat_Usecase>;
 

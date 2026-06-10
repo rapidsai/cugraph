@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -28,7 +29,7 @@
 #include <utility>
 #include <vector>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -361,4 +362,4 @@ void update_v_frontier(raft::handle_t const& handle,
   }
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

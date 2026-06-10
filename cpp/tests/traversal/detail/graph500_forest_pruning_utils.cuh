@@ -21,6 +21,7 @@
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
@@ -246,7 +247,7 @@ find_trees_from_2cores(
       weights = std::nullopt;
 
       auto new_reachable_vertices = std::move(srcs);
-      thrust::sort(
+      cugraph::sort_wrapper(
         handle.get_thrust_policy(), new_reachable_vertices.begin(), new_reachable_vertices.end());
       fill_edge_src_property(handle,
                              tmp_graph_view,

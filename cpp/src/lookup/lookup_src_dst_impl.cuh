@@ -17,6 +17,7 @@
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -232,7 +233,7 @@ struct lookup_container_t<edge_id_t, edge_type_t, vertex_t, value_t>::lookup_con
         handle.get_stream());
       unique_types = std::move(rx_unique_types);
 
-      thrust::sort(handle.get_thrust_policy(), unique_types.begin(), unique_types.end());
+      cugraph::sort_wrapper(handle.get_thrust_policy(), unique_types.begin(), unique_types.end());
 
       unique_types.resize(
         cuda::std::distance(
@@ -425,9 +426,9 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
     auto type_and_gpu_id_pair_begin =
       thrust::make_zip_iterator(edge_types.begin(), gpu_ids.begin());
 
-    thrust::sort(handle.get_thrust_policy(),
-                 type_and_gpu_id_pair_begin,
-                 type_and_gpu_id_pair_begin + edge_types.size());
+    cugraph::sort_wrapper(handle.get_thrust_policy(),
+                          type_and_gpu_id_pair_begin,
+                          type_and_gpu_id_pair_begin + edge_types.size());
 
     auto nr_unique_pairs = thrust::count_if(
       handle.get_thrust_policy(),
@@ -516,7 +517,7 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
           return et;
         }));
 
-    thrust::sort(handle.get_thrust_policy(), edge_types.begin(), edge_types.end());
+    cugraph::sort_wrapper(handle.get_thrust_policy(), edge_types.begin(), edge_types.end());
 
     auto nr_unique_types =
       thrust::count_if(handle.get_thrust_policy(),
@@ -588,10 +589,12 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
 
     auto number_of_local_edges = edge_partition.number_of_edges();
     if (graph_view.has_edge_mask()) {
-      number_of_local_edges = edge_partition.compute_number_of_edges_with_mask(
+      auto edge_partition_mask_span = raft::device_span<uint32_t const>(
         (*edge_partition_mask_view).value_first(),
-        thrust::make_counting_iterator(edge_partition.major_range_first()),
-        thrust::make_counting_iterator(edge_partition.major_range_last()),
+        packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
+      number_of_local_edges = edge_partition.compute_number_of_edges_with_mask(
+        edge_partition_mask_span,
+        std::make_tuple(edge_partition.major_range_first(), edge_partition.major_range_last()),
         handle.get_stream());
     }
 

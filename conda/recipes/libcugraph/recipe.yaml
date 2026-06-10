@@ -39,7 +39,6 @@ cache:
         CMAKE_CUDA_COMPILER_LAUNCHER: ${{ env.get("CMAKE_CUDA_COMPILER_LAUNCHER") }}
         CMAKE_CXX_COMPILER_LAUNCHER: ${{ env.get("CMAKE_CXX_COMPILER_LAUNCHER") }}
         CMAKE_GENERATOR: ${{ env.get("CMAKE_GENERATOR") }}
-        EXTRA_CMAKE_ARGS: "-DCUGRAPH_COMPILE_CUVS=ON"
         NVCC_APPEND_FLAGS: ${{ env.get("NVCC_APPEND_FLAGS", default="") }}
         PARALLEL_LEVEL: ${{ env.get("PARALLEL_LEVEL", default="8") }}
         RAPIDS_ARTIFACTS_DIR: ${{ env.get("RAPIDS_ARTIFACTS_DIR", default="") }}
@@ -73,12 +72,15 @@ cache:
     host:
       - cuda-version =${{ cuda_version }}
       - libcudf =${{ minor_version }}
+      - libcuvs =${{ minor_version }}
       - libraft =${{ minor_version }}
       - librmm =${{ minor_version }}
       - libucxx ${{ libucxx_version }}
       - nccl ${{ nccl_version }}
       - openmpi <5.0.3 # Required for building cpp-mgtests (multi-GPU tests)
       - rapids-build-backend >=0.4.0,<0.5.0
+      - cuda-cudart-dev
+      - cuda-nvrtc-dev
       - cuda-nvtx-dev
       - cuda-profiler-api
       - libcublas-dev
@@ -102,6 +104,9 @@ outputs:
           # See https://github.com/rapidsai/build-planning/issues/160
           - lib/libcugraph.so
           - lib/libcugraph_c.so
+          - lib/libcugraph_common.so
+          - lib/libcugraph_mg.so
+          - lib/libcugraph_mtmg.so
       string: cuda${{ cuda_major }}_${{ date_string }}_${{ head_rev }}
     requirements:
       build:
@@ -110,7 +115,10 @@ outputs:
       host:
         - cuda-version =${{ cuda_version }}
         - librmm =${{ minor_version }}
+        - libcuvs =${{ minor_version }}
         - rapids-logger =0.2
+        - cuda-cudart-dev
+        - cuda-nvrtc-dev
         - libcublas-dev
         - libcurand-dev
         - libcusolver-dev
@@ -119,7 +127,10 @@ outputs:
         - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
         - libraft =${{ minor_version }}
         - librmm =${{ minor_version }}
+        - libcuvs =${{ minor_version }}
         - nccl ${{ nccl_version }}
+        - cuda-cudart
+        - cuda-nvrtc
         - cuda-profiler-api
         - libcublas
         - libcurand
@@ -127,6 +138,8 @@ outputs:
         - libcusparse
       ignore_run_exports:
         by_name:
+          - cuda-cudart
+          - cuda-nvrtc
           - cuda-nvtx
           - cuda-version
           - libcublas
@@ -166,13 +179,19 @@ outputs:
         - cuda-version =${{ cuda_version }}
         - libcudf =${{ minor_version }}
         - librmm =${{ minor_version }}
+        - cuda-cudart-dev
+        - cuda-nvrtc-dev
       run:
         - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
         - ${{ pin_subpackage("libcugraph", exact=True) }}
         - libcudf =${{ minor_version }}
         - librmm =${{ minor_version }}
+        - cuda-cudart
+        - cuda-nvrtc
       ignore_run_exports:
         by_name:
+          - cuda-cudart
+          - cuda-nvrtc
           - cuda-nvtx
           - cuda-version
           - libcublas
@@ -209,6 +228,8 @@ outputs:
       host:
         - ${{ pin_subpackage("libcugraph", exact=True) }}
         - cuda-version =${{ cuda_version }}
+        - cuda-cudart-dev
+        - cuda-nvrtc-dev
         - nccl ${{ nccl_version }}
         - openmpi <5.0.3 # Required for building cpp-mgtests (multi-GPU tests)
         - rapids-logger =0.2
@@ -216,8 +237,12 @@ outputs:
         - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
         - ${{ pin_subpackage("libcugraph", exact=True) }}
         - ${{ pin_subpackage("libcugraph_etl", exact=True) }}
+        - cuda-cudart
+        - cuda-nvrtc
       ignore_run_exports:
         by_name:
+          - cuda-cudart
+          - cuda-nvrtc
           - cuda-nvtx
           - cuda-version
           - libcublas
