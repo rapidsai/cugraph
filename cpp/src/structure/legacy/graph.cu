@@ -5,6 +5,7 @@
 
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/util/device_atomics.cuh>
@@ -89,10 +90,10 @@ void GraphCompressedSparseBaseView<VT, ET, WT>::get_source_indices(VT* src_indic
                          atomic_counter.fetch_add(VT{1}, cuda::std::memory_order_relaxed);
                        }
                      });
-    thrust::inclusive_scan(rmm::exec_policy(stream_view),
-                           indices_span.begin(),
-                           indices_span.end(),
-                           indices_span.begin());
+    cugraph::inclusive_scan(rmm::exec_policy(stream_view),
+                            indices_span.begin(),
+                            indices_span.end(),
+                            indices_span.begin());
   }
 }
 

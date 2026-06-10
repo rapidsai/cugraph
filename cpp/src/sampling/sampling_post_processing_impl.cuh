@@ -2885,10 +2885,10 @@ renumber_and_compress_sampled_edgelist(
                             compressed_offsets.begin());
     }
   }
-  thrust::exclusive_scan(handle.get_thrust_policy(),
-                         compressed_offsets.begin(),
-                         compressed_offsets.end(),
-                         compressed_offsets.begin());
+  cugraph::exclusive_scan(handle.get_thrust_policy(),
+                          compressed_offsets.begin(),
+                          compressed_offsets.end(),
+                          compressed_offsets.begin());
 
   // 5. update compressed_offsets to include zero degree vertices (if doubly_compress is false)
   // and compressed_offset_label_hop_offsets (if edgelist_label_offsets.has_value() or
@@ -3099,10 +3099,10 @@ renumber_and_compress_sampled_edgelist(
         }
         return vertex_count;
       });
-    thrust::exclusive_scan(handle.get_thrust_policy(),
-                           offset_array_offsets.begin(),
-                           offset_array_offsets.end(),
-                           offset_array_offsets.begin());
+    cugraph::exclusive_scan(handle.get_thrust_policy(),
+                            offset_array_offsets.begin(),
+                            offset_array_offsets.end(),
+                            offset_array_offsets.begin());
 
     auto tmp_compressed_offsets = rmm::device_uvector<size_t>(
       offset_array_offsets.back_element(handle.get_stream()) + 1, handle.get_stream());
@@ -3205,10 +3205,10 @@ renumber_and_compress_sampled_edgelist(
       }
     }
 
-    thrust::exclusive_scan(handle.get_thrust_policy(),
-                           tmp_compressed_offsets.begin(),
-                           tmp_compressed_offsets.end(),
-                           tmp_compressed_offsets.begin());
+    cugraph::exclusive_scan(handle.get_thrust_policy(),
+                            tmp_compressed_offsets.begin(),
+                            tmp_compressed_offsets.end(),
+                            tmp_compressed_offsets.begin());
 
     compressed_offsets = std::move(tmp_compressed_offsets);
 
@@ -3364,10 +3364,10 @@ renumber_and_sort_sampled_edgelist(
 
           return end_offset - start_offset;
         }));
-    thrust::exclusive_scan(handle.get_thrust_policy(),
-                           (*edgelist_label_hop_offsets).begin(),
-                           (*edgelist_label_hop_offsets).end(),
-                           (*edgelist_label_hop_offsets).begin());
+    cugraph::exclusive_scan(handle.get_thrust_policy(),
+                            (*edgelist_label_hop_offsets).begin(),
+                            (*edgelist_label_hop_offsets).end(),
+                            (*edgelist_label_hop_offsets).begin());
   }
 
   edgelist_hops = std::nullopt;
@@ -3601,10 +3601,10 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
 
           return end_offset - start_offset;
         }));
-    thrust::exclusive_scan(handle.get_thrust_policy(),
-                           (*edgelist_label_type_hop_offsets).begin(),
-                           (*edgelist_label_type_hop_offsets).end(),
-                           (*edgelist_label_type_hop_offsets).begin());
+    cugraph::exclusive_scan(handle.get_thrust_policy(),
+                            (*edgelist_label_type_hop_offsets).begin(),
+                            (*edgelist_label_type_hop_offsets).end(),
+                            (*edgelist_label_type_hop_offsets).begin());
   }
 
   edgelist_edge_types = std::nullopt;
@@ -3724,10 +3724,10 @@ sort_sampled_edgelist(raft::handle_t const& handle,
           return end_offset - start_offset;
         }));
 
-    thrust::exclusive_scan(handle.get_thrust_policy(),
-                           (*edgelist_label_hop_offsets).begin(),
-                           (*edgelist_label_hop_offsets).end(),
-                           (*edgelist_label_hop_offsets).begin());
+    cugraph::exclusive_scan(handle.get_thrust_policy(),
+                            (*edgelist_label_hop_offsets).begin(),
+                            (*edgelist_label_hop_offsets).end(),
+                            (*edgelist_label_hop_offsets).begin());
 
     edgelist_hops = std::nullopt;
   }

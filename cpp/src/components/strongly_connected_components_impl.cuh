@@ -66,6 +66,29 @@ namespace cugraph {
 
 namespace {
 
+template <typename vertex_t>
+struct is_trivial_singleton_scc_vertex {
+  raft::device_span<vertex_t const> trivial_singleton_scc_vertices;
+  bool __device__ operator()(auto const& pair)
+  {
+    auto v = cuda::std::get<1>(pair);
+    return thrust::binary_search(
+      thrust::seq, trivial_singleton_scc_vertices.begin(), trivial_singleton_scc_vertices.end(), v);
+  }
+};
+
+template <typename vertex_t>
+struct partition_by_component_size_flag {
+  raft::device_span<bool const> component_size1_flags;
+  vertex_t num_old_unresolved_components;
+  vertex_t subset_offset;
+  bool __device__ operator()(auto const& pair)
+  {
+    auto idx = cuda::std::get<0>(pair);
+    return component_size1_flags[subset_offset * num_old_unresolved_components + idx];
+  }
+};
+
 // Iteratively peel vertices with zero in-degree or zero out-degree.
 // If the peel process does not terminate within max_iterations, attempt to find chains from or to
 // peeled vertices.
@@ -1139,13 +1162,7 @@ intersect_reachable_sets(
           thrust::remove_if(handle.get_thrust_policy(),
                             zip_first,
                             zip_first + component_vertices.size(),
-                            [trivial_singleton_scc_vertices] __device__(auto pair) {
-                              auto v = cuda::std::get<1>(pair);
-                              return thrust::binary_search(thrust::seq,
-                                                           trivial_singleton_scc_vertices.begin(),
-                                                           trivial_singleton_scc_vertices.end(),
-                                                           v);
-                            });
+                            is_trivial_singleton_scc_vertex{trivial_singleton_scc_vertices});
         auto count = static_cast<vertex_t>(cuda::std::distance(zip_first, zip_end));
         component_idxs.resize(count, handle.get_stream());
         component_vertices.resize(count, handle.get_stream());
@@ -1538,11 +1555,8 @@ intersect_reachable_sets(
           handle.get_thrust_policy(),
           pair_first,
           pair_first + unique_component_idxs.size(),
-          [component_size1_flags, num_old_unresolved_components, subset_offset] __device__(
-            auto pair) {
-            auto idx = cuda::std::get<0>(pair);
-            return component_size1_flags[subset_offset * num_old_unresolved_components + idx];
-          });
+          partition_by_component_size_flag{
+            component_size1_flags, num_old_unresolved_components, subset_offset});
         auto num_size1_components =
           static_cast<vertex_t>(cuda::std::distance(pair_first, partition_point));
         unique_component_idxs.resize(num_size1_components, handle.get_stream());
@@ -1555,11 +1569,8 @@ intersect_reachable_sets(
           handle.get_thrust_policy(),
           pair_first,
           pair_first + component_vertices.size(),
-          [component_size1_flags, num_old_unresolved_components, subset_offset] __device__(
-            auto pair) {
-            auto idx = cuda::std::get<0>(pair);
-            return component_size1_flags[subset_offset * num_old_unresolved_components + idx];
-          });
+          partition_by_component_size_flag{
+            component_size1_flags, num_old_unresolved_components, subset_offset});
         auto num_size1_vertices =
           static_cast<vertex_t>(cuda::std::distance(pair_first, partition_point));
         return std::make_tuple(std::move(unique_component_idxs),
@@ -1640,10 +1651,10 @@ intersect_reachable_sets(
     new_unresolved_component_offsets.resize(new_unresolved_component_ids.size() + 1,
                                             handle.get_stream());
     new_unresolved_component_offsets.set_element_to_zero_async(0, handle.get_stream());
-    thrust::inclusive_scan(handle.get_thrust_policy(),
-                           new_unresolved_component_counts.begin(),
-                           new_unresolved_component_counts.end(),
-                           new_unresolved_component_offsets.begin() + 1);
+    cugraph::inclusive_scan(handle.get_thrust_policy(),
+                            new_unresolved_component_counts.begin(),
+                            new_unresolved_component_counts.end(),
+                            new_unresolved_component_offsets.begin() + 1);
 
     new_unresolved_component_vertices = concatenate3(
       raft::device_span<vertex_t const>(fwd_only_vertices.data() + num_fwd_only_size1_vertices,
@@ -1732,10 +1743,10 @@ intersect_reachable_sets(
                                         trivial_singleton_scc_vertices.size()));
     new_scc_component_offsets.resize(new_scc_component_counts.size() + 1, handle.get_stream());
     new_scc_component_offsets.set_element_to_zero_async(0, handle.get_stream());
-    thrust::inclusive_scan(handle.get_thrust_policy(),
-                           new_scc_component_counts.begin(),
-                           new_scc_component_counts.end(),
-                           new_scc_component_offsets.begin() + 1);
+    cugraph::inclusive_scan(handle.get_thrust_policy(),
+                            new_scc_component_counts.begin(),
+                            new_scc_component_counts.end(),
+                            new_scc_component_offsets.begin() + 1);
   }
 
   return std::make_tuple(std::move(new_unresolved_component_ids),

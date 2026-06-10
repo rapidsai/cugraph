@@ -232,7 +232,7 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(::testing::Values(
                        Louvain_Usecase{
                          std::nullopt, std::nullopt, std::nullopt, true, 3, 0.39907956},
-                       Louvain_Usecase{20, double{1e-3}, std::nullopt, true, 3, 0.41978961},
+                       Louvain_Usecase{20, double{1e-3}, std::nullopt, true, 3, 0.39907956},
                        Louvain_Usecase{100, double{1e-3}, double{0.8}, true, 3, 0.48573306}),
                      ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 

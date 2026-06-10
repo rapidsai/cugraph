@@ -135,7 +135,7 @@ jobs:
       date: ${{ inputs.date }}
       package-name: libcugraph
       package-type: cpp
-      publish-wheel-search-key: libcugraph_wheel_cpp_cugraph
+      publish-wheel-search-key: cugraph_wheel_cpp_libcugraph
     permissions:
       actions: read
       contents: read
@@ -176,7 +176,7 @@ jobs:
       date: ${{ inputs.date }}
       package-name: pylibcugraph
       package-type: python
-      publish-wheel-search-key: pylibcugraph_wheel_python_cugraph
+      publish-wheel-search-key: cugraph_wheel_python_pylibcugraph
     permissions:
       actions: read
       contents: read

@@ -8,6 +8,7 @@
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_comm.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -199,7 +200,7 @@ void multi_partition(ValueIterator value_first,
       }));
 
   rmm::device_uvector<size_t> displacements(num_groups, stream_view);
-  thrust::exclusive_scan(
+  cugraph::exclusive_scan(
     rmm::exec_policy(stream_view), counts.begin(), counts.end(), displacements.begin());
 
   auto tmp_value_buffer =
@@ -258,7 +259,7 @@ void multi_partition(KeyIterator key_first,
       }));
 
   rmm::device_uvector<size_t> displacements(num_groups, stream_view);
-  thrust::exclusive_scan(
+  cugraph::exclusive_scan(
     rmm::exec_policy(stream_view), counts.begin(), counts.end(), displacements.begin());
 
   auto map_first = cuda::make_transform_iterator(

@@ -575,10 +575,10 @@ batch_partition_frontier(raft::handle_t const& handle,
       max_pushes_per_batch = (max_pushes + num_batches - 1) / num_batches;
       rmm::device_uvector<size_t> source_out_edge_count_inclusive_sums(num_sources,
                                                                        handle.get_stream());
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             source_out_edge_counts.begin(),
-                             source_out_edge_counts.end(),
-                             source_out_edge_count_inclusive_sums.begin());
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              source_out_edge_counts.begin(),
+                              source_out_edge_counts.end(),
+                              source_out_edge_count_inclusive_sums.begin());
       source_lasts     = rmm::device_uvector<size_t>(num_batches, handle.get_stream());
       auto count_first = cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{1}),
                                                        multiplier_t<size_t>{max_pushes_per_batch});
