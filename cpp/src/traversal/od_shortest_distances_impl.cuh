@@ -495,9 +495,9 @@ rmm::device_uvector<weight_t> od_shortest_distances(
 
     rmm::device_uvector<vertex_t> tmp_origins(origins.size(), handle.get_stream());
     thrust::copy(handle.get_thrust_policy(), origins.begin(), origins.end(), tmp_origins.begin());
-    cugraph::sort_wrapper(handle.get_thrust_policy(), tmp_origins.begin(), tmp_origins.end());
+    cugraph::sort(handle.get_thrust_policy(), tmp_origins.begin(), tmp_origins.end());
     CUGRAPH_EXPECTS(
-      thrust::unique(handle.get_thrust_policy(), tmp_origins.begin(), tmp_origins.end()) ==
+      cugraph::unique(handle.get_thrust_policy(), tmp_origins.begin(), tmp_origins.end()) ==
         tmp_origins.end(),
       "Invalid input arguments: origins should not have duplicates.");
 
@@ -506,11 +506,10 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                  destinations.begin(),
                  destinations.end(),
                  tmp_destinations.begin());
-    cugraph::sort_wrapper(
-      handle.get_thrust_policy(), tmp_destinations.begin(), tmp_destinations.end());
-    CUGRAPH_EXPECTS(thrust::unique(handle.get_thrust_policy(),
-                                   tmp_destinations.begin(),
-                                   tmp_destinations.end()) == tmp_destinations.end(),
+    cugraph::sort(handle.get_thrust_policy(), tmp_destinations.begin(), tmp_destinations.end());
+    CUGRAPH_EXPECTS(cugraph::unique(handle.get_thrust_policy(),
+                                    tmp_destinations.begin(),
+                                    tmp_destinations.end()) == tmp_destinations.end(),
                     "Invalid input arguments: destinations should not have duplicates.");
   }
 
@@ -549,18 +548,18 @@ rmm::device_uvector<weight_t> od_shortest_distances(
 
   auto od_matrix_size = origins.size() * destinations.size();
   rmm::device_uvector<weight_t> od_matrix(od_matrix_size, handle.get_stream());
-  thrust::fill(handle.get_thrust_policy(),
-               od_matrix.begin(),
-               od_matrix.end(),
-               std::numeric_limits<weight_t>::max());
+  cugraph::fill(handle.get_thrust_policy(),
+                od_matrix.begin(),
+                od_matrix.end(),
+                std::numeric_limits<weight_t>::max());
 
   if (num_vertices == 0 || num_edges == 0 || od_matrix.size() == 0) { return od_matrix; }
 
   rmm::device_uvector<od_idx_t> v_to_destination_indices(num_vertices, handle.get_stream());
-  thrust::fill(handle.get_thrust_policy(),
-               v_to_destination_indices.begin(),
-               v_to_destination_indices.end(),
-               invalid_od_idx);
+  cugraph::fill(handle.get_thrust_policy(),
+                v_to_destination_indices.begin(),
+                v_to_destination_indices.end(),
+                invalid_od_idx);
   thrust::for_each(handle.get_thrust_policy(),
                    thrust::make_counting_iterator(od_idx_t{0}),
                    thrust::make_counting_iterator(static_cast<od_idx_t>(destinations.size())),
@@ -772,7 +771,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                           handle.get_stream());
 
       rmm::device_uvector<size_t> d_counters(d_split_thresholds.size() + 1, handle.get_stream());
-      thrust::fill(handle.get_thrust_policy(), d_counters.begin(), d_counters.end(), size_t{0});
+      cugraph::fill(handle.get_thrust_policy(), d_counters.begin(), d_counters.end(), size_t{0});
 
       auto num_tagged_vertices = new_frontier_keys.size();
       rmm::device_uvector<key_t> tmp_near_q_keys(0, handle.get_stream());
@@ -841,12 +840,11 @@ rmm::device_uvector<weight_t> od_shortest_distances(
         num_copied += this_loop_size;
       }
 
-      cugraph::sort_wrapper(
-        handle.get_thrust_policy(), tmp_near_q_keys.begin(), tmp_near_q_keys.end());
+      cugraph::sort(handle.get_thrust_policy(), tmp_near_q_keys.begin(), tmp_near_q_keys.end());
       tmp_near_q_keys.resize(cuda::std::distance(tmp_near_q_keys.begin(),
-                                                 thrust::unique(handle.get_thrust_policy(),
-                                                                tmp_near_q_keys.begin(),
-                                                                tmp_near_q_keys.end())),
+                                                 cugraph::unique(handle.get_thrust_policy(),
+                                                                 tmp_near_q_keys.begin(),
+                                                                 tmp_near_q_keys.end())),
                              handle.get_stream());
       auto near_vi_first = cuda::make_transform_iterator(
         tmp_near_q_keys.begin(),
@@ -943,7 +941,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                   handle.get_stream());
               rmm::device_uvector<size_t> d_counters(num_near_q_insert_buffers + 1,
                                                      handle.get_stream());
-              thrust::fill(
+              cugraph::fill(
                 handle.get_thrust_policy(), d_counters.begin(), d_counters.end(), size_t{0});
               if (tmp_buffer.size() > 0) {
                 raft::grid_1d_thread_t update_grid(tmp_buffer.size(),
@@ -1005,12 +1003,11 @@ rmm::device_uvector<weight_t> od_shortest_distances(
             }
           }
 
-          cugraph::sort_wrapper(
-            handle.get_thrust_policy(), new_near_q_keys.begin(), new_near_q_keys.end());
+          cugraph::sort(handle.get_thrust_policy(), new_near_q_keys.begin(), new_near_q_keys.end());
           new_near_q_keys.resize(cuda::std::distance(new_near_q_keys.begin(),
-                                                     thrust::unique(handle.get_thrust_policy(),
-                                                                    new_near_q_keys.begin(),
-                                                                    new_near_q_keys.end())),
+                                                     cugraph::unique(handle.get_thrust_policy(),
+                                                                     new_near_q_keys.begin(),
+                                                                     new_near_q_keys.end())),
                                  handle.get_stream());
           auto near_vi_first = cuda::make_transform_iterator(
             new_near_q_keys.begin(),

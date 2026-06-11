@@ -17,6 +17,9 @@
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
+
+#include <rmm/exec_policy.hpp>
 
 #include <cuda/functional>
 #include <cuda/iterator>
@@ -216,10 +219,10 @@ graph_contraction(raft::handle_t const& handle,
   auto new_graph_view = new_graph.view();
 
   rmm::device_uvector<vertex_t> numbering_indices((*numbering_map).size(), handle.get_stream());
-  detail::sequence_fill(handle.get_stream(),
-                        numbering_indices.data(),
-                        numbering_indices.size(),
-                        new_graph_view.local_vertex_partition_range_first());
+  cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                    numbering_indices.data(),
+                    numbering_indices.data() + numbering_indices.size(),
+                    new_graph_view.local_vertex_partition_range_first());
 
   relabel<vertex_t, multi_gpu>(
     handle,

@@ -9,6 +9,7 @@
 #include <cugraph/prims/make_initialized_edge_property.cuh>
 #include <cugraph/prims/transform_e.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/random/rng_state.hpp>
@@ -49,7 +50,7 @@ rmm::device_uvector<vertex_t> vertex_coloring(
   // device vector to store colors of vertices
   rmm::device_uvector<vertex_t> colors = rmm::device_uvector<vertex_t>(
     current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-  thrust::fill(
+  cugraph::fill(
     handle.get_thrust_policy(), colors.begin(), colors.end(), std::numeric_limits<vertex_t>::max());
 
   vertex_t color_id = 0;
@@ -60,7 +61,7 @@ rmm::device_uvector<vertex_t> vertex_coloring(
     using flag_t                                 = uint8_t;
     rmm::device_uvector<flag_t> is_vertex_in_mis = rmm::device_uvector<flag_t>(
       current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-    thrust::fill(handle.get_thrust_policy(), is_vertex_in_mis.begin(), is_vertex_in_mis.end(), 0);
+    cugraph::fill(handle.get_thrust_policy(), is_vertex_in_mis.begin(), is_vertex_in_mis.end(), 0);
 
     thrust::for_each(
       handle.get_thrust_policy(),

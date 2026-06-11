@@ -12,8 +12,6 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <thrust/sequence.h>
-
 namespace CUGRAPH_EXPORT cugraph {
 namespace detail {
 
@@ -48,37 +46,6 @@ void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
 
 /**
  * @ingroup utility_wrappers_cpp
- * @brief    Fill a buffer with a constant value
- *
- * @tparam      value_t      type of the value to operate on
- *
- * @param [in]  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
- * and handles to various CUDA libraries) to run graph algorithms.
- * @param[out]  d_value      device array to fill
- * @param[in]   size         number of elements in array
- * @param[in]   value        value
- *
- */
-template <typename value_t>
-void scalar_fill(raft::handle_t const& handle, value_t* d_value, size_t size, value_t value);
-
-/**
- * @ingroup utility_wrappers_cpp
- * @brief    Keep unique element from a device span
- *
- * @tparam      value_t      type of the value to operate on. Must be either int32_t or int64_t.
- *
- * @param [in]  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
- * and handles to various CUDA libraries) to run graph algorithms.
- * @param[in]  values      device span of unique elements.
- * @return the number of unique elements.
- *
- */
-template <typename value_t>
-size_t unique_ints(raft::handle_t const& handle, raft::device_span<value_t> values);
-
-/**
- * @ingroup utility_wrappers_cpp
  * @brief    Increment the values of a device span by a constant value
  *
  * @tparam      value_t      type of the value to operate on. Must be either int32_t or int64_t.
@@ -110,52 +77,6 @@ void transform_not_equal(raft::device_span<value_t> values,
                          raft::device_span<bool> result,
                          value_t compare,
                          rmm::cuda_stream_view const& stream_view);
-
-/**
- * @ingroup utility_wrappers_cpp
- * @brief    Fill a buffer with a sequence of values
- *
- * Fills the buffer with the sequence:
- *   {start_value, start_value+1, start_value+2, ..., start_value+size-1}
- *
- * Similar to the function std::iota, wraps the function thrust::sequence
- *
- * @tparam      value_t      type of the value to operate on.
- *
- * @param[in]   stream_view  stream view
- * @param[out]  d_value      device array to fill
- * @param[in]   size         number of elements in array
- * @param[in]   start_value  starting value for sequence
- *
- */
-template <typename value_t>
-void sequence_fill(rmm::cuda_stream_view const& stream_view,
-                   value_t* d_value,
-                   size_t size,
-                   value_t start_value);
-
-/**
- * @ingroup utility_wrappers_cpp
- * @brief    Fill a buffer with a sequence of values with the input stride
- *
- * Fills the buffer with the sequence with the input stride:
- *   {start_value, start_value+stride, start_value+stride*2, ..., start_value+stride*(size-1)}
- *
- * @tparam      value_t      type of the value to operate on
- *
- * @param[in]   stream_view  stream view
- * @param[out]  d_value      device array to fill
- * @param[in]   size         number of elements in array
- * @param[in]   start_value  starting value for sequence
- * @param[in]   stride       input stride
- *
- */
-template <typename value_t>
-void stride_fill(rmm::cuda_stream_view const& stream_view,
-                 value_t* d_value,
-                 size_t size,
-                 value_t start_value,
-                 value_t stride);
 
 /**
  * @ingroup utility_wrappers_cpp

@@ -311,10 +311,10 @@ all_pairs_similarity(raft::handle_t const& handle,
         handle.get_thrust_policy(), vertices->begin(), vertices->end(), tmp_vertices.begin());
     } else {
       tmp_vertices.resize(graph_view.local_vertex_partition_range_size(), handle.get_stream());
-      thrust::sequence(handle.get_thrust_policy(),
-                       tmp_vertices.begin(),
-                       tmp_vertices.end(),
-                       graph_view.local_vertex_partition_range_first());
+      cugraph::sequence(handle.get_thrust_policy(),
+                        tmp_vertices.begin(),
+                        tmp_vertices.end(),
+                        graph_view.local_vertex_partition_range_first());
     }
 
     //  We can reduce memory footprint by doing work in batches and
@@ -599,10 +599,10 @@ all_pairs_similarity(raft::handle_t const& handle,
       vertices_span = raft::device_span<vertex_t const>{vertices->data(), vertices->size()};
     } else {
       tmp_vertices.resize(graph_view.local_vertex_partition_range_size(), handle.get_stream());
-      thrust::sequence(handle.get_thrust_policy(),
-                       tmp_vertices.begin(),
-                       tmp_vertices.end(),
-                       graph_view.local_vertex_partition_range_first());
+      cugraph::sequence(handle.get_thrust_policy(),
+                        tmp_vertices.begin(),
+                        tmp_vertices.end(),
+                        graph_view.local_vertex_partition_range_first());
       vertices_span = raft::device_span<vertex_t const>{tmp_vertices.data(), tmp_vertices.size()};
     }
 

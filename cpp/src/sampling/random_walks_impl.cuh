@@ -29,6 +29,7 @@
 #include <raft/random/rng.cuh>
 
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <cuda/iterator>
 #include <cuda/std/optional>
@@ -562,12 +563,15 @@ random_walk_impl(raft::handle_t const& handle,
                               start_vertices.size() * max_length, handle.get_stream())
                           : std::nullopt;
 
-  detail::scalar_fill(handle,
-                      result_vertices.data(),
-                      result_vertices.size(),
-                      cugraph::invalid_vertex_id<vertex_t>::value);
+  cugraph::fill(handle.get_thrust_policy(),
+                result_vertices.data(),
+                (result_vertices.data()) + (result_vertices.size()),
+                cugraph::invalid_vertex_id<vertex_t>::value);
   if (result_weights)
-    detail::scalar_fill(handle, result_weights->data(), result_weights->size(), weight_t{0});
+    cugraph::fill(handle.get_thrust_policy(),
+                  result_weights->data(),
+                  (result_weights->data()) + (result_weights->size()),
+                  weight_t{0});
 
   rmm::device_uvector<vertex_t> current_vertices(start_vertices.size(), handle.get_stream());
   rmm::device_uvector<size_t> current_position(start_vertices.size(), handle.get_stream());
@@ -588,14 +592,18 @@ random_walk_impl(raft::handle_t const& handle,
   }
   raft::copy(
     current_vertices.data(), start_vertices.data(), start_vertices.size(), handle.get_stream());
-  detail::sequence_fill(
-    handle.get_stream(), current_position.data(), current_position.size(), size_t{0});
+  cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                    current_position.data(),
+                    current_position.data() + current_position.size(),
+                    size_t{0});
 
   if constexpr (multi_gpu) {
     current_gpu.resize(start_vertices.size(), handle.get_stream());
 
-    detail::scalar_fill(
-      handle, current_gpu.data(), current_gpu.size(), handle.get_comms().get_rank());
+    cugraph::fill(handle.get_thrust_policy(),
+                  current_gpu.data(),
+                  (current_gpu.data()) + (current_gpu.size()),
+                  handle.get_comms().get_rank());
   }
 
   thrust::for_each(
@@ -643,17 +651,17 @@ random_walk_impl(raft::handle_t const& handle,
     //  Sort for nbr_intersection, must sort all together
     if (previous_vertices) {
       if constexpr (multi_gpu) {
-        cugraph::sort_wrapper(handle.get_thrust_policy(),
-                              thrust::make_zip_iterator(current_vertices.begin(),
-                                                        (*previous_vertices).begin(),
-                                                        current_position.begin(),
-                                                        current_gpu.begin()),
-                              thrust::make_zip_iterator(current_vertices.end(),
-                                                        (*previous_vertices).end(),
-                                                        current_position.end(),
-                                                        current_gpu.end()));
+        cugraph::sort(handle.get_thrust_policy(),
+                      thrust::make_zip_iterator(current_vertices.begin(),
+                                                (*previous_vertices).begin(),
+                                                current_position.begin(),
+                                                current_gpu.begin()),
+                      thrust::make_zip_iterator(current_vertices.end(),
+                                                (*previous_vertices).end(),
+                                                current_position.end(),
+                                                current_gpu.end()));
       } else {
-        cugraph::sort_wrapper(
+        cugraph::sort(
           handle.get_thrust_policy(),
           thrust::make_zip_iterator(
             current_vertices.begin(), (*previous_vertices).begin(), current_position.begin()),
@@ -830,8 +838,10 @@ random_walk_impl(raft::handle_t const& handle,
         std::move(std::get<rmm::device_uvector<vertex_t>>(vertex_properties[pos++]));
 
       current_gpu = rmm::device_uvector<int>{current_vertices.size(), handle.get_stream()};
-      detail::scalar_fill(
-        handle, current_gpu.data(), current_gpu.size(), handle.get_comms().get_rank());
+      cugraph::fill(handle.get_thrust_policy(),
+                    current_gpu.data(),
+                    (current_gpu.data()) + (current_gpu.size()),
+                    handle.get_comms().get_rank());
 
       current_position = std::move(std::get<rmm::device_uvector<size_t>>(vertex_properties[pos++]));
       if (new_weights)

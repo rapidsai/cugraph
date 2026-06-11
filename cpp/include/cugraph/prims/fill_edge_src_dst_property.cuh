@@ -15,6 +15,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -120,12 +121,15 @@ void fill_edge_major_property(raft::handle_t const& handle,
     }
     if constexpr (contains_packed_bool_element) {
       auto packed_input = input ? packed_bool_full_mask() : packed_bool_empty_mask();
-      thrust::fill_n(handle.get_thrust_policy(),
-                     value_firsts[i],
-                     packed_bool_size(num_buffer_elements),
-                     packed_input);
+      cugraph::fill(handle.get_thrust_policy(),
+                    value_firsts[i],
+                    (value_firsts[i]) + (packed_bool_size(num_buffer_elements)),
+                    packed_input);
     } else {
-      thrust::fill_n(handle.get_thrust_policy(), value_firsts[i], num_buffer_elements, input);
+      cugraph::fill(handle.get_thrust_policy(),
+                    value_firsts[i],
+                    (value_firsts[i]) + (num_buffer_elements),
+                    input);
     }
   }
 }
@@ -293,10 +297,13 @@ void fill_edge_minor_property(raft::handle_t const& handle,
   if constexpr (contains_packed_bool_element) {
     static_assert(std::is_arithmetic_v<T>, "unimplemented for cuda::std::tuple types.");
     auto packed_input = input ? packed_bool_full_mask() : packed_bool_empty_mask();
-    thrust::fill_n(
-      handle.get_thrust_policy(), value_first, packed_bool_size(num_buffer_elements), packed_input);
+    cugraph::fill(handle.get_thrust_policy(),
+                  value_first,
+                  (value_first) + (packed_bool_size(num_buffer_elements)),
+                  packed_input);
   } else {
-    thrust::fill_n(handle.get_thrust_policy(), value_first, num_buffer_elements, input);
+    cugraph::fill(
+      handle.get_thrust_policy(), value_first, (value_first) + (num_buffer_elements), input);
   }
 }
 

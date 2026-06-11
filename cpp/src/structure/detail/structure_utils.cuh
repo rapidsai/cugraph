@@ -69,7 +69,7 @@ rmm::device_uvector<edge_t> compute_sparse_offsets(
                         thrust::make_counting_iterator(major_range_last),
                         offsets.begin() + 1);
   } else {
-    thrust::fill(handle.get_thrust_policy(), offsets.begin(), offsets.end(), edge_t{0});
+    cugraph::fill(handle.get_thrust_policy(), offsets.begin(), offsets.end(), edge_t{0});
 
     if (large_buffer_type) {
       auto num_edges =
@@ -96,7 +96,7 @@ rmm::device_uvector<edge_t> compute_sparse_offsets(
           indices.begin(),
           cuda::proclaim_return_type<vertex_t>(
             [major_range_first] __device__(auto major) { return major - major_range_first; }));
-        cugraph::sort_wrapper(
+        cugraph::sort(
           handle.get_thrust_policy(), indices.begin(), indices.begin() + num_edges_to_process);
         auto it          = thrust::reduce_by_key(handle.get_thrust_policy(),
                                         indices.begin(),
@@ -372,10 +372,10 @@ sort_and_compress_edgelist(
                                      pivots[2],
                                      handle.get_stream(),
                                      large_edge_buffer_type);
-      cugraph::sort_wrapper(handle.get_thrust_policy(), pair_first, second_quarter_first);
-      cugraph::sort_wrapper(handle.get_thrust_policy(), second_quarter_first, second_half_first);
-      cugraph::sort_wrapper(handle.get_thrust_policy(), second_half_first, last_quarter_first);
-      cugraph::sort_wrapper(
+      cugraph::sort(handle.get_thrust_policy(), pair_first, second_quarter_first);
+      cugraph::sort(handle.get_thrust_policy(), second_quarter_first, second_half_first);
+      cugraph::sort(handle.get_thrust_policy(), second_half_first, last_quarter_first);
+      cugraph::sort(
         handle.get_thrust_policy(), last_quarter_first, pair_first + edgelist_major_offsets.size());
     } else {
       offsets = compute_sparse_offsets<edge_t>(handle,
@@ -418,10 +418,10 @@ sort_and_compress_edgelist(
                                      pivots[2],
                                      handle.get_stream(),
                                      large_edge_buffer_type);
-      cugraph::sort_wrapper(handle.get_thrust_policy(), edge_first, second_quarter_first);
-      cugraph::sort_wrapper(handle.get_thrust_policy(), second_quarter_first, second_half_first);
-      cugraph::sort_wrapper(handle.get_thrust_policy(), second_half_first, last_quarter_first);
-      cugraph::sort_wrapper(
+      cugraph::sort(handle.get_thrust_policy(), edge_first, second_quarter_first);
+      cugraph::sort(handle.get_thrust_policy(), second_quarter_first, second_half_first);
+      cugraph::sort(handle.get_thrust_policy(), second_half_first, last_quarter_first);
+      cugraph::sort(
         handle.get_thrust_policy(), last_quarter_first, edge_first + edgelist_majors.size());
       edgelist_majors.resize(0, handle.get_stream());
       edgelist_majors.shrink_to_fit(handle.get_stream());
@@ -432,7 +432,7 @@ sort_and_compress_edgelist(
       large_edge_buffer_type
         ? rmm::exec_policy_nosync(handle.get_stream(), large_buffer_manager::memory_buffer_mr())
         : handle.get_thrust_policy();
-    cugraph::sort_wrapper(exec_policy, edge_first, edge_first + edgelist_minors.size());
+    cugraph::sort(exec_policy, edge_first, edge_first + edgelist_minors.size());
     offsets = compute_sparse_offsets<edge_t>(handle,
                                              edgelist_majors.begin(),
                                              edgelist_majors.end(),
@@ -539,10 +539,10 @@ void sort_adjacency_list(raft::handle_t const& handle,
     rmm::device_uvector<edge_t> input_edge_value_offsets(max_chunk_size, handle.get_stream());
     rmm::device_uvector<edge_t> segment_sorted_edge_value_offsets(max_chunk_size,
                                                                   handle.get_stream());
-    thrust::sequence(handle.get_thrust_policy(),
-                     input_edge_value_offsets.begin(),
-                     input_edge_value_offsets.end(),
-                     edge_t{0});
+    cugraph::sequence(handle.get_thrust_policy(),
+                      input_edge_value_offsets.begin(),
+                      input_edge_value_offsets.end(),
+                      edge_t{0});
     for (size_t i = 0; i < num_chunks; ++i) {
       size_t tmp_storage_bytes{0};
       auto offset_first = cuda::make_transform_iterator(offsets.data() + h_vertex_offsets[i],

@@ -495,10 +495,10 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
 
     rmm::device_uvector<size_t> edge_partition_key_indices(
       local_frontier_offsets[i + 1] - local_frontier_offsets[i], handle.get_stream());
-    thrust::sequence(handle.get_thrust_policy(),
-                     edge_partition_key_indices.begin(),
-                     edge_partition_key_indices.end(),
-                     size_t{0});
+    cugraph::sequence(handle.get_thrust_policy(),
+                      edge_partition_key_indices.begin(),
+                      edge_partition_key_indices.end(),
+                      size_t{0});
 
     auto edge_partition_frontier_local_degree_offsets = raft::device_span<size_t const>(
       aggregate_local_frontier_local_degree_offsets.data() + local_frontier_offsets[i],

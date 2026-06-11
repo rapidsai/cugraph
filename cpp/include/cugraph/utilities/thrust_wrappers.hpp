@@ -10,8 +10,11 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/std/iterator>
+#include <thrust/fill.h>
 #include <thrust/scan.h>
+#include <thrust/sequence.h>
 #include <thrust/sort.h>
+#include <thrust/unique.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -37,7 +40,7 @@ inline constexpr bool sort_supported_arithmetic_scalar_v =
  *  @c rmm::exec_policy_nosync.
  *
  *  Keep this in lockstep with those explicit instantiations: add a disjunct only when you add the
- *  matching explicit instantiation (otherwise a call through @ref cugraph::sort_wrapper can fail at
+ *  matching explicit instantiation (otherwise a call through @ref cugraph::sort can fail at
  *  link
  *  time).
  */
@@ -122,15 +125,6 @@ OutputIterator exclusive_scan_impl(rmm::exec_policy const& policy,
 /**
  * @ingroup utility_wrappers_cpp
  * @brief    Sort elements in [first, last) on the given CUDA stream (out-of-line implementation).
- *
- * @tparam      RandomAccessIterator  iterator type; must match an explicit instantiation in
- *                                     @c thrust_wrappers.cu.
- *
- * @param[in]   policy       @c rmm::exec_policy or @c rmm::exec_policy_nosync (e.g.
- *                           @c handle.get_thrust_policy())
- * @param[in]   first        beginning of the range to sort
- * @param[in]   last         end of the range to sort
- *
  */
 template <typename RandomAccessIterator>
 void sort_impl(rmm::exec_policy const& policy,
@@ -142,10 +136,87 @@ void sort_impl(rmm::exec_policy_nosync const& policy,
                RandomAccessIterator first,
                RandomAccessIterator last);
 
-/** Value type of @p Iterator for @ref cugraph::sort_wrapper constraints (C++17-friendly). */
+/**
+ * @ingroup utility_wrappers_cpp
+ * @brief    Keep unique elements in [first, last) on the given CUDA stream (out-of-line
+ * implementation).
+ */
+template <typename RandomAccessIterator>
+RandomAccessIterator unique_impl(rmm::exec_policy const& policy,
+                                 RandomAccessIterator first,
+                                 RandomAccessIterator last);
+
+template <typename RandomAccessIterator>
+RandomAccessIterator unique_impl(rmm::exec_policy_nosync const& policy,
+                                 RandomAccessIterator first,
+                                 RandomAccessIterator last);
+
+/** Value type of @p Iterator for @ref cugraph::sort constraints (C++17-friendly). */
 template <typename Iterator>
 using sort_iterator_value_t =
   std::remove_cv_t<typename std::iterator_traits<std::remove_cv_t<Iterator>>::value_type>;
+
+/** @brief True for value types dispatched to @ref fill_impl. */
+template <typename T>
+inline constexpr bool fill_supported_scalar_v =
+  std::disjunction_v<std::is_same<std::remove_cv_t<T>, std::size_t>,
+                     std::is_same<std::remove_cv_t<T>, std::uint32_t>,
+                     std::is_same<std::remove_cv_t<T>, std::int32_t>,
+                     std::is_same<std::remove_cv_t<T>, std::int64_t>,
+                     std::is_same<std::remove_cv_t<T>, float>,
+                     std::is_same<std::remove_cv_t<T>, double>>;
+
+/** @brief True for value types dispatched to @ref sequence_impl. */
+template <typename T>
+inline constexpr bool sequence_supported_scalar_v =
+  std::disjunction_v<std::is_same<std::remove_cv_t<T>, std::size_t>,
+                     std::is_same<std::remove_cv_t<T>, std::int32_t>,
+                     std::is_same<std::remove_cv_t<T>, std::int64_t>>;
+
+/** Value type of @p Iterator for @ref cugraph::fill constraints. */
+template <typename Iterator>
+using fill_iterator_value_t =
+  std::remove_cv_t<typename std::iterator_traits<std::remove_cv_t<Iterator>>::value_type>;
+
+/** Value type of @p Iterator for @ref cugraph::sequence constraints. */
+template <typename Iterator>
+using sequence_iterator_value_t =
+  std::remove_cv_t<typename std::iterator_traits<std::remove_cv_t<Iterator>>::value_type>;
+
+/** @brief True when @p Iterator is a pointer to a @ref fill_supported_scalar_v type. */
+template <typename Iterator>
+inline constexpr bool fill_supported_iterator_v =
+  std::is_pointer_v<std::remove_cv_t<Iterator>> &&
+  fill_supported_scalar_v<fill_iterator_value_t<Iterator>>;
+
+/** @brief True when @p Iterator is a pointer to a @ref sequence_supported_scalar_v type. */
+template <typename Iterator>
+inline constexpr bool sequence_supported_iterator_v =
+  std::is_pointer_v<std::remove_cv_t<Iterator>> &&
+  sequence_supported_scalar_v<sequence_iterator_value_t<Iterator>>;
+
+template <typename ForwardIterator, typename T>
+void fill_impl(rmm::exec_policy const& policy,
+               ForwardIterator first,
+               ForwardIterator last,
+               T const& value);
+
+template <typename ForwardIterator, typename T>
+void fill_impl(rmm::exec_policy_nosync const& policy,
+               ForwardIterator first,
+               ForwardIterator last,
+               T const& value);
+
+template <typename ForwardIterator, typename T>
+void sequence_impl(
+  rmm::exec_policy const& policy, ForwardIterator first, ForwardIterator last, T init, T step);
+
+template <typename ForwardIterator, typename T>
+void sequence_impl(rmm::exec_policy_nosync const& policy,
+                   ForwardIterator first,
+                   ForwardIterator last,
+                   T init,
+                   T step);
 
 }  // namespace detail
 
@@ -155,55 +226,93 @@ using sort_iterator_value_t =
  *
  * Similar to @c thrust::sort; dispatches to an explicitly instantiated backend for supported
  * scalar and zip-iterator ranges.
- *
- * @tparam      RandomAccessIterator  random-access iterator
- *
- * @param[in]   policy       Thrust execution policy
- * @param[in]   first        beginning of the range to sort
- * @param[in]   last         end of the range to sort
- *
  */
-// FIXME: Would like to call this sort, but there's an issue
-// with CCCL and nvcc which results in a runtime error.
-template <typename ExecutionPolicy, typename RandomAccessIterator>
-void sort_wrapper(ExecutionPolicy const& policy,
+struct sort_t {
+  template <typename ExecutionPolicy, typename RandomAccessIterator>
+  void operator()(ExecutionPolicy const& policy,
                   RandomAccessIterator first,
-                  RandomAccessIterator last)
-{
-  using value_t = detail::sort_iterator_value_t<RandomAccessIterator>;
-  if constexpr (detail::sort_supported_arithmetic_scalar_v<value_t> ||
-                detail::sort_supported_zip_v<std::remove_cv_t<RandomAccessIterator>>) {
-    detail::sort_impl(policy, first, last);
-  } else {
-    thrust::sort(policy, first, last);
+                  RandomAccessIterator last) const
+  {
+    using value_t = detail::sort_iterator_value_t<RandomAccessIterator>;
+    if constexpr (detail::sort_supported_arithmetic_scalar_v<value_t> ||
+                  detail::sort_supported_zip_v<std::remove_cv_t<RandomAccessIterator>>) {
+      detail::sort_impl(policy, first, last);
+    } else {
+      thrust::sort(policy, first, last);
+    }
   }
-}
+
+  /**
+   * @ingroup utility_wrappers_cpp
+   * @brief    Sort elements in [first, last) with a custom comparison
+   *
+   * Similar to @c thrust::sort.
+   */
+  template <typename ExecutionPolicy, typename RandomAccessIterator, typename Compare>
+  void operator()(ExecutionPolicy const& policy,
+                  RandomAccessIterator first,
+                  RandomAccessIterator last,
+                  Compare compare) const
+  {
+    thrust::sort(policy, first, last, compare);
+  }
+};
+
+/** @brief Sort elements in [first, last)
+ *
+ * This exposes cugraph::sort using the sort_t functor.
+ * This is a workaround to avoid ADL issues with CCCL which result in a runtime error.
+ *
+ * Documentation of the individual sort overloads is provided above.
+ */
+inline constexpr sort_t sort{};
 
 /**
  * @ingroup utility_wrappers_cpp
- * @brief    Sort elements in [first, last) with a custom comparison
+ * @brief    Keep unique elements in [first, last)
  *
- * Similar to @c thrust::sort.
- *
- * @tparam      RandomAccessIterator  random-access iterator
- * @tparam      Compare               comparison functor
- *
- * @param[in]   policy       Thrust execution policy
- * @param[in]   first        beginning of the range to sort
- * @param[in]   last         end of the range to sort
- * @param[in]   compare      comparison functor
- *
+ * Similar to @c thrust::unique; dispatches to an explicitly instantiated backend for supported
+ * scalar and zip-iterator ranges.
  */
-// FIXME: Would like to call this sort, but there's an issue
-// with CCCL and nvcc which results in a runtime error.
-template <typename ExecutionPolicy, typename RandomAccessIterator, typename Compare>
-void sort_wrapper(ExecutionPolicy const& policy,
-                  RandomAccessIterator first,
-                  RandomAccessIterator last,
-                  Compare compare)
-{
-  thrust::sort(policy, first, last, compare);
-}
+struct unique_t {
+  template <typename ExecutionPolicy, typename RandomAccessIterator>
+  RandomAccessIterator operator()(ExecutionPolicy const& policy,
+                                  RandomAccessIterator first,
+                                  RandomAccessIterator last) const
+  {
+    using value_t = detail::sort_iterator_value_t<RandomAccessIterator>;
+    if constexpr (detail::sort_supported_arithmetic_scalar_v<value_t> ||
+                  detail::sort_supported_zip_v<std::remove_cv_t<RandomAccessIterator>>) {
+      return detail::unique_impl(policy, first, last);
+    } else {
+      return thrust::unique(policy, first, last);
+    }
+  }
+
+  /**
+   * @ingroup utility_wrappers_cpp
+   * @brief    Keep unique elements in [first, last) with a custom equivalence predicate
+   *
+   * Similar to @c thrust::unique.
+   */
+  template <typename ExecutionPolicy, typename ForwardIterator, typename BinaryPredicate>
+  ForwardIterator operator()(ExecutionPolicy const& policy,
+                             ForwardIterator first,
+                             ForwardIterator last,
+                             BinaryPredicate pred) const
+  {
+    return thrust::unique(policy, first, last, pred);
+  }
+};
+
+/** @brief Keep unique elements in [first, last)
+ *
+ * This exposes cugraph::unique using the unique_t functor.
+ * This is a workaround to avoid ADL issues with CCCL which result in a runtime error.
+ *
+ * Documentation of the individual unique overloads is provided above.
+ */
+inline constexpr unique_t unique{};
 
 /**
  * @ingroup utility_wrappers_cpp
@@ -355,5 +464,107 @@ struct exclusive_scan_t {
  * Documentation of the individual exclusive_scan overloads is provided above.
  */
 inline constexpr exclusive_scan_t exclusive_scan{};
+
+/**
+ * @ingroup utility_wrappers_cpp
+ * @brief    Assign @p value to every element in [first, last)
+ *
+ * Similar to @c thrust::fill; dispatches to an explicitly instantiated backend for supported
+ * scalar ranges on @c rmm::exec_policy and @c rmm::exec_policy_nosync.
+ */
+struct fill_t {
+  template <typename ExecutionPolicy, typename ForwardIterator, typename T>
+  void operator()(ExecutionPolicy const& policy,
+                  ForwardIterator first,
+                  ForwardIterator last,
+                  T const& value) const
+  {
+    using value_t = detail::fill_iterator_value_t<ForwardIterator>;
+    if constexpr (detail::fill_supported_iterator_v<ForwardIterator>) {
+      detail::fill_impl(policy, first, last, value_t(value));
+    } else {
+      thrust::fill(policy, first, last, value);
+    }
+  }
+};
+
+/** @brief Assign @p value to every element in [first, last)
+ *
+ * This exposes cugraph::fill using the fill_t functor.
+ * This is a workaround to avoid ADL issues with CCCL which result in a runtime error.
+ *
+ * Documentation of the individual fill overloads is provided above.
+ */
+inline constexpr fill_t fill{};
+
+/**
+ * @ingroup utility_wrappers_cpp
+ * @brief    Fill [first, last) with consecutive integers starting at 0
+ *
+ * Similar to @c thrust::sequence; dispatches to an explicitly instantiated backend for supported
+ * scalar ranges on @c rmm::exec_policy and @c rmm::exec_policy_nosync.
+ */
+struct sequence_t {
+  template <typename ExecutionPolicy, typename ForwardIterator>
+  void operator()(ExecutionPolicy const& policy, ForwardIterator first, ForwardIterator last) const
+  {
+    using value_t = detail::sequence_iterator_value_t<ForwardIterator>;
+    if constexpr (detail::sequence_supported_iterator_v<ForwardIterator>) {
+      detail::sequence_impl(policy, first, last, value_t{}, value_t{1});
+    } else {
+      thrust::sequence(policy, first, last);
+    }
+  }
+
+  /**
+   * @ingroup utility_wrappers_cpp
+   * @brief    Fill [first, last) with consecutive integers starting at @p init
+   *
+   * Similar to @c thrust::sequence.
+   */
+  template <typename ExecutionPolicy, typename ForwardIterator, typename T>
+  void operator()(ExecutionPolicy const& policy,
+                  ForwardIterator first,
+                  ForwardIterator last,
+                  T init) const
+  {
+    using value_t = detail::sequence_iterator_value_t<ForwardIterator>;
+    if constexpr (detail::sequence_supported_iterator_v<ForwardIterator>) {
+      detail::sequence_impl(policy, first, last, value_t(init), value_t{1});
+    } else {
+      thrust::sequence(policy, first, last, init);
+    }
+  }
+
+  /**
+   * @ingroup utility_wrappers_cpp
+   * @brief    Fill [first, last) with consecutive integers starting at @p init with step @p step
+   *
+   * Similar to @c thrust::sequence.
+   */
+  template <typename ExecutionPolicy, typename ForwardIterator, typename T>
+  void operator()(ExecutionPolicy const& policy,
+                  ForwardIterator first,
+                  ForwardIterator last,
+                  T init,
+                  T step) const
+  {
+    using value_t = detail::sequence_iterator_value_t<ForwardIterator>;
+    if constexpr (detail::sequence_supported_iterator_v<ForwardIterator>) {
+      detail::sequence_impl(policy, first, last, value_t(init), value_t(step));
+    } else {
+      thrust::sequence(policy, first, last, init, step);
+    }
+  }
+};
+
+/** @brief Fill [first, last) with consecutive integers
+ *
+ * This exposes cugraph::sequence using the sequence_t functor.
+ * This is a workaround to avoid ADL issues with CCCL which result in a runtime error.
+ *
+ * Documentation of the individual sequence overloads is provided above.
+ */
+inline constexpr sequence_t sequence{};
 
 }  // namespace CUGRAPH_EXPORT cugraph
