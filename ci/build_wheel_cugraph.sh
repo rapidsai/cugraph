@@ -10,6 +10,7 @@ package_dir="python/cugraph"
 
 RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen "${RAPIDS_CUDA_VERSION}")"
 
+source ./ci/use_wheels_from_prs.sh
 # Download the libcugraph and pylibcugraph wheels built in the previous step and make them
 # available for pip to find.
 #

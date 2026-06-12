@@ -7,6 +7,7 @@ set -eoxu pipefail
 source rapids-init-pip
 
 # Download the packages built in the previous step
+source ./ci/use_wheels_from_prs.sh
 PYLIBCUGRAPH_WHEELHOUSE=$(rapids-download-from-github "$(rapids-artifact-name wheel_python pylibcugraph cugraph --stable --cuda "$RAPIDS_CUDA_VERSION")")
 CUGRAPH_WHEELHOUSE=$(rapids-download-from-github "$(rapids-artifact-name wheel_python cugraph cugraph --stable --cuda "$RAPIDS_CUDA_VERSION")")
 LIBCUGRAPH_WHEELHOUSE=$(rapids-download-from-github "$(rapids-artifact-name wheel_cpp libcugraph cugraph --cuda "$RAPIDS_CUDA_VERSION")")
