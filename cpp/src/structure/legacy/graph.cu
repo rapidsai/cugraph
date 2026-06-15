@@ -61,10 +61,10 @@ namespace legacy {
 template <typename VT, typename ET, typename WT>
 void GraphViewBase<VT, ET, WT>::get_vertex_identifiers(VT* identifiers) const
 {
-  thrust::sequence(thrust::device,
-                   thrust::device_pointer_cast(identifiers),
-                   thrust::device_pointer_cast(identifiers + number_of_vertices),
-                   VT{0});
+  cugraph::sequence(thrust::device,
+                    thrust::device_pointer_cast(identifiers),
+                    thrust::device_pointer_cast(identifiers + number_of_vertices),
+                    VT{0});
   RAFT_CHECK_CUDA(nullptr);
 }
 

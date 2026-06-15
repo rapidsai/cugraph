@@ -25,7 +25,7 @@
 namespace CUGRAPH_EXPORT cugraph {
 namespace detail {
 
-/** @brief Whether iterator type @p T has an out-of-line @ref sort_impl lexicographic sort. */
+/** @brief True for scalar value types dispatched to @ref sort_impl / @ref unique_impl. */
 template <typename T>
 inline constexpr bool sort_supported_arithmetic_scalar_v =
   std::disjunction_v<std::is_same<std::remove_cv_t<T>, std::int32_t>,
@@ -35,8 +35,8 @@ inline constexpr bool sort_supported_arithmetic_scalar_v =
 /** @brief Whether iterator type @p T has an out-of-line @ref sort_impl lexicographic sort.
  *
  *  Supported @c thrust::make_zip_iterator(...) iterator types are listed in
- *  thrust_wrappers_zip_types.hpp and instantiated in thrust_wrappers.cu. Scalar element sorts use
- *  @ref sort_supported_arithmetic_scalar_v and @ref sort_impl for @c rmm::exec_policy and
+ *  thrust_wrappers_zip_types.hpp and instantiated in thrust_wrappers.cu. Scalar sorts use
+ *  @ref sort_supported_scalar_iterator_v and @ref sort_impl for @c rmm::exec_policy and
  *  @c rmm::exec_policy_nosync.
  *
  *  Keep this in lockstep with those explicit instantiations: add a disjunct only when you add the
@@ -79,16 +79,33 @@ inline constexpr bool scan_scalar_value_v =
                      std::is_same<std::remove_cv_t<T>, std::int32_t>,
                      std::is_same<std::remove_cv_t<T>, std::int64_t>>;
 
-/** @brief True when @p ExecutionPolicy is @c rmm::exec_policy (e.g. @c handle.get_thrust_policy()).
+/** @brief True when @p ExecutionPolicy is @c rmm::exec_policy.
  */
 template <typename ExecutionPolicy>
 inline constexpr bool is_rmm_exec_policy_v =
-  std::is_same_v<std::remove_cv_t<ExecutionPolicy>, rmm::exec_policy>;
+  std::is_same_v<std::remove_cv_t<std::remove_reference_t<ExecutionPolicy>>, rmm::exec_policy>;
+
+/** @brief True when @p ExecutionPolicy is @c rmm::exec_policy_nosync (e.g. @c
+ * handle.get_thrust_policy()).
+ */
+template <typename ExecutionPolicy>
+inline constexpr bool is_rmm_exec_policy_nosync_v =
+  std::is_same_v<std::remove_cv_t<std::remove_reference_t<ExecutionPolicy>>,
+                 rmm::exec_policy_nosync>;
 
 /** Input iterator value type for @ref cugraph::inclusive_scan / @ref cugraph::exclusive_scan. */
 template <typename Iterator>
 using scan_iterator_value_t =
   std::remove_cv_t<typename std::iterator_traits<std::remove_cv_t<Iterator>>::value_type>;
+
+/** @brief True when @p InputIterator and @p OutputIterator are pointers to the same @ref
+ * scan_scalar_value_v type. */
+template <typename InputIterator, typename OutputIterator>
+inline constexpr bool scan_supported_iterator_v =
+  std::is_pointer_v<std::remove_cv_t<InputIterator>> &&
+  std::is_pointer_v<std::remove_cv_t<OutputIterator>> &&
+  scan_scalar_value_v<scan_iterator_value_t<InputIterator>> &&
+  std::is_same_v<scan_iterator_value_t<InputIterator>, scan_iterator_value_t<OutputIterator>>;
 
 /**
  * @ingroup utility_wrappers_cpp
@@ -96,6 +113,12 @@ using scan_iterator_value_t =
  */
 template <typename InputIterator, typename OutputIterator>
 OutputIterator inclusive_scan_impl(rmm::exec_policy const& policy,
+                                   InputIterator first,
+                                   InputIterator last,
+                                   OutputIterator result);
+
+template <typename InputIterator, typename OutputIterator>
+OutputIterator inclusive_scan_impl(rmm::exec_policy_nosync const& policy,
                                    InputIterator first,
                                    InputIterator last,
                                    OutputIterator result);
@@ -110,6 +133,12 @@ OutputIterator exclusive_scan_impl(rmm::exec_policy const& policy,
                                    InputIterator last,
                                    OutputIterator result);
 
+template <typename InputIterator, typename OutputIterator>
+OutputIterator exclusive_scan_impl(rmm::exec_policy_nosync const& policy,
+                                   InputIterator first,
+                                   InputIterator last,
+                                   OutputIterator result);
+
 /**
  * @ingroup utility_wrappers_cpp
  * @brief    Exclusive prefix sum on [first, last) with initial value (out-of-line; default @c
@@ -117,6 +146,13 @@ OutputIterator exclusive_scan_impl(rmm::exec_policy const& policy,
  */
 template <typename InputIterator, typename OutputIterator, typename T>
 OutputIterator exclusive_scan_impl(rmm::exec_policy const& policy,
+                                   InputIterator first,
+                                   InputIterator last,
+                                   OutputIterator result,
+                                   T init);
+
+template <typename InputIterator, typename OutputIterator, typename T>
+OutputIterator exclusive_scan_impl(rmm::exec_policy_nosync const& policy,
                                    InputIterator first,
                                    InputIterator last,
                                    OutputIterator result,
@@ -155,6 +191,18 @@ RandomAccessIterator unique_impl(rmm::exec_policy_nosync const& policy,
 template <typename Iterator>
 using sort_iterator_value_t =
   std::remove_cv_t<typename std::iterator_traits<std::remove_cv_t<Iterator>>::value_type>;
+
+/** @brief True when @p Iterator is a pointer to a @ref sort_supported_arithmetic_scalar_v type. */
+template <typename Iterator>
+inline constexpr bool sort_supported_scalar_iterator_v =
+  std::is_pointer_v<std::remove_cv_t<Iterator>> &&
+  sort_supported_arithmetic_scalar_v<sort_iterator_value_t<Iterator>>;
+
+/** @brief True when @p Iterator has an out-of-line @ref sort_impl / @ref unique_impl instantiation.
+ */
+template <typename Iterator>
+inline constexpr bool sort_supported_iterator_v =
+  sort_supported_scalar_iterator_v<Iterator> || sort_supported_zip_v<std::remove_cv_t<Iterator>>;
 
 /** @brief True for value types dispatched to @ref fill_impl. */
 template <typename T>
@@ -233,9 +281,9 @@ struct sort_t {
                   RandomAccessIterator first,
                   RandomAccessIterator last) const
   {
-    using value_t = detail::sort_iterator_value_t<RandomAccessIterator>;
-    if constexpr (detail::sort_supported_arithmetic_scalar_v<value_t> ||
-                  detail::sort_supported_zip_v<std::remove_cv_t<RandomAccessIterator>>) {
+    if constexpr ((detail::is_rmm_exec_policy_v<ExecutionPolicy> ||
+                   detail::is_rmm_exec_policy_nosync_v<ExecutionPolicy>) &&
+                  detail::sort_supported_iterator_v<RandomAccessIterator>) {
       detail::sort_impl(policy, first, last);
     } else {
       thrust::sort(policy, first, last);
@@ -280,9 +328,9 @@ struct unique_t {
                                   RandomAccessIterator first,
                                   RandomAccessIterator last) const
   {
-    using value_t = detail::sort_iterator_value_t<RandomAccessIterator>;
-    if constexpr (detail::sort_supported_arithmetic_scalar_v<value_t> ||
-                  detail::sort_supported_zip_v<std::remove_cv_t<RandomAccessIterator>>) {
+    if constexpr ((detail::is_rmm_exec_policy_v<ExecutionPolicy> ||
+                   detail::is_rmm_exec_policy_nosync_v<ExecutionPolicy>) &&
+                  detail::sort_supported_iterator_v<RandomAccessIterator>) {
       return detail::unique_impl(policy, first, last);
     } else {
       return thrust::unique(policy, first, last);
@@ -319,8 +367,9 @@ inline constexpr unique_t unique{};
  * @brief    Inclusive prefix sum on [first, last)
  *
  * Similar to @c thrust::inclusive_scan; dispatches to an explicitly instantiated backend when
- * @p policy is @c rmm::exec_policy and the input element type is @c size_t, @c int32_t, or
- * @c int64_t.
+ * @p policy is @c rmm::exec_policy or @c rmm::exec_policy_nosync and @p first, @p last, and
+ * @p result are pointers to the same supported scalar type (@c size_t, @c int32_t, or
+ * @c int64_t).
  */
 struct inclusive_scan_t {
   template <typename ExecutionPolicy, typename InputIterator, typename OutputIterator>
@@ -329,9 +378,9 @@ struct inclusive_scan_t {
                             InputIterator last,
                             OutputIterator result) const
   {
-    using value_t = detail::scan_iterator_value_t<InputIterator>;
-    if constexpr (detail::is_rmm_exec_policy_v<ExecutionPolicy> &&
-                  detail::scan_scalar_value_v<value_t>) {
+    if constexpr ((detail::is_rmm_exec_policy_v<ExecutionPolicy> ||
+                   detail::is_rmm_exec_policy_nosync_v<ExecutionPolicy>) &&
+                  detail::scan_supported_iterator_v<InputIterator, OutputIterator>) {
       return detail::inclusive_scan_impl(policy, first, last, result);
     } else {
       return thrust::inclusive_scan(policy, first, last, result);
@@ -393,8 +442,9 @@ inline constexpr inclusive_scan_t inclusive_scan{};
  * @brief    Exclusive prefix sum on [first, last)
  *
  * Similar to @c thrust::exclusive_scan; dispatches to an explicitly instantiated backend when
- * @p policy is @c rmm::exec_policy and the input element type is @c size_t, @c int32_t, or
- * @c int64_t.
+ * @p policy is @c rmm::exec_policy or @c rmm::exec_policy_nosync and @p first, @p last, and
+ * @p result are pointers to the same supported scalar type (@c size_t, @c int32_t, or
+ * @c int64_t).
  */
 struct exclusive_scan_t {
   template <typename ExecutionPolicy, typename InputIterator, typename OutputIterator>
@@ -403,9 +453,9 @@ struct exclusive_scan_t {
                             InputIterator last,
                             OutputIterator result) const
   {
-    using value_t = detail::scan_iterator_value_t<InputIterator>;
-    if constexpr (detail::is_rmm_exec_policy_v<ExecutionPolicy> &&
-                  detail::scan_scalar_value_v<value_t>) {
+    if constexpr ((detail::is_rmm_exec_policy_v<ExecutionPolicy> ||
+                   detail::is_rmm_exec_policy_nosync_v<ExecutionPolicy>) &&
+                  detail::scan_supported_iterator_v<InputIterator, OutputIterator>) {
       return detail::exclusive_scan_impl(policy, first, last, result);
     } else {
       return thrust::exclusive_scan(policy, first, last, result);
@@ -425,9 +475,11 @@ struct exclusive_scan_t {
                             OutputIterator result,
                             T init) const
   {
-    using value_t = detail::scan_iterator_value_t<InputIterator>;
-    if constexpr (detail::is_rmm_exec_policy_v<ExecutionPolicy> &&
-                  detail::scan_scalar_value_v<value_t>) {
+    if constexpr ((detail::is_rmm_exec_policy_v<ExecutionPolicy> ||
+                   detail::is_rmm_exec_policy_nosync_v<ExecutionPolicy>) &&
+                  detail::scan_supported_iterator_v<InputIterator, OutputIterator> &&
+                  std::is_same_v<detail::scan_iterator_value_t<InputIterator>,
+                                 std::remove_cv_t<T>>) {
       return detail::exclusive_scan_impl(policy, first, last, result, init);
     } else {
       return thrust::exclusive_scan(policy, first, last, result, init);
@@ -480,7 +532,9 @@ struct fill_t {
                   T const& value) const
   {
     using value_t = detail::fill_iterator_value_t<ForwardIterator>;
-    if constexpr (detail::fill_supported_iterator_v<ForwardIterator>) {
+    if constexpr ((detail::is_rmm_exec_policy_v<ExecutionPolicy> ||
+                   detail::is_rmm_exec_policy_nosync_v<ExecutionPolicy>) &&
+                  detail::fill_supported_iterator_v<ForwardIterator>) {
       detail::fill_impl(policy, first, last, value_t(value));
     } else {
       thrust::fill(policy, first, last, value);
@@ -509,7 +563,9 @@ struct sequence_t {
   void operator()(ExecutionPolicy const& policy, ForwardIterator first, ForwardIterator last) const
   {
     using value_t = detail::sequence_iterator_value_t<ForwardIterator>;
-    if constexpr (detail::sequence_supported_iterator_v<ForwardIterator>) {
+    if constexpr ((detail::is_rmm_exec_policy_v<ExecutionPolicy> ||
+                   detail::is_rmm_exec_policy_nosync_v<ExecutionPolicy>) &&
+                  detail::sequence_supported_iterator_v<ForwardIterator>) {
       detail::sequence_impl(policy, first, last, value_t{}, value_t{1});
     } else {
       thrust::sequence(policy, first, last);
@@ -529,7 +585,9 @@ struct sequence_t {
                   T init) const
   {
     using value_t = detail::sequence_iterator_value_t<ForwardIterator>;
-    if constexpr (detail::sequence_supported_iterator_v<ForwardIterator>) {
+    if constexpr ((detail::is_rmm_exec_policy_v<ExecutionPolicy> ||
+                   detail::is_rmm_exec_policy_nosync_v<ExecutionPolicy>) &&
+                  detail::sequence_supported_iterator_v<ForwardIterator>) {
       detail::sequence_impl(policy, first, last, value_t(init), value_t{1});
     } else {
       thrust::sequence(policy, first, last, init);
@@ -550,7 +608,9 @@ struct sequence_t {
                   T step) const
   {
     using value_t = detail::sequence_iterator_value_t<ForwardIterator>;
-    if constexpr (detail::sequence_supported_iterator_v<ForwardIterator>) {
+    if constexpr ((detail::is_rmm_exec_policy_v<ExecutionPolicy> ||
+                   detail::is_rmm_exec_policy_nosync_v<ExecutionPolicy>) &&
+                  detail::sequence_supported_iterator_v<ForwardIterator>) {
       detail::sequence_impl(policy, first, last, value_t(init), value_t(step));
     } else {
       thrust::sequence(policy, first, last, init, step);
