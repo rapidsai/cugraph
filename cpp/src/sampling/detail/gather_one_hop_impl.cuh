@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "gather_sampled_properties.hpp"
+#include "gather_sampled_properties.cuh"
 #include "sampling_utils.hpp"
 
 #include <cugraph/arithmetic_variant_types.hpp>
