@@ -21,6 +21,7 @@
 #include <cugraph/utilities/assert.cuh>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/util/cudart_utils.hpp>
 
@@ -496,10 +497,10 @@ temporal_gather_one_hop_edgelist(
       starting_pos = sizes[handle.get_comms().get_rank()];
     }
 
-    thrust::sequence(handle.get_thrust_policy(),
-                     vertex_label_time_positions.begin(),
-                     vertex_label_time_positions.end(),
-                     starting_pos);
+    cugraph::sequence(handle.get_thrust_policy(),
+                      vertex_label_time_positions.begin(),
+                      vertex_label_time_positions.end(),
+                      starting_pos);
 
     if constexpr (multi_gpu) {
       auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());

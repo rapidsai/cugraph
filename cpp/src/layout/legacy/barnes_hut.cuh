@@ -14,6 +14,7 @@
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/legacy/internals.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
@@ -147,7 +148,7 @@ void barnes_hut(raft::handle_t const& handle,
   swinging   = d_swinging.data();
   traction   = d_traction.data();
 
-  thrust::fill(handle.get_thrust_policy(), d_old_forces.begin(), d_old_forces.end(), 0.f);
+  cugraph::fill(handle.get_thrust_policy(), d_old_forces.begin(), d_old_forces.end(), 0.f);
 
   if (graph.number_of_edges > 0) {
     // Sort COO for coalesced memory access.
@@ -157,12 +158,12 @@ void barnes_hut(raft::handle_t const& handle,
 
   if (vertex_mass != nullptr) {
     // Fill masses with 1 (because `nnodes + 1 > n`)
-    thrust::fill(handle.get_thrust_policy(), d_massl.begin() + n, d_massl.end(), 1.f);
+    cugraph::fill(handle.get_thrust_policy(), d_massl.begin() + n, d_massl.end(), 1.f);
     raft::copy(massl, vertex_mass, n, stream_view.value());
   } else {
     // FA2 requires degree + 1
     d_massl_edge_t.resize(nnodes + 1, handle.get_stream());
-    thrust::fill(handle.get_thrust_policy(), d_massl_edge_t.begin(), d_massl_edge_t.end(), 1);
+    cugraph::fill(handle.get_thrust_policy(), d_massl_edge_t.begin(), d_massl_edge_t.end(), 1);
     massl_edge_t = d_massl_edge_t.data();
     graph.degree(massl_edge_t, cugraph::legacy::DegreeDirection::OUT);
     RAFT_CHECK_CUDA(stream_view.value());
@@ -210,10 +211,10 @@ void barnes_hut(raft::handle_t const& handle,
 
   for (int iter = 0; iter < max_iter; ++iter) {
     // Reset force values
-    thrust::fill(handle.get_thrust_policy(), d_rep_forces.begin(), d_rep_forces.end(), 0.f);
-    thrust::fill(handle.get_thrust_policy(), d_attract.begin(), d_attract.end(), 0.f);
-    thrust::fill(handle.get_thrust_policy(), d_swinging.begin(), d_swinging.end(), 0.f);
-    thrust::fill(handle.get_thrust_policy(), d_traction.begin(), d_traction.end(), 0.f);
+    cugraph::fill(handle.get_thrust_policy(), d_rep_forces.begin(), d_rep_forces.end(), 0.f);
+    cugraph::fill(handle.get_thrust_policy(), d_attract.begin(), d_attract.end(), 0.f);
+    cugraph::fill(handle.get_thrust_policy(), d_swinging.begin(), d_swinging.end(), 0.f);
+    cugraph::fill(handle.get_thrust_policy(), d_traction.begin(), d_traction.end(), 0.f);
 
     ResetKernel<<<1, 1, 0, stream_view.value()>>>(radiusd_squared, bottomd, NNODES, radiusd);
     RAFT_CHECK_CUDA(stream_view.value());

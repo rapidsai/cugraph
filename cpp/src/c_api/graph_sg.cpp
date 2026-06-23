@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -17,6 +17,9 @@
 
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
+
+#include <rmm/exec_policy.hpp>
 
 #include <limits>
 
@@ -313,10 +316,10 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         *number_map = std::move(new_number_map.value());
       } else {
         number_map->resize(graph->number_of_vertices(), handle_.get_stream());
-        cugraph::detail::sequence_fill(handle_.get_stream(),
-                                       number_map->data(),
-                                       number_map->size(),
-                                       graph->view().local_vertex_partition_range_first());
+        cugraph::sequence(rmm::exec_policy(handle_.get_stream()),
+                          number_map->data(),
+                          number_map->data() + number_map->size(),
+                          graph->view().local_vertex_partition_range_first());
 
         if (vertices_) {
           vertex_list = rmm::device_uvector<vertex_t>(vertices_->size_, handle_.get_stream());
@@ -453,8 +456,10 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
       std::optional<rmm::device_uvector<vertex_t>> vertex_list = std::make_optional(
         rmm::device_uvector<vertex_t>(offsets_->size_ - 1, handle_.get_stream()));
 
-      cugraph::detail::sequence_fill(
-        handle_.get_stream(), vertex_list->data(), vertex_list->size(), vertex_t{0});
+      cugraph::sequence(rmm::exec_policy(handle_.get_stream()),
+                        vertex_list->data(),
+                        vertex_list->data() + vertex_list->size(),
+                        vertex_t{0});
 
       rmm::device_uvector<vertex_t> edgelist_srcs(0, handle_.get_stream());
       rmm::device_uvector<vertex_t> edgelist_dsts(indices_->size_, handle_.get_stream());
@@ -576,10 +581,10 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
         *number_map = std::move(new_number_map.value());
       } else {
         number_map->resize(graph->number_of_vertices(), handle_.get_stream());
-        cugraph::detail::sequence_fill(handle_.get_stream(),
-                                       number_map->data(),
-                                       number_map->size(),
-                                       graph->view().local_vertex_partition_range_first());
+        cugraph::sequence(rmm::exec_policy(handle_.get_stream()),
+                          number_map->data(),
+                          number_map->data() + number_map->size(),
+                          graph->view().local_vertex_partition_range_first());
       }
 
       cugraph::edge_property_t<edge_t, weight_t>* edge_weights_property{nullptr};

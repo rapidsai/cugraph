@@ -7,6 +7,7 @@
 #include <cugraph/export.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
@@ -105,16 +106,16 @@ class edge_bucket_t {
       majors_.resize(1, handle_ptr_->get_stream());
       minors_.resize(1, handle_ptr_->get_stream());
       auto pair_first = thrust::make_zip_iterator(majors_.data(), minors_.data());
-      thrust::fill(handle_ptr_->get_thrust_policy(),
-                   pair_first,
-                   pair_first + 1,
-                   cuda::std::make_tuple(major, minor));
+      cugraph::fill(handle_ptr_->get_thrust_policy(),
+                    pair_first,
+                    pair_first + 1,
+                    cuda::std::make_tuple(major, minor));
       if (multi_edge_index) {
         multi_edge_indices_->resize(1, handle_ptr_->get_stream());
-        thrust::fill(handle_ptr_->get_thrust_policy(),
-                     multi_edge_indices_->begin(),
-                     multi_edge_indices_->begin() + 1,
-                     *multi_edge_index);
+        cugraph::fill(handle_ptr_->get_thrust_policy(),
+                      multi_edge_indices_->begin(),
+                      multi_edge_indices_->begin() + 1,
+                      *multi_edge_index);
       }
     }
   }
@@ -176,9 +177,9 @@ class edge_bucket_t {
                         merged_triplet_first);
           new_size = static_cast<size_t>(
             cuda::std::distance(merged_triplet_first,
-                                thrust::unique(handle_ptr_->get_thrust_policy(),
-                                               merged_triplet_first,
-                                               merged_triplet_first + merged_majors.size())));
+                                cugraph::unique(handle_ptr_->get_thrust_policy(),
+                                                merged_triplet_first,
+                                                merged_triplet_first + merged_majors.size())));
         } else {
           auto new_pair_first = thrust::make_zip_iterator(major_first, minor_first);
           auto old_pair_first = thrust::make_zip_iterator(majors_.begin(), minors_.begin());
@@ -192,9 +193,9 @@ class edge_bucket_t {
                         merged_pair_first);
           new_size = static_cast<size_t>(
             cuda::std::distance(merged_pair_first,
-                                thrust::unique(handle_ptr_->get_thrust_policy(),
-                                               merged_pair_first,
-                                               merged_pair_first + merged_majors.size())));
+                                cugraph::unique(handle_ptr_->get_thrust_policy(),
+                                                merged_pair_first,
+                                                merged_pair_first + merged_majors.size())));
         }
         merged_minors.resize(new_size, handle_ptr_->get_stream());
         merged_minors.resize(new_size, handle_ptr_->get_stream());

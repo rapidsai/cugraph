@@ -159,8 +159,7 @@ class Tests_MGTransformGatherE
                                     multi_edge_indices->begin(),
                                     cugraph::get_dataframe_buffer_begin(should_be_gathered_values));
         if (prims_usecase.use_sorted_unique_edgelist) {
-          cugraph::sort_wrapper(
-            handle_->get_thrust_policy(), tuple_first, tuple_first + srcs.size());
+          cugraph::sort(handle_->get_thrust_policy(), tuple_first, tuple_first + srcs.size());
         } else {
           thrust::shuffle(handle_->get_thrust_policy(),
                           tuple_first,
@@ -203,8 +202,7 @@ class Tests_MGTransformGatherE
                                     store_transposed ? srcs.begin() : dsts.begin(),
                                     cugraph::get_dataframe_buffer_begin(should_be_gathered_values));
         if (prims_usecase.use_sorted_unique_edgelist) {
-          cugraph::sort_wrapper(
-            handle_->get_thrust_policy(), tuple_first, tuple_first + srcs.size());
+          cugraph::sort(handle_->get_thrust_policy(), tuple_first, tuple_first + srcs.size());
         } else {
           thrust::shuffle(handle_->get_thrust_policy(),
                           tuple_first,

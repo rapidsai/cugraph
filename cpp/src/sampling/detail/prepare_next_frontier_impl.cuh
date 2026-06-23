@@ -199,8 +199,7 @@ prepare_next_frontier(
                           frontier_vertex_times->begin());
 
     } else {
-      cugraph::sort_wrapper(
-        handle.get_thrust_policy(), begin_iter, begin_iter + frontier_vertices.size());
+      cugraph::sort(handle.get_thrust_policy(), begin_iter, begin_iter + frontier_vertices.size());
     }
   } else {
     if (frontier_vertex_times) {
@@ -210,8 +209,7 @@ prepare_next_frontier(
                           frontier_vertex_times->begin());
 
     } else {
-      cugraph::sort_wrapper(
-        handle.get_thrust_policy(), frontier_vertices.begin(), frontier_vertices.end());
+      cugraph::sort(handle.get_thrust_policy(), frontier_vertices.begin(), frontier_vertices.end());
     }
   }
 
@@ -252,10 +250,10 @@ prepare_next_frontier(
       if (sampled_src_vertex_times) {
         auto begin_iter = thrust::make_zip_iterator(verts.begin(), labels->begin(), times->begin());
 
-        cugraph::sort_wrapper(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
+        cugraph::sort(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
 
         auto end_iter =
-          thrust::unique(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
+          cugraph::unique(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
 
         verts.resize(cuda::std::distance(begin_iter, end_iter), handle.get_stream());
         labels->resize(cuda::std::distance(begin_iter, end_iter), handle.get_stream());
@@ -263,10 +261,10 @@ prepare_next_frontier(
       } else {
         auto begin_iter = thrust::make_zip_iterator(verts.begin(), labels->begin());
 
-        cugraph::sort_wrapper(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
+        cugraph::sort(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
 
         auto end_iter =
-          thrust::unique(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
+          cugraph::unique(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
 
         verts.resize(cuda::std::distance(begin_iter, end_iter), handle.get_stream());
         labels->resize(cuda::std::distance(begin_iter, end_iter), handle.get_stream());
@@ -275,18 +273,18 @@ prepare_next_frontier(
       if (sampled_src_vertex_times) {
         auto begin_iter = thrust::make_zip_iterator(verts.begin(), times->begin());
 
-        cugraph::sort_wrapper(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
+        cugraph::sort(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
 
         auto end_iter =
-          thrust::unique(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
+          cugraph::unique(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
 
         verts.resize(cuda::std::distance(begin_iter, end_iter), handle.get_stream());
         times->resize(cuda::std::distance(begin_iter, end_iter), handle.get_stream());
 
       } else {
-        cugraph::sort_wrapper(handle.get_thrust_policy(), verts.begin(), verts.end());
+        cugraph::sort(handle.get_thrust_policy(), verts.begin(), verts.end());
 
-        auto end_iter = thrust::unique(handle.get_thrust_policy(), verts.begin(), verts.end());
+        auto end_iter = cugraph::unique(handle.get_thrust_policy(), verts.begin(), verts.end());
 
         verts.resize(cuda::std::distance(verts.begin(), end_iter), handle.get_stream());
       }
@@ -312,7 +310,7 @@ prepare_next_frontier(
                                                     frontier_vertex_labels->begin(),
                                                     frontier_vertex_times->begin());
 
-        auto new_end = thrust::unique(
+        auto new_end = cugraph::unique(
           handle.get_thrust_policy(), begin_iter, begin_iter + frontier_vertices.size());
 
         frontier_vertices.resize(cuda::std::distance(begin_iter, new_end), handle.get_stream());
@@ -325,7 +323,7 @@ prepare_next_frontier(
         auto begin_iter =
           thrust::make_zip_iterator(frontier_vertices.begin(), frontier_vertex_labels->begin());
 
-        auto new_end = thrust::unique(
+        auto new_end = cugraph::unique(
           handle.get_thrust_policy(), begin_iter, begin_iter + frontier_vertices.size());
 
         frontier_vertices.resize(cuda::std::distance(begin_iter, new_end), handle.get_stream());
@@ -337,7 +335,7 @@ prepare_next_frontier(
         auto begin_iter =
           thrust::make_zip_iterator(frontier_vertices.begin(), frontier_vertex_times->begin());
 
-        auto new_end = thrust::unique(
+        auto new_end = cugraph::unique(
           handle.get_thrust_policy(), begin_iter, begin_iter + frontier_vertices.size());
 
         frontier_vertices.resize(cuda::std::distance(begin_iter, new_end), handle.get_stream());
@@ -345,7 +343,7 @@ prepare_next_frontier(
                                       handle.get_stream());
 
       } else {
-        auto new_end = thrust::unique(
+        auto new_end = cugraph::unique(
           handle.get_thrust_policy(), frontier_vertices.begin(), frontier_vertices.end());
 
         frontier_vertices.resize(cuda::std::distance(frontier_vertices.begin(), new_end),

@@ -128,7 +128,7 @@ shuffle_local_edge_majors_to_local_gpu_by_vertex_partitioning(
   auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
 
   if (edge_major_properties.size() == 0) {
-    cugraph::sort_wrapper(handle.get_thrust_policy(), edge_majors.begin(), edge_majors.end());
+    cugraph::sort(handle.get_thrust_policy(), edge_majors.begin(), edge_majors.end());
   } else if (edge_major_properties.size() == 1) {
     cugraph::variant_type_dispatch(edge_major_properties[0], [&handle, &edge_majors](auto& prop) {
       thrust::sort_by_key(
@@ -136,7 +136,7 @@ shuffle_local_edge_majors_to_local_gpu_by_vertex_partitioning(
     });
   } else {
     rmm::device_uvector<size_t> property_positions(edge_majors.size(), handle.get_stream());
-    thrust::sequence(
+    cugraph::sequence(
       handle.get_thrust_policy(), property_positions.begin(), property_positions.end(), size_t{0});
     thrust::sort_by_key(handle.get_thrust_policy(),
                         edge_majors.begin(),
@@ -198,7 +198,7 @@ shuffle_local_edge_minors_to_local_gpu_by_vertex_partitioning(
   auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
 
   if (edge_minor_properties.size() == 0) {
-    cugraph::sort_wrapper(handle.get_thrust_policy(), edge_minors.begin(), edge_minors.end());
+    cugraph::sort(handle.get_thrust_policy(), edge_minors.begin(), edge_minors.end());
   } else if (edge_minor_properties.size() == 1) {
     cugraph::variant_type_dispatch(edge_minor_properties[0], [&handle, &edge_minors](auto& prop) {
       thrust::sort_by_key(
@@ -206,7 +206,7 @@ shuffle_local_edge_minors_to_local_gpu_by_vertex_partitioning(
     });
   } else {
     rmm::device_uvector<size_t> property_positions(edge_minors.size(), handle.get_stream());
-    thrust::sequence(
+    cugraph::sequence(
       handle.get_thrust_policy(), property_positions.begin(), property_positions.end(), size_t{0});
     thrust::sort_by_key(handle.get_thrust_policy(),
                         edge_minors.begin(),

@@ -12,6 +12,7 @@
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <cuda/std/tuple>
 #include <thrust/gather.h>
@@ -137,10 +138,10 @@ shuffle_vertices(raft::handle_t const& handle,
                              ? large_buffer_manager::allocate_memory_buffer<size_t>(
                                  vertices.size(), handle.get_stream())
                              : rmm::device_uvector<size_t>(vertices.size(), handle.get_stream());
-      thrust::sequence(handle.get_thrust_policy(),
-                       property_positions->begin(),
-                       property_positions->end(),
-                       size_t{0});
+      cugraph::sequence(handle.get_thrust_policy(),
+                        property_positions->begin(),
+                        property_positions->end(),
+                        size_t{0});
 
       d_tx_value_counts = cugraph::groupby_and_count(vertices.begin(),
                                                      vertices.end(),

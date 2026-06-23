@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -14,6 +14,7 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #ifdef TIMING
 #include <cugraph/utilities/high_res_timer.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 #endif
 
 #include <rmm/cuda_stream_view.hpp>
@@ -106,10 +107,10 @@ extract(raft::handle_t const& handle,
     // BFS with cutoff
     // consider adding a device API to BFS (ie. accept source on the device)
     bool direction_optimizing = false;
-    thrust::fill(rmm::exec_policy(worker_stream_view),
-                 reached[i].begin(),
-                 reached[i].end(),
-                 std::numeric_limits<vertex_t>::max());
+    cugraph::fill(rmm::exec_policy(worker_stream_view),
+                  reached[i].begin(),
+                  reached[i].end(),
+                  std::numeric_limits<vertex_t>::max());
 
     raft::device_span<vertex_t const> source{source_vertex.data() + i, 1};
 

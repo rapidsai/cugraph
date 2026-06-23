@@ -13,6 +13,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/sampling_functions.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 #include <cugraph/vertex_partition_view.hpp>
 
 #include <raft/core/handle.hpp>
@@ -569,8 +570,10 @@ neighbor_sample_impl(raft::handle_t const& handle,
     result_hops   = rmm::device_uvector<int32_t>(result_size, handle.get_stream());
     output_offset = 0;
     for (size_t i = 0; i < num_hops; ++i) {
-      scalar_fill(
-        handle, result_hops->data() + output_offset, result_sizes[i], static_cast<int32_t>(i));
+      cugraph::fill(handle.get_thrust_policy(),
+                    result_hops->data() + output_offset,
+                    (result_hops->data() + output_offset) + (result_sizes[i]),
+                    static_cast<int32_t>(i));
       output_offset += result_sizes[i];
     }
   }

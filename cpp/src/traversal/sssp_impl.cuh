@@ -16,6 +16,7 @@
 #include <cugraph/prims/update_v_frontier.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/util/cudart_utils.hpp>
@@ -98,7 +99,7 @@ std::tuple<size_t, size_t> compute_new_near_near_partition_range(
 
   rmm::device_uvector<vertex_t> d_counts(last_subpartition_idx - first_subpartition_idx,
                                          handle.get_stream());
-  thrust::fill(handle.get_thrust_policy(), d_counts.begin(), d_counts.end(), vertex_t{0});
+  cugraph::fill(handle.get_thrust_policy(), d_counts.begin(), d_counts.end(), vertex_t{0});
   std::vector<weight_t> h_thresholds(d_counts.size() - 1);
   for (size_t i = 0; i < h_thresholds.size(); ++i) {
     h_thresholds[i] = compute_subpartition_start(

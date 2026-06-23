@@ -18,10 +18,12 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/random/rng_state.hpp>
 
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 namespace cugraph {
 
@@ -91,10 +93,10 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
                  handle.get_stream());
 
     } else {
-      detail::sequence_fill(handle.get_stream(),
-                            dendrogram->current_level_begin(),
-                            dendrogram->current_level_size(),
-                            current_graph_view.local_vertex_partition_range_first());
+      cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                        dendrogram->current_level_begin(),
+                        dendrogram->current_level_begin() + dendrogram->current_level_size(),
+                        current_graph_view.local_vertex_partition_range_first());
     }
     //
     //  Compute the vertex and cluster weights, these are different for each
@@ -111,10 +113,10 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
     cluster_keys_v.resize(vertex_weights_v.size(), handle.get_stream());
     cluster_weights_v.resize(vertex_weights_v.size(), handle.get_stream());
 
-    detail::sequence_fill(handle.get_stream(),
-                          cluster_keys_v.begin(),
-                          cluster_keys_v.size(),
-                          current_graph_view.local_vertex_partition_range_first());
+    cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                      cluster_keys_v.begin(),
+                      cluster_keys_v.begin() + cluster_keys_v.size(),
+                      current_graph_view.local_vertex_partition_range_first());
 
     raft::copy(cluster_weights_v.begin(),
                vertex_weights_v.begin(),
@@ -293,10 +295,10 @@ void flatten_dendrogram(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.local_vertex_partition_range_size(),
                                              handle.get_stream());
 
-  detail::sequence_fill(handle.get_stream(),
-                        vertex_ids_v.begin(),
-                        vertex_ids_v.size(),
-                        graph_view.local_vertex_partition_range_first());
+  cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                    vertex_ids_v.begin(),
+                    vertex_ids_v.begin() + vertex_ids_v.size(),
+                    graph_view.local_vertex_partition_range_first());
 
   partition_at_level<vertex_t, multi_gpu>(
     handle, dendrogram, vertex_ids_v.data(), clustering, dendrogram.num_levels());

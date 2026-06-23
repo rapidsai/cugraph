@@ -9,6 +9,7 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -162,7 +163,7 @@ transpose_graph_storage_impl(raft::handle_t const& handle,
                            : std::make_optional<rmm::device_uvector<vertex_t>>(number_of_vertices,
                                                                                handle.get_stream());
   if (!renumber) {
-    thrust::sequence(
+    cugraph::sequence(
       handle.get_thrust_policy(), (*vertices).begin(), (*vertices).end(), vertex_t{0});
   }
 
