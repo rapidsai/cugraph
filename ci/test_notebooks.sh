@@ -20,9 +20,9 @@ rapids-dependency-file-generator \
   --output conda \
   --file-key test_notebooks \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch);py=${RAPIDS_PY_VERSION}" \
-  --prepend-channel "${LIBRAFT_CHANNEL}" \ 
-  --prepend-channel "${RAFT_CHANNEL}" \ 
-  --prepend-channel "${LIBCUVS_CHANNEL}" \ 
+  --prepend-channel "${LIBRAFT_CHANNEL}" \
+  --prepend-channel "${RAFT_CHANNEL}" \
+  --prepend-channel "${LIBCUVS_CHANNEL}" \
   --prepend-channel "${CPP_CHANNEL}" \
   --prepend-channel "${PYTHON_CHANNEL}" \
   | tee env.yaml
