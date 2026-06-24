@@ -11,6 +11,7 @@
 #include <cugraph/legacy/functions.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/util/cudart_utils.hpp>
 
@@ -287,7 +288,7 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
       (*d_edgelist_weights).data(), h_weights.data(), h_weights.size(), handle.get_stream());
   }
 
-  thrust::sequence(handle.get_thrust_policy(), d_vertices.begin(), d_vertices.end(), vertex_t{0});
+  cugraph::sequence(handle.get_thrust_policy(), d_vertices.begin(), d_vertices.end(), vertex_t{0});
 
   if (multi_gpu) {
     auto& comm                 = handle.get_comms();

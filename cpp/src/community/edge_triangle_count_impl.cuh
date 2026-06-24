@@ -172,7 +172,7 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
   }
 
   // Need to ensure that the vector has its values initialized to 0 before incrementing
-  thrust::fill(handle.get_thrust_policy(), num_triangles.begin(), num_triangles.end(), 0);
+  cugraph::fill(handle.get_thrust_policy(), num_triangles.begin(), num_triangles.end(), 0);
 
   for (size_t i = 0; i < num_chunks; ++i) {
     auto chunk_size = std::min(edges_to_intersect_per_iteration, num_remaining_edges);
@@ -228,16 +228,16 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
                                             intersection_indices.size()),
           edge_first});
 
-      cugraph::sort_wrapper(handle.get_thrust_policy(),
-                            get_dataframe_buffer_begin(vertex_pair_buffer_tmp),
-                            get_dataframe_buffer_end(vertex_pair_buffer_tmp));
+      cugraph::sort(handle.get_thrust_policy(),
+                    get_dataframe_buffer_begin(vertex_pair_buffer_tmp),
+                    get_dataframe_buffer_end(vertex_pair_buffer_tmp));
 
       rmm::device_uvector<edge_t> increase_count_tmp(2 * intersection_indices.size(),
                                                      handle.get_stream());
-      thrust::fill(handle.get_thrust_policy(),
-                   increase_count_tmp.begin(),
-                   increase_count_tmp.end(),
-                   size_t{1});
+      cugraph::fill(handle.get_thrust_policy(),
+                    increase_count_tmp.begin(),
+                    increase_count_tmp.end(),
+                    size_t{1});
 
       auto count_p_r_q_r = thrust::unique_count(handle.get_thrust_policy(),
                                                 get_dataframe_buffer_begin(vertex_pair_buffer_tmp),

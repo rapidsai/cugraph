@@ -201,7 +201,7 @@ class Tests_MGExtractTransformE
           false);
 
       if (handle_->get_comms().get_rank() == int{0}) {
-        cugraph::sort_wrapper(
+        cugraph::sort(
           handle_->get_thrust_policy(),
           cugraph::get_dataframe_buffer_begin(mg_aggregate_extract_transform_output_buffer),
           cugraph::get_dataframe_buffer_end(mg_aggregate_extract_transform_output_buffer));
@@ -216,10 +216,9 @@ class Tests_MGExtractTransformE
                                        cugraph::edge_dummy_property_t{}.view(),
                                        e_op_t<vertex_t, output_payload_t>{});
 
-        cugraph::sort_wrapper(
-          handle_->get_thrust_policy(),
-          cugraph::get_dataframe_buffer_begin(sg_extract_transform_output_buffer),
-          cugraph::get_dataframe_buffer_end(sg_extract_transform_output_buffer));
+        cugraph::sort(handle_->get_thrust_policy(),
+                      cugraph::get_dataframe_buffer_begin(sg_extract_transform_output_buffer),
+                      cugraph::get_dataframe_buffer_end(sg_extract_transform_output_buffer));
 
         bool e_op_result_passed = thrust::equal(
           handle_->get_thrust_policy(),

@@ -12,6 +12,7 @@
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -200,7 +201,7 @@ generate<GraphViewType, property_t>::unique_edge_property_per_type(
       graph_view.compute_number_of_edges(handle) <= std::numeric_limits<property_t>::max(),
       "std::numeric_limits<property_t>::max() is smaller than the number of edges.");
     rmm::device_uvector<property_t> counters(num_edge_types, handle.get_stream());
-    thrust::fill(handle.get_thrust_policy(), counters.begin(), counters.end(), property_t{0});
+    cugraph::fill(handle.get_thrust_policy(), counters.begin(), counters.end(), property_t{0});
     cugraph::transform_e(
       handle,
       graph_view,

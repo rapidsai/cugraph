@@ -27,6 +27,7 @@
 #include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/core/host_span.hpp>
@@ -1004,10 +1005,10 @@ void per_v_transform_reduce_e_edge_partition(
 
       if constexpr (update_major && !use_input_key) {  // this is necessary as we don't visit
                                                        // every vertex in the hypersparse segment
-        thrust::fill(rmm::exec_policy_nosync(exec_stream),
-                     output_buffer + (*key_segment_offsets)[3],
-                     output_buffer + (*key_segment_offsets)[4],
-                     major_init);
+        cugraph::fill(rmm::exec_policy_nosync(exec_stream),
+                      output_buffer + (*key_segment_offsets)[3],
+                      output_buffer + (*key_segment_offsets)[4],
+                      major_init);
       }
 
       auto segment_size = use_input_key
@@ -1331,15 +1332,15 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   if constexpr (update_major) {  // no vertices in the zero degree segment are visited (otherwise,
                                  // no need to initialize)
     if constexpr (use_input_key) {
-      thrust::fill(handle.get_thrust_policy(),
-                   vertex_value_output_first +
-                     cuda::std::distance(sorted_unique_key_first, sorted_unique_nzd_key_last),
-                   vertex_value_output_first +
-                     cuda::std::distance(sorted_unique_key_first, sorted_unique_key_last),
-                   init);
+      cugraph::fill(handle.get_thrust_policy(),
+                    vertex_value_output_first +
+                      cuda::std::distance(sorted_unique_key_first, sorted_unique_nzd_key_last),
+                    vertex_value_output_first +
+                      cuda::std::distance(sorted_unique_key_first, sorted_unique_key_last),
+                    init);
     } else {
       if (local_vertex_partition_segment_offsets) {
-        thrust::fill(
+        cugraph::fill(
           handle.get_thrust_policy(),
           vertex_value_output_first + *(local_vertex_partition_segment_offsets->rbegin() + 1),
           vertex_value_output_first + *(local_vertex_partition_segment_offsets->rbegin()),
@@ -1350,10 +1351,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     if constexpr (GraphViewType::is_multi_gpu) {
       /* no need to initialize (we use minor_tmp_buffer) */
     } else {
-      thrust::fill(handle.get_thrust_policy(),
-                   vertex_value_output_first,
-                   vertex_value_output_first + graph_view.local_vertex_partition_range_size(),
-                   init);
+      cugraph::fill(handle.get_thrust_policy(),
+                    vertex_value_output_first,
+                    vertex_value_output_first + graph_view.local_vertex_partition_range_size(),
+                    init);
     }
   }
 
@@ -2592,10 +2593,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                       counters.data() + j,
                       typecast_t<vertex_t, size_t>{});
                   } else {
-                    thrust::fill(rmm::exec_policy_nosync(loop_stream),
-                                 counters.data() + j,
-                                 counters.data() + (j + 1),
-                                 size_t{0});
+                    cugraph::fill(rmm::exec_policy_nosync(loop_stream),
+                                  counters.data() + j,
+                                  counters.data() + (j + 1),
+                                  size_t{0});
                   }
                 }
 
@@ -3096,7 +3097,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         }
         auto tx_values =
           allocate_dataframe_buffer<T>(tx_buf_size_per_rank * loop_count, handle.get_stream());
-        thrust::fill(
+        cugraph::fill(
           handle.get_thrust_policy(), counters.data(), counters.data() + loop_count, size_t{0});
         handle.sync_stream();
 
@@ -3308,7 +3309,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           rmm::device_uvector<uint32_t> bitmap(packed_bool_size(key_output_offset_range_size) +
                                                  packed_bool_size(size_dataframe_buffer(rx_values)),
                                                handle.get_stream());
-          thrust::fill(
+          cugraph::fill(
             handle.get_thrust_policy(), bitmap.begin(), bitmap.end(), packed_bool_empty_mask());
           raft::device_span<uint32_t> claimed_bitmap(
             bitmap.data(), packed_bool_size(key_output_offset_range_size));
@@ -3442,11 +3443,11 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         auto this_segment_vertex_partition_id =
           compute_local_edge_partition_minor_range_vertex_partition_id_t{
             major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
-        thrust::fill(handle.get_thrust_policy(),
-                     tx_buffer_first,
-                     tx_buffer_first +
-                       graph_view.vertex_partition_range_size(this_segment_vertex_partition_id),
-                     minor_init);
+        cugraph::fill(handle.get_thrust_policy(),
+                      tx_buffer_first,
+                      tx_buffer_first +
+                        graph_view.vertex_partition_range_size(this_segment_vertex_partition_id),
+                      minor_init);
         auto value_first = cuda::make_transform_iterator(
           view.minor_value_first(),
           cuda::proclaim_return_type<T>(

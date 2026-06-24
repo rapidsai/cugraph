@@ -17,6 +17,7 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 #include <cugraph/vertex_partition_view.hpp>
 
 #include <raft/core/device_span.hpp>
@@ -779,8 +780,10 @@ temporal_neighbor_sample_impl(
     result_hops   = rmm::device_uvector<int32_t>(result_size, handle.get_stream());
     output_offset = 0;
     for (size_t i = 0; i < result_vector_hops.size(); ++i) {
-      scalar_fill(
-        handle, result_hops->data() + output_offset, result_vector_sizes[i], result_vector_hops[i]);
+      cugraph::fill(handle.get_thrust_policy(),
+                    result_hops->data() + output_offset,
+                    (result_hops->data() + output_offset) + (result_vector_sizes[i]),
+                    result_vector_hops[i]);
       output_offset += result_vector_sizes[i];
     }
   }

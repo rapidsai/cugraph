@@ -14,11 +14,13 @@
 #include <cugraph/prims/transform_gather_e.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/core/host_span.hpp>
 
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 namespace cugraph {
 namespace detail {
@@ -72,14 +74,16 @@ gather_sampled_properties(
     std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
     original_positions.resize(majors.size(), handle.get_stream());
-    detail::sequence_fill(
-      handle.get_stream(), original_positions.data(), original_positions.size(), size_t{0});
+    cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                      original_positions.data(),
+                      original_positions.data() + original_positions.size(),
+                      size_t{0});
     edge_properties.push_back(std::move(original_positions));
     original_gpu_ids.resize(majors.size(), handle.get_stream());
-    detail::scalar_fill(handle.get_stream(),
-                        original_gpu_ids.data(),
-                        original_gpu_ids.size(),
-                        handle.get_comms().get_rank());
+    cugraph::fill(rmm::exec_policy(handle.get_stream()),
+                  original_gpu_ids.data(),
+                  (original_gpu_ids.data()) + (original_gpu_ids.size()),
+                  handle.get_comms().get_rank());
     edge_properties.push_back(std::move(original_gpu_ids));
 
     if (std::holds_alternative<rmm::device_uvector<edge_t>>(multi_index))
@@ -153,8 +157,10 @@ gather_sampled_properties(
     result_properties.pop_back();
 
     rmm::device_uvector<size_t> property_position(majors.size(), handle.get_stream());
-    detail::sequence_fill(
-      handle.get_stream(), property_position.data(), property_position.size(), size_t{0});
+    cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                      property_position.data(),
+                      property_position.data() + property_position.size(),
+                      size_t{0});
     thrust::sort_by_key(handle.get_thrust_policy(),
                         original_positions.begin(),
                         original_positions.end(),

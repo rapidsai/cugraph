@@ -14,6 +14,7 @@
 #include <cugraph/prims/reduce_v.cuh>
 #include <cugraph/prims/transform_reduce_v.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <cuda/iterator>
 #include <cuda/std/functional>
@@ -97,10 +98,10 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   } else {
     fill_edge_src_property(
       handle, graph_view, prev_src_hubs.mutable_view(), result_t{1.0} / num_vertices);
-    thrust::fill(handle.get_thrust_policy(),
-                 prev_hubs,
-                 prev_hubs + graph_view.local_vertex_partition_range_size(),
-                 result_t{1.0} / num_vertices);
+    cugraph::fill(handle.get_thrust_policy(),
+                  prev_hubs,
+                  prev_hubs + graph_view.local_vertex_partition_range_size(),
+                  result_t{1.0} / num_vertices);
   }
 
   size_t iter{0};

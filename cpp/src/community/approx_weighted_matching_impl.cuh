@@ -16,8 +16,11 @@
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/collect_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
+
+#include <rmm/exec_policy.hpp>
 
 #include <cuda/std/functional>
 #include <cuda/std/iterator>
@@ -66,18 +69,18 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
   rmm::device_uvector<vertex_t> partners(current_graph_view.local_vertex_partition_range_size(),
                                          handle.get_stream());
 
-  thrust::fill(handle.get_thrust_policy(), partners.begin(), partners.end(), invalid_partner);
-  thrust::fill(handle.get_thrust_policy(),
-               offers_from_partners.begin(),
-               offers_from_partners.end(),
-               weight_t{0.0});
+  cugraph::fill(handle.get_thrust_policy(), partners.begin(), partners.end(), invalid_partner);
+  cugraph::fill(handle.get_thrust_policy(),
+                offers_from_partners.begin(),
+                offers_from_partners.end(),
+                weight_t{0.0});
 
   rmm::device_uvector<vertex_t> local_vertices(
     current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-  detail::sequence_fill(handle.get_stream(),
-                        local_vertices.begin(),
-                        local_vertices.size(),
-                        current_graph_view.local_vertex_partition_range_first());
+  cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                    local_vertices.begin(),
+                    local_vertices.begin() + local_vertices.size(),
+                    current_graph_view.local_vertex_partition_range_first());
 
   cugraph::edge_src_property_t<vertex_t, vertex_t> src_key_cache(handle);
   cugraph::edge_src_property_t<vertex_t, bool> src_match_flags(handle);
@@ -231,7 +234,7 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
 
     rmm::device_uvector<bool> is_vertex_matched = rmm::device_uvector<bool>(
       current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-    thrust::fill(
+    cugraph::fill(
       handle.get_thrust_policy(), is_vertex_matched.begin(), is_vertex_matched.end(), bool{false});
 
     thrust::for_each(

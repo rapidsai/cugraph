@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -15,6 +15,9 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
+
+#include <rmm/exec_policy.hpp>
 
 #include <optional>
 
@@ -89,10 +92,10 @@ struct katz_functor : public cugraph::c_api::abstract_functor {
       if (betas_ != nullptr) {
         rmm::device_uvector<vertex_t> betas_vertex_ids(
           graph_view.local_vertex_partition_range_size(), handle_.get_stream());
-        cugraph::detail::sequence_fill(handle_.get_stream(),
-                                       betas_vertex_ids.data(),
-                                       betas_vertex_ids.size(),
-                                       graph_view.local_vertex_partition_range_first());
+        cugraph::sequence(rmm::exec_policy(handle_.get_stream()),
+                          betas_vertex_ids.data(),
+                          betas_vertex_ids.data() + betas_vertex_ids.size(),
+                          graph_view.local_vertex_partition_range_first());
 
         betas.resize(graph_view.local_vertex_partition_range_size(), handle_.get_stream());
 

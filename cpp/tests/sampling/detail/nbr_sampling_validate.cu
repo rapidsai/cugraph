@@ -115,9 +115,9 @@ bool validate_extracted_graph_is_subgraph(
     raft::copy(wgt_v.data(), wgt->data(), wgt->size(), handle.get_stream());
 
     auto graph_iter = thrust::make_zip_iterator(src_v.begin(), dst_v.begin(), wgt_v.begin());
-    cugraph::sort_wrapper(
+    cugraph::sort(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipLess{});
-    auto graph_iter_end = thrust::unique(
+    auto graph_iter_end = cugraph::unique(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipEqual{});
     auto new_size = cuda::std::distance(graph_iter, graph_iter_end);
 
@@ -137,9 +137,9 @@ bool validate_extracted_graph_is_subgraph(
                        });
   } else {
     auto graph_iter = thrust::make_zip_iterator(src_v.begin(), dst_v.begin());
-    cugraph::sort_wrapper(
+    cugraph::sort(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipLess{});
-    auto graph_iter_end = thrust::unique(
+    auto graph_iter_end = cugraph::unique(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipEqual{});
     auto new_size = cuda::std::distance(graph_iter, graph_iter_end);
 
@@ -229,7 +229,7 @@ bool validate_sampling_depth(raft::handle_t const& handle,
                                          graph_view.local_vertex_partition_range_last());
 
   rmm::device_uvector<vertex_t> d_distances(graph_view.number_of_vertices(), handle.get_stream());
-  thrust::fill(
+  cugraph::fill(
     handle.get_thrust_policy(), d_distances.begin(), d_distances.end(), vertex_t{max_depth + 1});
 
   rmm::device_uvector<vertex_t> d_local_distances(graph_view.number_of_vertices(),
@@ -310,9 +310,9 @@ bool validate_temporal_integrity(
   raft::copy(sorted_dsts.begin(), dsts.begin(), dsts.size(), handle.get_stream());
   raft::copy(sorted_dst_times.begin(), edge_times.begin(), edge_times.size(), handle.get_stream());
 
-  cugraph::sort_wrapper(handle.get_thrust_policy(),
-                        thrust::make_zip_iterator(sorted_dsts.begin(), sorted_dst_times.begin()),
-                        thrust::make_zip_iterator(sorted_dsts.end(), sorted_dst_times.end()));
+  cugraph::sort(handle.get_thrust_policy(),
+                thrust::make_zip_iterator(sorted_dsts.begin(), sorted_dst_times.begin()),
+                thrust::make_zip_iterator(sorted_dsts.end(), sorted_dst_times.end()));
 
   if ((temporal_sampling_comparison ==
        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING) ||

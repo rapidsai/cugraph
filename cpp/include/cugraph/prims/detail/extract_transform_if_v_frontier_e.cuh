@@ -843,9 +843,9 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
                  frontier_key_first,
                  frontier_key_last,
                  get_dataframe_buffer_begin(frontier_keys));
-    cugraph::sort_wrapper(handle.get_thrust_policy(),
-                          get_dataframe_buffer_begin(frontier_keys),
-                          get_dataframe_buffer_end(frontier_keys));
+    cugraph::sort(handle.get_thrust_policy(),
+                  get_dataframe_buffer_begin(frontier_keys),
+                  get_dataframe_buffer_end(frontier_keys));
     frontier_key_first = get_dataframe_buffer_begin(frontier_keys);
     frontier_key_last  = get_dataframe_buffer_end(frontier_keys);
   }
@@ -1626,7 +1626,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
       if (loop_stream_pool_indices) { RAFT_CUDA_TRY(cudaDeviceSynchronize()); }
     }
 
-    thrust::fill(
+    cugraph::fill(
       handle.get_thrust_policy(), counters.begin(), counters.begin() + loop_count, size_t{0});
     if (loop_stream_pool_indices) { handle.sync_stream(); }
 

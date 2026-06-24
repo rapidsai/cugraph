@@ -1076,11 +1076,11 @@ sample_unvisited_with_one_property(
 
       if (num_types == size_t{1}) {
         if (agg_labels) {
-          cugraph::sort_wrapper(handle.get_thrust_policy(),
-                                thrust::make_zip_iterator(agg_labels->begin(), agg_majors.begin()),
-                                thrust::make_zip_iterator(agg_labels->end(), agg_majors.end()));
+          cugraph::sort(handle.get_thrust_policy(),
+                        thrust::make_zip_iterator(agg_labels->begin(), agg_majors.begin()),
+                        thrust::make_zip_iterator(agg_labels->end(), agg_majors.end()));
         } else {
-          cugraph::sort_wrapper(handle.get_thrust_policy(), agg_majors.begin(), agg_majors.end());
+          cugraph::sort(handle.get_thrust_policy(), agg_majors.begin(), agg_majors.end());
         }
 
         rmm::device_uvector<size_t> agg_counts(agg_majors.size(), handle.get_stream());
@@ -1120,14 +1120,14 @@ sample_unvisited_with_one_property(
           std::get<rmm::device_uvector<edge_type_t>>(std::move(discarded_types));
 
         if (agg_labels) {
-          cugraph::sort_wrapper(
+          cugraph::sort(
             handle.get_thrust_policy(),
             thrust::make_zip_iterator(agg_labels->begin(), agg_majors.begin(), types.begin()),
             thrust::make_zip_iterator(agg_labels->end(), agg_majors.end(), types.end()));
         } else {
-          cugraph::sort_wrapper(handle.get_thrust_policy(),
-                                thrust::make_zip_iterator(agg_majors.begin(), types.begin()),
-                                thrust::make_zip_iterator(agg_majors.end(), types.end()));
+          cugraph::sort(handle.get_thrust_policy(),
+                        thrust::make_zip_iterator(agg_majors.begin(), types.begin()),
+                        thrust::make_zip_iterator(agg_majors.end(), types.end()));
         }
 
         rmm::device_uvector<size_t> kr_cnt(agg_majors.size(), handle.get_stream());

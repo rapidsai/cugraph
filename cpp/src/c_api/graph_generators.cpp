@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "c_api/array.hpp"
@@ -13,8 +13,11 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
+
+#include <rmm/exec_policy.hpp>
 
 namespace {
 
@@ -356,16 +359,20 @@ extern "C" cugraph_error_code_t cugraph_generate_edge_ids(const cugraph_resource
   if (num_edges < int32_threshold) {
     rmm::device_uvector<int32_t> tmp(local_coo->src_->size_, local_handle.get_stream());
 
-    cugraph::detail::sequence_fill(
-      local_handle.get_stream(), tmp.data(), tmp.size(), static_cast<int32_t>(base_edge_id));
+    cugraph::sequence(rmm::exec_policy(local_handle.get_stream()),
+                      tmp.data(),
+                      tmp.data() + tmp.size(),
+                      static_cast<int32_t>(base_edge_id));
 
     local_coo->id_ = std::make_unique<cugraph::c_api::cugraph_type_erased_device_array_t>(
       tmp, cugraph_data_type_id_t::INT32);
   } else {
     rmm::device_uvector<int64_t> tmp(local_coo->src_->size_, local_handle.get_stream());
 
-    cugraph::detail::sequence_fill(
-      local_handle.get_stream(), tmp.data(), tmp.size(), static_cast<int64_t>(base_edge_id));
+    cugraph::sequence(rmm::exec_policy(local_handle.get_stream()),
+                      tmp.data(),
+                      tmp.data() + tmp.size(),
+                      static_cast<int64_t>(base_edge_id));
 
     local_coo->id_ = std::make_unique<cugraph::c_api::cugraph_type_erased_device_array_t>(
       tmp, cugraph_data_type_id_t::INT64);

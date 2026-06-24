@@ -13,6 +13,7 @@
 #include <cugraph/prims/transform_reduce_v.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -75,10 +76,10 @@ void katz_centrality(
   // 2. initialize katz centrality values
 
   if (!has_initial_guess) {
-    thrust::fill(handle.get_thrust_policy(),
-                 katz_centralities,
-                 katz_centralities + pull_graph_view.local_vertex_partition_range_size(),
-                 result_t{0.0});
+    cugraph::fill(handle.get_thrust_policy(),
+                  katz_centralities,
+                  katz_centralities + pull_graph_view.local_vertex_partition_range_size(),
+                  result_t{0.0});
   }
 
   // 3. katz centrality iteration

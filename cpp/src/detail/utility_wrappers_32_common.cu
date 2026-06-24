@@ -21,7 +21,6 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/remove.h>
-#include <thrust/sequence.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
@@ -43,34 +42,6 @@ template CUGRAPH_EXPORT void uniform_random_fill(rmm::cuda_stream_view const& st
                                                  float max_value,
                                                  raft::random::RngState& rng_state);
 
-template CUGRAPH_EXPORT void scalar_fill(raft::handle_t const& handle,
-                                         int32_t* d_value,
-                                         size_t size,
-                                         int32_t value);
-
-template CUGRAPH_EXPORT void scalar_fill(raft::handle_t const& handle,
-                                         size_t* d_value,
-                                         size_t size,
-                                         size_t value);
-
-template CUGRAPH_EXPORT void scalar_fill(raft::handle_t const& handle,
-                                         float* d_value,
-                                         size_t size,
-                                         float value);
-
-template CUGRAPH_EXPORT size_t unique_ints(raft::handle_t const& handle,
-                                           raft::device_span<int32_t> values);
-
-template CUGRAPH_EXPORT void sequence_fill(rmm::cuda_stream_view const& stream_view,
-                                           int32_t* d_value,
-                                           size_t size,
-                                           int32_t start_value);
-
-template CUGRAPH_EXPORT void sequence_fill(rmm::cuda_stream_view const& stream_view,
-                                           uint32_t* d_value,
-                                           size_t size,
-                                           uint32_t start_value);
-
 template CUGRAPH_EXPORT void transform_increment_ints(raft::device_span<int32_t> values,
                                                       int32_t value,
                                                       rmm::cuda_stream_view const& stream_view);
@@ -79,18 +50,6 @@ template CUGRAPH_EXPORT void transform_not_equal(raft::device_span<int32_t> valu
                                                  raft::device_span<bool> result,
                                                  int32_t compare,
                                                  rmm::cuda_stream_view const& stream_view);
-
-template CUGRAPH_EXPORT void stride_fill(rmm::cuda_stream_view const& stream_view,
-                                         int32_t* d_value,
-                                         size_t size,
-                                         int32_t start_value,
-                                         int32_t stride);
-
-template CUGRAPH_EXPORT void stride_fill(rmm::cuda_stream_view const& stream_view,
-                                         uint32_t* d_value,
-                                         size_t size,
-                                         uint32_t start_value,
-                                         uint32_t stride);
 
 template CUGRAPH_EXPORT int32_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
                                                           int32_t const* d_edgelist_srcs,
