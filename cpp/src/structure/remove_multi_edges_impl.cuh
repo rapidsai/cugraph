@@ -9,9 +9,7 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
-// FIXME: mem_frugal_partition should probably not be in shuffle_comm.hpp
-//        It's used here without any notion of shuffling
-#include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/groupby_and_count.cuh>
 #include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/device_span.hpp>
@@ -25,8 +23,12 @@
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
+#include <thrust/copy.h>
+#include <thrust/gather.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/partition.h>
 #include <thrust/sort.h>
+#include <thrust/transform.h>
 #include <thrust/unique.h>
 
 #include <cuco/hash_functions.cuh>

@@ -10,10 +10,9 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/mask_utils.cuh>
+#include <cugraph/utilities/mem_frugal_partition.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
-// FIXME: mem_frugal_partition should probably not be in shuffle_comm.cuh
 #include <cugraph/utilities/packed_bool_utils.hpp>
-#include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
