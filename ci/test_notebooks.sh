@@ -15,10 +15,14 @@ PYTHON_CHANNEL=$(rapids-download-from-github "$(rapids-artifact-name conda_pytho
 source ./ci/use_conda_packages_from_prs.sh
 
 rapids-logger "Generate notebook testing dependencies"
+source ./ci/use_conda_packages_from_prs.sh
 rapids-dependency-file-generator \
   --output conda \
   --file-key test_notebooks \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch);py=${RAPIDS_PY_VERSION}" \
+  --prepend-channel "${LIBRAFT_CHANNEL}" \ 
+  --prepend-channel "${RAFT_CHANNEL}" \ 
+  --prepend-channel "${LIBCUVS_CHANNEL}" \ 
   --prepend-channel "${CPP_CHANNEL}" \
   --prepend-channel "${PYTHON_CHANNEL}" \
   | tee env.yaml
