@@ -72,11 +72,11 @@ find_trees_from_2cores(
 
   rmm::device_uvector<vertex_t> parents(mg_graph_view.local_vertex_partition_range_size(),
                                         handle.get_stream());
-  thrust::fill(handle.get_thrust_policy(), parents.begin(), parents.end(), invalid_vertex);
+  cugraph::fill(handle.get_thrust_policy(), parents.begin(), parents.end(), invalid_vertex);
   std::optional<rmm::device_uvector<weight_t>> w_to_parents{std::nullopt};
   if (mg_edge_weight_view) {
     w_to_parents = rmm::device_uvector<weight_t>(parents.size(), handle.get_stream());
-    thrust::fill(
+    cugraph::fill(
       handle.get_thrust_policy(), w_to_parents->begin(), w_to_parents->end(), *invalid_distance);
   }
 
@@ -247,7 +247,7 @@ find_trees_from_2cores(
       weights = std::nullopt;
 
       auto new_reachable_vertices = std::move(srcs);
-      cugraph::sort_wrapper(
+      cugraph::sort(
         handle.get_thrust_policy(), new_reachable_vertices.begin(), new_reachable_vertices.end());
       fill_edge_src_property(handle,
                              tmp_graph_view,
@@ -508,7 +508,7 @@ extract_forest_pruned_graph_and_isolated_trees(
                  mg_isolated_trees_renumber_map.end(),
                  sorted_vertices.begin());
     rmm::device_uvector<vertex_t> indices(sorted_vertices.size(), handle.get_stream());
-    thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
+    cugraph::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
     thrust::sort_by_key(
       handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end(), indices.begin());
     mg_graph_to_isolated_trees_map.resize(mg_renumber_map.size(), handle.get_stream());
@@ -537,7 +537,7 @@ extract_forest_pruned_graph_and_isolated_trees(
                  mg_renumber_map.end(),
                  sorted_vertices.begin());
     indices.resize(sorted_vertices.size(), handle.get_stream());
-    thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
+    cugraph::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
     thrust::sort_by_key(
       handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end(), indices.begin());
     mg_isolated_trees_to_graph_map.resize(mg_isolated_trees_renumber_map.size(),
@@ -570,7 +570,7 @@ extract_forest_pruned_graph_and_isolated_trees(
                  mg_pruned_graph_renumber_map.end(),
                  sorted_vertices.begin());
     rmm::device_uvector<vertex_t> indices(sorted_vertices.size(), handle.get_stream());
-    thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
+    cugraph::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
     thrust::sort_by_key(
       handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end(), indices.begin());
     mg_graph_to_pruned_graph_map.resize(mg_renumber_map.size(), handle.get_stream());
@@ -599,7 +599,7 @@ extract_forest_pruned_graph_and_isolated_trees(
                  mg_renumber_map.end(),
                  sorted_vertices.begin());
     indices.resize(sorted_vertices.size(), handle.get_stream());
-    thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
+    cugraph::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
     thrust::sort_by_key(
       handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end(), indices.begin());
     mg_pruned_graph_to_graph_map.resize(mg_pruned_graph_renumber_map.size(), handle.get_stream());

@@ -211,10 +211,10 @@ void transform_reduce_minor_nbr_intersection_of_e_endpoints_by_v(
     // currently, nothing to do.
   }
 
-  thrust::fill(handle.get_thrust_policy(),
-               vertex_value_output_first,
-               vertex_value_output_first + graph_view.local_vertex_partition_range_size(),
-               init);
+  cugraph::fill(handle.get_thrust_policy(),
+                vertex_value_output_first,
+                vertex_value_output_first + graph_view.local_vertex_partition_range_size(),
+                init);
 
   auto edge_mask_view = graph_view.edge_mask_view();
 
@@ -300,7 +300,7 @@ void transform_reduce_minor_nbr_intersection_of_e_endpoints_by_v(
     for (size_t j = 0; j < h_chunk_sizes.size(); ++j) {
       auto this_chunk_size = h_chunk_sizes[j];
 
-      cugraph::sort_wrapper(
+      cugraph::sort(
         handle.get_thrust_policy(),
         chunk_vertex_pair_first,
         chunk_vertex_pair_first + this_chunk_size);  // detail::nbr_intersection() requires the

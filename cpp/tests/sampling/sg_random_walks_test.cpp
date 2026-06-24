@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -13,6 +13,9 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
+
+#include <rmm/exec_policy.hpp>
 
 #include <gtest/gtest.h>
 
@@ -134,7 +137,8 @@ class Tests_RandomWalks : public ::testing::TestWithParam<tuple_t> {
     edge_t max_length = 10;
     rmm::device_uvector<vertex_t> d_start(num_paths, handle.get_stream());
 
-    cugraph::detail::sequence_fill(handle.get_stream(), d_start.begin(), d_start.size(), 0);
+    cugraph::sequence(
+      rmm::exec_policy(handle.get_stream()), d_start.begin(), d_start.begin() + d_start.size(), 0);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

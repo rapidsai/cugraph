@@ -403,14 +403,14 @@ compute_unique_keys(raft::handle_t const& handle,
                  aggregate_local_frontier_key_first + local_frontier_offsets[i],
                  aggregate_local_frontier_key_first + local_frontier_offsets[i + 1],
                  get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i]);
-    cugraph::sort_wrapper(handle.get_thrust_policy(),
-                          get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
-                          get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i + 1]);
+    cugraph::sort(handle.get_thrust_policy(),
+                  get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
+                  get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i + 1]);
     local_frontier_unique_key_sizes[i] = cuda::std::distance(
       get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
-      thrust::unique(handle.get_thrust_policy(),
-                     get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
-                     get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i + 1]));
+      cugraph::unique(handle.get_thrust_policy(),
+                      get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
+                      get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i + 1]));
   }
   std::inclusive_scan(local_frontier_unique_key_sizes.begin(),
                       local_frontier_unique_key_sizes.end(),
@@ -2909,7 +2909,7 @@ shuffle_and_compute_local_nbr_values(
     rmm::device_uvector<size_t>(sample_local_nbr_values.size(), handle.get_stream());
 
   rmm::device_uvector<size_t> d_tx_counts(minor_comm_size, handle.get_stream());
-  thrust::fill(handle.get_thrust_policy(), d_tx_counts.begin(), d_tx_counts.end(), size_t{0});
+  cugraph::fill(handle.get_thrust_policy(), d_tx_counts.begin(), d_tx_counts.end(), size_t{0});
   auto input_pair_first = thrust::make_zip_iterator(
     sample_local_nbr_values.begin(),
     cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{0}), divider_t<size_t>{K}));
@@ -3018,7 +3018,7 @@ shuffle_and_compute_per_type_local_nbr_values(
     rmm::device_uvector<size_t>(sample_per_type_local_nbr_values.size(), handle.get_stream());
 
   rmm::device_uvector<size_t> d_tx_counts(minor_comm_size, handle.get_stream());
-  thrust::fill(handle.get_thrust_policy(), d_tx_counts.begin(), d_tx_counts.end(), size_t{0});
+  cugraph::fill(handle.get_thrust_policy(), d_tx_counts.begin(), d_tx_counts.end(), size_t{0});
   auto input_pair_first   = thrust::make_zip_iterator(sample_per_type_local_nbr_values.begin(),
                                                     thrust::make_counting_iterator(size_t{0}));
   auto output_tuple_first = thrust::make_zip_iterator(minor_comm_ranks.begin(),
@@ -5447,12 +5447,12 @@ heterogeneous_uniform_sample_and_compute_local_nbr_indices(
       rmm::device_uvector<size_t> aggregate_local_frontier_unique_key_indices(
         local_frontier_unique_key_offsets.back(), handle.get_stream());
       for (size_t i = 0; i < local_frontier_unique_key_offsets.size() - 1; ++i) {
-        thrust::sequence(handle.get_thrust_policy(),
-                         aggregate_local_frontier_unique_key_indices.begin() +
-                           local_frontier_unique_key_offsets[i],
-                         aggregate_local_frontier_unique_key_indices.begin() +
-                           local_frontier_unique_key_offsets[i + 1],
-                         size_t{0});
+        cugraph::sequence(handle.get_thrust_policy(),
+                          aggregate_local_frontier_unique_key_indices.begin() +
+                            local_frontier_unique_key_offsets[i],
+                          aggregate_local_frontier_unique_key_indices.begin() +
+                            local_frontier_unique_key_offsets[i + 1],
+                          size_t{0});
       }
 
       auto aggregate_local_frontier_unique_key_per_type_local_degrees =
@@ -5835,7 +5835,7 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
                                                             handle.get_stream());
       rmm::device_uvector<size_t> sequences(h_nbr_offsets[i + 1] - h_nbr_offsets[i],
                                             handle.get_stream());
-      thrust::sequence(handle.get_thrust_policy(), sequences.begin(), sequences.end(), size_t{0});
+      cugraph::sequence(handle.get_thrust_policy(), sequences.begin(), sequences.end(), size_t{0});
       rmm::device_uvector<size_t> segment_sorted_sequences(h_nbr_offsets[i + 1] - h_nbr_offsets[i],
                                                            handle.get_stream());
 
@@ -5912,12 +5912,12 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
       rmm::device_uvector<size_t> aggregate_local_frontier_unique_key_indices(
         local_frontier_unique_key_offsets.back(), handle.get_stream());
       for (size_t i = 0; i < local_frontier_unique_key_offsets.size() - 1; ++i) {
-        thrust::sequence(handle.get_thrust_policy(),
-                         aggregate_local_frontier_unique_key_indices.begin() +
-                           local_frontier_unique_key_offsets[i],
-                         aggregate_local_frontier_unique_key_indices.begin() +
-                           local_frontier_unique_key_offsets[i + 1],
-                         size_t{0});
+        cugraph::sequence(handle.get_thrust_policy(),
+                          aggregate_local_frontier_unique_key_indices.begin() +
+                            local_frontier_unique_key_offsets[i],
+                          aggregate_local_frontier_unique_key_indices.begin() +
+                            local_frontier_unique_key_offsets[i + 1],
+                          size_t{0});
       }
 
       auto aggregate_local_frontier_unique_key_per_type_local_degrees =

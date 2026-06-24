@@ -23,6 +23,8 @@
 
 #include <raft/core/handle.hpp>
 
+#include <rmm/exec_policy.hpp>
+
 #include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/tuple>
@@ -74,13 +76,12 @@ void expensive_check_edgelist(raft::handle_t const& handle,
     rmm::device_uvector<vertex_t> sorted_vertices((*vertices).size(), handle.get_stream());
     thrust::copy(
       handle.get_thrust_policy(), (*vertices).begin(), (*vertices).end(), sorted_vertices.begin());
-    cugraph::sort_wrapper(
-      handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end());
+    cugraph::sort(handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end());
     CUGRAPH_EXPECTS(static_cast<size_t>(cuda::std::distance(
                       sorted_vertices.begin(),
-                      thrust::unique(handle.get_thrust_policy(),
-                                     sorted_vertices.begin(),
-                                     sorted_vertices.end()))) == sorted_vertices.size(),
+                      cugraph::unique(handle.get_thrust_policy(),
+                                      sorted_vertices.begin(),
+                                      sorted_vertices.end()))) == sorted_vertices.size(),
                     "Invalid input argument: vertices should not have duplicates.");
     if (!renumber) {
       CUGRAPH_EXPECTS(static_cast<size_t>(thrust::count_if(
@@ -93,7 +94,8 @@ void expensive_check_edgelist(raft::handle_t const& handle,
                       "std::numeric_limits<vertex_t>::max()) if renumber is false.");
       assert(!multi_gpu);  // renumbering is required in multi-GPU
       rmm::device_uvector<vertex_t> sequences(sorted_vertices.size(), handle.get_stream());
-      thrust::sequence(handle.get_thrust_policy(), sequences.begin(), sequences.end(), vertex_t{0});
+      cugraph::sequence(
+        handle.get_thrust_policy(), sequences.begin(), sequences.end(), vertex_t{0});
       CUGRAPH_EXPECTS(thrust::equal(handle.get_thrust_policy(),
                                     sorted_vertices.begin(),
                                     sorted_vertices.end(),
@@ -192,8 +194,7 @@ void expensive_check_edgelist(raft::handle_t const& handle,
                           raft::host_span<size_t const>(recvcounts.data(), recvcounts.size()),
                           raft::host_span<size_t const>(displacements.data(), displacements.size()),
                           handle.get_stream());
-        cugraph::sort_wrapper(
-          handle.get_thrust_policy(), sorted_majors.begin(), sorted_majors.end());
+        cugraph::sort(handle.get_thrust_policy(), sorted_majors.begin(), sorted_majors.end());
       }
 
       rmm::device_uvector<vertex_t> sorted_minors(0, handle.get_stream());
@@ -214,8 +215,7 @@ void expensive_check_edgelist(raft::handle_t const& handle,
                           raft::host_span<size_t const>(recvcounts.data(), recvcounts.size()),
                           raft::host_span<size_t const>(displacements.data(), displacements.size()),
                           handle.get_stream());
-        cugraph::sort_wrapper(
-          handle.get_thrust_policy(), sorted_minors.begin(), sorted_minors.end());
+        cugraph::sort(handle.get_thrust_policy(), sorted_minors.begin(), sorted_minors.end());
       }
 
       auto edge_first = thrust::make_zip_iterator(edgelist_majors.begin(), edgelist_minors.begin());
@@ -237,8 +237,7 @@ void expensive_check_edgelist(raft::handle_t const& handle,
                    (*vertices).begin(),
                    (*vertices).end(),
                    sorted_vertices.begin());
-      cugraph::sort_wrapper(
-        handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end());
+      cugraph::sort(handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end());
       auto edge_first = thrust::make_zip_iterator(edgelist_majors.begin(), edgelist_minors.begin());
       CUGRAPH_EXPECTS(
         thrust::count_if(handle.get_thrust_policy(),
@@ -298,13 +297,12 @@ bool check_symmetric(raft::handle_t const& handle,
   if (org_srcs.size() != symmetrized_srcs.size()) { return false; }
 
   auto org_edge_first = thrust::make_zip_iterator(org_srcs.begin(), org_dsts.begin());
-  cugraph::sort_wrapper(
-    handle.get_thrust_policy(), org_edge_first, org_edge_first + org_srcs.size());
+  cugraph::sort(handle.get_thrust_policy(), org_edge_first, org_edge_first + org_srcs.size());
   auto symmetrized_edge_first =
     thrust::make_zip_iterator(symmetrized_srcs.begin(), symmetrized_dsts.begin());
-  cugraph::sort_wrapper(handle.get_thrust_policy(),
-                        symmetrized_edge_first,
-                        symmetrized_edge_first + symmetrized_srcs.size());
+  cugraph::sort(handle.get_thrust_policy(),
+                symmetrized_edge_first,
+                symmetrized_edge_first + symmetrized_srcs.size());
 
   return thrust::equal(handle.get_thrust_policy(),
                        org_edge_first,
@@ -325,9 +323,8 @@ bool check_no_parallel_edge(raft::handle_t const& handle,
     handle.get_thrust_policy(), edgelist_dsts.begin(), edgelist_dsts.end(), org_dsts.begin());
 
   auto org_edge_first = thrust::make_zip_iterator(org_srcs.begin(), org_dsts.begin());
-  cugraph::sort_wrapper(
-    handle.get_thrust_policy(), org_edge_first, org_edge_first + org_srcs.size());
-  return thrust::unique(
+  cugraph::sort(handle.get_thrust_policy(), org_edge_first, org_edge_first + org_srcs.size());
+  return cugraph::unique(
            handle.get_thrust_policy(), org_edge_first, org_edge_first + edgelist_srcs.size()) ==
          (org_edge_first + edgelist_srcs.size());
 }
@@ -601,8 +598,10 @@ create_graph_from_partitioned_edgelist(
                                       edge_partition_edgelist_srcs[i].size(), handle.get_stream())
                                   : rmm::device_uvector<edge_t>(
                                       edge_partition_edgelist_srcs[i].size(), handle.get_stream());
-      detail::sequence_fill(
-        handle.get_stream(), property_positions.data(), property_positions.size(), edge_t{0});
+      cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                        property_positions.data(),
+                        property_positions.data() + property_positions.size(),
+                        edge_t{0});
 
       std::tie(offsets, indices, property_positions, dcs_nzd_vertices) =
         detail::sort_and_compress_edgelist<vertex_t, edge_t, edge_t, store_transposed>(
@@ -678,8 +677,10 @@ create_graph_from_partitioned_edgelist(
           ? large_buffer_manager::allocate_memory_buffer<edge_t>(edge_partition_indices[i].size(),
                                                                  handle.get_stream())
           : rmm::device_uvector<edge_t>(edge_partition_indices[i].size(), handle.get_stream());
-      detail::sequence_fill(
-        handle.get_stream(), property_positions.data(), property_positions.size(), edge_t{0});
+      cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                        property_positions.data(),
+                        property_positions.data() + property_positions.size(),
+                        edge_t{0});
 
       detail::sort_adjacency_list(handle,
                                   raft::device_span<edge_t const>(edge_partition_offsets[i].data(),
@@ -1598,8 +1599,10 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
         ? large_buffer_manager::allocate_memory_buffer<edge_t>(edgelist_srcs.size(),
                                                                handle.get_stream())
         : rmm::device_uvector<edge_t>(edgelist_srcs.size(), handle.get_stream());
-    detail::sequence_fill(
-      handle.get_stream(), property_positions.data(), property_positions.size(), edge_t{0});
+    cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                      property_positions.data(),
+                      property_positions.data() + property_positions.size(),
+                      edge_t{0});
 
     std::tie(offsets, indices, property_positions, std::ignore) =
       detail::sort_and_compress_edgelist<vertex_t, edge_t, edge_t, store_transposed>(

@@ -761,13 +761,12 @@ nbr_intersection(raft::handle_t const& handle,
                      second_element_first + input_size,
                      unique_majors.begin());
 
-        cugraph::sort_wrapper(
-          handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end());
-        unique_majors.resize(
-          cuda::std::distance(
-            unique_majors.begin(),
-            thrust::unique(handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end())),
-          handle.get_stream());
+        cugraph::sort(handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end());
+        unique_majors.resize(cuda::std::distance(unique_majors.begin(),
+                                                 cugraph::unique(handle.get_thrust_policy(),
+                                                                 unique_majors.begin(),
+                                                                 unique_majors.end())),
+                             handle.get_stream());
 
         unique_majors.shrink_to_fit(handle.get_stream());
 
@@ -791,12 +790,11 @@ nbr_intersection(raft::handle_t const& handle,
             handle.get_stream());
           unique_majors = std::move(rx_unique_majors);
 
-          cugraph::sort_wrapper(
-            handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end());
+          cugraph::sort(handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end());
           unique_majors.resize(cuda::std::distance(unique_majors.begin(),
-                                                   thrust::unique(handle.get_thrust_policy(),
-                                                                  unique_majors.begin(),
-                                                                  unique_majors.end())),
+                                                   cugraph::unique(handle.get_thrust_policy(),
+                                                                   unique_majors.begin(),
+                                                                   unique_majors.end())),
                                handle.get_stream());
 
           unique_majors.shrink_to_fit(handle.get_stream());

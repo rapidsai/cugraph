@@ -110,11 +110,10 @@ groupby_e_and_coarsen_edgelist(rmm::device_uvector<vertex_t>&& edgelist_majors,
                            std::move(tmp_edgelist_minors),
                            std::move(tmp_edgelist_weights));
   } else {
-    cugraph::sort_wrapper(
-      rmm::exec_policy(stream_view), pair_first, pair_first + edgelist_majors.size());
+    cugraph::sort(rmm::exec_policy(stream_view), pair_first, pair_first + edgelist_majors.size());
     auto num_uniques = static_cast<size_t>(cuda::std::distance(
       pair_first,
-      thrust::unique(
+      cugraph::unique(
         rmm::exec_policy(stream_view), pair_first, pair_first + edgelist_majors.size())));
     edgelist_majors.resize(num_uniques, stream_view);
     edgelist_majors.shrink_to_fit(stream_view);
@@ -507,21 +506,21 @@ coarsen_graph(raft::handle_t const& handle,
                                               handle.get_stream());
   thrust::copy(
     handle.get_thrust_policy(), labels, labels + unique_labels.size(), unique_labels.begin());
-  cugraph::sort_wrapper(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
+  cugraph::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
   unique_labels.resize(
     cuda::std::distance(
       unique_labels.begin(),
-      thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end())),
+      cugraph::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end())),
     handle.get_stream());
 
   std::tie(unique_labels, std::ignore) = cugraph::shuffle_ext_vertices(
     handle, std::move(unique_labels), std::vector<cugraph::arithmetic_device_uvector_t>{});
 
-  cugraph::sort_wrapper(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
+  cugraph::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
   unique_labels.resize(
     cuda::std::distance(
       unique_labels.begin(),
-      thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end())),
+      cugraph::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end())),
     handle.get_stream());
 
   // 4. create a graph
@@ -668,11 +667,12 @@ coarsen_graph(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> vertices(graph_view.number_of_vertices(), handle.get_stream());
   if (renumber) {
     thrust::copy(handle.get_thrust_policy(), labels, labels + vertices.size(), vertices.begin());
-    cugraph::sort_wrapper(handle.get_thrust_policy(), vertices.begin(), vertices.end());
-    vertices.resize(cuda::std::distance(
-                      vertices.begin(),
-                      thrust::unique(handle.get_thrust_policy(), vertices.begin(), vertices.end())),
-                    handle.get_stream());
+    cugraph::sort(handle.get_thrust_policy(), vertices.begin(), vertices.end());
+    vertices.resize(
+      cuda::std::distance(
+        vertices.begin(),
+        cugraph::unique(handle.get_thrust_policy(), vertices.begin(), vertices.end())),
+      handle.get_stream());
   } else {
     vertex_t number_of_vertices = thrust::reduce(handle.get_thrust_policy(),
                                                  labels,
@@ -681,7 +681,7 @@ coarsen_graph(raft::handle_t const& handle,
                                                  cuda::maximum<vertex_t>{}) +
                                   1;
     vertices = rmm::device_uvector<vertex_t>(number_of_vertices, handle.get_stream());
-    thrust::sequence(handle.get_thrust_policy(), vertices.begin(), vertices.end(), vertex_t{0});
+    cugraph::sequence(handle.get_thrust_policy(), vertices.begin(), vertices.end(), vertex_t{0});
   }
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> coarsened_graph(handle);

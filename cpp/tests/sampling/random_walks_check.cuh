@@ -63,9 +63,9 @@ void random_walks_validate(
     rmm::device_uvector<int> failures(d_start.size() * max_length, handle.get_stream());
 
     if (d_wgt) {
-      cugraph::sort_wrapper(handle.get_thrust_policy(),
-                            thrust::make_zip_iterator(d_src.begin(), d_dst.begin(), d_wgt->begin()),
-                            thrust::make_zip_iterator(d_src.end(), d_dst.end(), d_wgt->end()));
+      cugraph::sort(handle.get_thrust_policy(),
+                    thrust::make_zip_iterator(d_src.begin(), d_dst.begin(), d_wgt->begin()),
+                    thrust::make_zip_iterator(d_src.end(), d_dst.end(), d_wgt->end()));
 
       thrust::transform(
         handle.get_thrust_policy(),
@@ -110,9 +110,9 @@ void random_walks_validate(
           return 0;
         });
     } else {
-      cugraph::sort_wrapper(handle.get_thrust_policy(),
-                            thrust::make_zip_iterator(d_src.begin(), d_dst.begin()),
-                            thrust::make_zip_iterator(d_src.end(), d_dst.end()));
+      cugraph::sort(handle.get_thrust_policy(),
+                    thrust::make_zip_iterator(d_src.begin(), d_dst.begin()),
+                    thrust::make_zip_iterator(d_src.end(), d_dst.end()));
 
       thrust::transform(
         handle.get_thrust_policy(),

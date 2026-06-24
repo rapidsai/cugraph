@@ -8,6 +8,7 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <cuda/functional>
 #include <cuda/iterator>
@@ -61,7 +62,7 @@ rmm::device_uvector<value_t> collect_local_vertex_values_from_ext_vertex_value_p
       [local_vertex_first] __device__(vertex_t v) { return v - local_vertex_first; }));
 
   d_local_values.resize(local_vertex_last - local_vertex_first, handle.get_stream());
-  thrust::fill(
+  cugraph::fill(
     handle.get_thrust_policy(), d_local_values.begin(), d_local_values.end(), default_value);
 
   thrust::scatter(handle.get_thrust_policy(),

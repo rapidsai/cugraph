@@ -1,10 +1,11 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/path_retrieval.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -66,7 +67,7 @@ void get_traversed_cost_impl(raft::handle_t const& handle,
   vertex_t* vtx_keys = vtx_keys_v.data();
   raft::copy(vtx_keys, vertices, num_vertices, stream);
 
-  thrust::sequence(handle.get_thrust_policy(), vtx_map, vtx_map + num_vertices);
+  cugraph::sequence(handle.get_thrust_policy(), vtx_map, vtx_map + num_vertices);
 
   thrust::stable_sort_by_key(
     handle.get_thrust_policy(), vtx_keys, vtx_keys + num_vertices, vtx_map);

@@ -61,10 +61,10 @@ namespace legacy {
 template <typename VT, typename ET, typename WT>
 void GraphViewBase<VT, ET, WT>::get_vertex_identifiers(VT* identifiers) const
 {
-  thrust::sequence(thrust::device,
-                   thrust::device_pointer_cast(identifiers),
-                   thrust::device_pointer_cast(identifiers + number_of_vertices),
-                   VT{0});
+  cugraph::sequence(thrust::device,
+                    thrust::device_pointer_cast(identifiers),
+                    thrust::device_pointer_cast(identifiers + number_of_vertices),
+                    VT{0});
   RAFT_CHECK_CUDA(nullptr);
 }
 
@@ -78,7 +78,7 @@ void GraphCompressedSparseBaseView<VT, ET, WT>::get_source_indices(VT* src_indic
   raft::device_span<VT> indices_span(src_indices, GraphViewBase<VT, ET, WT>::number_of_edges);
 
   if (indices_span.size() > 0) {
-    thrust::fill(rmm::exec_policy(stream_view), indices_span.begin(), indices_span.end(), VT{0});
+    cugraph::fill(rmm::exec_policy(stream_view), indices_span.begin(), indices_span.end(), VT{0});
 
     thrust::for_each(rmm::exec_policy(stream_view),
                      offsets + 1,

@@ -17,6 +17,7 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
@@ -464,10 +465,10 @@ T transform_reduce_e(raft::handle_t const& handle,
   property_op<T, cuda::std::plus> edge_property_add{};
 
   auto result_buffer = allocate_dataframe_buffer<T>(1, handle.get_stream());
-  thrust::fill(handle.get_thrust_policy(),
-               get_dataframe_buffer_begin(result_buffer),
-               get_dataframe_buffer_begin(result_buffer) + 1,
-               T{});
+  cugraph::fill(handle.get_thrust_policy(),
+                get_dataframe_buffer_begin(result_buffer),
+                get_dataframe_buffer_begin(result_buffer) + 1,
+                T{});
 
   auto edge_mask_view = graph_view.edge_mask_view();
 

@@ -12,6 +12,7 @@
 #include <raft/core/handle.hpp>
 
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <cuda/iterator>
 #include <cuda/std/tuple>
@@ -208,19 +209,18 @@ merge_lower_triangular(raft::handle_t const& handle,
   auto lower_triangular_edge_first = thrust::make_zip_iterator(lower_triangular_majors.begin(),
                                                                lower_triangular_minors.begin(),
                                                                lower_triangular_properties.begin());
-  cugraph::sort_wrapper(handle.get_thrust_policy(),
-                        lower_triangular_edge_first,
-                        lower_triangular_edge_first + lower_triangular_majors.size());
+  cugraph::sort(handle.get_thrust_policy(),
+                lower_triangular_edge_first,
+                lower_triangular_edge_first + lower_triangular_majors.size());
   auto upper_triangular_edge_first = thrust::make_zip_iterator(
     upper_triangular_majors.begin(),
     upper_triangular_minors.begin(),
     upper_triangular_properties
       .begin());  // do not flip here to use "lower_triangular = major > minor"
-  cugraph::sort_wrapper(
-    handle.get_thrust_policy(),
-    upper_triangular_edge_first,
-    upper_triangular_edge_first + upper_triangular_majors.size(),
-    compare_upper_triangular_edges_as_lower_triangular_t<vertex_t, property_t>{});
+  cugraph::sort(handle.get_thrust_policy(),
+                upper_triangular_edge_first,
+                upper_triangular_edge_first + upper_triangular_majors.size(),
+                compare_upper_triangular_edges_as_lower_triangular_t<vertex_t, property_t>{});
 
   merged_majors.resize(lower_triangular_majors.size() + upper_triangular_majors.size(),
                        handle.get_stream());
@@ -300,14 +300,14 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> merge_l
 
   auto lower_triangular_edge_first =
     thrust::make_zip_iterator(lower_triangular_majors.begin(), lower_triangular_minors.begin());
-  cugraph::sort_wrapper(handle.get_thrust_policy(),
-                        lower_triangular_edge_first,
-                        lower_triangular_edge_first + lower_triangular_majors.size());
+  cugraph::sort(handle.get_thrust_policy(),
+                lower_triangular_edge_first,
+                lower_triangular_edge_first + lower_triangular_majors.size());
   auto upper_triangular_edge_first = thrust::make_zip_iterator(
     upper_triangular_minors.begin(), upper_triangular_majors.begin());  // flip
-  cugraph::sort_wrapper(handle.get_thrust_policy(),
-                        upper_triangular_edge_first,
-                        upper_triangular_edge_first + upper_triangular_majors.size());
+  cugraph::sort(handle.get_thrust_policy(),
+                upper_triangular_edge_first,
+                upper_triangular_edge_first + upper_triangular_majors.size());
 
   merged_majors.resize(reciprocal
                          ? std::min(num_lower_triangular_edges, upper_triangular_majors.size())
@@ -496,8 +496,10 @@ symmetrize_edgelist(raft::handle_t const& handle,
     }
   } else {
     rmm::device_uvector<edge_t> property_position(edgelist_majors.size(), handle.get_stream());
-    detail::sequence_fill(
-      handle.get_stream(), property_position.data(), property_position.size(), edge_t{0});
+    cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                      property_position.data(),
+                      property_position.data() + property_position.size(),
+                      edge_t{0});
 
     auto edge_first = thrust::make_zip_iterator(
       edgelist_majors.begin(), edgelist_minors.begin(), property_position.begin());
@@ -841,8 +843,10 @@ symmetrize_edgelist(raft::handle_t const& handle,
   } else {
     rmm::device_uvector<edge_t> property_position(
       lower_triangular_majors.size() + upper_triangular_majors.size(), handle.get_stream());
-    detail::sequence_fill(
-      handle.get_stream(), property_position.data(), property_position.size(), edge_t{0});
+    cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                      property_position.data(),
+                      property_position.data() + property_position.size(),
+                      edge_t{0});
 
     std::tie(merged_lower_triangular_majors, merged_lower_triangular_minors, property_position) =
       merge_lower_triangular(handle,
