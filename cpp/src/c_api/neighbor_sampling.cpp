@@ -21,6 +21,7 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
+#include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>

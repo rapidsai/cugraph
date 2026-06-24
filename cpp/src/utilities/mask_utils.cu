@@ -22,14 +22,13 @@
 #include <cstdint>
 
 namespace cugraph {
-namespace detail {
 
-size_t count_set_bits(rmm::cuda_stream_view stream_view,
+size_t count_set_bits(rmm::exec_policy_nosync const& policy,
                       uint32_t const* mask_first,
                       size_t num_bits)
 {
   return thrust::transform_reduce(
-    rmm::exec_policy(stream_view),
+    policy,
     thrust::make_counting_iterator(size_t{0}),
     thrust::make_counting_iterator(packed_bool_size(num_bits)),
     cuda::proclaim_return_type<size_t>([mask_first, num_bits] __device__(size_t i) -> size_t {
@@ -43,10 +42,7 @@ size_t count_set_bits(rmm::cuda_stream_view stream_view,
     cuda::std::plus<size_t>{});
 }
 
-size_t count_set_bits(raft::handle_t const& handle, uint32_t const* mask_first, size_t num_bits)
-{
-  return count_set_bits(handle.get_stream(), mask_first, num_bits);
-}
+namespace detail {
 
 template <typename InputIterator, typename OutputIterator>
 OutputIterator copy_if_mask_set_impl(raft::handle_t const& handle,

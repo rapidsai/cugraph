@@ -16,7 +16,9 @@
 
 #include <cuda/std/iterator>
 #include <thrust/binary_search.h>
+#include <thrust/count.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/unique.h>
 
 namespace {
 

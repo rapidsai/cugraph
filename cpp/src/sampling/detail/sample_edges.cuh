@@ -855,7 +855,7 @@ sample_unvisited_with_one_property(
           random_numbers.resize(0, handle.get_stream());
           random_numbers.shrink_to_fit(handle.get_stream());
 
-          std::tie(keep_count, keep_flags) = detail::mark_entries(
+          std::tie(keep_count, keep_flags) = mark_entries(
             majors.size(),
             cuda::proclaim_return_type<bool>(
               [majors_size             = majors.size(),
@@ -900,7 +900,7 @@ sample_unvisited_with_one_property(
           random_numbers.resize(0, handle.get_stream());
           random_numbers.shrink_to_fit(handle.get_stream());
 
-          std::tie(keep_count, keep_flags) = detail::mark_entries(
+          std::tie(keep_count, keep_flags) = mark_entries(
             majors.size(),
             cuda::proclaim_return_type<bool>(
               [majors_size             = majors.size(),
@@ -944,7 +944,7 @@ sample_unvisited_with_one_property(
           random_numbers.resize(0, handle.get_stream());
           random_numbers.shrink_to_fit(handle.get_stream());
 
-          std::tie(keep_count, keep_flags) = detail::mark_entries(
+          std::tie(keep_count, keep_flags) = mark_entries(
             majors.size(),
             cuda::proclaim_return_type<bool>(
               [majors_size             = majors.size(),
@@ -986,7 +986,7 @@ sample_unvisited_with_one_property(
           random_numbers.resize(0, handle.get_stream());
           random_numbers.shrink_to_fit(handle.get_stream());
 
-          std::tie(keep_count, keep_flags) = detail::mark_entries(
+          std::tie(keep_count, keep_flags) = mark_entries(
             majors.size(),
             cuda::proclaim_return_type<bool>(
               [majors_size             = majors.size(),
@@ -1017,20 +1017,20 @@ sample_unvisited_with_one_property(
       }
 
       raft::device_span<uint32_t const> const keep_mask{keep_flags.data(), keep_flags.size()};
-      majors = detail::keep_marked_entries(handle, std::move(majors), keep_mask, keep_count);
-      minors = detail::keep_marked_entries(handle, std::move(minors), keep_mask, keep_count);
+      majors = keep_marked_entries(handle, std::move(majors), keep_mask, keep_count);
+      minors = keep_marked_entries(handle, std::move(minors), keep_mask, keep_count);
       if (carryover_frontier_types) {
-        types = arithmetic_device_uvector_t{detail::keep_marked_entries(
+        types = arithmetic_device_uvector_t{keep_marked_entries(
           handle, std::move(std::get<rmm::device_uvector<int32_t>>(types)), keep_mask, keep_count)};
       }
       if (!std::holds_alternative<std::monostate>(prop)) {
         prop = cugraph::variant_type_dispatch(prop, [&](auto& index_vec) {
           return arithmetic_device_uvector_t{
-            detail::keep_marked_entries(handle, std::move(index_vec), keep_mask, keep_count)};
+            keep_marked_entries(handle, std::move(index_vec), keep_mask, keep_count)};
         });
       }
       if (labels) {
-        *labels = detail::keep_marked_entries(handle, std::move(*labels), keep_mask, keep_count);
+        *labels = keep_marked_entries(handle, std::move(*labels), keep_mask, keep_count);
       }
 
       sampled_majors   = std::move(majors);

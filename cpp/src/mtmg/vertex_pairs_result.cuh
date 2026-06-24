@@ -18,6 +18,7 @@
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/gather.h>
+#include <thrust/remove.h>
 
 namespace cugraph {
 namespace mtmg {
