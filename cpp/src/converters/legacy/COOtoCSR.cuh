@@ -97,7 +97,7 @@ void fill_offset(VT* source,
                  ET number_of_edges,
                  rmm::cuda_stream_view stream_view)
 {
-  thrust::fill(
+  cugraph::fill(
     rmm::exec_policy(stream_view), offsets, offsets + number_of_vertices + 1, number_of_edges);
   thrust::for_each(rmm::exec_policy(stream_view),
                    thrust::make_counting_iterator<ET>(1),

@@ -676,9 +676,9 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
             handle.get_thrust_policy(), tmp_majors.begin(), tmp_majors.end(), majors.begin());
 
           auto pair_first = thrust::make_zip_iterator(minor_comm_ranks.begin(), majors.begin());
-          cugraph::sort_wrapper(
+          cugraph::sort(
             handle.get_thrust_policy(), pair_first, pair_first + minor_comm_ranks.size());
-          auto unique_pair_last = thrust::unique(
+          auto unique_pair_last = cugraph::unique(
             handle.get_thrust_policy(), pair_first, pair_first + minor_comm_ranks.size());
           minor_comm_ranks.resize(cuda::std::distance(pair_first, unique_pair_last),
                                   handle.get_stream());
@@ -884,18 +884,18 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                                          int{1},
                                          handle.get_stream());
 
-          cugraph::sort_wrapper(handle.get_thrust_policy(), key_pair_first, second_first);
+          cugraph::sort(handle.get_thrust_policy(), key_pair_first, second_first);
 
-          cugraph::sort_wrapper(
+          cugraph::sort(
             handle.get_thrust_policy(), second_first, key_pair_first + rx_majors.size());
         } else {
-          cugraph::sort_wrapper(
+          cugraph::sort(
             handle.get_thrust_policy(), key_pair_first, key_pair_first + rx_majors.size());
         }
 
         auto num_uniques = cuda::std::distance(
           key_pair_first,
-          thrust::unique(
+          cugraph::unique(
             handle.get_thrust_policy(), key_pair_first, key_pair_first + rx_majors.size()));
         tmp_majors.resize(num_uniques, handle.get_stream());
         tmp_minor_keys.resize(tmp_majors.size(), handle.get_stream());
@@ -921,12 +921,11 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                    tmp_minor_keys.begin(),
                    tmp_minor_keys.end(),
                    unique_minor_keys.begin());
-      cugraph::sort_wrapper(
-        handle.get_thrust_policy(), unique_minor_keys.begin(), unique_minor_keys.end());
+      cugraph::sort(handle.get_thrust_policy(), unique_minor_keys.begin(), unique_minor_keys.end());
       unique_minor_keys.resize(cuda::std::distance(unique_minor_keys.begin(),
-                                                   thrust::unique(handle.get_thrust_policy(),
-                                                                  unique_minor_keys.begin(),
-                                                                  unique_minor_keys.end())),
+                                                   cugraph::unique(handle.get_thrust_policy(),
+                                                                   unique_minor_keys.begin(),
+                                                                   unique_minor_keys.end())),
                                handle.get_stream());
       unique_minor_keys.shrink_to_fit(handle.get_stream());
 
@@ -1100,10 +1099,10 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
 
   // 2. update final results
 
-  thrust::fill(handle.get_thrust_policy(),
-               vertex_value_output_first,
-               vertex_value_output_first + graph_view.local_vertex_partition_range_size(),
-               init);
+  cugraph::fill(handle.get_thrust_policy(),
+                vertex_value_output_first,
+                vertex_value_output_first + graph_view.local_vertex_partition_range_size(),
+                init);
 
   auto pair_first =
     thrust::make_zip_iterator(majors.begin(), get_dataframe_buffer_begin(e_op_result_buffer));

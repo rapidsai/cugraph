@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -8,6 +8,7 @@
 #include "utilities/conversion_utilities.hpp"
 
 #include <cugraph/graph_generators.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <cuda/std/tuple>
 #include <thrust/execution_policy.h>
@@ -62,12 +63,12 @@ TEST_F(GeneratorsTest, Mesh2DGraphTest)
   auto actual_src_v = cugraph::test::to_host(handle, src_v);
   auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
-  thrust::sort(thrust::host,
-               thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()),
-               thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()) +
-                 expected_src_v.size());
+  cugraph::sort(thrust::host,
+                thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()),
+                thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()) +
+                  expected_src_v.size());
 
-  thrust::sort(
+  cugraph::sort(
     thrust::host,
     thrust::make_zip_iterator(actual_src_v.begin(), actual_dst_v.begin()),
     thrust::make_zip_iterator(actual_src_v.begin(), actual_dst_v.begin()) + actual_src_v.size());
@@ -111,12 +112,12 @@ TEST_F(GeneratorsTest, Mesh3DGraphTest)
   auto actual_src_v = cugraph::test::to_host(handle, src_v);
   auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
-  thrust::sort(thrust::host,
-               thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()),
-               thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()) +
-                 expected_src_v.size());
+  cugraph::sort(thrust::host,
+                thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()),
+                thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()) +
+                  expected_src_v.size());
 
-  thrust::sort(
+  cugraph::sort(
     thrust::host,
     thrust::make_zip_iterator(actual_src_v.begin(), actual_dst_v.begin()),
     thrust::make_zip_iterator(actual_src_v.begin(), actual_dst_v.begin()) + actual_src_v.size());
@@ -144,12 +145,12 @@ TEST_F(GeneratorsTest, CompleteGraphTestTriangles)
   auto actual_src_v = cugraph::test::to_host(handle, src_v);
   auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
-  thrust::sort(thrust::host,
-               thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()),
-               thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()) +
-                 expected_src_v.size());
+  cugraph::sort(thrust::host,
+                thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()),
+                thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()) +
+                  expected_src_v.size());
 
-  thrust::sort(
+  cugraph::sort(
     thrust::host,
     thrust::make_zip_iterator(actual_src_v.begin(), actual_dst_v.begin()),
     thrust::make_zip_iterator(actual_src_v.begin(), actual_dst_v.begin()) + actual_src_v.size());
@@ -181,12 +182,12 @@ TEST_F(GeneratorsTest, CompleteGraphTest5)
   auto actual_src_v = cugraph::test::to_host(handle, src_v);
   auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
-  thrust::sort(thrust::host,
-               thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()),
-               thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()) +
-                 expected_src_v.size());
+  cugraph::sort(thrust::host,
+                thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()),
+                thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()) +
+                  expected_src_v.size());
 
-  thrust::sort(
+  cugraph::sort(
     thrust::host,
     thrust::make_zip_iterator(actual_src_v.begin(), actual_dst_v.begin()),
     thrust::make_zip_iterator(actual_src_v.begin(), actual_dst_v.begin()) + actual_src_v.size());
@@ -218,12 +219,12 @@ TEST_F(GeneratorsTest, LineGraphTestSymmetric)
   auto actual_src_v = cugraph::test::to_host(handle, src_v);
   auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
-  thrust::sort(thrust::host,
-               thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()),
-               thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()) +
-                 expected_src_v.size());
+  cugraph::sort(thrust::host,
+                thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()),
+                thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()) +
+                  expected_src_v.size());
 
-  thrust::sort(
+  cugraph::sort(
     thrust::host,
     thrust::make_zip_iterator(actual_src_v.begin(), actual_dst_v.begin()),
     thrust::make_zip_iterator(actual_src_v.begin(), actual_dst_v.begin()) + actual_src_v.size());
@@ -265,12 +266,12 @@ TEST_F(GeneratorsTest, Mesh2DGraphTestSymmetric)
   auto actual_src_v = cugraph::test::to_host(handle, src_v);
   auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
-  thrust::sort(thrust::host,
-               thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()),
-               thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()) +
-                 expected_src_v.size());
+  cugraph::sort(thrust::host,
+                thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()),
+                thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()) +
+                  expected_src_v.size());
 
-  thrust::sort(
+  cugraph::sort(
     thrust::host,
     thrust::make_zip_iterator(actual_src_v.begin(), actual_dst_v.begin()),
     thrust::make_zip_iterator(actual_src_v.begin(), actual_dst_v.begin()) + actual_src_v.size());
@@ -336,12 +337,12 @@ TEST_F(GeneratorsTest, Mesh3DGraphTestSymmetric)
   auto actual_src_v = cugraph::test::to_host(handle, src_v);
   auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
-  thrust::sort(thrust::host,
-               thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()),
-               thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()) +
-                 expected_src_v.size());
+  cugraph::sort(thrust::host,
+                thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()),
+                thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()) +
+                  expected_src_v.size());
 
-  thrust::sort(
+  cugraph::sort(
     thrust::host,
     thrust::make_zip_iterator(actual_src_v.begin(), actual_dst_v.begin()),
     thrust::make_zip_iterator(actual_src_v.begin(), actual_dst_v.begin()) + actual_src_v.size());
@@ -375,12 +376,12 @@ TEST_F(GeneratorsTest, CompleteGraphTestTrianglesSymmetric)
   auto actual_src_v = cugraph::test::to_host(handle, src_v);
   auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
-  thrust::sort(thrust::host,
-               thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()),
-               thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()) +
-                 expected_src_v.size());
+  cugraph::sort(thrust::host,
+                thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()),
+                thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()) +
+                  expected_src_v.size());
 
-  thrust::sort(
+  cugraph::sort(
     thrust::host,
     thrust::make_zip_iterator(actual_src_v.begin(), actual_dst_v.begin()),
     thrust::make_zip_iterator(actual_src_v.begin(), actual_dst_v.begin()) + actual_src_v.size());
@@ -420,12 +421,12 @@ TEST_F(GeneratorsTest, CompleteGraphTest5Symmetric)
   auto actual_src_v = cugraph::test::to_host(handle, src_v);
   auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
-  thrust::sort(thrust::host,
-               thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()),
-               thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()) +
-                 expected_src_v.size());
+  cugraph::sort(thrust::host,
+                thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()),
+                thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()) +
+                  expected_src_v.size());
 
-  thrust::sort(
+  cugraph::sort(
     thrust::host,
     thrust::make_zip_iterator(actual_src_v.begin(), actual_dst_v.begin()),
     thrust::make_zip_iterator(actual_src_v.begin(), actual_dst_v.begin()) + actual_src_v.size());
@@ -478,12 +479,12 @@ TEST_F(GeneratorsTest, CombineGraphsTest)
   auto actual_src_v = cugraph::test::to_host(handle, src_v);
   auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
-  thrust::sort(thrust::host,
-               thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()),
-               thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()) +
-                 expected_src_v.size());
+  cugraph::sort(thrust::host,
+                thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()),
+                thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()) +
+                  expected_src_v.size());
 
-  thrust::sort(
+  cugraph::sort(
     thrust::host,
     thrust::make_zip_iterator(actual_src_v.begin(), actual_dst_v.begin()),
     thrust::make_zip_iterator(actual_src_v.begin(), actual_dst_v.begin()) + actual_src_v.size());
@@ -539,12 +540,12 @@ TEST_F(GeneratorsTest, CombineGraphsOffsetsTest)
   auto actual_src_v = cugraph::test::to_host(handle, src_v);
   auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
-  thrust::sort(thrust::host,
-               thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()),
-               thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()) +
-                 expected_src_v.size());
+  cugraph::sort(thrust::host,
+                thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()),
+                thrust::make_zip_iterator(expected_src_v.begin(), expected_dst_v.begin()) +
+                  expected_src_v.size());
 
-  thrust::sort(
+  cugraph::sort(
     thrust::host,
     thrust::make_zip_iterator(actual_src_v.begin(), actual_dst_v.begin()),
     thrust::make_zip_iterator(actual_src_v.begin(), actual_dst_v.begin()) + actual_src_v.size());

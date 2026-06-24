@@ -14,6 +14,9 @@
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
+
+#include <rmm/exec_policy.hpp>
 
 #include <cuda/std/tuple>
 #include <thrust/gather.h>
@@ -147,8 +150,10 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
                                    large_buffer_type);
     } else {
       rmm::device_uvector<size_t> property_position(majors.size(), handle.get_stream());
-      detail::sequence_fill(
-        handle.get_stream(), property_position.data(), property_position.size(), size_t{0});
+      cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                        property_position.data(),
+                        property_position.data() + property_position.size(),
+                        size_t{0});
 
       d_tx_value_counts = cugraph::groupby_and_count(
         thrust::make_zip_iterator(majors.begin(), minors.begin(), property_position.begin()),

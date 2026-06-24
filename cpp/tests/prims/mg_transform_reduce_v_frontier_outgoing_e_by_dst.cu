@@ -149,10 +149,10 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
     auto mg_key_buffer = cugraph::allocate_dataframe_buffer<key_t>(
       mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
     if constexpr (std::is_same_v<tag_t, void>) {
-      thrust::sequence(handle_->get_thrust_policy(),
-                       cugraph::get_dataframe_buffer_begin(mg_key_buffer),
-                       cugraph::get_dataframe_buffer_end(mg_key_buffer),
-                       mg_graph_view.local_vertex_partition_range_first());
+      cugraph::sequence(handle_->get_thrust_policy(),
+                        cugraph::get_dataframe_buffer_begin(mg_key_buffer),
+                        cugraph::get_dataframe_buffer_end(mg_key_buffer),
+                        mg_graph_view.local_vertex_partition_range_first());
     } else {
       thrust::tabulate(handle_->get_thrust_policy(),
                        cugraph::get_dataframe_buffer_begin(mg_key_buffer),
@@ -287,7 +287,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
 
       if (handle_->get_comms().get_rank() == int{0}) {
         if constexpr (std::is_same_v<payload_t, void>) {
-          cugraph::sort_wrapper(
+          cugraph::sort(
             handle_->get_thrust_policy(),
             cugraph::get_dataframe_buffer_begin(mg_reduce_by_dst_aggregate_new_frontier_key_buffer),
             cugraph::get_dataframe_buffer_end(mg_reduce_by_dst_aggregate_new_frontier_key_buffer));
@@ -304,10 +304,10 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
         auto sg_key_buffer = cugraph::allocate_dataframe_buffer<key_t>(
           sg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
         if constexpr (std::is_same_v<tag_t, void>) {
-          thrust::sequence(handle_->get_thrust_policy(),
-                           cugraph::get_dataframe_buffer_begin(sg_key_buffer),
-                           cugraph::get_dataframe_buffer_end(sg_key_buffer),
-                           sg_graph_view.local_vertex_partition_range_first());
+          cugraph::sequence(handle_->get_thrust_policy(),
+                            cugraph::get_dataframe_buffer_begin(sg_key_buffer),
+                            cugraph::get_dataframe_buffer_end(sg_key_buffer),
+                            sg_graph_view.local_vertex_partition_range_first());
         } else {
           thrust::tabulate(handle_->get_thrust_policy(),
                            cugraph::get_dataframe_buffer_begin(sg_key_buffer),
@@ -354,7 +354,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
         }
 
         if constexpr (std::is_same_v<payload_t, void>) {
-          cugraph::sort_wrapper(
+          cugraph::sort(
             handle_->get_thrust_policy(),
             cugraph::get_dataframe_buffer_begin(sg_reduce_by_dst_new_frontier_key_buffer),
             cugraph::get_dataframe_buffer_end(sg_reduce_by_dst_new_frontier_key_buffer));

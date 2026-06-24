@@ -11,7 +11,10 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
+
+#include <rmm/exec_policy.hpp>
 
 #include <cuda/functional>
 #include <cuda/iterator>
@@ -41,9 +44,14 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
   raft::copy(local_vertices.data(), vertices.data(), vertices.size(), stream);
 
   if constexpr (multi_gpu) {
-    cugraph::detail::scalar_fill(
-      stream, vertex_gpu_ids.data(), vertex_gpu_ids.size(), handle.get_rank());
-    cugraph::detail::sequence_fill(stream, vertex_pos.data(), vertex_pos.size(), size_t{0});
+    cugraph::fill(rmm::exec_policy(stream),
+                  vertex_gpu_ids.data(),
+                  (vertex_gpu_ids.data()) + (vertex_gpu_ids.size()),
+                  handle.get_rank());
+    cugraph::sequence(rmm::exec_policy(stream),
+                      vertex_pos.data(),
+                      vertex_pos.data() + vertex_pos.size(),
+                      size_t{0});
 
     auto const comm_size = handle.raft_handle().get_comms().get_size();
     auto const major_comm_size =
@@ -93,7 +101,8 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
   //  Now gather
   //
   rmm::device_uvector<result_t> result(local_vertices.size(), stream);
-  cugraph::detail::scalar_fill(stream, result.data(), result.size(), default_value);
+  cugraph::fill(
+    rmm::exec_policy(stream), result.data(), (result.data()) + (result.size()), default_value);
 
   auto& wrapped = this->get(handle);
 
@@ -128,7 +137,8 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
     // Finally, reorder result
     //
     result.resize(tmp_result.size(), stream);
-    cugraph::detail::scalar_fill(stream, result.data(), result.size(), default_value);
+    cugraph::fill(
+      rmm::exec_policy(stream), result.data(), (result.data()) + (result.size()), default_value);
 
     thrust::scatter(rmm::exec_policy(stream),
                     tmp_result.begin(),

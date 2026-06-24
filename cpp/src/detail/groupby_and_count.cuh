@@ -14,6 +14,7 @@
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/host_span.hpp>
@@ -114,8 +115,10 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
       large_buffer_type ? large_buffer_manager::allocate_memory_buffer<size_t>(
                             edgelist_majors.size(), handle.get_stream())
                         : rmm::device_uvector<size_t>(edgelist_majors.size(), handle.get_stream());
-    detail::sequence_fill(
-      handle.get_stream(), property_positions.data(), property_positions.size(), size_t{0});
+    cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                      property_positions.data(),
+                      property_positions.data() + property_positions.size(),
+                      size_t{0});
 
     if (groupby_and_count_local_partition_by_minor) {
       counts = cugraph::groupby_and_count(pair_first,

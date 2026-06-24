@@ -138,15 +138,15 @@ bool compare_edgelist(raft::handle_t const& handle,
         thrust::make_zip_iterator(this_label_sorted_org_edgelist_srcs.begin(),
                                   this_label_sorted_org_edgelist_dsts.begin(),
                                   (*this_label_sorted_org_edgelist_weights).begin());
-      cugraph::sort_wrapper(handle.get_thrust_policy(),
-                            sorted_org_edge_first,
-                            sorted_org_edge_first + this_label_sorted_org_edgelist_srcs.size());
+      cugraph::sort(handle.get_thrust_policy(),
+                    sorted_org_edge_first,
+                    sorted_org_edge_first + this_label_sorted_org_edgelist_srcs.size());
     } else {
       auto sorted_org_edge_first = thrust::make_zip_iterator(
         this_label_sorted_org_edgelist_srcs.begin(), this_label_sorted_org_edgelist_dsts.begin());
-      cugraph::sort_wrapper(handle.get_thrust_policy(),
-                            sorted_org_edge_first,
-                            sorted_org_edge_first + this_label_sorted_org_edgelist_srcs.size());
+      cugraph::sort(handle.get_thrust_policy(),
+                    sorted_org_edge_first,
+                    sorted_org_edge_first + this_label_sorted_org_edgelist_srcs.size());
     }
 
     rmm::device_uvector<vertex_t> this_label_sorted_unrenumbered_edgelist_srcs(
@@ -207,7 +207,7 @@ bool compare_edgelist(raft::handle_t const& handle,
         thrust::make_zip_iterator(this_label_sorted_unrenumbered_edgelist_srcs.begin(),
                                   this_label_sorted_unrenumbered_edgelist_dsts.begin(),
                                   (*this_label_sorted_unrenumbered_edgelist_weights).begin());
-      cugraph::sort_wrapper(
+      cugraph::sort(
         handle.get_thrust_policy(),
         sorted_unrenumbered_edge_first,
         sorted_unrenumbered_edge_first + this_label_sorted_unrenumbered_edgelist_srcs.size());
@@ -226,7 +226,7 @@ bool compare_edgelist(raft::handle_t const& handle,
       auto sorted_unrenumbered_edge_first =
         thrust::make_zip_iterator(this_label_sorted_unrenumbered_edgelist_srcs.begin(),
                                   this_label_sorted_unrenumbered_edgelist_dsts.begin());
-      cugraph::sort_wrapper(
+      cugraph::sort(
         handle.get_thrust_policy(),
         sorted_unrenumbered_edge_first,
         sorted_unrenumbered_edge_first + this_label_sorted_unrenumbered_edgelist_srcs.size());
@@ -365,12 +365,12 @@ bool compare_heterogeneous_edgelist(
 
     rmm::device_uvector<size_t> this_label_org_sorted_indices(label_end_offset - label_start_offset,
                                                               handle.get_stream());
-    thrust::sequence(handle.get_thrust_policy(),
-                     this_label_org_sorted_indices.begin(),
-                     this_label_org_sorted_indices.end(),
-                     size_t{0});
+    cugraph::sequence(handle.get_thrust_policy(),
+                      this_label_org_sorted_indices.begin(),
+                      this_label_org_sorted_indices.end(),
+                      size_t{0});
 
-    cugraph::sort_wrapper(
+    cugraph::sort(
       handle.get_thrust_policy(),
       this_label_org_sorted_indices.begin(),
       this_label_org_sorted_indices.end(),
@@ -631,10 +631,10 @@ bool compare_heterogeneous_edgelist(
 
       rmm::device_uvector<size_t> this_edge_type_unrenumbered_sorted_indices(
         edge_type_end_offset - edge_type_start_offset, handle.get_stream());
-      thrust::sequence(handle.get_thrust_policy(),
-                       this_edge_type_unrenumbered_sorted_indices.begin(),
-                       this_edge_type_unrenumbered_sorted_indices.end(),
-                       size_t{0});
+      cugraph::sequence(handle.get_thrust_policy(),
+                        this_edge_type_unrenumbered_sorted_indices.begin(),
+                        this_edge_type_unrenumbered_sorted_indices.end(),
+                        size_t{0});
 
       for (size_t k = 0; k < num_hops; ++k) {
         auto hop_start_offset = edge_type_start_offset;
@@ -655,7 +655,7 @@ bool compare_heterogeneous_edgelist(
 
         if (hop_start_offset == hop_end_offset) { continue; }
 
-        cugraph::sort_wrapper(
+        cugraph::sort(
           handle.get_thrust_policy(),
           this_edge_type_unrenumbered_sorted_indices.begin() +
             (hop_start_offset - edge_type_start_offset),
@@ -1009,15 +1009,15 @@ bool check_vertex_renumber_map_invariants(
         auto old_size = (*this_label_unique_major_hops).size();
         (*this_label_unique_major_hops)
           .resize(this_label_unique_majors.size(), handle.get_stream());
-        thrust::fill(handle.get_thrust_policy(),
-                     (*this_label_unique_major_hops).begin() + old_size,
-                     (*this_label_unique_major_hops).end(),
-                     int32_t{0});
+        cugraph::fill(handle.get_thrust_policy(),
+                      (*this_label_unique_major_hops).begin() + old_size,
+                      (*this_label_unique_major_hops).end(),
+                      int32_t{0});
       }
 
       auto pair_first = thrust::make_zip_iterator(this_label_unique_majors.begin(),
                                                   (*this_label_unique_major_hops).begin());
-      cugraph::sort_wrapper(
+      cugraph::sort(
         handle.get_thrust_policy(), pair_first, pair_first + this_label_unique_majors.size());
       this_label_unique_majors.resize(
         cuda::std::distance(
@@ -1029,14 +1029,14 @@ bool check_vertex_renumber_map_invariants(
         handle.get_stream());
       (*this_label_unique_major_hops).resize(this_label_unique_majors.size(), handle.get_stream());
     } else {
-      cugraph::sort_wrapper(handle.get_thrust_policy(),
-                            this_label_unique_majors.begin(),
-                            this_label_unique_majors.end());
+      cugraph::sort(handle.get_thrust_policy(),
+                    this_label_unique_majors.begin(),
+                    this_label_unique_majors.end());
       this_label_unique_majors.resize(
         cuda::std::distance(this_label_unique_majors.begin(),
-                            thrust::unique(handle.get_thrust_policy(),
-                                           this_label_unique_majors.begin(),
-                                           this_label_unique_majors.end())),
+                            cugraph::unique(handle.get_thrust_policy(),
+                                            this_label_unique_majors.begin(),
+                                            this_label_unique_majors.end())),
         handle.get_stream());
     }
 
@@ -1060,7 +1060,7 @@ bool check_vertex_renumber_map_invariants(
 
       auto pair_first = thrust::make_zip_iterator(this_label_unique_minors.begin(),
                                                   (*this_label_unique_minor_hops).begin());
-      cugraph::sort_wrapper(
+      cugraph::sort(
         handle.get_thrust_policy(), pair_first, pair_first + this_label_unique_minors.size());
       this_label_unique_minors.resize(
         cuda::std::distance(
@@ -1075,14 +1075,14 @@ bool check_vertex_renumber_map_invariants(
           .resize(this_label_unique_minors.size(), handle.get_stream());
       }
     } else {
-      cugraph::sort_wrapper(handle.get_thrust_policy(),
-                            this_label_unique_minors.begin(),
-                            this_label_unique_minors.end());
+      cugraph::sort(handle.get_thrust_policy(),
+                    this_label_unique_minors.begin(),
+                    this_label_unique_minors.end());
       this_label_unique_minors.resize(
         cuda::std::distance(this_label_unique_minors.begin(),
-                            thrust::unique(handle.get_thrust_policy(),
-                                           this_label_unique_minors.begin(),
-                                           this_label_unique_minors.end())),
+                            cugraph::unique(handle.get_thrust_policy(),
+                                            this_label_unique_minors.begin(),
+                                            this_label_unique_minors.end())),
         handle.get_stream());
     }
 
@@ -1109,10 +1109,10 @@ bool check_vertex_renumber_map_invariants(
                    renumber_map.begin() + renumber_map_type_start_offset,
                    renumber_map.begin() + renumber_map_type_end_offset,
                    this_type_sorted_org_vertices.begin());
-      thrust::sequence(handle.get_thrust_policy(),
-                       this_type_matching_renumbered_vertices.begin(),
-                       this_type_matching_renumbered_vertices.end(),
-                       vertex_t{0});
+      cugraph::sequence(handle.get_thrust_policy(),
+                        this_type_matching_renumbered_vertices.begin(),
+                        this_type_matching_renumbered_vertices.end(),
+                        vertex_t{0});
       thrust::sort_by_key(handle.get_thrust_policy(),
                           this_type_sorted_org_vertices.begin(),
                           this_type_sorted_org_vertices.end(),
@@ -1537,9 +1537,9 @@ bool check_edge_id_renumber_map_invariants(
         auto triplet_first = thrust::make_zip_iterator((*this_label_unique_key_edge_types).begin(),
                                                        this_label_unique_key_edge_ids.begin(),
                                                        (*this_label_unique_key_hops).begin());
-        cugraph::sort_wrapper(handle.get_thrust_policy(),
-                              triplet_first,
-                              triplet_first + this_label_unique_key_edge_ids.size());
+        cugraph::sort(handle.get_thrust_policy(),
+                      triplet_first,
+                      triplet_first + this_label_unique_key_edge_ids.size());
         auto key_first = thrust::make_zip_iterator((*this_label_unique_key_edge_types).begin(),
                                                    this_label_unique_key_edge_ids.begin());
         this_label_unique_key_edge_ids.resize(
@@ -1557,14 +1557,14 @@ bool check_edge_id_renumber_map_invariants(
       } else {
         auto pair_first = thrust::make_zip_iterator((*this_label_unique_key_edge_types).begin(),
                                                     this_label_unique_key_edge_ids.begin());
-        cugraph::sort_wrapper(handle.get_thrust_policy(),
-                              pair_first,
-                              pair_first + this_label_unique_key_edge_ids.size());
+        cugraph::sort(handle.get_thrust_policy(),
+                      pair_first,
+                      pair_first + this_label_unique_key_edge_ids.size());
         this_label_unique_key_edge_ids.resize(
           cuda::std::distance(pair_first,
-                              thrust::unique(handle.get_thrust_policy(),
-                                             pair_first,
-                                             pair_first + this_label_unique_key_edge_ids.size())),
+                              cugraph::unique(handle.get_thrust_policy(),
+                                              pair_first,
+                                              pair_first + this_label_unique_key_edge_ids.size())),
           handle.get_stream());
         (*this_label_unique_key_edge_types)
           .resize(this_label_unique_key_edge_ids.size(), handle.get_stream());
@@ -1573,9 +1573,9 @@ bool check_edge_id_renumber_map_invariants(
       if (org_edgelist_hops) {
         auto pair_first = thrust::make_zip_iterator(this_label_unique_key_edge_ids.begin(),
                                                     (*this_label_unique_key_hops).begin());
-        cugraph::sort_wrapper(handle.get_thrust_policy(),
-                              pair_first,
-                              pair_first + this_label_unique_key_edge_ids.size());
+        cugraph::sort(handle.get_thrust_policy(),
+                      pair_first,
+                      pair_first + this_label_unique_key_edge_ids.size());
         this_label_unique_key_edge_ids.resize(
           cuda::std::distance(
             this_label_unique_key_edge_ids.begin(),
@@ -1587,14 +1587,14 @@ bool check_edge_id_renumber_map_invariants(
         (*this_label_unique_key_hops)
           .resize(this_label_unique_key_edge_ids.size(), handle.get_stream());
       } else {
-        cugraph::sort_wrapper(handle.get_thrust_policy(),
-                              this_label_unique_key_edge_ids.begin(),
-                              this_label_unique_key_edge_ids.end());
+        cugraph::sort(handle.get_thrust_policy(),
+                      this_label_unique_key_edge_ids.begin(),
+                      this_label_unique_key_edge_ids.end());
         this_label_unique_key_edge_ids.resize(
           cuda::std::distance(this_label_unique_key_edge_ids.begin(),
-                              thrust::unique(handle.get_thrust_policy(),
-                                             this_label_unique_key_edge_ids.begin(),
-                                             this_label_unique_key_edge_ids.end())),
+                              cugraph::unique(handle.get_thrust_policy(),
+                                              this_label_unique_key_edge_ids.begin(),
+                                              this_label_unique_key_edge_ids.end())),
           handle.get_stream());
       }
     }
@@ -1622,10 +1622,10 @@ bool check_edge_id_renumber_map_invariants(
                    renumber_map.begin() + renumber_map_type_start_offset,
                    renumber_map.begin() + renumber_map_type_end_offset,
                    this_type_sorted_org_edge_ids.begin());
-      thrust::sequence(handle.get_thrust_policy(),
-                       this_type_matching_renumbered_edge_ids.begin(),
-                       this_type_matching_renumbered_edge_ids.end(),
-                       edge_id_t{0});
+      cugraph::sequence(handle.get_thrust_policy(),
+                        this_type_matching_renumbered_edge_ids.begin(),
+                        this_type_matching_renumbered_edge_ids.end(),
+                        edge_id_t{0});
       thrust::sort_by_key(handle.get_thrust_policy(),
                           this_type_sorted_org_edge_ids.begin(),
                           this_type_sorted_org_edge_ids.end(),

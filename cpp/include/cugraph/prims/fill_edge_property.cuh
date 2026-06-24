@@ -9,6 +9,7 @@
 #include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -79,15 +80,16 @@ void fill_edge_property(raft::handle_t const& handle,
             });
         }
       } else {
-        thrust::fill_n(handle.get_thrust_policy(),
-                       value_firsts[i],
-                       packed_bool_size(static_cast<size_t>(edge_counts[i] - rem)),
-                       packed_input);
+        cugraph::fill(
+          handle.get_thrust_policy(),
+          value_firsts[i],
+          (value_firsts[i]) + (packed_bool_size(static_cast<size_t>(edge_counts[i] - rem))),
+          packed_input);
         if (rem > 0) {
-          thrust::fill_n(
+          cugraph::fill(
             handle.get_thrust_policy(),
             value_firsts[i] + packed_bool_size(static_cast<size_t>(edge_counts[i] - rem)),
-            1,
+            (value_firsts[i] + packed_bool_size(static_cast<size_t>(edge_counts[i] - rem))) + (1),
             packed_input & packed_bool_partial_mask(rem));
         }
       }
@@ -103,8 +105,10 @@ void fill_edge_property(raft::handle_t const& handle,
                                return edge_partition_e_mask.get(i);
                              });
       } else {
-        thrust::fill_n(
-          handle.get_thrust_policy(), value_firsts[i], static_cast<size_t>(edge_counts[i]), input);
+        cugraph::fill(handle.get_thrust_policy(),
+                      value_firsts[i],
+                      (value_firsts[i]) + (static_cast<size_t>(edge_counts[i])),
+                      input);
       }
     }
   }

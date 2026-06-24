@@ -100,7 +100,7 @@ rmm::device_uvector<edge_t> compute_major_degrees(
     max_num_local_degrees = std::max(max_num_local_degrees, num_local_degrees);
     if (i == minor_comm_rank) {
       degrees.resize(major_range_vertex_partition_size, handle.get_stream());
-      thrust::fill(
+      cugraph::fill(
         handle.get_thrust_policy(), degrees.begin() + num_local_degrees, degrees.end(), edge_t{0});
     }
   }
@@ -140,10 +140,10 @@ rmm::device_uvector<edge_t> compute_major_degrees(
                       }));
     if (use_dcs) {
       auto dcs_nzd_vertices = (*edge_partition_dcs_nzd_vertices)[i];
-      thrust::fill(execution_policy,
-                   local_degrees.begin() + (major_hypersparse_first - major_range_first),
-                   local_degrees.begin() + num_local_degrees,
-                   edge_t{0});
+      cugraph::fill(execution_policy,
+                    local_degrees.begin() + (major_hypersparse_first - major_range_first),
+                    local_degrees.begin() + num_local_degrees,
+                    edge_t{0});
       thrust::for_each(
         execution_policy,
         thrust::make_counting_iterator(vertex_t{0}),
@@ -428,13 +428,14 @@ compute_edge_indices_and_edge_partition_offsets(
   auto edge_first = thrust::make_zip_iterator(edge_majors.begin(), edge_minors.begin());
 
   rmm::device_uvector<size_t> edge_indices(edge_majors.size(), handle.get_stream());
-  thrust::sequence(handle.get_thrust_policy(), edge_indices.begin(), edge_indices.end(), size_t{0});
-  cugraph::sort_wrapper(handle.get_thrust_policy(),
-                        edge_indices.begin(),
-                        edge_indices.end(),
-                        [edge_first] __device__(size_t lhs, size_t rhs) {
-                          return *(edge_first + lhs) < *(edge_first + rhs);
-                        });
+  cugraph::sequence(
+    handle.get_thrust_policy(), edge_indices.begin(), edge_indices.end(), size_t{0});
+  cugraph::sort(handle.get_thrust_policy(),
+                edge_indices.begin(),
+                edge_indices.end(),
+                [edge_first] __device__(size_t lhs, size_t rhs) {
+                  return *(edge_first + lhs) < *(edge_first + rhs);
+                });
 
   std::vector<size_t> h_major_range_lasts(graph_view.number_of_local_edge_partitions());
   for (size_t i = 0; i < h_major_range_lasts.size(); ++i) {

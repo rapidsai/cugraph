@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "link_prediction/similarity_compare.hpp"
@@ -13,6 +13,7 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <gtest/gtest.h>
 
@@ -109,7 +110,7 @@ class Tests_Similarity
     } else {
       if (!sources_span) {
         sources.resize(graph_view.number_of_vertices(), handle.get_stream());
-        thrust::sequence(handle.get_thrust_policy(), sources.begin(), sources.end(), vertex_t{0});
+        cugraph::sequence(handle.get_thrust_policy(), sources.begin(), sources.end(), vertex_t{0});
         sources_span = raft::device_span<vertex_t const>{sources.data(), sources.size()};
       }
 

@@ -14,6 +14,7 @@
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/legacy/internals.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
@@ -63,7 +64,7 @@ void exact_fa2(raft::handle_t const& handle,
   rmm::device_uvector<float> repel(n * 2, stream_view);
   rmm::device_uvector<float> attract(n * 2, stream_view);
   rmm::device_uvector<float> old_forces(n * 2, stream_view);
-  thrust::fill(handle.get_thrust_policy(), old_forces.begin(), old_forces.end(), 0.f);
+  cugraph::fill(handle.get_thrust_policy(), old_forces.begin(), old_forces.end(), 0.f);
   rmm::device_uvector<edge_t> mass_edge_t(0, stream_view);
   rmm::device_uvector<float> mass(n, stream_view);
   rmm::device_uvector<float> swinging(n, stream_view);
@@ -95,7 +96,7 @@ void exact_fa2(raft::handle_t const& handle,
   } else {
     // FA2 requires degree + 1.
     mass_edge_t.resize(n, handle.get_stream());
-    thrust::fill(handle.get_thrust_policy(), mass_edge_t.begin(), mass_edge_t.end(), 1);
+    cugraph::fill(handle.get_thrust_policy(), mass_edge_t.begin(), mass_edge_t.end(), 1);
     d_mass_edge_t = mass_edge_t.data();
     graph.degree(d_mass_edge_t, cugraph::legacy::DegreeDirection::OUT);
     RAFT_CHECK_CUDA(stream_view.value());
@@ -129,10 +130,10 @@ void exact_fa2(raft::handle_t const& handle,
 
   for (int iter = 0; iter < max_iter; ++iter) {
     // Reset force arrays
-    thrust::fill(handle.get_thrust_policy(), repel.begin(), repel.end(), 0.f);
-    thrust::fill(handle.get_thrust_policy(), attract.begin(), attract.end(), 0.f);
-    thrust::fill(handle.get_thrust_policy(), swinging.begin(), swinging.end(), 0.f);
-    thrust::fill(handle.get_thrust_policy(), traction.begin(), traction.end(), 0.f);
+    cugraph::fill(handle.get_thrust_policy(), repel.begin(), repel.end(), 0.f);
+    cugraph::fill(handle.get_thrust_policy(), attract.begin(), attract.end(), 0.f);
+    cugraph::fill(handle.get_thrust_policy(), swinging.begin(), swinging.end(), 0.f);
+    cugraph::fill(handle.get_thrust_policy(), traction.begin(), traction.end(), 0.f);
 
     // Exact repulsion
     apply_repulsion<vertex_t>(pos,

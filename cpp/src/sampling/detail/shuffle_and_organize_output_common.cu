@@ -15,6 +15,7 @@
 #include <raft/core/handle.hpp>
 
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <cuda/std/iterator>
 #include <thrust/binary_search.h>
@@ -58,8 +59,10 @@ shuffle_and_organize_output(
         static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
 
       rmm::device_uvector<size_t> property_position(labels->size(), handle.get_stream());
-      detail::sequence_fill(
-        handle.get_stream(), property_position.data(), property_position.size(), size_t{0});
+      cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                        property_position.data(),
+                        property_position.data() + property_position.size(),
+                        size_t{0});
 
       auto d_tx_value_counts = cugraph::groupby_and_count(labels->begin(),
                                                           labels->end(),
@@ -110,7 +113,7 @@ shuffle_and_organize_output(
 
     // Sort the tuples by hop/label
     rmm::device_uvector<size_t> indices(labels->size(), handle.get_stream());
-    thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), size_t{0});
+    cugraph::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), size_t{0});
     if (hops) {
       thrust::sort_by_key(handle.get_thrust_policy(),
                           thrust::make_zip_iterator(labels->begin(), hops->begin()),
@@ -139,9 +142,9 @@ shuffle_and_organize_output(
     // Need to generate offsets for each unique label (not each seed) on each GPU
     rmm::device_uvector<int32_t> unique_labels(labels->size(), handle.get_stream());
     raft::copy(unique_labels.data(), labels->data(), labels->size(), handle.get_stream());
-    cugraph::sort_wrapper(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
+    cugraph::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
     auto unique_end =
-      thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
+      cugraph::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
     size_t num_unique_labels =
       static_cast<size_t>(cuda::std::distance(unique_labels.begin(), unique_end));
 

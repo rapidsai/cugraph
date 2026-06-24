@@ -113,20 +113,20 @@ bool check_symmetric(raft::handle_t const& handle,
   if (edgelist_weights) {
     auto org_first = thrust::make_zip_iterator(
       cuda::std::make_tuple(org_srcs.begin(), org_dsts.begin(), (*org_weights).begin()));
-    cugraph::sort_wrapper(handle.get_thrust_policy(), org_first, org_first + org_srcs.size());
+    cugraph::sort(handle.get_thrust_policy(), org_first, org_first + org_srcs.size());
     auto symmetrized_first = thrust::make_zip_iterator(cuda::std::make_tuple(
       symmetrized_srcs.begin(), symmetrized_dsts.begin(), (*symmetrized_weights).begin()));
-    cugraph::sort_wrapper(
+    cugraph::sort(
       handle.get_thrust_policy(), symmetrized_first, symmetrized_first + symmetrized_srcs.size());
     return thrust::equal(
       handle.get_thrust_policy(), org_first, org_first + org_srcs.size(), symmetrized_first);
   } else {
     auto org_first =
       thrust::make_zip_iterator(cuda::std::make_tuple(org_srcs.begin(), org_dsts.begin()));
-    cugraph::sort_wrapper(handle.get_thrust_policy(), org_first, org_first + org_srcs.size());
+    cugraph::sort(handle.get_thrust_policy(), org_first, org_first + org_srcs.size());
     auto symmetrized_first = thrust::make_zip_iterator(
       cuda::std::make_tuple(symmetrized_srcs.begin(), symmetrized_dsts.begin()));
-    cugraph::sort_wrapper(
+    cugraph::sort(
       handle.get_thrust_policy(), symmetrized_first, symmetrized_first + symmetrized_srcs.size());
     return thrust::equal(
       handle.get_thrust_policy(), org_first, org_first + org_srcs.size(), symmetrized_first);

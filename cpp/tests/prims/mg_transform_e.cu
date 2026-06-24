@@ -145,8 +145,7 @@ class Tests_MGTransformE
           thrust::make_zip_iterator(store_transposed ? dsts.begin() : srcs.begin(),
                                     store_transposed ? srcs.begin() : dsts.begin(),
                                     multi_edge_indices->begin());
-        cugraph::sort_wrapper(
-          handle_->get_thrust_policy(), triplet_first, triplet_first + srcs.size());
+        cugraph::sort(handle_->get_thrust_policy(), triplet_first, triplet_first + srcs.size());
       } else {
         auto ret = cugraph::extract_transform_if_e(
           *handle_,
@@ -165,7 +164,7 @@ class Tests_MGTransformE
         dsts            = std::move(std::get<1>(ret));
         auto pair_first = thrust::make_zip_iterator(store_transposed ? dsts.begin() : srcs.begin(),
                                                     store_transposed ? srcs.begin() : dsts.begin());
-        cugraph::sort_wrapper(handle_->get_thrust_policy(), pair_first, pair_first + srcs.size());
+        cugraph::sort(handle_->get_thrust_policy(), pair_first, pair_first + srcs.size());
       }
 
       edge_list.insert(

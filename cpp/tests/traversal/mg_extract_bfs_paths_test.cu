@@ -16,6 +16,7 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
@@ -23,6 +24,7 @@
 
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 #include <rmm/mr/cuda_memory_resource.hpp>
 
 #include <cuda/std/iterator>
@@ -125,8 +127,10 @@ class Tests_MGExtractBFSPaths
     {
       constexpr vertex_t invalid_vertex = cugraph::invalid_vertex_id<vertex_t>::value;
       auto local_vertex_first           = mg_graph_view.local_vertex_partition_range_first();
-      cugraph::detail::sequence_fill(
-        handle_->get_stream(), d_vertices.begin(), d_vertices.size(), local_vertex_first);
+      cugraph::sequence(rmm::exec_policy(handle_->get_stream()),
+                        d_vertices.begin(),
+                        d_vertices.begin() + d_vertices.size(),
+                        local_vertex_first);
       auto end_iter = thrust::remove_if(
         handle_->get_thrust_policy(),
         d_vertices.begin(),

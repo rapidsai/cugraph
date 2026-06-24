@@ -159,7 +159,7 @@ centrality_algorithm_metadata_t pagerank(
                    std::get<0>(*personalization).end(),
                    check_for_duplicates.begin());
 
-      cugraph::sort_wrapper(
+      cugraph::sort(
         handle.get_thrust_policy(), check_for_duplicates.begin(), check_for_duplicates.end());
 
       auto num_uniques =
@@ -370,10 +370,10 @@ void pagerank(raft::handle_t const& handle,
                       pageranks,
                       [sum] __device__(auto val) { return val / sum; });
   } else {
-    thrust::fill(handle.get_thrust_policy(),
-                 pageranks,
-                 pageranks + graph_view.local_vertex_partition_range_size(),
-                 result_t{1.0} / static_cast<result_t>(graph_view.number_of_vertices()));
+    cugraph::fill(handle.get_thrust_policy(),
+                  pageranks,
+                  pageranks + graph_view.local_vertex_partition_range_size(),
+                  result_t{1.0} / static_cast<result_t>(graph_view.number_of_vertices()));
   }
 
   auto metadata = detail::pagerank(
@@ -419,10 +419,10 @@ std::tuple<rmm::device_uvector<result_t>, centrality_algorithm_metadata_t> pager
   rmm::device_uvector<result_t> local_pageranks(graph_view.local_vertex_partition_range_size(),
                                                 handle.get_stream());
   if (!initial_pageranks) {
-    thrust::fill(handle.get_thrust_policy(),
-                 local_pageranks.begin(),
-                 local_pageranks.end(),
-                 result_t{1.0} / graph_view.number_of_vertices());
+    cugraph::fill(handle.get_thrust_policy(),
+                  local_pageranks.begin(),
+                  local_pageranks.end(),
+                  result_t{1.0} / graph_view.number_of_vertices());
   } else {
     thrust::copy(handle.get_thrust_policy(),
                  initial_pageranks->begin(),

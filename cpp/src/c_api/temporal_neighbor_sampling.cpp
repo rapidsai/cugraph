@@ -26,6 +26,8 @@
 
 #include <raft/core/handle.hpp>
 
+#include <rmm/exec_policy.hpp>
+
 namespace {
 
 struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
@@ -206,21 +208,20 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
 
           // Get unique labels
           // sort the start_vertex_labels
-          cugraph::sort_wrapper(
-            handle_.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
+          cugraph::sort(handle_.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
 
-          auto num_unique_labels = cugraph::detail::unique_ints(
-            handle_.get_stream(),
-            raft::device_span<label_t>{unique_labels.data(), unique_labels.size()});
+          auto num_unique_labels = static_cast<size_t>(cuda::std::distance(
+            unique_labels.begin(),
+            cugraph::unique(
+              handle_.get_thrust_policy(), unique_labels.begin(), unique_labels.end())));
 
           rmm::device_uvector<label_t> local_label_to_comm_rank(num_unique_labels,
                                                                 handle_.get_stream());
 
-          cugraph::detail::scalar_fill(
-            handle_.get_stream(),
-            local_label_to_comm_rank.begin(),  // This should be rename to rank
-            local_label_to_comm_rank.size(),
-            label_t{handle_.get_comms().get_rank()});
+          cugraph::fill(rmm::exec_policy(handle_.get_stream()),
+                        local_label_to_comm_rank.begin(),
+                        local_label_to_comm_rank.end(),
+                        label_t{handle_.get_comms().get_rank()});  // This should be rename to rank
 
           // Perform allgather to get global_label_to_comm_rank_d_vector
           auto recvcounts = cugraph::host_scalar_allgather(
@@ -703,13 +704,11 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
             if (vertex_type_offsets_ == nullptr) {
               // If no 'vertex_type_offsets' is provided, all vertices are assumed to have
               // a vertex type of value 1.
-              cugraph::detail::stride_fill(handle_.get_stream(),
-                                           vertex_type_offsets.begin(),
-                                           vertex_type_offsets.size(),
-                                           vertex_t{0},
-                                           vertex_t{graph_view.local_vertex_partition_range_size()}
-
-              );
+              cugraph::sequence(rmm::exec_policy(handle_.get_stream()),
+                                vertex_type_offsets.begin(),
+                                vertex_type_offsets.begin() + vertex_type_offsets.size(),
+                                vertex_t{0},
+                                vertex_t{graph_view.local_vertex_partition_range_size()});
             }
 
             rmm::device_uvector<vertex_t> output_majors(0, handle_.get_stream());
@@ -778,10 +777,10 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
                             .back() -
                           1,
                         handle_.get_stream());
-              cugraph::detail::sequence_fill(handle_.get_stream(),
-                                             (*sampled_edge_types).begin(),
-                                             (*sampled_edge_types).size(),
-                                             edge_type_t{0});
+              cugraph::sequence(rmm::exec_policy(handle_.get_stream()),
+                                (*sampled_edge_types).begin(),
+                                (*sampled_edge_types).begin() + (*sampled_edge_types).size(),
+                                edge_type_t{0});
             }
 
             size_t pos = 0;

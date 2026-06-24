@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -11,10 +11,12 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <gtest/gtest.h>
 
@@ -128,16 +130,18 @@ class Tests_SamplingHeterogeneousPostProcessing
     if (starting_vertex_labels) {
       auto num_seeds_per_label = sampling_heterogeneous_post_processing_usecase.num_seeds_per_label;
       for (size_t i = 0; i < sampling_heterogeneous_post_processing_usecase.num_labels; ++i) {
-        cugraph::detail::scalar_fill(handle.get_stream(),
-                                     (*starting_vertex_labels).data() + i * num_seeds_per_label,
-                                     num_seeds_per_label,
-                                     static_cast<label_t>(i));
+        cugraph::fill(
+          rmm::exec_policy(handle.get_stream()),
+          (*starting_vertex_labels).data() + i * num_seeds_per_label,
+          ((*starting_vertex_labels).data() + i * num_seeds_per_label) + (num_seeds_per_label),
+          static_cast<label_t>(i));
       }
-      cugraph::detail::stride_fill(handle.get_stream(),
-                                   (*starting_vertex_label_offsets).data(),
-                                   (*starting_vertex_label_offsets).size(),
-                                   size_t{0},
-                                   num_seeds_per_label);
+      cugraph::sequence(
+        rmm::exec_policy(handle.get_stream()),
+        (*starting_vertex_label_offsets).data(),
+        (*starting_vertex_label_offsets).data() + (*starting_vertex_label_offsets).size(),
+        size_t{0},
+        num_seeds_per_label);
     }
 
     // 4. generate edge IDs and types

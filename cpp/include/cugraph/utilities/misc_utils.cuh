@@ -12,6 +12,7 @@
 #include <raft/util/cudart_utils.hpp>
 
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <cuda/atomic>
 #include <cuda/functional>
@@ -108,7 +109,7 @@ rmm::device_uvector<idx_t> expand_sparse_offsets(raft::device_span<offset_t cons
   rmm::device_uvector<idx_t> results(num_entries, stream_view);
 
   if (num_entries > 0) {
-    thrust::fill(rmm::exec_policy(stream_view), results.begin(), results.end(), idx_t{0});
+    cugraph::fill(rmm::exec_policy(stream_view), results.begin(), results.end(), idx_t{0});
 
     if (base_idx != idx_t{0}) { raft::update_device(results.data(), &base_idx, 1, stream_view); }
 

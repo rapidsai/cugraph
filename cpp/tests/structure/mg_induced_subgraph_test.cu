@@ -204,7 +204,7 @@ class Tests_MGInducedSubgraph
                             triplet_first + graph_ids_v.size(),
                             d_subgraph_edgelist_weights->begin());
       } else {
-        cugraph::sort_wrapper(
+        cugraph::sort(
           handle_->get_thrust_policy(), triplet_first, triplet_first + graph_ids_v.size());
       }
 

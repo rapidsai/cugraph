@@ -477,10 +477,10 @@ class Tests_GRAPH500_MGSSSP
     for (size_t i = 0; i < (num_warmup_starting_vertices + num_timed_starting_vertices); ++i) {
       double elapsed{0.0};
 
-      thrust::fill(handle_->get_thrust_policy(),
-                   d_mg_w_to_predecessors.begin(),
-                   d_mg_w_to_predecessors.end(),
-                   invalid_distance);
+      cugraph::fill(handle_->get_thrust_policy(),
+                    d_mg_w_to_predecessors.begin(),
+                    d_mg_w_to_predecessors.end(),
+                    invalid_distance);
 
       if (cugraph::test::g_perf) {
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -488,10 +488,10 @@ class Tests_GRAPH500_MGSSSP
         hr_timer.start("MG SSSP (Kernel 2)");
       }
 
-      thrust::fill(handle_->get_thrust_policy(),
-                   d_mg_distances.begin(),
-                   d_mg_distances.end(),
-                   invalid_distance);
+      cugraph::fill(handle_->get_thrust_policy(),
+                    d_mg_distances.begin(),
+                    d_mg_distances.end(),
+                    invalid_distance);
 
       auto starting_vertex = starting_vertices[i];
       auto starting_vertex_vertex_partition_id =
@@ -545,10 +545,10 @@ class Tests_GRAPH500_MGSSSP
                                        : invalid_vertex;
                             }));
       } else {
-        thrust::fill(handle_->get_thrust_policy(),
-                     d_mg_unrenumbered_predecessors.begin(),
-                     d_mg_unrenumbered_predecessors.end(),
-                     invalid_vertex);
+        cugraph::fill(handle_->get_thrust_policy(),
+                      d_mg_unrenumbered_predecessors.begin(),
+                      d_mg_unrenumbered_predecessors.end(),
+                      invalid_vertex);
       }
 
       vertex_t subgraph_starting_vertex{starting_vertex};
@@ -904,7 +904,7 @@ class Tests_GRAPH500_MGSSSP
             cugraph::edge_bucket_t<vertex_t, edge_t, !store_transposed, multi_gpu, true> edge_list(
               *handle_, false);
             auto edge_pair_first = thrust::make_zip_iterator(tree_srcs.begin(), tree_dsts.begin());
-            cugraph::sort_wrapper(
+            cugraph::sort(
               handle_->get_thrust_policy(), edge_pair_first, edge_pair_first + tree_srcs.size());
             edge_list.insert(tree_srcs.begin(),
                              tree_srcs.end(),

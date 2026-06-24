@@ -123,10 +123,9 @@ combine_edgelists(raft::handle_t const& handle,
     size_t number_of_edges{srcs_v.size()};
 
     if (optional_d_weights) {
-      cugraph::sort_wrapper(
-        handle.get_thrust_policy(),
-        thrust::make_zip_iterator(srcs_v.begin(), dsts_v.begin(), weights_v.begin()),
-        thrust::make_zip_iterator(srcs_v.end(), dsts_v.end(), weights_v.end()));
+      cugraph::sort(handle.get_thrust_policy(),
+                    thrust::make_zip_iterator(srcs_v.begin(), dsts_v.begin(), weights_v.begin()),
+                    thrust::make_zip_iterator(srcs_v.end(), dsts_v.end(), weights_v.end()));
 
       auto pair_first = thrust::make_zip_iterator(srcs_v.begin(), dsts_v.begin());
       auto end_iter   = thrust::unique_by_key(
@@ -134,15 +133,15 @@ combine_edgelists(raft::handle_t const& handle,
 
       number_of_edges = cuda::std::distance(pair_first, cuda::std::get<0>(end_iter));
     } else {
-      cugraph::sort_wrapper(handle.get_thrust_policy(),
-                            thrust::make_zip_iterator(srcs_v.begin(), dsts_v.begin()),
-                            thrust::make_zip_iterator(srcs_v.end(), dsts_v.end()));
+      cugraph::sort(handle.get_thrust_policy(),
+                    thrust::make_zip_iterator(srcs_v.begin(), dsts_v.begin()),
+                    thrust::make_zip_iterator(srcs_v.end(), dsts_v.end()));
 
       auto pair_first = thrust::make_zip_iterator(srcs_v.begin(), dsts_v.begin());
 
-      auto end_iter = thrust::unique(handle.get_thrust_policy(),
-                                     thrust::make_zip_iterator(srcs_v.begin(), dsts_v.begin()),
-                                     thrust::make_zip_iterator(srcs_v.end(), dsts_v.end()));
+      auto end_iter = cugraph::unique(handle.get_thrust_policy(),
+                                      thrust::make_zip_iterator(srcs_v.begin(), dsts_v.begin()),
+                                      thrust::make_zip_iterator(srcs_v.end(), dsts_v.end()));
 
       number_of_edges = cuda::std::distance(pair_first, end_iter);
     }

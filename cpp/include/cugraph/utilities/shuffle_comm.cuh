@@ -183,7 +183,7 @@ void multi_partition(ValueIterator value_first,
   rmm::device_uvector<size_t> counts(num_groups, stream_view);
   rmm::device_uvector<gid_offset_t> group_id_offsets(num_values, stream_view);
   rmm::device_uvector<offset_t> intra_partition_displs(num_values, stream_view);
-  thrust::fill(rmm::exec_policy(stream_view), counts.begin(), counts.end(), size_t{0});
+  cugraph::fill(rmm::exec_policy(stream_view), counts.begin(), counts.end(), size_t{0});
   thrust::transform(
     rmm::exec_policy(stream_view),
     value_first,
@@ -242,7 +242,7 @@ void multi_partition(KeyIterator key_first,
   rmm::device_uvector<size_t> counts(num_groups, stream_view);
   rmm::device_uvector<gid_offset_t> group_id_offsets(num_keys, stream_view);
   rmm::device_uvector<offset_t> intra_partition_displs(num_keys, stream_view);
-  thrust::fill(rmm::exec_policy(stream_view), counts.begin(), counts.end(), size_t{0});
+  cugraph::fill(rmm::exec_policy(stream_view), counts.begin(), counts.end(), size_t{0});
   thrust::transform(
     rmm::exec_policy(stream_view),
     key_first,
@@ -1006,10 +1006,10 @@ auto shuffle_values(
       ? large_buffer_manager::allocate_memory_buffer<value_t>(rx_buffer_size, stream_view)
       : allocate_dataframe_buffer<value_t>(rx_buffer_size, stream_view);
   if (fill_value) {
-    thrust::fill(rmm::exec_policy_nosync(stream_view),
-                 get_dataframe_buffer_begin(rx_values),
-                 get_dataframe_buffer_end(rx_values),
-                 *fill_value);
+    cugraph::fill(rmm::exec_policy_nosync(stream_view),
+                  get_dataframe_buffer_begin(rx_values),
+                  get_dataframe_buffer_end(rx_values),
+                  *fill_value);
   }
   cugraph::device_multicast_sendrecv(
     comm,
@@ -1076,9 +1076,9 @@ auto shuffle_and_unique_segment_sorted_values(
     resize_dataframe_buffer(
       sorted_unique_values,
       cuda::std::distance(get_dataframe_buffer_begin(sorted_unique_values),
-                          thrust::unique(rmm::exec_policy_nosync(stream_view),
-                                         get_dataframe_buffer_begin(sorted_unique_values),
-                                         get_dataframe_buffer_end(sorted_unique_values))),
+                          cugraph::unique(rmm::exec_policy_nosync(stream_view),
+                                          get_dataframe_buffer_begin(sorted_unique_values),
+                                          get_dataframe_buffer_end(sorted_unique_values))),
       stream_view);
   } else {
     rmm::device_uvector<size_t> d_tx_value_counts(comm_size, stream_view);
@@ -1141,9 +1141,9 @@ auto shuffle_and_unique_segment_sorted_values(
       resize_dataframe_buffer(
         merged_sorted_values,
         cuda::std::distance(get_dataframe_buffer_begin(merged_sorted_values),
-                            thrust::unique(rmm::exec_policy_nosync(stream_view),
-                                           get_dataframe_buffer_begin(merged_sorted_values),
-                                           get_dataframe_buffer_end(merged_sorted_values))),
+                            cugraph::unique(rmm::exec_policy_nosync(stream_view),
+                                            get_dataframe_buffer_begin(merged_sorted_values),
+                                            get_dataframe_buffer_end(merged_sorted_values))),
         stream_view);
       sorted_unique_values = std::move(merged_sorted_values);
     }
