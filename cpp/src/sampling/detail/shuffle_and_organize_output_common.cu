@@ -9,6 +9,7 @@
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
+#include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
@@ -21,6 +22,7 @@
 #include <thrust/count.h>
 #include <thrust/gather.h>
 #include <thrust/sort.h>
+#include <thrust/unique.h>
 
 #include <optional>
 

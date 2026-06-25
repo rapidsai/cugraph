@@ -10,6 +10,7 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/mask_utils.cuh>
+#include <cugraph/utilities/mem_frugal_partition.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/utilities/thrust_wrappers.hpp>

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cugraph/export.hpp>
+#include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <thrust/device_ptr.h>
 #include <thrust/iterator/detail/normal_iterator.h>
@@ -16,6 +17,16 @@
 namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
+
+/** Dereferenced value type of @p Iterator (cv stripped), via @c thrust::iterator_traits. */
+template <typename Iterator>
+using iterator_value_t =
+  std::remove_cv_t<typename thrust::iterator_traits<std::remove_cv_t<Iterator>>::value_type>;
+
+/** True when @p Iterator dereferences to an arithmetic @c cuda::std::tuple (e.g. zip iterator). */
+template <typename Iterator>
+inline constexpr bool is_thrust_zip_iterator_v =
+  is_thrust_tuple_of_arithmetic_v<iterator_value_t<std::remove_cv_t<Iterator>>>;
 
 template <typename Iterator>
 struct is_discard_iterator : public std::false_type {};

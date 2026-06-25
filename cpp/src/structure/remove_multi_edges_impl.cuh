@@ -9,9 +9,7 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
-// FIXME: mem_frugal_partition should probably not be in shuffle_comm.hpp
-//        It's used here without any notion of shuffling
-#include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/groupby_and_count.cuh>
 #include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/device_span.hpp>
@@ -25,8 +23,12 @@
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
+#include <thrust/copy.h>
+#include <thrust/gather.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/partition.h>
 #include <thrust/sort.h>
+#include <thrust/transform.h>
 #include <thrust/unique.h>
 
 #include <cuco/hash_functions.cuh>
@@ -203,41 +205,30 @@ std::vector<rmm::device_uvector<bool>> compute_multi_edge_flags(
       cugraph::sort(handle.get_thrust_policy(), hashes.begin(), second_first);
       cugraph::sort(handle.get_thrust_policy(), second_first, hashes.end());
     }
-    auto is_definitely_not_multi_edge_hashes =
-      large_buffer_type
-        ? large_buffer_manager::allocate_memory_buffer<bool>(hashes.size(), handle.get_stream())
-        : rmm::device_uvector<bool>(hashes.size(), handle.get_stream());
-    thrust::tabulate(
-      handle.get_thrust_policy(),
-      is_definitely_not_multi_edge_hashes.begin(),
-      is_definitely_not_multi_edge_hashes.end(),
+    auto [possibly_multi_edge_count, possibly_multi_edge_flags] = mark_entries(
+      hashes.size(),
       cuda::proclaim_return_type<bool>([hashes = raft::device_span<hash_result_type const>(
                                           hashes.data(), hashes.size())] __device__(size_t i) {
         if ((i != 0) && (hashes[i] == hashes[i - 1])) {  // compare with the previous element
-          return false;
+          return true;
         }
         if ((i != hashes.size() - 1) &&
             (hashes[i] == hashes[i + 1])) {  // compare with the next element
-          return false;
+          return true;
         }
-        return true;  // definitely unique (src, dst) pair
-      }));
-
-    num_possibly_multi_edges = thrust::count(handle.get_thrust_policy(),
-                                             is_definitely_not_multi_edge_hashes.begin(),
-                                             is_definitely_not_multi_edge_hashes.end(),
-                                             false);
+        return false;
+      }),
+      handle.get_stream(),
+      large_buffer_type);
+    num_possibly_multi_edges = possibly_multi_edge_count;
     unique_possibly_multi_edge_hashes.resize(num_possibly_multi_edges, handle.get_stream());
-    thrust::copy_if(handle.get_thrust_policy(),
-                    hashes.begin(),
-                    hashes.end(),
-                    is_definitely_not_multi_edge_hashes.begin(),
-                    unique_possibly_multi_edge_hashes.begin(),
-                    cuda::proclaim_return_type<bool>([] __device__(bool definitely_not_multi_edge) {
-                      return !definitely_not_multi_edge;
-                    }));
-    is_definitely_not_multi_edge_hashes.resize(0, handle.get_stream());
-    is_definitely_not_multi_edge_hashes.shrink_to_fit(handle.get_stream());
+    cugraph::copy_if_mask_set(handle,
+                              hashes.begin(),
+                              hashes.end(),
+                              possibly_multi_edge_flags.begin(),
+                              unique_possibly_multi_edge_hashes.begin());
+    possibly_multi_edge_flags.resize(0, handle.get_stream());
+    possibly_multi_edge_flags.shrink_to_fit(handle.get_stream());
 
     cugraph::sort(handle.get_thrust_policy(),
                   unique_possibly_multi_edge_hashes.begin(),
@@ -819,24 +810,24 @@ remove_multi_edges_impl(
 
       auto pair_first = thrust::make_zip_iterator(multi_edge_srcs.begin(), multi_edge_dsts.begin());
       auto [keep_count, keep_flags] =
-        detail::mark_entries(handle,
-                             multi_edge_srcs.size(),
-                             detail::is_first_in_run_t<decltype(pair_first)>{pair_first});
-      multi_edge_srcs = detail::keep_marked_entries(
-        handle,
-        std::move(multi_edge_srcs),
-        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-        keep_count);
-      multi_edge_dsts = detail::keep_marked_entries(
-        handle,
-        std::move(multi_edge_dsts),
-        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-        keep_count);
-      multi_edge_indices = detail::keep_marked_entries(
-        handle,
-        std::move(multi_edge_indices),
-        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-        keep_count);
+        mark_entries(multi_edge_srcs.size(),
+                     detail::is_first_in_run_t<decltype(pair_first)>{pair_first},
+                     handle.get_stream());
+      multi_edge_srcs =
+        keep_marked_entries(handle,
+                            std::move(multi_edge_srcs),
+                            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+                            keep_count);
+      multi_edge_dsts =
+        keep_marked_entries(handle,
+                            std::move(multi_edge_dsts),
+                            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+                            keep_count);
+      multi_edge_indices =
+        keep_marked_entries(handle,
+                            std::move(multi_edge_indices),
+                            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+                            keep_count);
 
       // 6. copy multi-edges back to the original edgelists
 
@@ -945,8 +936,7 @@ remove_multi_edges_impl(
       raft::update_device(
         d_group_valid_counts.data(), group_valid_counts[i].data(), num_chunks, handle.get_stream());
 
-      auto [keep_count, keep_flags] = detail::mark_entries(
-        handle,
+      auto [keep_count, keep_flags] = mark_entries(
         edgelist_srcs[i].size(),
         [lasts              = raft::device_span<size_t const>(d_lasts.data(), d_lasts.size()),
          group_valid_counts = raft::device_span<size_t const>(
@@ -956,25 +946,26 @@ remove_multi_edges_impl(
           auto intra_group_idx = i - (group_idx == 0 ? 0 : lasts[group_idx - 1]);
           return intra_group_idx < group_valid_counts[group_idx];
         },
+        handle.get_stream(),
         large_buffer_type);
 
-      edgelist_srcs[i] = detail::keep_marked_entries(
-        handle,
-        std::move(edgelist_srcs[i]),
-        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-        keep_count,
-        large_buffer_type);
-      edgelist_dsts[i] = detail::keep_marked_entries(
-        handle,
-        std::move(edgelist_dsts[i]),
-        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-        keep_count,
-        large_buffer_type);
+      edgelist_srcs[i] =
+        keep_marked_entries(handle,
+                            std::move(edgelist_srcs[i]),
+                            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+                            keep_count,
+                            large_buffer_type);
+      edgelist_dsts[i] =
+        keep_marked_entries(handle,
+                            std::move(edgelist_dsts[i]),
+                            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+                            keep_count,
+                            large_buffer_type);
       if (edge_property_count == 0) {
         /* nothing to do */
       } else if (edge_property_count == 1) {
         if (edgelist_weights) {
-          (*edgelist_weights)[i] = detail::keep_marked_entries(
+          (*edgelist_weights)[i] = keep_marked_entries(
             handle,
             std::move((*edgelist_weights)[i]),
             raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -982,7 +973,7 @@ remove_multi_edges_impl(
             large_buffer_type);
         }
         if (edgelist_edge_ids) {
-          (*edgelist_edge_ids)[i] = detail::keep_marked_entries(
+          (*edgelist_edge_ids)[i] = keep_marked_entries(
             handle,
             std::move((*edgelist_edge_ids)[i]),
             raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -990,7 +981,7 @@ remove_multi_edges_impl(
             large_buffer_type);
         }
         if (edgelist_edge_types) {
-          (*edgelist_edge_types)[i] = detail::keep_marked_entries(
+          (*edgelist_edge_types)[i] = keep_marked_entries(
             handle,
             std::move((*edgelist_edge_types)[i]),
             raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -998,7 +989,7 @@ remove_multi_edges_impl(
             large_buffer_type);
         }
         if (edgelist_edge_start_times) {
-          (*edgelist_edge_start_times)[i] = detail::keep_marked_entries(
+          (*edgelist_edge_start_times)[i] = keep_marked_entries(
             handle,
             std::move((*edgelist_edge_start_times)[i]),
             raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -1006,7 +997,7 @@ remove_multi_edges_impl(
             large_buffer_type);
         }
         if (edgelist_edge_end_times) {
-          (*edgelist_edge_end_times)[i] = detail::keep_marked_entries(
+          (*edgelist_edge_end_times)[i] = keep_marked_entries(
             handle,
             std::move((*edgelist_edge_end_times)[i]),
             raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -1014,7 +1005,7 @@ remove_multi_edges_impl(
             large_buffer_type);
         }
       } else {  // edge_property_count > 1
-        (*edgelist_indices)[i] = detail::keep_marked_entries(
+        (*edgelist_indices)[i] = keep_marked_entries(
           handle,
           std::move((*edgelist_indices)[i]),
           raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -1206,29 +1197,29 @@ remove_multi_edges_impl(
 
     auto pair_first = thrust::make_zip_iterator(edgelist_srcs[0].begin(), edgelist_dsts[0].begin());
     auto [keep_count, keep_flags] =
-      detail::mark_entries(handle,
-                           edgelist_srcs[0].size(),
-                           detail::is_first_in_run_t<decltype(pair_first)>{pair_first},
-                           large_buffer_type);
+      mark_entries(edgelist_srcs[0].size(),
+                   detail::is_first_in_run_t<decltype(pair_first)>{pair_first},
+                   handle.get_stream(),
+                   large_buffer_type);
 
-    edgelist_srcs[0] = detail::keep_marked_entries(
-      handle,
-      std::move(edgelist_srcs[0]),
-      raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-      keep_count,
-      large_buffer_type);
-    edgelist_dsts[0] = detail::keep_marked_entries(
-      handle,
-      std::move(edgelist_dsts[0]),
-      raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-      keep_count,
-      large_buffer_type);
+    edgelist_srcs[0] =
+      keep_marked_entries(handle,
+                          std::move(edgelist_srcs[0]),
+                          raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+                          keep_count,
+                          large_buffer_type);
+    edgelist_dsts[0] =
+      keep_marked_entries(handle,
+                          std::move(edgelist_dsts[0]),
+                          raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+                          keep_count,
+                          large_buffer_type);
 
     if (edge_property_count == 0) {
       /* nothing to do */
     } else if (edge_property_count == 1) {
       if (edgelist_weights) {
-        (*edgelist_weights)[0] = detail::keep_marked_entries(
+        (*edgelist_weights)[0] = keep_marked_entries(
           handle,
           std::move((*edgelist_weights)[0]),
           raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -1237,7 +1228,7 @@ remove_multi_edges_impl(
       }
 
       if (edgelist_edge_ids) {
-        (*edgelist_edge_ids)[0] = detail::keep_marked_entries(
+        (*edgelist_edge_ids)[0] = keep_marked_entries(
           handle,
           std::move((*edgelist_edge_ids)[0]),
           raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -1246,7 +1237,7 @@ remove_multi_edges_impl(
       }
 
       if (edgelist_edge_types) {
-        (*edgelist_edge_types)[0] = detail::keep_marked_entries(
+        (*edgelist_edge_types)[0] = keep_marked_entries(
           handle,
           std::move((*edgelist_edge_types)[0]),
           raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -1255,7 +1246,7 @@ remove_multi_edges_impl(
       }
 
       if (edgelist_edge_start_times) {
-        (*edgelist_edge_start_times)[0] = detail::keep_marked_entries(
+        (*edgelist_edge_start_times)[0] = keep_marked_entries(
           handle,
           std::move((*edgelist_edge_start_times)[0]),
           raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -1264,7 +1255,7 @@ remove_multi_edges_impl(
       }
 
       if (edgelist_edge_end_times) {
-        (*edgelist_edge_end_times)[0] = detail::keep_marked_entries(
+        (*edgelist_edge_end_times)[0] = keep_marked_entries(
           handle,
           std::move((*edgelist_edge_end_times)[0]),
           raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -1273,12 +1264,12 @@ remove_multi_edges_impl(
       }
     } else {  // edge_property_count > 1
       assert(edgelist_indices);
-      (*edgelist_indices)[0] = detail::keep_marked_entries(
-        handle,
-        std::move((*edgelist_indices)[0]),
-        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-        keep_count,
-        large_buffer_type);
+      (*edgelist_indices)[0] =
+        keep_marked_entries(handle,
+                            std::move((*edgelist_indices)[0]),
+                            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+                            keep_count,
+                            large_buffer_type);
       if (edgelist_weights) {
         auto tmp = large_buffer_type
                      ? large_buffer_manager::allocate_memory_buffer<weight_t>(keep_count,

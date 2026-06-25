@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cugraph/export.hpp>
+#include <cugraph/utilities/iterator_utils.hpp>
 #include <cugraph/utilities/thrust_wrappers_zip_types.hpp>
 
 #include <rmm/exec_policy.hpp>
@@ -88,16 +89,11 @@ inline constexpr bool sort_supported_zip_v =
                      std::is_same<std::remove_cv_t<T>, zip_i32_i32_i32_sz>,
                      std::is_same<std::remove_cv_t<T>, zip_i64_i64_i64_sz>>;
 
-/** Value type of @p Iterator for @ref cugraph::sort constraints (C++17-friendly). */
-template <typename Iterator>
-using sort_iterator_value_t =
-  std::remove_cv_t<typename std::iterator_traits<std::remove_cv_t<Iterator>>::value_type>;
-
 /** @brief True when @p Iterator is a pointer to a @ref sort_supported_arithmetic_scalar_v type. */
 template <typename Iterator>
 inline constexpr bool sort_supported_scalar_iterator_v =
   std::is_pointer_v<std::remove_cv_t<Iterator>> &&
-  sort_supported_arithmetic_scalar_v<sort_iterator_value_t<Iterator>>;
+  sort_supported_arithmetic_scalar_v<iterator_value_t<Iterator>>;
 
 /** @brief True when @p Iterator has an out-of-line @ref sort_impl / @ref unique_impl instantiation.
  */
@@ -247,19 +243,14 @@ inline constexpr bool scan_scalar_value_v =
                      std::is_same<std::remove_cv_t<T>, std::int32_t>,
                      std::is_same<std::remove_cv_t<T>, std::int64_t>>;
 
-/** Input iterator value type for @ref cugraph::inclusive_scan / @ref cugraph::exclusive_scan. */
-template <typename Iterator>
-using scan_iterator_value_t =
-  std::remove_cv_t<typename std::iterator_traits<std::remove_cv_t<Iterator>>::value_type>;
-
 /** @brief True when @p InputIterator and @p OutputIterator are pointers to the same @ref
  * scan_scalar_value_v type. */
 template <typename InputIterator, typename OutputIterator>
 inline constexpr bool scan_supported_iterator_v =
   std::is_pointer_v<std::remove_cv_t<InputIterator>> &&
   std::is_pointer_v<std::remove_cv_t<OutputIterator>> &&
-  scan_scalar_value_v<scan_iterator_value_t<InputIterator>> &&
-  std::is_same_v<scan_iterator_value_t<InputIterator>, scan_iterator_value_t<OutputIterator>>;
+  scan_scalar_value_v<iterator_value_t<InputIterator>> &&
+  std::is_same_v<iterator_value_t<InputIterator>, iterator_value_t<OutputIterator>>;
 
 /**
  * @ingroup utility_wrappers_cpp
@@ -430,8 +421,7 @@ struct exclusive_scan_t {
     if constexpr ((detail::is_rmm_exec_policy_v<ExecutionPolicy> ||
                    detail::is_rmm_exec_policy_nosync_v<ExecutionPolicy>) &&
                   detail::scan_supported_iterator_v<InputIterator, OutputIterator> &&
-                  std::is_same_v<detail::scan_iterator_value_t<InputIterator>,
-                                 std::remove_cv_t<T>>) {
+                  std::is_same_v<detail::iterator_value_t<InputIterator>, std::remove_cv_t<T>>) {
       return detail::exclusive_scan_impl(policy, first, last, result, init);
     } else {
       return thrust::exclusive_scan(policy, first, last, result, init);
@@ -481,16 +471,11 @@ inline constexpr bool fill_supported_scalar_v =
                      std::is_same<std::remove_cv_t<T>, float>,
                      std::is_same<std::remove_cv_t<T>, double>>;
 
-/** Value type of @p Iterator for @ref cugraph::fill constraints. */
-template <typename Iterator>
-using fill_iterator_value_t =
-  std::remove_cv_t<typename std::iterator_traits<std::remove_cv_t<Iterator>>::value_type>;
-
 /** @brief True when @p Iterator is a pointer to a @ref fill_supported_scalar_v type. */
 template <typename Iterator>
 inline constexpr bool fill_supported_iterator_v =
   std::is_pointer_v<std::remove_cv_t<Iterator>> &&
-  fill_supported_scalar_v<fill_iterator_value_t<Iterator>>;
+  fill_supported_scalar_v<iterator_value_t<Iterator>>;
 
 template <typename ForwardIterator, typename T>
 void fill_impl(rmm::exec_policy const& policy,
@@ -520,7 +505,7 @@ struct fill_t {
                   ForwardIterator last,
                   T const& value) const
   {
-    using value_t = detail::fill_iterator_value_t<ForwardIterator>;
+    using value_t = detail::iterator_value_t<ForwardIterator>;
     if constexpr ((detail::is_rmm_exec_policy_v<ExecutionPolicy> ||
                    detail::is_rmm_exec_policy_nosync_v<ExecutionPolicy>) &&
                   detail::fill_supported_iterator_v<ForwardIterator>) {
@@ -549,16 +534,11 @@ inline constexpr bool sequence_supported_scalar_v =
                      std::is_same<std::remove_cv_t<T>, std::int32_t>,
                      std::is_same<std::remove_cv_t<T>, std::int64_t>>;
 
-/** Value type of @p Iterator for @ref cugraph::sequence constraints. */
-template <typename Iterator>
-using sequence_iterator_value_t =
-  std::remove_cv_t<typename std::iterator_traits<std::remove_cv_t<Iterator>>::value_type>;
-
 /** @brief True when @p Iterator is a pointer to a @ref sequence_supported_scalar_v type. */
 template <typename Iterator>
 inline constexpr bool sequence_supported_iterator_v =
   std::is_pointer_v<std::remove_cv_t<Iterator>> &&
-  sequence_supported_scalar_v<sequence_iterator_value_t<Iterator>>;
+  sequence_supported_scalar_v<iterator_value_t<Iterator>>;
 
 template <typename ForwardIterator, typename T>
 void sequence_impl(
@@ -584,7 +564,7 @@ struct sequence_t {
   template <typename ExecutionPolicy, typename ForwardIterator>
   void operator()(ExecutionPolicy const& policy, ForwardIterator first, ForwardIterator last) const
   {
-    using value_t = detail::sequence_iterator_value_t<ForwardIterator>;
+    using value_t = detail::iterator_value_t<ForwardIterator>;
     if constexpr ((detail::is_rmm_exec_policy_v<ExecutionPolicy> ||
                    detail::is_rmm_exec_policy_nosync_v<ExecutionPolicy>) &&
                   detail::sequence_supported_iterator_v<ForwardIterator>) {
@@ -606,7 +586,7 @@ struct sequence_t {
                   ForwardIterator last,
                   T init) const
   {
-    using value_t = detail::sequence_iterator_value_t<ForwardIterator>;
+    using value_t = detail::iterator_value_t<ForwardIterator>;
     if constexpr ((detail::is_rmm_exec_policy_v<ExecutionPolicy> ||
                    detail::is_rmm_exec_policy_nosync_v<ExecutionPolicy>) &&
                   detail::sequence_supported_iterator_v<ForwardIterator>) {
@@ -629,7 +609,7 @@ struct sequence_t {
                   T init,
                   T step) const
   {
-    using value_t = detail::sequence_iterator_value_t<ForwardIterator>;
+    using value_t = detail::iterator_value_t<ForwardIterator>;
     if constexpr ((detail::is_rmm_exec_policy_v<ExecutionPolicy> ||
                    detail::is_rmm_exec_policy_nosync_v<ExecutionPolicy>) &&
                   detail::sequence_supported_iterator_v<ForwardIterator>) {

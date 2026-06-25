@@ -150,10 +150,10 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
   // compressed sparse format to save memory
 
   rmm::device_uvector<vertex_t> edgelist_majors(
-    edge_partition_e_mask
-      ? detail::count_set_bits(
-          handle, (*edge_partition_e_mask).value_first(), edge_partition.number_of_edges())
-      : static_cast<size_t>(edge_partition.number_of_edges()),
+    edge_partition_e_mask ? count_set_bits(handle.get_thrust_policy(),
+                                           (*edge_partition_e_mask).value_first(),
+                                           edge_partition.number_of_edges())
+                          : static_cast<size_t>(edge_partition.number_of_edges()),
     handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_minors(edgelist_majors.size(), handle.get_stream());
   auto edgelist_weights = edge_partition_weight_view
