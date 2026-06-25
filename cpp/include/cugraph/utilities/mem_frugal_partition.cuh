@@ -47,7 +47,7 @@ ValueIterator mem_frugal_partition(
   auto const second_size     = num_elements - first_size;
   uint32_t const* mask_first = marked_entries.data();
 
-  partition_by_mask(
+  cugraph::partition_by_mask(
     value_first, value_last, mask_first, first_size, second_size, stream_view, large_buffer_type);
 
   return value_first + first_size;
@@ -83,16 +83,16 @@ std::tuple<KeyIterator, ValueIterator> mem_frugal_partition(
   auto const second_size     = num_elements - first_size;
   uint32_t const* mask_first = marked_entries.data();
 
-  partition_by_mask(
+  cugraph::partition_by_mask(
     key_first, key_last, mask_first, first_size, second_size, stream_view, large_buffer_type);
 
-  partition_by_mask(value_first,
-                    value_first + num_elements,
-                    mask_first,
-                    first_size,
-                    second_size,
-                    stream_view,
-                    large_buffer_type);
+  cugraph::partition_by_mask(value_first,
+                             value_first + num_elements,
+                             mask_first,
+                             first_size,
+                             second_size,
+                             stream_view,
+                             large_buffer_type);
 
   return std::make_tuple(key_first + first_size, value_first + first_size);
 }

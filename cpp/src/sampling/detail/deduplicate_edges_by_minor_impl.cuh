@@ -204,27 +204,27 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
     raft::device_span<uint32_t const> const keep_flags_span{keep_flags.data(), keep_flags.size()};
 
     discarded_majors.resize(discard_count, handle.get_stream());
-    copy_if_mask_unset(handle,
-                       result_majors.begin(),
-                       result_majors.end(),
-                       keep_flags.begin(),
-                       discarded_majors.begin());
+    cugraph::copy_if_mask_unset(handle,
+                                result_majors.begin(),
+                                result_majors.end(),
+                                keep_flags.begin(),
+                                discarded_majors.begin());
     result_majors =
       keep_marked_entries(handle, std::move(result_majors), keep_flags_span, keep_count);
 
     discarded_minors.resize(discard_count, handle.get_stream());
-    copy_if_mask_unset(handle,
-                       result_minors.begin(),
-                       result_minors.end(),
-                       keep_flags.begin(),
-                       discarded_minors.begin());
+    cugraph::copy_if_mask_unset(handle,
+                                result_minors.begin(),
+                                result_minors.end(),
+                                keep_flags.begin(),
+                                discarded_minors.begin());
     result_minors =
       keep_marked_entries(handle, std::move(result_minors), keep_flags_span, keep_count);
 
     if (has_edge_property) {
       auto& property = std::get<rmm::device_uvector<edge_t>>(result_edge_property);
       rmm::device_uvector<edge_t> discarded(discard_count, handle.get_stream());
-      copy_if_mask_unset(
+      cugraph::copy_if_mask_unset(
         handle, property.begin(), property.end(), keep_flags.begin(), discarded.begin());
       property = keep_marked_entries(handle, std::move(property), keep_flags_span, keep_count);
       discarded_edge_property = std::move(discarded);
@@ -234,17 +234,18 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
       auto& types     = std::get<rmm::device_uvector<int32_t>>(result_types);
       auto& discarded = std::get<rmm::device_uvector<int32_t>>(discarded_types);
       discarded.resize(discard_count, handle.get_stream());
-      copy_if_mask_unset(handle, types.begin(), types.end(), keep_flags.begin(), discarded.begin());
+      cugraph::copy_if_mask_unset(
+        handle, types.begin(), types.end(), keep_flags.begin(), discarded.begin());
     }
 
     if (has_labels) {
       discarded_labels =
         std::make_optional(rmm::device_uvector<int32_t>(discard_count, handle.get_stream()));
-      copy_if_mask_unset(handle,
-                         result_labels->begin(),
-                         result_labels->end(),
-                         keep_flags.begin(),
-                         discarded_labels->begin());
+      cugraph::copy_if_mask_unset(handle,
+                                  result_labels->begin(),
+                                  result_labels->end(),
+                                  keep_flags.begin(),
+                                  discarded_labels->begin());
       *result_labels =
         keep_marked_entries(handle, std::move(*result_labels), keep_flags_span, keep_count);
     }
