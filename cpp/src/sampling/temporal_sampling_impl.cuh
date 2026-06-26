@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "detail/gather_sampled_properties.hpp"
+#include "detail/gather_sampled_properties.cuh"
 #include "detail/sampling_utils.hpp"
 #include "detail/shuffle_wrappers.hpp"
 #include "utilities/validation_checks.hpp"

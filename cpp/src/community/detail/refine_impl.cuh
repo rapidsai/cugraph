@@ -559,14 +559,14 @@ refine_clustering(raft::handle_t const& handle,
     //
     // Filter out moves with -ve gains
     //
-    auto [keep_count, keep_flags] = detail::mark_entries(
-      handle,
+    auto [keep_count, keep_flags] = mark_entries(
       static_cast<size_t>(n_local_vertices),
       cuda::proclaim_return_type<bool>([gain_ptr    = vertex_best_move_gain.data(),
                                         cluster_ptr = vertex_best_move_cluster_id.data(),
                                         min_gain    = POSITIVE_GAIN] __device__(size_t i) {
         return (gain_ptr[i] > min_gain) && (cluster_ptr[i] >= vertex_t{0});
-      }));
+      }),
+      handle.get_stream());
 
     vertex_best_move_gain.resize(0, handle.get_stream());
     vertex_best_move_gain.shrink_to_fit(handle.get_stream());
@@ -594,13 +594,13 @@ refine_clustering(raft::handle_t const& handle,
                       graph_view.local_vertex_partition_range_first());
 
     rmm::device_uvector<vertex_t> d_dsts(keep_count, handle.get_stream());
-    copy_if_mask_set(handle,
-                     vertex_best_move_cluster_id.begin(),
-                     vertex_best_move_cluster_id.end(),
-                     keep_flags.begin(),
-                     d_dsts.begin());
+    cugraph::copy_if_mask_set(handle,
+                              vertex_best_move_cluster_id.begin(),
+                              vertex_best_move_cluster_id.end(),
+                              keep_flags.begin(),
+                              d_dsts.begin());
 
-    d_srcs = detail::keep_marked_entries(handle, std::move(d_srcs), keep_mask_span, keep_count);
+    d_srcs = keep_marked_entries(handle, std::move(d_srcs), keep_mask_span, keep_count);
 
     auto vertices_in_mis = vertices_in_mis_from_decision_edgelist<vertex_t, multi_gpu>(
       handle,

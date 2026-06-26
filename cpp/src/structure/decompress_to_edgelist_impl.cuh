@@ -78,8 +78,9 @@ decompress_to_edgelist_impl(
   for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
     edgelist_edge_counts[i] = graph_view.local_edge_partition_view(i).number_of_edges();
     if (graph_view.has_edge_mask()) {
-      edgelist_edge_counts[i] = detail::count_set_bits(
-        handle, (*(graph_view.edge_mask_view())).value_firsts()[i], edgelist_edge_counts[i]);
+      edgelist_edge_counts[i] = count_set_bits(handle.get_thrust_policy(),
+                                               (*(graph_view.edge_mask_view())).value_firsts()[i],
+                                               edgelist_edge_counts[i]);
     }
   }
   auto number_of_local_edges =
@@ -333,8 +334,8 @@ decompress_to_edgelist_impl(
 
   auto num_edges = graph_view.local_edge_partition_view().number_of_edges();
   if (graph_view.has_edge_mask()) {
-    num_edges =
-      detail::count_set_bits(handle, (*(graph_view.edge_mask_view())).value_firsts()[0], num_edges);
+    num_edges = count_set_bits(
+      handle.get_thrust_policy(), (*(graph_view.edge_mask_view())).value_firsts()[0], num_edges);
   }
 
   auto edgelist_majors =
