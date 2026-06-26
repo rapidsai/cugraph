@@ -462,7 +462,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                             handle.get_stream());
           handle.sync_stream();
           if constexpr (!std::is_same_v<edge_value_t, cuda::std::nullopt_t>) {
-            detail::copy_if_mask_set(
+            cugraph::copy_if_mask_set(
               handle,
               thrust::make_zip_iterator(minor_key_first,
                                         edge_partition_e_value_input.value_first()) +
@@ -476,11 +476,11 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                                           tmp_key_aggregated_edge_values)) +
                 h_edge_offsets[j]);
           } else {
-            detail::copy_if_mask_set(handle,
-                                     minor_key_first + unmasked_ranges[0],
-                                     minor_key_first + unmasked_ranges[1],
-                                     (*edge_partition_e_mask).value_first() + unmasked_ranges[0],
-                                     tmp_minor_keys.begin() + h_edge_offsets[j]);
+            cugraph::copy_if_mask_set(handle,
+                                      minor_key_first + unmasked_ranges[0],
+                                      minor_key_first + unmasked_ranges[1],
+                                      (*edge_partition_e_mask).value_first() + unmasked_ranges[0],
+                                      tmp_minor_keys.begin() + h_edge_offsets[j]);
           }
         } else {
           thrust::copy(handle.get_thrust_policy(),

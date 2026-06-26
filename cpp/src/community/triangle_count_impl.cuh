@@ -17,6 +17,7 @@
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <cuda/functional>
@@ -31,6 +32,7 @@
 #include <thrust/scatter.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
+#include <thrust/unique.h>
 
 namespace cugraph {
 

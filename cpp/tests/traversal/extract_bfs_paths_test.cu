@@ -25,6 +25,7 @@
 #include <rmm/mr/cuda_memory_resource.hpp>
 
 #include <cuda/std/iterator>
+#include <thrust/remove.h>
 
 #include <gtest/gtest.h>
 

@@ -12,8 +12,8 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
+#include <cugraph/utilities/groupby_and_count.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
-#include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/device_span.hpp>

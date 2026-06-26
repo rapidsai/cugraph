@@ -21,6 +21,7 @@
 #include <thrust/equal.h>
 #include <thrust/fill.h>
 #include <thrust/gather.h>
+#include <thrust/iterator/discard_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/remove.h>
 #include <thrust/sort.h>

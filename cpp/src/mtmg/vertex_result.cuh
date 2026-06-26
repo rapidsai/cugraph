@@ -10,6 +10,7 @@
 #include <cugraph/mtmg/vertex_result_view.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
+#include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/utilities/thrust_wrappers.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
@@ -20,6 +21,7 @@
 #include <cuda/std/functional>
 #include <cuda/std/tuple>
 #include <thrust/gather.h>
+#include <thrust/remove.h>
 
 namespace cugraph {
 namespace mtmg {
