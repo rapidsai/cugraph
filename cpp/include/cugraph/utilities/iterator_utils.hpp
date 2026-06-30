@@ -7,6 +7,7 @@
 #include <cugraph/export.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
+#include <cuda/iterator>
 #include <thrust/device_ptr.h>
 #include <thrust/iterator/detail/normal_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
@@ -40,6 +41,13 @@ template <typename Iterator>
 inline constexpr bool is_arithmetic_pointer_v =
   std::is_pointer_v<std::decay_t<Iterator>> &&
   std::is_arithmetic_v<std::remove_cv_t<std::remove_pointer_t<std::decay_t<Iterator>>>>;
+
+/** True when @p T is a @c cuda::transform_iterator. */
+template <typename T>
+inline constexpr bool is_cuda_transform_iterator_v = false;
+
+template <typename Fn, typename Iter>
+inline constexpr bool is_cuda_transform_iterator_v<cuda::transform_iterator<Fn, Iter>> = true;
 
 template <typename T>
 T* iter_to_raw_ptr(T* ptr)

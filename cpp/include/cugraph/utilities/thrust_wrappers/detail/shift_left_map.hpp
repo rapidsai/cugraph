@@ -18,12 +18,6 @@ inline constexpr bool is_shift_left_functor_v = false;
 template <typename T>
 inline constexpr bool is_shift_left_functor_v<shift_left_t<T>> = true;
 
-template <typename T>
-inline constexpr bool is_cuda_transform_iterator_v = false;
-
-template <typename Fn, typename Iter>
-inline constexpr bool is_cuda_transform_iterator_v<cuda::transform_iterator<Fn, Iter>> = true;
-
 template <typename Fn, typename KeyIterator>
 struct shift_left_transform_map_iterator_traits {
   static constexpr bool value = false;
