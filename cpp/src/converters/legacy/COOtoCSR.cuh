@@ -14,7 +14,8 @@
 #include <cugraph/legacy/functions.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
 
 #include <rmm/exec_policy.hpp>
 #include <rmm/resource_ref.hpp>

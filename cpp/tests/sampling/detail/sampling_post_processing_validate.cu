@@ -6,7 +6,11 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
@@ -620,11 +624,11 @@ bool compare_heterogeneous_edgelist(
         auto renumber_map = raft::device_span<edge_id_t const>(
           (*edge_id_renumber_map).data() + renumber_map_type_start_offset,
           renumber_map_type_end_offset - renumber_map_type_start_offset);
-        thrust::gather(handle.get_thrust_policy(),
-                       (*renumbered_edgelist_edge_ids).begin() + edge_type_start_offset,
-                       (*renumbered_edgelist_edge_ids).begin() + edge_type_end_offset,
-                       renumber_map.begin(),
-                       (*unrenumbered_edgelist_edge_ids).begin());
+        cugraph::gather(handle.get_thrust_policy(),
+                        (*renumbered_edgelist_edge_ids).begin() + edge_type_start_offset,
+                        (*renumbered_edgelist_edge_ids).begin() + edge_type_end_offset,
+                        renumber_map.begin(),
+                        (*unrenumbered_edgelist_edge_ids).begin());
       }
 
       // sort sorted & renumbered edgelist by (src, dst, (weight), (edge ID))

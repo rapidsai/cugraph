@@ -19,7 +19,10 @@
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -1365,11 +1368,11 @@ nbr_intersection(raft::handle_t const& handle,
                             handle.get_stream());
         rmm::device_uvector<size_t> d_rx_v_pair_nbr_intersection_index_tx_lasts(
           d_rx_v_pair_lasts.size(), handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       d_rx_v_pair_lasts.begin(),
-                       d_rx_v_pair_lasts.end(),
-                       rx_v_pair_nbr_intersection_offsets.begin(),
-                       d_rx_v_pair_nbr_intersection_index_tx_lasts.begin());
+        cugraph::gather(handle.get_thrust_policy(),
+                        d_rx_v_pair_lasts.begin(),
+                        d_rx_v_pair_lasts.end(),
+                        rx_v_pair_nbr_intersection_offsets.begin(),
+                        d_rx_v_pair_nbr_intersection_index_tx_lasts.begin());
         std::vector<size_t> h_rx_v_pair_nbr_intersection_index_tx_lasts(
           d_rx_v_pair_nbr_intersection_index_tx_lasts.size());
         raft::update_host(h_rx_v_pair_nbr_intersection_index_tx_lasts.data(),
@@ -1451,11 +1454,11 @@ nbr_intersection(raft::handle_t const& handle,
           thrust::make_counting_iterator(size_t{1}),
           detail::multiplier_t<size_t>{rx_v_pair_counts[minor_comm_rank]});
         rmm::device_uvector<size_t> d_lasts(minor_comm_size, handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       map_first,
-                       map_first + minor_comm_size,
-                       gathered_nbr_intersection_offsets.begin(),
-                       d_lasts.begin());
+        cugraph::gather(handle.get_thrust_policy(),
+                        map_first,
+                        map_first + minor_comm_size,
+                        gathered_nbr_intersection_offsets.begin(),
+                        d_lasts.begin());
         std::vector<size_t> h_lasts(d_lasts.size());
         raft::update_host(h_lasts.data(), d_lasts.data(), d_lasts.size(), handle.get_stream());
         handle.sync_stream();

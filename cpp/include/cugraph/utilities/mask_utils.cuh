@@ -28,31 +28,6 @@
 
 namespace CUGRAPH_EXPORT cugraph {
 
-#if 0
-template <typename InputIterator, typename OutputIterator>
-OutputIterator copy_if_mask_set(raft::handle_t const& handle,
-                                InputIterator input_first,
-                                InputIterator input_last,
-                                uint32_t const* mask_first,
-                                OutputIterator output_first);
-
-template <typename InputIterator, typename OutputIterator>
-OutputIterator copy_if_mask_unset(raft::handle_t const& handle,
-                                  InputIterator input_first,
-                                  InputIterator input_last,
-                                  uint32_t const* mask_first,
-                                  OutputIterator output_first);
-
-template <typename InputIterator>
-void partition_by_mask(InputIterator input_first,
-                       InputIterator input_last,
-                       uint32_t const* mask_first,
-                       size_t first_size,
-                       size_t second_size,
-                       rmm::cuda_stream_view stream_view,
-                       std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
-#endif
-
 namespace detail {
 
 // @p n starts from 1

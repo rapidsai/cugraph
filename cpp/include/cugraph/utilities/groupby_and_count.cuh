@@ -8,9 +8,10 @@
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/mem_frugal_partition.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
-
-#include <raft/core/device_span.hpp>
+#include <cugraph/utilities/partition_scatter_map_wrappers.cuh>
+#include <cugraph/utilities/permute_wrappers.cuh>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
 
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
@@ -26,7 +27,6 @@
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/partition.h>
-#include <thrust/scatter.h>
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
 
@@ -73,78 +73,22 @@ struct kv_pair_group_id_less_t {
   }
 };
 
-template <typename gid_offset_t,
-          typename offset_t,
-          typename ValueIterator,
-          typename ValueToGroupIdOp>
-void multi_partition(ValueIterator value_first,
-                     ValueIterator value_last,
-                     ValueToGroupIdOp value_to_group_id_op,
-                     int group_first,
-                     int group_last,
-                     rmm::cuda_stream_view stream_view)
+// Uses keys and the group-id functor to assign each element to a group and compute its position
+// within that group. This is the only step that depends on KeyToGroupIdOp.
+// Returns (group_id_offsets, intra_partition_displs, group_displacements).
+template <typename gid_offset_t, typename offset_t, typename KeyIterator, typename KeyToGroupIdOp>
+std::tuple<rmm::device_uvector<gid_offset_t>,
+           rmm::device_uvector<offset_t>,
+           rmm::device_uvector<size_t>>
+compute_partition_permutation_map(KeyIterator key_first,
+                                  KeyIterator key_last,
+                                  KeyToGroupIdOp key_to_group_id_op,
+                                  int group_first,
+                                  int group_last,
+                                  rmm::cuda_stream_view stream_view)
 {
-  auto num_values = static_cast<size_t>(cuda::std::distance(value_first, value_last));
-  auto num_groups = group_last - group_first;
-
-  rmm::device_uvector<size_t> counts(num_groups, stream_view);
-  rmm::device_uvector<gid_offset_t> group_id_offsets(num_values, stream_view);
-  rmm::device_uvector<offset_t> intra_partition_displs(num_values, stream_view);
-  cugraph::fill(rmm::exec_policy(stream_view), counts.begin(), counts.end(), size_t{0});
-  thrust::transform(
-    rmm::exec_policy(stream_view),
-    value_first,
-    value_last,
-    thrust::make_zip_iterator(group_id_offsets.begin(), intra_partition_displs.begin()),
-    cuda::proclaim_return_type<cuda::std::tuple<gid_offset_t, offset_t>>(
-      [value_to_group_id_op, group_first, counts = counts.data()] __device__(auto value) {
-        auto group_id_offset = static_cast<gid_offset_t>(value_to_group_id_op(value) - group_first);
-        cuda::std::atomic_ref<size_t> counter(counts[group_id_offset]);
-        return cuda::std::make_tuple(
-          group_id_offset,
-          static_cast<offset_t>(counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed)));
-      }));
-
-  rmm::device_uvector<size_t> displacements(num_groups, stream_view);
-  cugraph::exclusive_scan(
-    rmm::exec_policy(stream_view), counts.begin(), counts.end(), displacements.begin());
-
-  auto tmp_value_buffer =
-    allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
-      num_values, stream_view);
-  auto tmp_value_first = get_dataframe_buffer_begin(tmp_value_buffer);
-  thrust::scatter(
-    rmm::exec_policy(stream_view),
-    value_first,
-    value_last,
-    cuda::make_transform_iterator(
-      thrust::make_zip_iterator(group_id_offsets.begin(), intra_partition_displs.begin()),
-      cuda::proclaim_return_type<size_t>(
-        [displacements = raft::device_span<size_t const>(
-           displacements.data(), displacements.size())] __device__(auto pair) {
-          return displacements[cuda::std::get<0>(pair)] +
-                 static_cast<size_t>(cuda::std::get<1>(pair));
-        })),
-    tmp_value_first);
-  thrust::copy(
-    rmm::exec_policy(stream_view), tmp_value_first, tmp_value_first + num_values, value_first);
-}
-
-template <typename gid_offset_t,
-          typename offset_t,
-          typename KeyIterator,
-          typename ValueIterator,
-          typename KeyToGroupIdOp>
-void multi_partition(KeyIterator key_first,
-                     KeyIterator key_last,
-                     ValueIterator value_first,
-                     KeyToGroupIdOp key_to_group_id_op,
-                     int group_first,
-                     int group_last,
-                     rmm::cuda_stream_view stream_view)
-{
-  auto num_keys   = static_cast<size_t>(cuda::std::distance(key_first, key_last));
-  auto num_groups = group_last - group_first;
+  auto const num_keys   = static_cast<size_t>(cuda::std::distance(key_first, key_last));
+  auto const num_groups = group_last - group_first;
 
   rmm::device_uvector<size_t> counts(num_groups, stream_view);
   rmm::device_uvector<gid_offset_t> group_id_offsets(num_keys, stream_view);
@@ -164,38 +108,79 @@ void multi_partition(KeyIterator key_first,
           static_cast<offset_t>(counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed)));
       }));
 
-  rmm::device_uvector<size_t> displacements(num_groups, stream_view);
+  rmm::device_uvector<size_t> group_displacements(num_groups, stream_view);
   cugraph::exclusive_scan(
-    rmm::exec_policy(stream_view), counts.begin(), counts.end(), displacements.begin());
+    rmm::exec_policy(stream_view), counts.begin(), counts.end(), group_displacements.begin());
 
-  auto map_first = cuda::make_transform_iterator(
-    thrust::make_zip_iterator(group_id_offsets.begin(), intra_partition_displs.begin()),
-    cuda::proclaim_return_type<size_t>([displacements = raft::device_span<size_t const>(
-                                          displacements.data(),
-                                          displacements.size())] __device__(auto pair) {
-      return displacements[cuda::std::get<0>(pair)] + static_cast<size_t>(cuda::std::get<1>(pair));
-    }));
-  {
-    auto tmp_key_buffer =
-      allocate_dataframe_buffer<typename thrust::iterator_traits<KeyIterator>::value_type>(
-        num_keys, stream_view);
-    auto tmp_key_first = get_dataframe_buffer_begin(tmp_key_buffer);
-    thrust::scatter(rmm::exec_policy(stream_view), key_first, key_last, map_first, tmp_key_first);
-    thrust::copy(rmm::exec_policy(stream_view), tmp_key_first, tmp_key_first + num_keys, key_first);
-  }
-  {
-    auto tmp_value_buffer =
-      allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
-        num_keys, stream_view);
-    auto tmp_value_first = get_dataframe_buffer_begin(tmp_value_buffer);
-    thrust::scatter(rmm::exec_policy(stream_view),
-                    value_first,
-                    value_first + num_keys,
-                    map_first,
-                    tmp_value_first);
-    thrust::copy(
-      rmm::exec_policy(stream_view), tmp_value_first, tmp_value_first + num_keys, value_first);
-  }
+  return std::make_tuple(
+    std::move(group_id_offsets), std::move(intra_partition_displs), std::move(group_displacements));
+}
+
+template <typename gid_offset_t, typename offset_t, typename Iterator>
+void apply_multi_partition_permutation(
+  Iterator first,
+  Iterator last,
+  std::tuple<rmm::device_uvector<gid_offset_t>,
+             rmm::device_uvector<offset_t>,
+             rmm::device_uvector<size_t>> const& permutation_map,
+  rmm::cuda_stream_view stream_view)
+{
+  auto const& group_id_offsets       = std::get<0>(permutation_map);
+  auto const& intra_partition_displs = std::get<1>(permutation_map);
+  auto const& group_displacements    = std::get<2>(permutation_map);
+
+  auto const num_elements = static_cast<size_t>(cuda::std::distance(first, last));
+  CUGRAPH_EXPECTS(group_id_offsets.size() == num_elements,
+                  "Invalid input argument: group_id_offsets must have the same size as the input "
+                  "range.");
+  CUGRAPH_EXPECTS(intra_partition_displs.size() == num_elements,
+                  "Invalid input argument: intra_partition_displs must have the same size as the "
+                  "input range.");
+
+  auto scatter_map = compute_partition_scatter_map(
+    group_id_offsets, intra_partition_displs, group_displacements, stream_view);
+  permute_in_place(first, last, scatter_map.data(), stream_view);
+}
+
+template <typename gid_offset_t,
+          typename offset_t,
+          typename ValueIterator,
+          typename ValueToGroupIdOp>
+void multi_partition(ValueIterator value_first,
+                     ValueIterator value_last,
+                     ValueToGroupIdOp value_to_group_id_op,
+                     int group_first,
+                     int group_last,
+                     rmm::cuda_stream_view stream_view)
+{
+  auto permutation_map = compute_partition_permutation_map<gid_offset_t, offset_t>(
+    value_first, value_last, value_to_group_id_op, group_first, group_last, stream_view);
+  apply_multi_partition_permutation<gid_offset_t, offset_t>(
+    value_first, value_last, permutation_map, stream_view);
+}
+
+template <typename gid_offset_t,
+          typename offset_t,
+          typename KeyIterator,
+          typename ValueIterator,
+          typename KeyToGroupIdOp>
+void multi_partition(KeyIterator key_first,
+                     KeyIterator key_last,
+                     ValueIterator value_first,
+                     KeyToGroupIdOp key_to_group_id_op,
+                     int group_first,
+                     int group_last,
+                     rmm::cuda_stream_view stream_view)
+{
+  auto const num_keys = static_cast<size_t>(cuda::std::distance(key_first, key_last));
+
+  auto permutation_map = compute_partition_permutation_map<gid_offset_t, offset_t>(
+    key_first, key_last, key_to_group_id_op, group_first, group_last, stream_view);
+
+  apply_multi_partition_permutation<gid_offset_t, offset_t>(
+    key_first, key_last, permutation_map, stream_view);
+  apply_multi_partition_permutation<gid_offset_t, offset_t>(
+    value_first, value_first + num_keys, permutation_map, stream_view);
 }
 
 template <typename ValueIterator>

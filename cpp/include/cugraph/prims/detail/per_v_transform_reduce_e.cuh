@@ -27,7 +27,9 @@
 #include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
+#include <cugraph/utilities/thrust_wrappers/scatter.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/core/host_span.hpp>
@@ -3452,17 +3454,17 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           view.minor_value_first(),
           cuda::proclaim_return_type<T>(
             [reduce_op, minor_init] __device__(auto val) { return reduce_op(val, minor_init); }));
-        thrust::scatter(handle.get_thrust_policy(),
-                        value_first + (*minor_key_offsets)[i],
-                        value_first + (*minor_key_offsets)[i + 1],
-                        cuda::make_transform_iterator(
-                          (*(view.minor_keys())).begin() + (*minor_key_offsets)[i],
-                          cuda::proclaim_return_type<vertex_t>(
-                            [key_first = graph_view.vertex_partition_range_first(
-                               this_segment_vertex_partition_id)] __device__(auto key) {
-                              return key - key_first;
-                            })),
-                        tx_buffer_first);
+        cugraph::scatter(handle.get_thrust_policy(),
+                         value_first + (*minor_key_offsets)[i],
+                         value_first + (*minor_key_offsets)[i + 1],
+                         cuda::make_transform_iterator(
+                           (*(view.minor_keys())).begin() + (*minor_key_offsets)[i],
+                           cuda::proclaim_return_type<vertex_t>(
+                             [key_first = graph_view.vertex_partition_range_first(
+                                this_segment_vertex_partition_id)] __device__(auto key) {
+                               return key - key_first;
+                             })),
+                         tx_buffer_first);
         device_reduce(major_comm,
                       tx_buffer_first,
                       tmp_vertex_value_output_first,

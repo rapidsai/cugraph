@@ -5,7 +5,9 @@
 #pragma once
 
 #include <cugraph/export.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -53,11 +55,11 @@ std::tuple<std::vector<vertex_t>, std::vector<offset_t>> compute_offset_aligned_
                         search_offset_first + d_chunk_offsets.size(),
                         d_chunk_offsets.begin());
     rmm::device_uvector<offset_t> d_element_offsets(d_chunk_offsets.size(), handle.get_stream());
-    thrust::gather(handle.get_thrust_policy(),
-                   d_chunk_offsets.begin(),
-                   d_chunk_offsets.end(),
-                   offsets.begin(),
-                   d_element_offsets.begin());
+    cugraph::gather(handle.get_thrust_policy(),
+                    d_chunk_offsets.begin(),
+                    d_chunk_offsets.end(),
+                    offsets.begin(),
+                    d_element_offsets.begin());
     std::vector<offset_t> h_element_offsets(num_chunks + 1, offset_t{0});
     h_element_offsets.back() = num_elements;
     raft::update_host(h_element_offsets.data() + 1,

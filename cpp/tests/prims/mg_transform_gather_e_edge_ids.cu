@@ -19,7 +19,8 @@
 #include <cugraph/prims/extract_transform_if_e.cuh>
 #include <cugraph/prims/transform_gather_e.cuh>
 #include <cugraph/utilities/high_res_timer.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>

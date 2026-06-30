@@ -18,7 +18,10 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/scatter.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <cuda/functional>
 #include <cuda/iterator>
@@ -29,7 +32,6 @@
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
-#include <thrust/scatter.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/unique.h>
@@ -113,17 +115,6 @@ struct vertex_to_count_t {
     } else {
       return edge_t{0};
     }
-  }
-};
-
-// FIXME: better move this elsewhere for reuse
-template <typename vertex_t>
-struct vertex_offset_from_vertex_t {
-  vertex_t local_vertex_partition_range_first{};
-
-  __device__ vertex_t operator()(vertex_t v) const
-  {
-    return v - local_vertex_partition_range_first;
   }
 };
 
@@ -529,13 +520,13 @@ void triangle_count(raft::handle_t const& handle,
           raft::device_span<vertex_t const>(local_vertices.begin(), local_vertices.end()),
           raft::device_span<edge_t const>(local_counts.begin(), local_counts.end())});
     } else {
-      thrust::scatter(
+      cugraph::scatter(
         handle.get_thrust_policy(),
         local_counts.begin(),
         local_counts.end(),
         cuda::make_transform_iterator(
           local_vertices.begin(),
-          vertex_offset_from_vertex_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
+          detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
         counts.begin());
     }
   }

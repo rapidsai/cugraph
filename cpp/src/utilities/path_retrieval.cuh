@@ -5,7 +5,7 @@
 
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/path_retrieval.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/core/handle.hpp>
 

@@ -21,7 +21,7 @@
 #include <cugraph/utilities/assert.cuh>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/util/cudart_utils.hpp>
 

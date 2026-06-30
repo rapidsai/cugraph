@@ -9,7 +9,7 @@
 #include <cugraph/export.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <rmm/device_uvector.hpp>
 

@@ -157,7 +157,15 @@ set(CUGRAPH_COMMON_UTILITY_SOURCES
     src/detail/permute_range_common_v32.cu
     src/detail/permute_range_common_v64.cu
     src/utilities/mask_utils.cu
-    src/utilities/thrust_wrappers.cu
+    src/utilities/partition_scatter_map_wrappers.cu
+    src/utilities/permute_wrappers.cu
+    src/utilities/thrust_wrappers/fill.cu
+    src/utilities/thrust_wrappers/gather.cu
+    src/utilities/thrust_wrappers/scan.cu
+    src/utilities/thrust_wrappers/scatter.cu
+    src/utilities/thrust_wrappers/sequence.cu
+    src/utilities/thrust_wrappers/sort.cu
+    src/utilities/thrust_wrappers/unique.cu
 )
 
 set(CUGRAPH_COMMON_DISTRIBUTED_SOURCES

@@ -9,7 +9,7 @@
 
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/core/resource/thrust_policy.hpp>

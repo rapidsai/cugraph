@@ -10,7 +10,10 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -87,11 +90,11 @@ shuffle_and_organize_output(
               using T = typename std::remove_reference<decltype(prop)>::type::value_type;
               rmm::device_uvector<T> tmp(prop.size(), handle.get_stream());
 
-              thrust::gather(handle.get_thrust_policy(),
-                             property_position.begin(),
-                             property_position.end(),
-                             prop.begin(),
-                             tmp.begin());
+              cugraph::gather(handle.get_thrust_policy(),
+                              property_position.begin(),
+                              property_position.end(),
+                              prop.begin(),
+                              tmp.begin());
 
               std::tie(prop, std::ignore) = shuffle_values(
                 handle.get_comms(), tmp.begin(), d_tx_value_counts_span, handle.get_stream());
@@ -100,11 +103,11 @@ shuffle_and_organize_output(
 
       if (hops) {
         rmm::device_uvector<int32_t> tmp(hops->size(), handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       property_position.begin(),
-                       property_position.end(),
-                       hops->begin(),
-                       tmp.begin());
+        cugraph::gather(handle.get_thrust_policy(),
+                        property_position.begin(),
+                        property_position.end(),
+                        hops->begin(),
+                        tmp.begin());
 
         std::tie(*hops, std::ignore) = shuffle_values(
           handle.get_comms(), tmp.begin(), d_tx_value_counts_span, handle.get_stream());
@@ -129,11 +132,11 @@ shuffle_and_organize_output(
         cugraph::variant_type_dispatch(property, [&handle, &indices](auto& edge_vector) {
           using T = typename std::remove_reference<decltype(edge_vector)>::type::value_type;
           rmm::device_uvector<T> tmp(indices.size(), handle.get_stream());
-          thrust::gather(handle.get_thrust_policy(),
-                         indices.begin(),
-                         indices.end(),
-                         edge_vector.begin(),
-                         tmp.begin());
+          cugraph::gather(handle.get_thrust_policy(),
+                          indices.begin(),
+                          indices.end(),
+                          edge_vector.begin(),
+                          tmp.begin());
 
           edge_vector = std::move(tmp);
         });

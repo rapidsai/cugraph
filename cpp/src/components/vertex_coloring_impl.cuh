@@ -9,7 +9,7 @@
 #include <cugraph/prims/make_initialized_edge_property.cuh>
 #include <cugraph/prims/transform_e.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/random/rng_state.hpp>
