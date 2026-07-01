@@ -45,15 +45,19 @@ def consecutive_entries_per_row(M):
 # Command line arguments
 argc = len(sys.argv)
 if argc <= 1:
-    print("Error: usage is : python analyse_mtx_sparsity.py matrix.mtx")
-    sys.exit()
+    print(
+        "Error: usage is : python analyse_mtx_sparsity.py matrix.mtx",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 mmFile = sys.argv[1]
 
 # Read
 M_in = mmread(mmFile)
 if M_in is None:
     raise TypeError("Could not read the input")
-    M = scipy.sparse.csr_matrix(M_in)
+
+M = scipy.sparse.csr_matrix(M_in)
 
 if not M.has_sorted_indices:
     M.sort_indices()
