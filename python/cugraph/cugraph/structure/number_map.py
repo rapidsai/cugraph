@@ -122,6 +122,7 @@ class NumberMap:
                 tmp_df = tmp[newname]
 
             tmp_df = tmp_df.groupby(self.col_names).count().reset_index()
+            tmp_df = NumberMap.normalize_string_dtype(tmp_df, self.col_names)
             tmp_df["id"] = tmp_df.index.astype(self.id_type)
             self.df = tmp_df
             return tmp_df
@@ -179,6 +180,16 @@ class NumberMap:
                 raise Exception("preserve_order not supported for multi-GPU")
 
             ret = None
+            if col_names is not None:
+                for map_col_name, input_col_name in zip(self.col_names, col_names):
+                    if (
+                        input_col_name in ddf.columns
+                        and ddf[input_col_name].dtype != self.ddf[map_col_name].dtype
+                    ):
+                        ddf[input_col_name] = ddf[input_col_name].astype(
+                            self.ddf[map_col_name].dtype
+                        )
+
             if col_names is None:
                 ret = self.ddf.merge(ddf, on=self.col_names, how="right")
             elif col_names == self.col_names:
@@ -219,6 +230,7 @@ class NumberMap:
                 newname = self.col_names
                 tmp_df = tmp[newname]
             tmp_ddf = tmp_df.groupby(self.col_names).count().reset_index()
+            tmp_ddf = NumberMap.normalize_string_dtype(tmp_ddf, self.col_names)
 
             # Set global index
             tmp_ddf = tmp_ddf.assign(idx=1)
@@ -277,6 +289,23 @@ class NumberMap:
         column names
         """
         return [str(i) for i in range(len(column_names))]
+
+    @staticmethod
+    def normalize_string_dtype(df, column_names):
+        """
+        Normalize external string vertex columns to the nullable string dtype.
+        cudf and dask-cudf can otherwise disagree on the StringDtype missing
+        value sentinel (`str` vs `string`) for equivalent string data.
+        """
+        cast_map = {}
+        for name in column_names:
+            if name in df.columns and cudf.api.types.is_string_dtype(df[name].dtype):
+                cast_map[name] = "string"
+
+        if cast_map:
+            return df.astype(cast_map)
+
+        return df
 
     def to_internal_vertex_id(self, df, col_names=None):
         """
@@ -645,6 +674,8 @@ class NumberMap:
         if not isinstance(col_names, list):
             col_names = [col_names]
 
+        output_col_names = col_names.copy()
+
         if column_name in [
             self.renumbered_src_col_name,
             self.implementation.src_col_names,
@@ -680,6 +711,9 @@ class NumberMap:
             df = df.map_partitions(lambda df: df.rename(columns=mapping, copy=False))
         else:
             df = df.rename(columns=mapping, copy=False)
+
+        df = self.normalize_string_dtype(df, output_col_names)
+
         # FIXME: This parameter is not working as expected as it oesn't return
         # the unrenumbered column names: leverage 'self.internal_to_external_col_names'
         # instead.
