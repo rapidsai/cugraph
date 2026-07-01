@@ -1,0 +1,1263 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#include <cugraph/detail/decompress_edge_partition.cuh>
+#include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/edge_partition_endpoint_property_device_view.cuh>
+#include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/export.hpp>
+#include <cugraph/graph_view.hpp>
+#include <cugraph/prims/detail/nbr_intersection.cuh>
+#include <cugraph/prims/per_v_pair_transform_src_dst_nbr_intersection.cuh>
+#include <cugraph/prims/property_op_utils.cuh>
+#include <cugraph/utilities/dataframe_buffer.hpp>
+#include <cugraph/utilities/device_comm.hpp>
+#include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
+#include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/mask_utils.cuh>
+#include <cugraph/utilities/shuffle_comm.cuh>
+
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
+
+#include <rmm/device_scalar.hpp>
+#include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
+
+#include <cuda/atomic>
+#include <cuda/functional>
+#include <cuda/std/optional>
+#include <cuda/std/tuple>
+#include <thrust/binary_search.h>
+#include <thrust/copy.h>
+#include <thrust/count.h>
+#include <thrust/distance.h>
+#include <thrust/execution_policy.h>
+#include <thrust/fill.h>
+#include <thrust/gather.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/transform_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/reduce.h>
+#include <thrust/sequence.h>
+#include <thrust/sort.h>
+
+#include <limits>
+#include <numeric>
+#include <tuple>
+#include <type_traits>
+#include <vector>
+
+namespace CUGRAPH_EXPORT cugraph {
+
+namespace detail {
+
+// Counts how many times the operator is invoked (one per common neighbor). Used in multi-GPU to
+// size the buffer of remote (v1, w) contributions before the accumulating pass.
+template <typename vertex_t, typename edge_t>
+struct count_intersections_op_t {
+  size_t* count{nullptr};
+
+  template <typename EdgeProperty0, typename EdgeProperty1>
+  __device__ void operator()(
+    vertex_t, vertex_t, vertex_t, edge_t, edge_t, edge_t, EdgeProperty0, EdgeProperty1, size_t) const
+  {
+    cuda::atomic_ref<size_t, cuda::thread_scope_device> counter(*count);
+    counter.fetch_add(size_t{1}, cuda::memory_order_relaxed);
+  }
+};
+
+// Reads a supporting edge's property value at the given local edge offset, or returns
+// cuda::std::nullopt when no edge property is carried (the base pointer is void*).
+template <typename EdgeProperty, typename edge_t>
+__device__ auto nbr_intersection_get_e_property(EdgeProperty e_property, edge_t offset)
+{
+  if constexpr (std::is_same_v<EdgeProperty, void*>) {
+    return cuda::std::nullopt;
+  } else {
+    return e_property[offset];
+  }
+}
+
+// Multi-GPU only: compute the GPU that owns an edge from a (src, dst, value) triplet. The triplet
+// is shuffled as a single value buffer, so the GPU-id operator reads the endpoints out of the
+// triplet's first two elements.
+template <typename vertex_t>
+struct compute_gpu_id_from_edge_endpoints_in_triplet_t {
+  compute_gpu_id_from_int_edge_endpoints_t<vertex_t> base{};
+
+  template <typename TripletType>
+  __device__ int operator()(TripletType triplet) const
+  {
+    return base(cuda::std::get<0>(triplet), cuda::std::get<1>(triplet));
+  }
+};
+
+// Called by detail::nbr_intersection once per common neighbor w of a pair (v0, v1). Evaluates the
+// user operator and adds its returned values to the per-edge accumulator at the (v0, v1), (v0, w)
+// and (v1, w) edge offsets. The (v0, v1) and (v0, w) edges are local; (v1, w) is local in
+// single-GPU and may be remote in multi-GPU. Accumulation uses cuda::atomic_ref<T>::fetch_add, so T
+// must be a scalar arithmetic type; a tuple T would instead use cugraph::atomic_add (element-wise).
+// See the @tparam T note on the public API.
+template <typename GraphViewType,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
+          typename IntersectionOp,
+          typename T,
+          typename AccumulatorIterator>
+struct accumulate_triplet_op_t {
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+
+  edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu> edge_partition{};
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input{};
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input{};
+  IntersectionOp intersection_op{};
+  AccumulatorIterator accumulator{};
+  T identity{};
+
+  // Multi-GPU only. The pairs are broadcast across minor_comm (so a rank processes pairs whose v1
+  // lies outside its minor slice), therefore:
+  // - the base (v0, v1) value is accumulated per broadcast-pair index here (v0 is local but the
+  //   (v0, v1) edge is not local to this rank), and summed across ranks by the post-loop reduction;
+  // - the (v1, w) edge may be owned by another rank, so it is appended (keyed by the vertices) for
+  //   the bulk shuffle instead of a local atomic.
+  // Both are unused in single-GPU.
+  T* per_pair_values{nullptr};
+  vertex_t* remote_srcs{nullptr};
+  vertex_t* remote_dsts{nullptr};
+  T* remote_values{nullptr};
+  size_t* remote_count{nullptr};
+
+  template <typename EdgeProperty0, typename EdgeProperty1>
+  __device__ void operator()(vertex_t v0,
+                             vertex_t v1,
+                             vertex_t w,
+                             edge_t v0_v1_edge_offset,
+                             edge_t v0_w_edge_offset,
+                             edge_t v1_w_edge_offset,
+                             EdgeProperty0 v0_e_property,
+                             EdgeProperty1 v1_e_property,
+                             size_t pair_idx) const
+  {
+    auto major_offset = edge_partition.major_offset_from_major_nocheck(v0);
+    auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(v1);
+    auto src          = GraphViewType::is_storage_transposed ? v1 : v0;
+    auto dst          = GraphViewType::is_storage_transposed ? v0 : v1;
+    auto src_offset   = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
+    auto dst_offset   = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
+
+    // Supporting-edge property values for (v0, w) and (v1, w) (cuda::std::nullopt when no edge
+    // property is requested), passed to the user operator alongside the endpoint vertex properties.
+    auto result = intersection_op(src,
+                                  dst,
+                                  edge_partition_src_value_input.get(src_offset),
+                                  edge_partition_dst_value_input.get(dst_offset),
+                                  w,
+                                  nbr_intersection_get_e_property(v0_e_property, v0_w_edge_offset),
+                                  nbr_intersection_get_e_property(v1_e_property, v1_w_edge_offset));
+    auto edge_value       = cuda::std::get<0>(result);
+    auto supporting_value = cuda::std::get<1>(result);
+
+    // The accumulator is indexed by local CSR edge offset, so a contribution can use it only if its
+    // edge lands in this partition. (v0, w) always does (w was found by walking v0's local
+    // adjacency, so w is in this minor slice). (v0, v1) may not: after the minor_comm broadcast v1
+    // can lie outside this minor slice, so its base goes to the per-pair buffer. (v1, w) is keyed on
+    // v1, generally not a local major, so it goes to the remote buffer.
+
+    // Base edge (v0, v1).
+    if constexpr (GraphViewType::is_multi_gpu) {
+      // Accumulate per broadcast-pair index; the per-rank partials are summed at the owner by the
+      // post-loop shuffle + reduce.
+      cuda::atomic_ref<T, cuda::thread_scope_device> base_ref(per_pair_values[pair_idx]);
+      base_ref.fetch_add(edge_value, cuda::memory_order_relaxed);
+    } else {
+      cuda::atomic_ref<T, cuda::thread_scope_device> v0_v1_ref(accumulator[v0_v1_edge_offset]);
+      v0_v1_ref.fetch_add(edge_value, cuda::memory_order_relaxed);
+    }
+
+    // Skip the supporting contribution when it is the additive identity: it is a no-op locally and
+    // (in multi-GPU) avoids buffering/shuffling an identity contribution for no effect.
+    if (supporting_value != identity) {
+      // (v0, w) is a local edge (v0 is a local major and w lies in this rank's minor slice).
+      cuda::atomic_ref<T, cuda::thread_scope_device> v0_w_ref(accumulator[v0_w_edge_offset]);
+      v0_w_ref.fetch_add(supporting_value, cuda::memory_order_relaxed);
+      if constexpr (GraphViewType::is_multi_gpu) {
+        // (v1, w) may be owned by another rank; append it for the bulk shuffle.
+        cuda::atomic_ref<size_t, cuda::thread_scope_device> counter(*remote_count);
+        auto pos          = counter.fetch_add(size_t{1}, cuda::memory_order_relaxed);
+        remote_srcs[pos]  = v1;
+        remote_dsts[pos]  = w;
+        remote_values[pos] = supporting_value;
+      } else {
+        cuda::atomic_ref<T, cuda::thread_scope_device> v1_w_ref(accumulator[v1_w_edge_offset]);
+        v1_w_ref.fetch_add(supporting_value, cuda::memory_order_relaxed);
+      }
+    }
+  }
+};
+
+// Shared per-partition core for the by_e primitive, used by both the all-edges overload and the
+// caller-supplied-edge-list overload. Given this partition's (majors, minors) pairs, it broadcasts
+// them across minor_comm (multi-GPU), runs the count + accumulate passes of nbr_intersection, routes
+// each common-neighbor contribution into one of the three buffers (edge_accumulator / per_pair_buffer
+// / remote_*), and appends this partition's (src, dst, value) triplets to agg_*.
+template <typename GraphViewType,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
+          typename IntersectionOp,
+          typename T>
+void accumulate_triplets_for_partition(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  size_t i,
+  rmm::device_uvector<typename GraphViewType::vertex_type> majors,
+  rmm::device_uvector<typename GraphViewType::vertex_type> minors,
+  EdgeSrcValueInputWrapper edge_src_value_input,
+  EdgeDstValueInputWrapper edge_dst_value_input,
+  EdgeValueInputWrapper edge_value_input,
+  IntersectionOp intersection_op,
+  T init,
+  rmm::device_uvector<typename GraphViewType::vertex_type>& agg_srcs,
+  rmm::device_uvector<typename GraphViewType::vertex_type>& agg_dsts,
+  dataframe_buffer_type_t<T>& agg_values)
+{
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+  using weight_t = float;  // dummy
+
+  // Edge-property device view for the supporting edges (dummy when no edge property is requested).
+  using edge_partition_e_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
+    detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
+    detail::edge_partition_edge_property_device_view_t<
+      edge_t,
+      typename EdgeValueInputWrapper::value_iterator,
+      typename EdgeValueInputWrapper::value_type>>;
+
+  using edge_partition_src_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, cuda::std::nullopt_t>,
+    detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
+    detail::edge_partition_endpoint_property_device_view_t<
+      vertex_t,
+      typename EdgeSrcValueInputWrapper::value_iterator,
+      typename EdgeSrcValueInputWrapper::value_type>>;
+  using edge_partition_dst_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeDstValueInputWrapper::value_type, cuda::std::nullopt_t>,
+    detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
+    detail::edge_partition_endpoint_property_device_view_t<
+      vertex_t,
+      typename EdgeDstValueInputWrapper::value_iterator,
+      typename EdgeDstValueInputWrapper::value_type>>;
+
+  auto edge_mask_view = graph_view.edge_mask_view();
+
+    // retrieve the i-th local edge partition
+    auto edge_partition =
+      edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
+        graph_view.local_edge_partition_view(i));
+    // retrieve the i-th edge mask (optional)
+    auto edge_partition_e_mask =
+      edge_mask_view
+        ? std::make_optional<
+            detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
+            *edge_mask_view, i)
+        : std::nullopt;
+
+    edge_partition_src_input_device_view_t edge_partition_src_value_input{};
+    edge_partition_dst_input_device_view_t edge_partition_dst_value_input{};
+    if constexpr (GraphViewType::is_storage_transposed) {
+      edge_partition_src_value_input = edge_partition_src_input_device_view_t(edge_src_value_input);
+      edge_partition_dst_value_input =
+        edge_partition_dst_input_device_view_t(edge_dst_value_input, i);
+    } else {
+      edge_partition_src_value_input =
+        edge_partition_src_input_device_view_t(edge_src_value_input, i);
+      edge_partition_dst_value_input = edge_partition_dst_input_device_view_t(edge_dst_value_input);
+    }
+
+    // This partition's supporting-edge property view (for v0's local edges and, in single-GPU, v1's).
+    auto edge_partition_e_value_input = edge_partition_e_input_device_view_t(edge_value_input, i);
+    // Multi-GPU: a vertex's neighbors are split across the minor_comm row, so broadcast this
+    // partition's (major, minor) pairs across minor_comm. Each rank then intersects every pair
+    // against its own slice and finds a partial; the partials are summed at the owner later.
+    // detail::nbr_intersection requires sorted input pairs.
+    if constexpr (GraphViewType::is_multi_gpu) {
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      if (minor_comm.get_size() > 1) {
+        auto rx_counts = host_scalar_allgather(minor_comm, majors.size(), handle.get_stream());
+        std::vector<size_t> rx_displacements(rx_counts.size());
+        std::exclusive_scan(
+          rx_counts.begin(), rx_counts.end(), rx_displacements.begin(), size_t{0});
+        auto aggregate_size = rx_displacements.back() + rx_counts.back();
+
+        rmm::device_uvector<vertex_t> rx_majors(aggregate_size, handle.get_stream());
+        rmm::device_uvector<vertex_t> rx_minors(aggregate_size, handle.get_stream());
+        cugraph::device_allgatherv(
+          minor_comm,
+          majors.begin(),
+          rx_majors.begin(),
+          raft::host_span<size_t const>(rx_counts.data(), rx_counts.size()),
+          raft::host_span<size_t const>(rx_displacements.data(), rx_displacements.size()),
+          handle.get_stream());
+        cugraph::device_allgatherv(
+          minor_comm,
+          minors.begin(),
+          rx_minors.begin(),
+          raft::host_span<size_t const>(rx_counts.data(), rx_counts.size()),
+          raft::host_span<size_t const>(rx_displacements.data(), rx_displacements.size()),
+          handle.get_stream());
+        majors = std::move(rx_majors);
+        minors = std::move(rx_minors);
+
+        auto broadcast_pair_first = thrust::make_zip_iterator(majors.begin(), minors.begin());
+        thrust::sort(
+          handle.get_thrust_policy(), broadcast_pair_first, broadcast_pair_first + majors.size());
+      }
+    }
+
+    auto vertex_pair_first = thrust::make_zip_iterator(majors.begin(), minors.begin());
+
+    // Each common neighbor w of a pair (v0, v1) produces up to three (edge, value) contributions,
+    // routed into one of three buffers by where the target edge lands:
+    //   - edge_accumulator (-> compacted into local_*): dense, one slot per local CSR edge, indexed
+    //     by edge offset. Holds contributions whose edge is in THIS partition: (v0, w) always; plus
+    //     (v0, v1) and (v1, w) in single-GPU.
+    //   - per_pair_buffer ("base"): multi-GPU only. One slot per broadcast pair for the (v0, v1)
+    //     contribution, whose edge may lie outside this minor slice after the broadcast. Each rank's
+    //     value is a cross-rank partial.
+    //   - remote_* ("remote"): multi-GPU only. Buffered (v1, w) contributions whose edge is owned by
+    //     another rank (v1 is generally not a local major).
+    // All three are partials; the post-loop shuffle-to-owner + reduce_by_key combines them per edge.
+
+    // edge_accumulator: sized to number_of_edges() (one slot per edge of this local partition).
+    auto edge_accumulator = allocate_dataframe_buffer<T>(
+      static_cast<size_t>(edge_partition.number_of_edges()), handle.get_stream());
+    thrust::fill(handle.get_thrust_policy(),
+                 get_dataframe_buffer_begin(edge_accumulator),
+                 get_dataframe_buffer_end(edge_accumulator),
+                 init);
+
+    uint32_t const* edge_mask =
+      edge_partition_e_mask ? (*edge_partition_e_mask).value_first() : nullptr;
+
+    auto accumulator_first = get_dataframe_buffer_begin(edge_accumulator);
+
+    // per_pair_buffer ("base"): one slot per broadcast pair (multi-GPU only).
+    auto per_pair_buffer = allocate_dataframe_buffer<T>(
+      GraphViewType::is_multi_gpu ? majors.size() : size_t{0}, handle.get_stream());
+    thrust::fill(handle.get_thrust_policy(),
+                 get_dataframe_buffer_begin(per_pair_buffer),
+                 get_dataframe_buffer_end(per_pair_buffer),
+                 init);
+
+    // remote_* ("remote"): buffered (v1, w) contributions (multi-GPU only). This is the one triangle
+    // leg multi-GPU must materialize: (v1, w) is owned by another rank and a remote edge cannot be
+    // atomic-added, so these contributions are bulked here and shuffled to the owner (the (v0, v1)
+    // and (v0, w) legs stay non-materialized). Bounded by the intersection count; size it with a
+    // counting pass (count_intersections_op_t) first, since that count isn't known ahead.
+    rmm::device_uvector<vertex_t> remote_srcs(size_t{0}, handle.get_stream());
+    rmm::device_uvector<vertex_t> remote_dsts(size_t{0}, handle.get_stream());
+    auto remote_vals = allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream());
+    rmm::device_scalar<size_t> remote_count(size_t{0}, handle.get_stream());
+    if constexpr (GraphViewType::is_multi_gpu) {
+      // The counting pass runs nbr_intersection twice (count, then accumulate); alternatives, both
+      // traded away for exact, minimal sizing:
+      //   - Over-allocate to the free upper bound Sum(min(deg(v0), deg(v1))) (min_degrees is already
+      //     computed for kernel binning), single pass. Cost: large over-allocation on skewed graphs,
+      //     undercutting the primitive's bounded-memory goal.
+      //   - Speculative single pass with a guessed size + grow-and-retry on overflow. Cost: a full
+      //     re-run when the guess is too small (atomics can't keep partial results), i.e. two passes
+      //     plus wasted work in the worst case.
+      rmm::device_scalar<size_t> match_count(size_t{0}, handle.get_stream());
+      detail::nbr_intersection(handle,
+                               graph_view,
+                               edge_partition,
+                               edge_value_input,
+                               edge_partition_e_value_input,
+                               vertex_pair_first,
+                               vertex_pair_first + majors.size(),
+                               std::array<bool, 2>{true, true},
+                               count_intersections_op_t<vertex_t, edge_t>{match_count.data()},
+                               edge_mask);
+      auto match_count_h = match_count.value(handle.get_stream());
+      remote_srcs.resize(match_count_h, handle.get_stream());
+      remote_dsts.resize(match_count_h, handle.get_stream());
+      resize_dataframe_buffer(remote_vals, match_count_h, handle.get_stream());
+    }
+
+    // Accumulate pass: invokes accumulate_triplet_op_t per common neighbor, routing contributions
+    // into the three buffers above. nbr_intersection reads N(v0) locally and gathers N(v1)
+    // internally (see nbr_intersection_collect_second_nbrs).
+    detail::nbr_intersection(
+      handle,
+      graph_view,
+      edge_partition,
+      edge_value_input,
+      edge_partition_e_value_input,
+      vertex_pair_first,
+      vertex_pair_first + majors.size(),
+      std::array<bool, 2>{true, true},
+      accumulate_triplet_op_t<GraphViewType,
+                              edge_partition_src_input_device_view_t,
+                              edge_partition_dst_input_device_view_t,
+                              IntersectionOp,
+                              T,
+                              decltype(accumulator_first)>{
+        edge_partition,
+        edge_partition_src_value_input,
+        edge_partition_dst_value_input,
+        intersection_op,
+        accumulator_first,
+        init,
+        get_dataframe_buffer_begin(per_pair_buffer),
+        remote_srcs.data(),
+        remote_dsts.data(),
+        get_dataframe_buffer_begin(remote_vals),
+        remote_count.data()},
+      edge_mask);
+
+    // Stream-compact the accumulator to (src, dst, value) triplets for the updated edges. The
+    // accumulator is indexed by CSR edge offset, so dst(e) = indices[e] and src(e) is the major
+    // whose offset range contains e (found by upper_bound on offsets[]). Only edges whose value
+    // changed from init are kept.
+    auto num_partition_edges = static_cast<size_t>(edge_partition.number_of_edges());
+    auto offsets_ptr         = edge_partition.offsets();
+    auto indices_ptr         = edge_partition.indices();
+    auto num_majors          = edge_partition.major_range_size();
+    auto major_range_first   = edge_partition.major_range_first();
+
+    auto num_updated = static_cast<size_t>(thrust::count_if(
+      handle.get_thrust_policy(),
+      accumulator_first,
+      accumulator_first + num_partition_edges,
+      cuda::proclaim_return_type<bool>([init] __device__(auto v) { return v != init; })));
+
+    rmm::device_uvector<vertex_t> local_srcs(num_updated, handle.get_stream());
+    rmm::device_uvector<vertex_t> local_dsts(num_updated, handle.get_stream());
+    auto local_vals = allocate_dataframe_buffer<T>(num_updated, handle.get_stream());
+
+    auto src_first = thrust::make_transform_iterator(
+      thrust::make_counting_iterator(edge_t{0}),
+      cuda::proclaim_return_type<vertex_t>(
+        [offsets_ptr, num_majors, major_range_first] __device__(edge_t e) {
+          auto it = thrust::upper_bound(thrust::seq, offsets_ptr, offsets_ptr + num_majors + 1, e);
+          return static_cast<vertex_t>(major_range_first +
+                                       (thrust::distance(offsets_ptr, it) - edge_t{1}));
+        }));
+    auto dst_first = thrust::make_transform_iterator(
+      thrust::make_counting_iterator(edge_t{0}),
+      cuda::proclaim_return_type<vertex_t>(
+        [indices_ptr] __device__(edge_t e) { return indices_ptr[e]; }));
+    auto input_first  = thrust::make_zip_iterator(src_first, dst_first, accumulator_first);
+    auto output_first = thrust::make_zip_iterator(
+      local_srcs.begin(), local_dsts.begin(), get_dataframe_buffer_begin(local_vals));
+
+    thrust::copy_if(handle.get_thrust_policy(),
+                    input_first,
+                    input_first + num_partition_edges,
+                    accumulator_first,
+                    output_first,
+                    cuda::proclaim_return_type<bool>([init] __device__(auto v) { return v != init; }));
+
+    // Append this partition's local contributions, plus (in multi-GPU) the buffered remote
+    // (v1, w) contributions, to the aggregate buffers. They are combined after the loop. Appending
+    // (instead of overwriting result_*) is required because a rank may own multiple local edge
+    // partitions in multi-GPU.
+    // match_count (1st pass) is the exact intersection size (every common neighbor); remote_* is
+    // sized to it. remote_count is the number actually appended: contributions whose supporting
+    // value is the identity are skipped (e.g. peeling-style ops can return identity; triangle
+    // counting returns non-identity, so for it remote_count == match_count). Duplicate (v1, w) are
+    // kept and reduced globally later. Shrink remote_* from match_count down to remote_count.
+    size_t num_remote = 0;
+    if constexpr (GraphViewType::is_multi_gpu) {
+      num_remote = remote_count.value(handle.get_stream());
+      remote_srcs.resize(num_remote, handle.get_stream());
+      remote_dsts.resize(num_remote, handle.get_stream());
+      resize_dataframe_buffer(remote_vals, num_remote, handle.get_stream());
+
+      // Pre-reduce remote_* per (v1, w) before it accumulates into agg_*: sum duplicate remote edges
+      // so only distinct ones are kept. remote_* is the dominant contributor, so this bounds agg_*'s
+      // peak memory. This is only a within-rank partial sum; the post-shuffle reduce_by_key combines
+      // the per-rank partials at each edge's owner, yielding the full intersection value for the
+      // edges that owner holds.
+      auto remote_key_first = thrust::make_zip_iterator(remote_srcs.begin(), remote_dsts.begin());
+      thrust::sort_by_key(handle.get_thrust_policy(),
+                          remote_key_first,
+                          remote_key_first + num_remote,
+                          get_dataframe_buffer_begin(remote_vals));
+      rmm::device_uvector<vertex_t> reduced_remote_srcs(num_remote, handle.get_stream());
+      rmm::device_uvector<vertex_t> reduced_remote_dsts(num_remote, handle.get_stream());
+      auto reduced_remote_vals = allocate_dataframe_buffer<T>(num_remote, handle.get_stream());
+      auto remote_reduced_end  = thrust::reduce_by_key(
+        handle.get_thrust_policy(),
+        remote_key_first,
+        remote_key_first + num_remote,
+        get_dataframe_buffer_begin(remote_vals),
+        thrust::make_zip_iterator(reduced_remote_srcs.begin(), reduced_remote_dsts.begin()),
+        get_dataframe_buffer_begin(reduced_remote_vals));
+      num_remote = static_cast<size_t>(
+        thrust::distance(thrust::make_zip_iterator(reduced_remote_srcs.begin(),
+                                                   reduced_remote_dsts.begin()),
+                         remote_reduced_end.first));
+      reduced_remote_srcs.resize(num_remote, handle.get_stream());
+      reduced_remote_dsts.resize(num_remote, handle.get_stream());
+      resize_dataframe_buffer(reduced_remote_vals, num_remote, handle.get_stream());
+      remote_srcs = std::move(reduced_remote_srcs);
+      remote_dsts = std::move(reduced_remote_dsts);
+      remote_vals = std::move(reduced_remote_vals);
+    }
+
+    // Multi-GPU: compact the per-broadcast-pair base (v0, v1) values into (src, dst, value) triplets
+    // (each rank's partial; the partials are summed at the edge's owner by the post-loop reduction).
+    rmm::device_uvector<vertex_t> base_srcs(size_t{0}, handle.get_stream());
+    rmm::device_uvector<vertex_t> base_dsts(size_t{0}, handle.get_stream());
+    auto base_vals  = allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream());
+    size_t num_base = 0;
+    if constexpr (GraphViewType::is_multi_gpu) {
+      auto per_pair_first = get_dataframe_buffer_begin(per_pair_buffer);
+      num_base            = static_cast<size_t>(thrust::count_if(
+        handle.get_thrust_policy(),
+        per_pair_first,
+        per_pair_first + majors.size(),
+        cuda::proclaim_return_type<bool>([init] __device__(auto v) { return v != init; })));
+      base_srcs.resize(num_base, handle.get_stream());
+      base_dsts.resize(num_base, handle.get_stream());
+      resize_dataframe_buffer(base_vals, num_base, handle.get_stream());
+      auto base_in  = thrust::make_zip_iterator(majors.begin(), minors.begin(), per_pair_first);
+      auto base_out = thrust::make_zip_iterator(
+        base_srcs.begin(), base_dsts.begin(), get_dataframe_buffer_begin(base_vals));
+      thrust::copy_if(
+        handle.get_thrust_policy(),
+        base_in,
+        base_in + majors.size(),
+        per_pair_first,
+        base_out,
+        cuda::proclaim_return_type<bool>([init] __device__(auto v) { return v != init; }));
+    }
+
+    // FIXME: agg_* accumulates all local edge partitions' contributions (mostly remote_*, ~O(this rank's
+    // total intersection)) before the single post-loop shuffle + reduce, so its peak scales with the
+    // rank's whole intersection, not one partition's. If that peak becomes a concern, shuffle +
+    // reduce_by_key per partition instead, bounding the footprint to ~one partition's contributions
+    // at the cost of minor_comm_size separate collectives (and reserving agg_* up front avoids the
+    // per-partition resize growth).
+    auto old_size = agg_srcs.size();
+    agg_srcs.resize(old_size + num_updated + num_remote + num_base, handle.get_stream());
+    agg_dsts.resize(old_size + num_updated + num_remote + num_base, handle.get_stream());
+    resize_dataframe_buffer(
+      agg_values, old_size + num_updated + num_remote + num_base, handle.get_stream());
+    thrust::copy(
+      handle.get_thrust_policy(), local_srcs.begin(), local_srcs.end(), agg_srcs.begin() + old_size);
+    thrust::copy(
+      handle.get_thrust_policy(), local_dsts.begin(), local_dsts.end(), agg_dsts.begin() + old_size);
+    thrust::copy(handle.get_thrust_policy(),
+                 get_dataframe_buffer_begin(local_vals),
+                 get_dataframe_buffer_end(local_vals),
+                 get_dataframe_buffer_begin(agg_values) + old_size);
+    if constexpr (GraphViewType::is_multi_gpu) {
+      thrust::copy(handle.get_thrust_policy(),
+                   remote_srcs.begin(),
+                   remote_srcs.end(),
+                   agg_srcs.begin() + old_size + num_updated);
+      thrust::copy(handle.get_thrust_policy(),
+                   remote_dsts.begin(),
+                   remote_dsts.end(),
+                   agg_dsts.begin() + old_size + num_updated);
+      thrust::copy(handle.get_thrust_policy(),
+                   get_dataframe_buffer_begin(remote_vals),
+                   get_dataframe_buffer_end(remote_vals),
+                   get_dataframe_buffer_begin(agg_values) + old_size + num_updated);
+      thrust::copy(handle.get_thrust_policy(),
+                   base_srcs.begin(),
+                   base_srcs.end(),
+                   agg_srcs.begin() + old_size + num_updated + num_remote);
+      thrust::copy(handle.get_thrust_policy(),
+                   base_dsts.begin(),
+                   base_dsts.end(),
+                   agg_dsts.begin() + old_size + num_updated + num_remote);
+      thrust::copy(handle.get_thrust_policy(),
+                   get_dataframe_buffer_begin(base_vals),
+                   get_dataframe_buffer_end(base_vals),
+                   get_dataframe_buffer_begin(agg_values) + old_size + num_updated + num_remote);
+    }
+}
+
+// Post-loop reduction for the by_e primitive: collapses the per-partition (src, dst, value)
+// contributions accumulated in agg_* into one value per edge. Single-GPU returns them as-is;
+// multi-GPU shuffles each contribution to the rank that owns the edge and reduces per edge.
+template <typename GraphViewType, typename T>
+std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<typename GraphViewType::vertex_type>,
+           dataframe_buffer_type_t<T>>
+finalize_triplet_reduction(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  rmm::device_uvector<typename GraphViewType::vertex_type> agg_srcs,
+  rmm::device_uvector<typename GraphViewType::vertex_type> agg_dsts,
+  dataframe_buffer_type_t<T> agg_values)
+{
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+
+  rmm::device_uvector<vertex_t> result_srcs(size_t{0}, handle.get_stream());
+  rmm::device_uvector<vertex_t> result_dsts(size_t{0}, handle.get_stream());
+  auto result_values = allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream());
+
+  if constexpr (!GraphViewType::is_multi_gpu) {
+    // Single-GPU: one local edge partition, so the aggregated triplets are the result as-is.
+    result_srcs   = std::move(agg_srcs);
+    result_dsts   = std::move(agg_dsts);
+    result_values = std::move(agg_values);
+  } else {
+    // Multi-GPU: shuffle every (src, dst, value) contribution to the rank that owns the edge, then
+    // reduce per edge. This merges contributions to the same edge coming from different local edge
+    // partitions and from remote (v1, w) buffers across ranks.
+    //
+    // All contributions (local + base + remote) are shuffled uniformly to each edge's owner and
+    // reduced per edge. The local_* contributions are edges this rank already owns, so a future
+    // optimization could keep them out of the shuffle and merge them in after the reduce, trading
+    // a smaller shuffle for an extra merge path. The uniform shuffle (no special-casing of local
+    // edges) is used here for simplicity.
+    auto h_vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
+    rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
+      h_vertex_partition_range_lasts.size(), handle.get_stream());
+    raft::update_device(d_vertex_partition_range_lasts.data(),
+                        h_vertex_partition_range_lasts.data(),
+                        h_vertex_partition_range_lasts.size(),
+                        handle.get_stream());
+    auto& comm                 = handle.get_comms();
+    auto const comm_size       = comm.get_size();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
+
+    // Locally reduce agg_* per edge before the shuffle: collapse same-(src, dst) contributions from
+    // all legs (local/base/remote) and all local edge partitions into one row, cutting the shuffle
+    // volume. The post-shuffle reduce_by_key below still merges the per-rank partials.
+    {
+      auto agg_edge_first = thrust::make_zip_iterator(agg_srcs.begin(), agg_dsts.begin());
+      thrust::sort_by_key(handle.get_thrust_policy(),
+                          agg_edge_first,
+                          agg_edge_first + agg_srcs.size(),
+                          get_dataframe_buffer_begin(agg_values));
+      rmm::device_uvector<vertex_t> reduced_agg_srcs(agg_srcs.size(), handle.get_stream());
+      rmm::device_uvector<vertex_t> reduced_agg_dsts(agg_srcs.size(), handle.get_stream());
+      auto reduced_agg_values = allocate_dataframe_buffer<T>(agg_srcs.size(), handle.get_stream());
+      auto agg_reduced_end    = thrust::reduce_by_key(
+        handle.get_thrust_policy(),
+        agg_edge_first,
+        agg_edge_first + agg_srcs.size(),
+        get_dataframe_buffer_begin(agg_values),
+        thrust::make_zip_iterator(reduced_agg_srcs.begin(), reduced_agg_dsts.begin()),
+        get_dataframe_buffer_begin(reduced_agg_values));
+      auto num_agg_reduced = static_cast<size_t>(
+        thrust::distance(thrust::make_zip_iterator(reduced_agg_srcs.begin(), reduced_agg_dsts.begin()),
+                         agg_reduced_end.first));
+      reduced_agg_srcs.resize(num_agg_reduced, handle.get_stream());
+      reduced_agg_dsts.resize(num_agg_reduced, handle.get_stream());
+      resize_dataframe_buffer(reduced_agg_values, num_agg_reduced, handle.get_stream());
+      agg_srcs   = std::move(reduced_agg_srcs);
+      agg_dsts   = std::move(reduced_agg_dsts);
+      agg_values = std::move(reduced_agg_values);
+    }
+
+    // Shuffle the (src, dst, value) triplets to the rank that owns each edge. The triplet is
+    // shuffled as a single value buffer (a zip of src, dst, value) keyed by the edge endpoints.
+    auto edge_triplet_first = thrust::make_zip_iterator(
+      agg_srcs.begin(), agg_dsts.begin(), get_dataframe_buffer_begin(agg_values));
+    auto edge_triplet_last = thrust::make_zip_iterator(
+      agg_srcs.end(), agg_dsts.end(), get_dataframe_buffer_end(agg_values));
+    auto [rx_buffer, rx_counts] = groupby_gpu_id_and_shuffle_values(
+      comm,
+      edge_triplet_first,
+      edge_triplet_last,
+      compute_gpu_id_from_edge_endpoints_in_triplet_t<vertex_t>{
+        cugraph::detail::compute_gpu_id_from_int_edge_endpoints_t<vertex_t>{
+          raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                            d_vertex_partition_range_lasts.size()),
+          comm_size,
+          major_comm_size,
+          minor_comm_size}},
+      handle.get_stream());
+    static_cast<void>(rx_counts);
+    auto& rx_srcs = std::get<0>(rx_buffer);
+    auto& rx_dsts = std::get<1>(rx_buffer);
+    auto& rx_vals = std::get<2>(rx_buffer);
+
+    // Reduce the received contributions per edge.
+    auto rx_edge_first = thrust::make_zip_iterator(rx_srcs.begin(), rx_dsts.begin());
+    thrust::sort_by_key(handle.get_thrust_policy(),
+                        rx_edge_first,
+                        rx_edge_first + rx_srcs.size(),
+                        get_dataframe_buffer_begin(rx_vals));
+    result_srcs.resize(rx_srcs.size(), handle.get_stream());
+    result_dsts.resize(rx_srcs.size(), handle.get_stream());
+    resize_dataframe_buffer(result_values, rx_srcs.size(), handle.get_stream());
+    auto reduced_end = thrust::reduce_by_key(
+      handle.get_thrust_policy(),
+      rx_edge_first,
+      rx_edge_first + rx_srcs.size(),
+      get_dataframe_buffer_begin(rx_vals),
+      thrust::make_zip_iterator(result_srcs.begin(), result_dsts.begin()),
+      get_dataframe_buffer_begin(result_values));
+    auto num_reduced = static_cast<size_t>(
+      thrust::distance(thrust::make_zip_iterator(result_srcs.begin(), result_dsts.begin()),
+                       reduced_end.first));
+    result_srcs.resize(num_reduced, handle.get_stream());
+    result_dsts.resize(num_reduced, handle.get_stream());
+    resize_dataframe_buffer(result_values, num_reduced, handle.get_stream());
+  }
+
+  return std::make_tuple(
+    std::move(result_srcs), std::move(result_dsts), std::move(result_values));
+}
+
+template <typename GraphViewType,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
+          typename IntersectionOp,
+          typename T>
+std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<typename GraphViewType::vertex_type>,
+           dataframe_buffer_type_t<T>>
+transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  EdgeSrcValueInputWrapper edge_src_value_input,
+  EdgeDstValueInputWrapper edge_dst_value_input,
+  EdgeValueInputWrapper edge_value_input,
+  IntersectionOp intersection_op,
+  T init,
+  bool do_expensive_check = false)
+{
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+  using weight_t = float;  // dummy
+
+  if (do_expensive_check) {
+    // currently, nothing to do.
+  }
+
+  rmm::device_uvector<vertex_t> result_srcs(size_t{0}, handle.get_stream());
+  rmm::device_uvector<vertex_t> result_dsts(size_t{0}, handle.get_stream());
+  // reduction values are held in allocate_dataframe_buffer<T> so a tuple value type T is
+  // supported in the future.
+  auto result_values = allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream());
+
+  // Per-edge (src, dst, value) contributions, accumulated across all local edge partitions. A rank
+  // may own several local edge partitions in multi-GPU, so contributions must be appended here (not
+  // overwritten per partition) and combined once after the loop.
+  rmm::device_uvector<vertex_t> agg_srcs(size_t{0}, handle.get_stream());
+  rmm::device_uvector<vertex_t> agg_dsts(size_t{0}, handle.get_stream());
+  auto agg_values = allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream());
+
+  auto edge_mask_view = graph_view.edge_mask_view();
+
+  // Per-edge-partition loop kept in the caller (nbr_intersection could own it, as the materializing
+  // overload does). Keeping it here keeps nbr_intersection thin/operator-agnostic; moving it in would
+  // pull this primitive's per-partition buffer machinery (accumulator/base/remote) into the callee.
+  // Consequence: nbr_intersection is then a per-partition callee with no partition index i, so the
+  // caller must hand it the already-built edge_partition and the per-partition edge_mask (both of
+  // which would otherwise need i to derive/slice from graph_view).
+  for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
+    // retrieve the i-th local edge partition
+    auto edge_partition =
+      edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
+        graph_view.local_edge_partition_view(i));
+    // retrieve the i-th edge mask (optional)
+    auto edge_partition_e_mask =
+      edge_mask_view
+        ? std::make_optional<
+            detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
+            *edge_mask_view, i)
+        : std::nullopt;
+    rmm::device_uvector<vertex_t> majors(
+      edge_partition_e_mask
+        ? detail::count_set_bits(
+            handle, (*edge_partition_e_mask).value_first(), edge_partition.number_of_edges())
+        : static_cast<size_t>(edge_partition.number_of_edges()),
+      handle.get_stream());
+    rmm::device_uvector<vertex_t> minors(majors.size(), handle.get_stream());
+
+    auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
+    detail::decompress_edge_partition_to_edgelist<vertex_t,
+                                                  edge_t,
+                                                  weight_t,
+                                                  int32_t,
+                                                  GraphViewType::is_multi_gpu>(
+      handle,
+      edge_partition,
+      std::nullopt,
+      std::nullopt,
+      std::nullopt,
+      edge_partition_e_mask,
+      raft::device_span<vertex_t>(majors.data(), majors.size()),
+      raft::device_span<vertex_t>(minors.data(), minors.size()),
+      std::nullopt,
+      std::nullopt,
+      std::nullopt,
+      segment_offsets);
+    accumulate_triplets_for_partition(handle,
+                                      graph_view,
+                                      i,
+                                      std::move(majors),
+                                      std::move(minors),
+                                      edge_src_value_input,
+                                      edge_dst_value_input,
+                                      edge_value_input,
+                                      intersection_op,
+                                      init,
+                                      agg_srcs,
+                                      agg_dsts,
+                                      agg_values);
+  }
+
+  return finalize_triplet_reduction<GraphViewType, T>(
+    handle, graph_view, std::move(agg_srcs), std::move(agg_dsts), std::move(agg_values));
+}
+
+template <typename GraphViewType,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
+          typename IntersectionOp,
+          typename VertexPairIterator,
+          typename T>
+std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<typename GraphViewType::vertex_type>,
+           dataframe_buffer_type_t<T>>
+transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  VertexPairIterator vertex_pair_first,
+  VertexPairIterator vertex_pair_last,
+  EdgeSrcValueInputWrapper edge_src_value_input,
+  EdgeDstValueInputWrapper edge_dst_value_input,
+  EdgeValueInputWrapper edge_value_input,
+  IntersectionOp intersection_op,
+  T init,
+  bool do_expensive_check = false)
+{
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+
+  if (do_expensive_check) {
+    // currently, nothing to do.
+  }
+
+  // Per-edge (src, dst, value) contributions, accumulated across all local edge partitions; combined
+  // once after the loop (see finalize_triplet_reduction).
+  rmm::device_uvector<vertex_t> agg_srcs(size_t{0}, handle.get_stream());
+  rmm::device_uvector<vertex_t> agg_dsts(size_t{0}, handle.get_stream());
+  auto agg_values = allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream());
+
+  // Input pairs are assumed rank-local (pre-shuffled by the caller). Group them by local edge
+  // partition, then run the shared per-partition core on each group.
+  auto num_input_pairs =
+    static_cast<size_t>(cuda::std::distance(vertex_pair_first, vertex_pair_last));
+
+  rmm::device_uvector<size_t> vertex_pair_indices(num_input_pairs, handle.get_stream());
+  thrust::sequence(
+    handle.get_thrust_policy(), vertex_pair_indices.begin(), vertex_pair_indices.end(), size_t{0});
+
+  std::vector<vertex_t> h_major_range_lasts(graph_view.number_of_local_edge_partitions());
+  for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
+    if constexpr (GraphViewType::is_storage_transposed) {
+      h_major_range_lasts[i] = graph_view.local_edge_partition_dst_range_last(i);
+    } else {
+      h_major_range_lasts[i] = graph_view.local_edge_partition_src_range_last(i);
+    }
+  }
+  rmm::device_uvector<vertex_t> d_major_range_lasts(h_major_range_lasts.size(),
+                                                    handle.get_stream());
+  raft::update_device(d_major_range_lasts.data(),
+                      h_major_range_lasts.data(),
+                      h_major_range_lasts.size(),
+                      handle.get_stream());
+  auto d_group_sizes = groupby_and_count(
+    vertex_pair_indices.begin(),
+    vertex_pair_indices.end(),
+    detail::compute_local_edge_partition_id_t<VertexPairIterator>{
+      vertex_pair_first,
+      graph_view.number_of_local_edge_partitions(),
+      raft::device_span<vertex_t const>(d_major_range_lasts.data(), d_major_range_lasts.size())},
+    static_cast<int>(graph_view.number_of_local_edge_partitions()),
+    std::numeric_limits<size_t>::max(),
+    handle.get_stream());
+  std::vector<size_t> h_group_sizes(d_group_sizes.size());
+  raft::update_host(
+    h_group_sizes.data(), d_group_sizes.data(), d_group_sizes.size(), handle.get_stream());
+  handle.sync_stream();
+  std::vector<size_t> h_group_displacements(h_group_sizes.size());
+  std::exclusive_scan(
+    h_group_sizes.begin(), h_group_sizes.end(), h_group_displacements.begin(), size_t{0});
+
+  for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
+    auto group_first = vertex_pair_indices.begin() + h_group_displacements[i];
+    auto group_size  = h_group_sizes[i];
+
+    // Materialize this group's (major, minor) pairs, then sort them (detail::nbr_intersection
+    // requires sorted input; the all-edges overload gets this from CSR-order decompression).
+    rmm::device_uvector<vertex_t> majors(group_size, handle.get_stream());
+    rmm::device_uvector<vertex_t> minors(group_size, handle.get_stream());
+    auto pair_first = thrust::make_zip_iterator(majors.begin(), minors.begin());
+    thrust::gather(handle.get_thrust_policy(),
+                   group_first,
+                   group_first + group_size,
+                   vertex_pair_first,
+                   pair_first);
+    thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + group_size);
+
+    accumulate_triplets_for_partition(handle,
+                                      graph_view,
+                                      i,
+                                      std::move(majors),
+                                      std::move(minors),
+                                      edge_src_value_input,
+                                      edge_dst_value_input,
+                                      edge_value_input,
+                                      intersection_op,
+                                      init,
+                                      agg_srcs,
+                                      agg_dsts,
+                                      agg_values);
+  }
+
+  return finalize_triplet_reduction<GraphViewType, T>(
+    handle, graph_view, std::move(agg_srcs), std::move(agg_dsts), std::move(agg_values));
+}
+
+
+}  // namespace detail
+
+/**
+ * @brief Iterate over each edge and apply a functor to each vertex in the common source neighbor
+ * list of the edge endpoints, reduce the functor output values per-edge.
+ *
+ * Iterate over every edge; intersect source neighbor lists of source vertex & destination vertex;
+ * invoke a user-provided functor once per vertex r in the intersection (i.e. once per
+ * (edge, intersection vertex) triplet), and reduce the functor output values (cuda::std::tuple of
+ * two values having the same type: one for the edge (src, dst), and one for each supporting edge
+ * (the (src, r) & (dst, r) edges)) per-edge. The functor is invoked once per vertex r in the
+ * intersection, so it can emit a different value for each (edge, r) triplet. We may add a per-edge
+ * variant (transform_reduce_src_nbr_intersection_of_e_endpoints_by_e) in the future that invokes
+ * the functor once per edge with the full intersection list, for callers whose emitted value does
+ * not vary per intersection vertex. The functor output values are reduced per-edge by summation
+ * (each @p intersection_op return value is added into @p init); we may add a reduce_op parameter in
+ * the future to support other reductions (e.g. minimum or maximum), as in cugraph's
+ * per_v_transform_reduce_* primitives. This function is inspired by thrust::transform_reduce().
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for supporting-edge property values (the
+ * (src, r) and (dst, r) edges); use cugraph::edge_dummy_property_t::view() if @p intersection_op
+ * does not access supporting-edge property values.
+ * @tparam IntersectionOp Type of the septenary per (edge, intersection vertex) operator.
+ * @tparam T Type of the per-edge reduction value. Currently restricted to a scalar arithmetic type:
+ * contributions are accumulated with cuda::atomic_ref<T>::fetch_add and merged with a plain
+ * reduce_by_key (cuda::std::plus). Supporting a tuple T (or non-additive reductions) would accumulate
+ * with cugraph::atomic_add (which handles a tuple T element-wise) and reduce with
+ * property_op<T, cuda::std::plus> or a reduce_op, as transform_reduce_e and
+ * transform_reduce_src_dst_nbr_intersection_of_e_endpoints_by_v do.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Non-owning graph object.
+ * @param edge_src_value_input Wrapper used to access source input property values (for the edge
+ * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
+ * (if @p intersection_op needs to access source property values) or
+ * cugraph::edge_src_dummy_property_t::view() (if @p intersection_op does not access source property
+ * values). Use update_edge_src_property to fill the wrapper.
+ * @param edge_dst_value_input Wrapper used to access destination input property values (for the
+ * edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_dst_property_t::view() (if @p intersection_op needs to access destination property
+ * values) or cugraph::edge_dst_dummy_property_t::view() (if @p intersection_op does not access
+ * destination property values). Use update_edge_dst_property to fill the wrapper.
+ * @param edge_value_input Wrapper used to access supporting-edge property values for the (src, r)
+ * and (dst, r) edges. Use cugraph::edge_property_t::view() (if @p intersection_op needs them) or
+ * cugraph::edge_dummy_property_t::view() (if it does not).
+ * @param intersection_op septenary operator takes edge source, edge destination, property values for
+ * the source, property values for the destination, one vertex r in the intersection of edge
+ * source & destination vertices' source neighbors, and the property values of the supporting edges
+ * (src, r) and (dst, r) (cuda::std::nullopt when @p edge_value_input is a dummy property), and
+ * returns a cuda::std::tuple of two values: one value for the edge (src, dst) and one value for each
+ * supporting edge (src, r) and (dst, r).
+ * @param init Initial value to be added to the reduced @p intersection_op return values for each
+ * edge.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of three device vectors (srcs, dsts, values): for each edge with a non-init reduced
+ * value, its source vertex, destination vertex, and reduced value.
+ */
+template <typename GraphViewType,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
+          typename IntersectionOp,
+          typename T>
+std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<typename GraphViewType::vertex_type>,
+           dataframe_buffer_type_t<T>>
+transform_reduce_triplet_of_src_nbr_intersection_of_e_endpoints_by_e(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  EdgeSrcValueInputWrapper edge_src_value_input,
+  EdgeDstValueInputWrapper edge_dst_value_input,
+  EdgeValueInputWrapper edge_value_input,
+  IntersectionOp intersection_op,
+  T init,
+  bool do_expensive_check = false)
+{
+  static_assert(GraphViewType::is_storage_transposed);
+
+  return detail::transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
+    handle,
+    graph_view,
+    edge_src_value_input,
+    edge_dst_value_input,
+    edge_value_input,
+    intersection_op,
+    init,
+    do_expensive_check);
+}
+
+/**
+ * @brief Iterate over each edge and apply a functor to each vertex in the common destination
+ * neighbor list of the edge endpoints, reduce the functor output values per-edge.
+ *
+ * Iterate over every edge; intersect destination neighbor lists of source vertex & destination
+ * vertex; invoke a user-provided functor once per vertex r in the intersection (i.e. once per
+ * (edge, intersection vertex) triplet), and reduce the functor output values (cuda::std::tuple of
+ * two values having the same type: one for the edge (src, dst), and one for each supporting edge
+ * (the (src, r) & (dst, r) edges)) per-edge. The functor is invoked once per vertex r in the
+ * intersection, so it can emit a different value for each (edge, r) triplet. We may add a per-edge
+ * variant (transform_reduce_dst_nbr_intersection_of_e_endpoints_by_e) in the future that invokes
+ * the functor once per edge with the full intersection list, for callers whose emitted value does
+ * not vary per intersection vertex. The functor output values are reduced per-edge by summation
+ * (each @p intersection_op return value is added into @p init); we may add a reduce_op parameter in
+ * the future to support other reductions (e.g. minimum or maximum), as in cugraph's
+ * per_v_transform_reduce_* primitives. This function is inspired by thrust::transform_reduce().
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for supporting-edge property values (the
+ * (src, r) and (dst, r) edges); use cugraph::edge_dummy_property_t::view() if @p intersection_op
+ * does not access supporting-edge property values.
+ * @tparam IntersectionOp Type of the septenary per (edge, intersection vertex) operator.
+ * @tparam T Type of the per-edge reduction value. Currently restricted to a scalar arithmetic type:
+ * contributions are accumulated with cuda::atomic_ref<T>::fetch_add and merged with a plain
+ * reduce_by_key (cuda::std::plus). Supporting a tuple T (or non-additive reductions) would accumulate
+ * with cugraph::atomic_add (which handles a tuple T element-wise) and reduce with
+ * property_op<T, cuda::std::plus> or a reduce_op, as transform_reduce_e and
+ * transform_reduce_src_dst_nbr_intersection_of_e_endpoints_by_v do.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Non-owning graph object.
+ * @param edge_src_value_input Wrapper used to access source input property values (for the edge
+ * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
+ * (if @p intersection_op needs to access source property values) or
+ * cugraph::edge_src_dummy_property_t::view() (if @p intersection_op does not access source property
+ * values). Use update_edge_src_property to fill the wrapper.
+ * @param edge_dst_value_input Wrapper used to access destination input property values (for the
+ * edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_dst_property_t::view() (if @p intersection_op needs to access destination property
+ * values) or cugraph::edge_dst_dummy_property_t::view() (if @p intersection_op does not access
+ * destination property values). Use update_edge_dst_property to fill the wrapper.
+ * @param edge_value_input Wrapper used to access supporting-edge property values for the (src, r)
+ * and (dst, r) edges. Use cugraph::edge_property_t::view() (if @p intersection_op needs them) or
+ * cugraph::edge_dummy_property_t::view() (if it does not).
+ * @param intersection_op septenary operator takes edge source, edge destination, property values for
+ * the source, property values for the destination, one vertex r in the intersection of edge
+ * source & destination vertices' destination neighbors, and the property values of the supporting
+ * edges (src, r) and (dst, r) (cuda::std::nullopt when @p edge_value_input is a dummy property), and
+ * returns a cuda::std::tuple of two values: one value for the edge (src, dst) and one value for each
+ * supporting edge (src, r) and (dst, r).
+ * @param init Initial value to be added to the reduced @p intersection_op return values for each
+ * edge.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of three device vectors (srcs, dsts, values): for each edge with a non-init reduced
+ * value, its source vertex, destination vertex, and reduced value.
+ */
+template <typename GraphViewType,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
+          typename IntersectionOp,
+          typename T>
+std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<typename GraphViewType::vertex_type>,
+           dataframe_buffer_type_t<T>>
+transform_reduce_triplet_of_dst_nbr_intersection_of_e_endpoints_by_e(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  EdgeSrcValueInputWrapper edge_src_value_input,
+  EdgeDstValueInputWrapper edge_dst_value_input,
+  EdgeValueInputWrapper edge_value_input,
+  IntersectionOp intersection_op,
+  T init,
+  bool do_expensive_check = false)
+{
+  static_assert(!GraphViewType::is_storage_transposed);
+
+  return detail::transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
+    handle,
+    graph_view,
+    edge_src_value_input,
+    edge_dst_value_input,
+    edge_value_input,
+    intersection_op,
+    init,
+    do_expensive_check);
+}
+
+/**
+ * @brief Same as transform_reduce_triplet_of_src_nbr_intersection_of_e_endpoints_by_e, but restricted
+ * to a caller-supplied list of edges (vertex pairs) instead of every edge in @p graph_view.
+ *
+ * For each input (src, dst) pair, intersect the source neighbor lists of src & dst, invoke @p
+ * intersection_op once per vertex r in the intersection, and reduce the functor output values
+ * per-edge (identical semantics to the all-edges overload). This is the subset form used by, e.g.,
+ * k-truss peeling, which processes a shrinking set of edges each iteration.
+ *
+ * In multi-GPU the input pairs are assumed to be rank-local (each rank passes the edges it owns),
+ * matching the per_v_pair_* convention. The per-edge reduced values returned are still routed to the
+ * rank that owns each edge.
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for supporting-edge property values.
+ * @tparam IntersectionOp Type of the septenary per (edge, intersection vertex) operator.
+ * @tparam VertexPairIterator Type of the iterator over (src, dst) vertex pairs.
+ * @tparam T Type of the per-edge reduction value.
+ * @param handle RAFT handle object.
+ * @param graph_view Non-owning graph object.
+ * @param vertex_pair_first Iterator to the first (src, dst) input pair.
+ * @param vertex_pair_last Iterator to the last (exclusive) (src, dst) input pair.
+ * @param edge_src_value_input Wrapper used to access source input property values.
+ * @param edge_dst_value_input Wrapper used to access destination input property values.
+ * @param edge_value_input Wrapper used to access supporting-edge property values.
+ * @param intersection_op septenary per (edge, intersection vertex) operator (see the all-edges
+ * overload).
+ * @param init Initial value to be added to the reduced @p intersection_op return values for each edge.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of three device vectors (srcs, dsts, values): for each input edge with a non-init
+ * reduced value, its source vertex, destination vertex, and reduced value.
+ */
+template <typename GraphViewType,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
+          typename IntersectionOp,
+          typename VertexPairIterator,
+          typename T>
+std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<typename GraphViewType::vertex_type>,
+           dataframe_buffer_type_t<T>>
+transform_reduce_triplet_of_src_nbr_intersection_of_e_endpoints_by_e(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  VertexPairIterator vertex_pair_first,
+  VertexPairIterator vertex_pair_last,
+  EdgeSrcValueInputWrapper edge_src_value_input,
+  EdgeDstValueInputWrapper edge_dst_value_input,
+  EdgeValueInputWrapper edge_value_input,
+  IntersectionOp intersection_op,
+  T init,
+  bool do_expensive_check = false)
+{
+  static_assert(GraphViewType::is_storage_transposed);
+
+  return detail::transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
+    handle,
+    graph_view,
+    vertex_pair_first,
+    vertex_pair_last,
+    edge_src_value_input,
+    edge_dst_value_input,
+    edge_value_input,
+    intersection_op,
+    init,
+    do_expensive_check);
+}
+
+/**
+ * @brief Same as transform_reduce_triplet_of_dst_nbr_intersection_of_e_endpoints_by_e, but restricted
+ * to a caller-supplied list of edges (vertex pairs) instead of every edge in @p graph_view.
+ *
+ * For each input (src, dst) pair, intersect the destination neighbor lists of src & dst, invoke @p
+ * intersection_op once per vertex r in the intersection, and reduce the functor output values
+ * per-edge (identical semantics to the all-edges overload). This is the subset form used by, e.g.,
+ * k-truss peeling, which processes a shrinking set of edges each iteration.
+ *
+ * In multi-GPU the input pairs are assumed to be rank-local (each rank passes the edges it owns),
+ * matching the per_v_pair_* convention. The per-edge reduced values returned are still routed to the
+ * rank that owns each edge.
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for supporting-edge property values.
+ * @tparam IntersectionOp Type of the septenary per (edge, intersection vertex) operator.
+ * @tparam VertexPairIterator Type of the iterator over (src, dst) vertex pairs.
+ * @tparam T Type of the per-edge reduction value.
+ * @param handle RAFT handle object.
+ * @param graph_view Non-owning graph object.
+ * @param vertex_pair_first Iterator to the first (src, dst) input pair.
+ * @param vertex_pair_last Iterator to the last (exclusive) (src, dst) input pair.
+ * @param edge_src_value_input Wrapper used to access source input property values.
+ * @param edge_dst_value_input Wrapper used to access destination input property values.
+ * @param edge_value_input Wrapper used to access supporting-edge property values.
+ * @param intersection_op septenary per (edge, intersection vertex) operator (see the all-edges
+ * overload).
+ * @param init Initial value to be added to the reduced @p intersection_op return values for each edge.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of three device vectors (srcs, dsts, values): for each input edge with a non-init
+ * reduced value, its source vertex, destination vertex, and reduced value.
+ */
+template <typename GraphViewType,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
+          typename IntersectionOp,
+          typename VertexPairIterator,
+          typename T>
+std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<typename GraphViewType::vertex_type>,
+           dataframe_buffer_type_t<T>>
+transform_reduce_triplet_of_dst_nbr_intersection_of_e_endpoints_by_e(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  VertexPairIterator vertex_pair_first,
+  VertexPairIterator vertex_pair_last,
+  EdgeSrcValueInputWrapper edge_src_value_input,
+  EdgeDstValueInputWrapper edge_dst_value_input,
+  EdgeValueInputWrapper edge_value_input,
+  IntersectionOp intersection_op,
+  T init,
+  bool do_expensive_check = false)
+{
+  static_assert(!GraphViewType::is_storage_transposed);
+
+  return detail::transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
+    handle,
+    graph_view,
+    vertex_pair_first,
+    vertex_pair_last,
+    edge_src_value_input,
+    edge_dst_value_input,
+    edge_value_input,
+    intersection_op,
+    init,
+    do_expensive_check);
+}
+
+}  // namespace CUGRAPH_EXPORT cugraph
