@@ -278,6 +278,46 @@ function(ConfigureCTest CMAKE_TEST_NAME)
 
 endfunction()
 
+function(ConfigureCOnlyCTest CMAKE_TEST_NAME)
+    set(options)
+    set(one_value GPUS PERCENT)
+    set(multi_value)
+    cmake_parse_arguments(_CUGRAPH_TEST "${options}" "${one_value}" "${multi_value}" ${ARGN})
+    if(NOT DEFINED _CUGRAPH_TEST_GPUS AND NOT DEFINED _CUGRAPH_TEST_PERCENT)
+        set(_CUGRAPH_TEST_GPUS 1)
+        set(_CUGRAPH_TEST_PERCENT 25)
+    endif()
+    if(NOT DEFINED _CUGRAPH_TEST_GPUS)
+        set(_CUGRAPH_TEST_GPUS 1)
+    endif()
+    if(NOT DEFINED _CUGRAPH_TEST_PERCENT)
+        set(_CUGRAPH_TEST_PERCENT 100)
+    endif()
+
+    add_executable(${CMAKE_TEST_NAME} ${_CUGRAPH_TEST_UNPARSED_ARGUMENTS})
+
+    target_link_libraries(${CMAKE_TEST_NAME}
+        PRIVATE
+            cugraph::cugraph_c
+    )
+    set_target_properties(
+        ${CMAKE_TEST_NAME}
+            PROPERTIES RUNTIME_OUTPUT_DIRECTORY "$<BUILD_INTERFACE:${CUGRAPH_BINARY_DIR}/gtests>"
+                       INSTALL_RPATH "\$ORIGIN/../../../lib"
+                       LINK_FLAGS "-Wl,--allow-shlib-undefined")
+
+    rapids_test_add(
+        NAME ${CMAKE_TEST_NAME}
+        COMMAND ${CMAKE_TEST_NAME}
+        GPUS ${_CUGRAPH_TEST_GPUS}
+        PERCENT ${_CUGRAPH_TEST_PERCENT}
+        INSTALL_COMPONENT_SET testing_c
+        INSTALL_TARGET ${CMAKE_TEST_NAME}
+    )
+    set_tests_properties(${CMAKE_TEST_NAME} PROPERTIES LABELS "CUGRAPH_C")
+
+endfunction()
+
 function(ConfigureCTestMG CMAKE_TEST_NAME)
     add_executable(${CMAKE_TEST_NAME} ${ARGN})
 
@@ -928,6 +968,8 @@ ConfigureCTest(CAPI_BETWEENNESS_CENTRALITY_TEST c_api/betweenness_centrality_tes
 ConfigureCTest(CAPI_EDGE_BETWEENNESS_CENTRALITY_TEST c_api/edge_betweenness_centrality_test.c)
 ConfigureCTest(CAPI_HITS_TEST c_api/hits_test.c)
 ConfigureCTest(CAPI_BFS_TEST c_api/bfs_test.c)
+ConfigureCOnlyCTest(CAPI_DAWN_BFS_TEST c_api/dawn_bfs_test.c)
+
 ConfigureCTest(CAPI_SSSP_TEST c_api/sssp_test.c)
 ConfigureCTest(CAPI_EXTRACT_PATHS_TEST c_api/extract_paths_test.c)
 ConfigureCTest(CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST c_api/weakly_connected_components_test.c)
