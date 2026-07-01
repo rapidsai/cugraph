@@ -1,10 +1,14 @@
-# SPDX-FileCopyrightText: Copyright (c) 2018-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2018-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # GPUMetricPoller
 # Utility class and helpers for retrieving GPU metrics for a specific section
 # of code.
 #
+# Requires:
+#  cuda_core >= 1.0.0
+#  cuda_bindings >= 12.9.6 or >= 13.2.0
+
 """
 # Example:
 
@@ -21,7 +25,9 @@ print("Max GPU utilization: %s" % gpuPollObj.maxGpuUtil)
 import os
 import sys
 import threading
-import pynvml
+
+
+from cuda.core import system
 
 
 class GPUMetricPoller(threading.Thread):
@@ -81,18 +87,17 @@ class GPUMetricPoller(threading.Thread):
         childReadPipe = os.fdopen(readFileNo)
         childWritePipe = os.fdopen(writeFileNo, "w")
 
-        pynvml.nvmlInit()
         # hack - get actual device ID somehow
-        devObj = pynvml.nvmlDeviceGetHandleByIndex(0)
-        memObj = pynvml.nvmlDeviceGetMemoryInfo(devObj)
-        utilObj = pynvml.nvmlDeviceGetUtilizationRates(devObj)
+        devObj = system.Device(index=0)
+        memObj = devObj.memory_info
+        utilObj = devObj.utilization
         initialMemUsed = memObj.used
         initialGpuUtil = utilObj.gpu
 
         controlStr = self.__waitForInput(childReadPipe)
         while True:
-            memObj = pynvml.nvmlDeviceGetMemoryInfo(devObj)
-            utilObj = pynvml.nvmlDeviceGetUtilizationRates(devObj)
+            memObj = devObj.memory_info
+            utilObj = devObj.utilization
 
             memUsed = memObj.used - initialMemUsed
             gpuUtil = utilObj.gpu - initialGpuUtil
@@ -103,7 +108,6 @@ class GPUMetricPoller(threading.Thread):
                 break
             controlStr = self.__waitForInput(childReadPipe)
 
-        pynvml.nvmlShutdown()
         childReadPipe.close()
         childWritePipe.close()
 
