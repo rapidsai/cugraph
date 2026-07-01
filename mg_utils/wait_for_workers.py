@@ -101,7 +101,10 @@ if __name__ == "__main__":
     args = ap.parse_args()
 
     if args.num_expected_workers is None:
-        args.num_expected_workers = os.environ.get("NUM_WORKERS", 16)
+        try:
+            args.num_expected_workers = int(os.environ.get("NUM_WORKERS", 16))
+        except ValueError:
+            ap.error("NUM_WORKERS must be an integer")
 
     exitcode = wait_for_workers(
         num_expected_workers=args.num_expected_workers,
