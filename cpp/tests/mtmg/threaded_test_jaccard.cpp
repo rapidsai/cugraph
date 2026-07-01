@@ -18,7 +18,8 @@
 #include <cugraph/mtmg/renumber_map.hpp>
 #include <cugraph/mtmg/resource_manager.hpp>
 #include <cugraph/mtmg/vertex_pair_result.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/util/cudart_utils.hpp>
 

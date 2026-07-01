@@ -9,7 +9,7 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/core/handle.hpp>
 

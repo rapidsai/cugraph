@@ -13,7 +13,7 @@
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <raft/core/copy.hpp>
 

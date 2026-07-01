@@ -15,7 +15,7 @@
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/random/rng_state.hpp>
 

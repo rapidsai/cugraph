@@ -16,7 +16,8 @@
 #include <cugraph/prims/update_v_frontier.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/util/cudart_utils.hpp>
@@ -299,17 +300,17 @@ void sssp(raft::handle_t const& handle,
     std::nullopt};  // valid only when in the lower level
   while (true) {
     if constexpr (GraphViewType::is_multi_gpu) {  // FIXME: we may use a thrust fancy iterator
-                                                  // instead of thrust::gather
+                                                  // instead of cugraph::gather
       rmm::device_uvector<weight_t> gathered_distances(
         vertex_frontier.bucket(bucket_idx_cur_near_near).size(), handle.get_stream());
       auto map_first = cuda::make_transform_iterator(
         vertex_frontier.bucket(bucket_idx_cur_near_near).begin(),
         shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()});
-      thrust::gather(handle.get_thrust_policy(),
-                     map_first,
-                     map_first + vertex_frontier.bucket(bucket_idx_cur_near_near).size(),
-                     distances,
-                     gathered_distances.begin());
+      cugraph::gather(handle.get_thrust_policy(),
+                      map_first,
+                      map_first + vertex_frontier.bucket(bucket_idx_cur_near_near).size(),
+                      distances,
+                      gathered_distances.begin());
       update_edge_src_property(handle,
                                graph_view,
                                vertex_frontier.bucket(bucket_idx_cur_near_near).begin(),

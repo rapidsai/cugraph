@@ -13,7 +13,8 @@
 namespace cugraph {
 namespace detail {
 
-/** Thrust zip_iterator types matching @c thrust_wrappers.cu explicit @c sort_impl instantiations.
+/** Thrust zip_iterator types matching @c thrust_wrappers/sort.cu explicit @c sort_impl
+ * instantiations.
  */
 template <typename... Ts>
 using zip_iterator_t = thrust::zip_iterator<cuda::std::tuple<Ts*...>>;

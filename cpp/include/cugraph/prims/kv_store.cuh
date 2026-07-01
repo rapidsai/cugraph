@@ -9,7 +9,10 @@
 #include <cugraph/prims/detail/optional_dataframe_buffer.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
@@ -806,11 +809,11 @@ class kv_cuco_store_t {
       keys.resize(cuda::std::distance(keys.begin(), std::get<0>(pair_last)), stream);
       indices.resize(keys.size(), stream);
       resize_dataframe_buffer(values, keys.size(), stream);
-      thrust::gather(rmm::exec_policy(stream),
-                     indices.begin(),
-                     indices.end(),
-                     get_optional_dataframe_buffer_begin<value_t>(store_values_),
-                     get_dataframe_buffer_begin(values));
+      cugraph::gather(rmm::exec_policy(stream),
+                      indices.begin(),
+                      indices.end(),
+                      get_optional_dataframe_buffer_begin<value_t>(store_values_),
+                      get_dataframe_buffer_begin(values));
     }
     return std::make_tuple(std::move(keys), std::move(values));
   }

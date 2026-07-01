@@ -14,7 +14,8 @@
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <rmm/exec_policy.hpp>
 
@@ -172,11 +173,11 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
                           using T = typename std::remove_reference<decltype(prop)>::type;
                           T tmp(prop.size(), handle.get_stream());
 
-                          thrust::gather(handle.get_thrust_policy(),
-                                         property_position.begin(),
-                                         property_position.end(),
-                                         prop.begin(),
-                                         tmp.begin());
+                          cugraph::gather(handle.get_thrust_policy(),
+                                          property_position.begin(),
+                                          property_position.end(),
+                                          prop.begin(),
+                                          tmp.begin());
 
                           prop = std::move(tmp);
                         });

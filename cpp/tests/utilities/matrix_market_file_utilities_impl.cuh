@@ -11,7 +11,7 @@
 #include <cugraph/legacy/functions.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/util/cudart_utils.hpp>
 

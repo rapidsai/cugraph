@@ -25,7 +25,13 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
+#include <cugraph/utilities/thrust_wrappers/scatter.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -611,11 +617,11 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
       if (new_trivial_size > 0) {
         auto old_size = peeled_vertices.size();
         peeled_vertices.resize(peeled_vertices.size() + new_trivial_size, handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       new_trivial_first,
-                       new_trivial_first + new_trivial_size,
-                       one_vertices.begin(),
-                       peeled_vertices.begin() + old_size);
+        cugraph::gather(handle.get_thrust_policy(),
+                        new_trivial_first,
+                        new_trivial_first + new_trivial_size,
+                        one_vertices.begin(),
+                        peeled_vertices.begin() + old_size);
         indices.resize(cuda::std::distance(indices.begin(), new_trivial_first),
                        handle.get_stream());
       }
@@ -943,7 +949,7 @@ reachable_sets(
           predecessors.data(),
           sorted_starting_vertices.data(),
           sorted_starting_vertices.size());
-      thrust::scatter(
+      cugraph::scatter(
         handle.get_thrust_policy(),
         sorted_starting_vertices.begin(),
         sorted_starting_vertices.end(),
@@ -1005,11 +1011,11 @@ reachable_sets(
           graph_view.local_vertex_partition_range_first());
       } else {
         new_remaining_vertex_ancestors.resize(remaining_vertices.size(), handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       remaining_vertex_ancestor_first,
-                       remaining_vertex_ancestor_first + remaining_vertices.size(),
-                       ancestors.begin(),
-                       new_remaining_vertex_ancestors.begin());
+        cugraph::gather(handle.get_thrust_policy(),
+                        remaining_vertex_ancestor_first,
+                        remaining_vertex_ancestor_first + remaining_vertices.size(),
+                        ancestors.begin(),
+                        new_remaining_vertex_ancestors.begin());
       }
       rmm::device_uvector<bool> updated_flags(remaining_vertices.size(), handle.get_stream());
       thrust::tabulate(
@@ -1378,16 +1384,16 @@ intersect_reachable_sets(
                           raft::device_span<vertex_t const> unique_component_idxs,
                           raft::device_span<vertex_t const> min_vertex_ids,
                           vertex_t subset_offset) {
-      thrust::scatter(handle.get_thrust_policy(),
-                      min_vertex_ids.begin(),
-                      min_vertex_ids.end(),
-                      cuda::make_transform_iterator(
-                        unique_component_idxs.begin(),
-                        cuda::proclaim_return_type<vertex_t>(
-                          [num_old_unresolved_components, subset_offset] __device__(vertex_t idx) {
-                            return subset_offset * num_old_unresolved_components + idx;
-                          })),
-                      component_min_vertex_ids.begin());
+      cugraph::scatter(handle.get_thrust_policy(),
+                       min_vertex_ids.begin(),
+                       min_vertex_ids.end(),
+                       cuda::make_transform_iterator(
+                         unique_component_idxs.begin(),
+                         cuda::proclaim_return_type<vertex_t>(
+                           [num_old_unresolved_components, subset_offset] __device__(vertex_t idx) {
+                             return subset_offset * num_old_unresolved_components + idx;
+                           })),
+                       component_min_vertex_ids.begin());
     };
 
     scatter_mins(raft::device_span<vertex_t const>(unique_fwd_only_component_idxs.data(),
@@ -1479,16 +1485,16 @@ intersect_reachable_sets(
                            raft::device_span<vertex_t const> unique_component_idxs,
                            raft::device_span<vertex_t const> unique_component_sizes,
                            vertex_t subset_offset) {
-      thrust::scatter(handle.get_thrust_policy(),
-                      unique_component_sizes.begin(),
-                      unique_component_sizes.end(),
-                      cuda::make_transform_iterator(
-                        unique_component_idxs.begin(),
-                        cuda::proclaim_return_type<vertex_t>(
-                          [num_old_unresolved_components, subset_offset] __device__(vertex_t idx) {
-                            return subset_offset * num_old_unresolved_components + idx;
-                          })),
-                      component_sizes.begin());
+      cugraph::scatter(handle.get_thrust_policy(),
+                       unique_component_sizes.begin(),
+                       unique_component_sizes.end(),
+                       cuda::make_transform_iterator(
+                         unique_component_idxs.begin(),
+                         cuda::proclaim_return_type<vertex_t>(
+                           [num_old_unresolved_components, subset_offset] __device__(vertex_t idx) {
+                             return subset_offset * num_old_unresolved_components + idx;
+                           })),
+                       component_sizes.begin());
     };
 
     scatter_sizes(raft::device_span<vertex_t const>(unique_fwd_only_component_idxs.data(),
@@ -1688,29 +1694,29 @@ intersect_reachable_sets(
         unique_remaining_size1_component_idxs.size() + unique_scc_component_idxs.size() +
         trivial_singleton_scc_vertices.size(),
       handle.get_stream());
-    thrust::gather(handle.get_thrust_policy(),
-                   unique_fwd_only_size1_component_idxs.begin(),
-                   unique_fwd_only_size1_component_idxs.end(),
-                   component_global_min_vertex_ids.begin(),
-                   new_scc_component_ids.begin());
-    thrust::gather(handle.get_thrust_policy(),
-                   unique_bwd_only_size1_component_idxs.begin(),
-                   unique_bwd_only_size1_component_idxs.end(),
-                   component_global_min_vertex_ids.begin() + num_old_unresolved_components,
-                   new_scc_component_ids.begin() + unique_fwd_only_size1_component_idxs.size());
-    thrust::gather(handle.get_thrust_policy(),
-                   unique_remaining_size1_component_idxs.begin(),
-                   unique_remaining_size1_component_idxs.end(),
-                   component_global_min_vertex_ids.begin() + num_old_unresolved_components * 2,
-                   new_scc_component_ids.begin() + unique_fwd_only_size1_component_idxs.size() +
-                     unique_bwd_only_size1_component_idxs.size());
-    thrust::gather(handle.get_thrust_policy(),
-                   unique_scc_component_idxs.begin(),
-                   unique_scc_component_idxs.end(),
-                   component_global_min_vertex_ids.begin() + num_old_unresolved_components * 3,
-                   new_scc_component_ids.begin() + unique_fwd_only_size1_component_idxs.size() +
-                     unique_bwd_only_size1_component_idxs.size() +
-                     unique_remaining_size1_component_idxs.size());
+    cugraph::gather(handle.get_thrust_policy(),
+                    unique_fwd_only_size1_component_idxs.begin(),
+                    unique_fwd_only_size1_component_idxs.end(),
+                    component_global_min_vertex_ids.begin(),
+                    new_scc_component_ids.begin());
+    cugraph::gather(handle.get_thrust_policy(),
+                    unique_bwd_only_size1_component_idxs.begin(),
+                    unique_bwd_only_size1_component_idxs.end(),
+                    component_global_min_vertex_ids.begin() + num_old_unresolved_components,
+                    new_scc_component_ids.begin() + unique_fwd_only_size1_component_idxs.size());
+    cugraph::gather(handle.get_thrust_policy(),
+                    unique_remaining_size1_component_idxs.begin(),
+                    unique_remaining_size1_component_idxs.end(),
+                    component_global_min_vertex_ids.begin() + num_old_unresolved_components * 2,
+                    new_scc_component_ids.begin() + unique_fwd_only_size1_component_idxs.size() +
+                      unique_bwd_only_size1_component_idxs.size());
+    cugraph::gather(handle.get_thrust_policy(),
+                    unique_scc_component_idxs.begin(),
+                    unique_scc_component_idxs.end(),
+                    component_global_min_vertex_ids.begin() + num_old_unresolved_components * 3,
+                    new_scc_component_ids.begin() + unique_fwd_only_size1_component_idxs.size() +
+                      unique_bwd_only_size1_component_idxs.size() +
+                      unique_remaining_size1_component_idxs.size());
     thrust::copy(handle.get_thrust_policy(),
                  trivial_singleton_scc_vertices.begin(),
                  trivial_singleton_scc_vertices.end(),
@@ -1795,7 +1801,7 @@ forward_backward_intersect(
                              std::move(vertex_properties),
                              graph_view.vertex_partition_range_lasts());
       in_degrees = std::move(std::get<rmm::device_uvector<vertex_t>>(vertex_properties[0]));
-      thrust::scatter(
+      cugraph::scatter(
         handle.get_thrust_policy(),
         in_degrees.begin(),
         in_degrees.end(),
@@ -1804,11 +1810,11 @@ forward_backward_intersect(
           detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
         tmp_degrees.begin());
     } else {
-      thrust::scatter(handle.get_thrust_policy(),
-                      in_degrees.begin(),
-                      in_degrees.end(),
-                      from_inverse_renumber_map.begin(),
-                      tmp_degrees.begin());
+      cugraph::scatter(handle.get_thrust_policy(),
+                       in_degrees.begin(),
+                       in_degrees.end(),
+                       from_inverse_renumber_map.begin(),
+                       tmp_degrees.begin());
     }
     in_degrees = std::move(tmp_degrees);
   }
@@ -1822,16 +1828,16 @@ forward_backward_intersect(
     auto map_first = cuda::make_transform_iterator(
       unresolved_component_vertices.begin(),
       detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()});
-    thrust::gather(handle.get_thrust_policy(),
-                   map_first,
-                   map_first + unresolved_component_vertices.size(),
-                   in_degrees.begin(),
-                   unresolved_component_vertex_in_degrees.begin());
-    thrust::gather(handle.get_thrust_policy(),
-                   map_first,
-                   map_first + unresolved_component_vertices.size(),
-                   out_degrees.begin(),
-                   unresolved_component_vertex_out_degrees.begin());
+    cugraph::gather(handle.get_thrust_policy(),
+                    map_first,
+                    map_first + unresolved_component_vertices.size(),
+                    in_degrees.begin(),
+                    unresolved_component_vertex_in_degrees.begin());
+    cugraph::gather(handle.get_thrust_policy(),
+                    map_first,
+                    map_first + unresolved_component_vertices.size(),
+                    out_degrees.begin(),
+                    unresolved_component_vertex_out_degrees.begin());
   }
 
   auto trivial_singleton_scc_vertices = find_trivial_singleton_scc_vertices(
@@ -2188,11 +2194,11 @@ void strongly_connected_components_impl(
             }));
         auto map_first = cuda::make_transform_iterator(component_vertices.begin(),
                                                        detail::shift_left_t<vertex_t>{v_first});
-        thrust::scatter(handle.get_thrust_policy(),
-                        component_id_first,
-                        component_id_first + component_vertices.size(),
-                        map_first,
-                        components.begin());
+        cugraph::scatter(handle.get_thrust_policy(),
+                         component_id_first,
+                         component_id_first + component_vertices.size(),
+                         map_first,
+                         components.begin());
       };
 
     scatter_component_ids(raft::device_span<vertex_t const>(unresolved_component_offsets.data(),
@@ -2234,11 +2240,11 @@ void strongly_connected_components_impl(
       auto map_first = cuda::make_transform_iterator(
         tmp_vertices.begin(),
         detail::shift_left_t<vertex_t>{forward_graph_view.local_vertex_partition_range_first()});
-      thrust::gather(handle.get_thrust_policy(),
-                     map_first,
-                     map_first + tmp_vertices.size(),
-                     components.begin(),
-                     tmp_components.begin());
+      cugraph::gather(handle.get_thrust_policy(),
+                      map_first,
+                      map_first + tmp_vertices.size(),
+                      components.begin(),
+                      tmp_components.begin());
 
       update_edge_src_property(handle,
                                forward_graph_view,
@@ -2317,11 +2323,11 @@ void strongly_connected_components_impl(
       if constexpr (!multi_gpu) {
         inverse_components = rmm::device_uvector<vertex_t>(
           inverse_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       from_inverse_renumber_map.begin(),
-                       from_inverse_renumber_map.end(),
-                       components.begin(),
-                       inverse_components->begin());
+        cugraph::gather(handle.get_thrust_policy(),
+                        from_inverse_renumber_map.begin(),
+                        from_inverse_renumber_map.end(),
+                        components.begin(),
+                        inverse_components->begin());
       }
 
       auto inverse_edge_src_component_view =

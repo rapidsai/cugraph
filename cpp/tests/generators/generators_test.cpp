@@ -8,7 +8,7 @@
 #include "utilities/conversion_utilities.hpp"
 
 #include <cugraph/graph_generators.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <cuda/std/tuple>
 #include <thrust/execution_policy.h>

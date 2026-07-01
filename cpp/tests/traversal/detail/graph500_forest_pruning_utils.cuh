@@ -21,7 +21,11 @@
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/scatter.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
@@ -879,11 +883,11 @@ void update_unvisited_vertex_distances(
     auto gather_offset_first = cuda::make_transform_iterator(
       remaining_vertices.begin(),
       cugraph::detail::shift_left_t<vertex_t>{local_vertex_partition_range_first});
-    thrust::gather(handle.get_thrust_policy(),
-                   gather_offset_first,
-                   gather_offset_first + remaining_vertices.size(),
-                   parents.begin(),
-                   remaining_vertex_parents.begin());
+    cugraph::gather(handle.get_thrust_policy(),
+                    gather_offset_first,
+                    gather_offset_first + remaining_vertices.size(),
+                    parents.begin(),
+                    remaining_vertex_parents.begin());
     auto remaining_vertex_parent_dists = cugraph::collect_values_for_int_vertices(
       handle,
       remaining_vertex_parents.begin(),
@@ -919,21 +923,21 @@ void update_unvisited_vertex_distances(
                                          // as Graph 500 assumes an undirected graph)
             return cuda::std::get<1>(pair) + w;
           }));
-      thrust::scatter(handle.get_thrust_policy(),
-                      dist_first,
-                      dist_first + (remaining_vertices.size() - new_size),
-                      scatter_offset_first,
-                      mg_distances.begin());
+      cugraph::scatter(handle.get_thrust_policy(),
+                       dist_first,
+                       dist_first + (remaining_vertices.size() - new_size),
+                       scatter_offset_first,
+                       mg_distances.begin());
     } else {  // BFS
       auto dist_first =
         cuda::make_transform_iterator(remaining_vertex_parent_dists.begin() + new_size,
                                       cuda::proclaim_return_type<distance_t>(
                                         [] __device__(auto d) { return d + distance_t{1}; }));
-      thrust::scatter(handle.get_thrust_policy(),
-                      dist_first,
-                      dist_first + (remaining_vertices.size() - new_size),
-                      scatter_offset_first,
-                      mg_distances.begin());
+      cugraph::scatter(handle.get_thrust_policy(),
+                       dist_first,
+                       dist_first + (remaining_vertices.size() - new_size),
+                       scatter_offset_first,
+                       mg_distances.begin());
     }
     remaining_vertices.resize(new_size, handle.get_stream());
   }

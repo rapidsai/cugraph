@@ -5,7 +5,9 @@
 
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/util/device_atomics.cuh>

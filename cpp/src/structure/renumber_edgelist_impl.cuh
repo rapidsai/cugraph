@@ -13,7 +13,10 @@
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -359,11 +362,11 @@ void compute_sorted_local_major_degrees_without_atomics(
     (sorted_local_majors.size() + (cache_stride - 1)) / cache_stride, handle.get_stream());
   auto gather_index_first = cuda::make_transform_iterator(
     thrust::make_counting_iterator(size_t{0}), detail::multiplier_t<size_t>{cache_stride});
-  thrust::gather(handle.get_thrust_policy(),
-                 gather_index_first,
-                 gather_index_first + sorted_local_major_cache.size(),
-                 sorted_local_majors.begin(),
-                 sorted_local_major_cache.begin());
+  cugraph::gather(handle.get_thrust_policy(),
+                  gather_index_first,
+                  gather_index_first + sorted_local_major_cache.size(),
+                  sorted_local_majors.begin(),
+                  sorted_local_major_cache.begin());
 
   size_t num_edges_processed{0};
   while (num_edges_processed < edgelist_majors.size()) {

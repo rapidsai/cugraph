@@ -19,7 +19,10 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -633,11 +636,11 @@ create_graph_from_partitioned_edgelist(
                              property_positions.size(), handle.get_stream())
                          : rmm::device_uvector<edge_property_type>(property_positions.size(),
                                                                    handle.get_stream());
-            thrust::gather(handle.get_thrust_policy(),
-                           property_positions.begin(),
-                           property_positions.end(),
-                           edge_property.begin(),
-                           tmp.begin());
+            cugraph::gather(handle.get_thrust_policy(),
+                            property_positions.begin(),
+                            property_positions.end(),
+                            edge_property.begin(),
+                            tmp.begin());
             edge_partition_edge_properties[j].push_back(std::move(tmp));
           });
       }
@@ -707,11 +710,11 @@ create_graph_from_partitioned_edgelist(
                                property_positions.size(), handle.get_stream())
                                            : rmm::device_uvector<edge_property_type>(property_positions.size(),
                                                                      handle.get_stream());
-              thrust::gather(handle.get_thrust_policy(),
-                             property_positions.begin(),
-                             property_positions.end(),
-                             edge_property.begin(),
-                             tmp.begin());
+              cugraph::gather(handle.get_thrust_policy(),
+                              property_positions.begin(),
+                              property_positions.end(),
+                              edge_property.begin(),
+                              tmp.begin());
               edge_property = std::move(tmp);
             });
         });
@@ -1641,11 +1644,11 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
                              property_positions.size(), handle.get_stream())
                          : rmm::device_uvector<edge_property_type>(property_positions.size(),
                                                                    handle.get_stream());
-            thrust::gather(handle.get_thrust_policy(),
-                           property_positions.begin(),
-                           property_positions.end(),
-                           edge_property.begin(),
-                           tmp.begin());
+            cugraph::gather(handle.get_thrust_policy(),
+                            property_positions.begin(),
+                            property_positions.end(),
+                            edge_property.begin(),
+                            tmp.begin());
 
             edge_properties.push_back(std::move(tmp));
           });

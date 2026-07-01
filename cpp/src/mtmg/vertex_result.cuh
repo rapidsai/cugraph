@@ -11,7 +11,10 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/scatter.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <rmm/exec_policy.hpp>
@@ -106,17 +109,16 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
 
   auto& wrapped = this->get(handle);
 
-  auto vertex_partition =
-    vertex_partition_device_view_t<vertex_t, multi_gpu>(vertex_partition_view);
+  auto map_first =
+    cuda::make_transform_iterator(local_vertices.begin(),
+                                  cugraph::detail::shift_left_t<vertex_t>{
+                                    vertex_partition_view.local_vertex_partition_range_first()});
 
-  auto iter = cuda::make_transform_iterator(
-    local_vertices.begin(),
-    cuda::proclaim_return_type<vertex_t>([vertex_partition] __device__(auto v) {
-      return vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
-    }));
-
-  thrust::gather(
-    rmm::exec_policy(stream), iter, iter + local_vertices.size(), wrapped.begin(), result.begin());
+  cugraph::gather(rmm::exec_policy(stream),
+                  map_first,
+                  map_first + local_vertices.size(),
+                  wrapped.begin(),
+                  result.begin());
 
   if constexpr (multi_gpu) {
     rmm::device_uvector<result_t> tmp_result(0, stream);
@@ -140,11 +142,11 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
     cugraph::fill(
       rmm::exec_policy(stream), result.data(), (result.data()) + (result.size()), default_value);
 
-    thrust::scatter(rmm::exec_policy(stream),
-                    tmp_result.begin(),
-                    tmp_result.end(),
-                    vertex_pos.begin(),
-                    result.begin());
+    cugraph::scatter(rmm::exec_policy(stream),
+                     tmp_result.begin(),
+                     tmp_result.end(),
+                     vertex_pos.begin(),
+                     result.begin());
   }
 
   return result;

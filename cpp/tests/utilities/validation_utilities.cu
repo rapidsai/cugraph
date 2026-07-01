@@ -6,7 +6,7 @@
 #include "utilities/validation_utilities.hpp"
 
 #include <cugraph/utilities/graph_partition_utils.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <cuda/std/iterator>
@@ -48,7 +48,7 @@ size_t count_duplicate_vertex_pairs_sorted(raft::handle_t const& handle,
                           });
 }
 
-// FIXME: Resolve this with dataframe_buffer variations in thrust_wrappers.cu
+// FIXME: Resolve this with dataframe_buffer variations in thrust_wrappers/fill.cu
 template <typename vertex_t>
 void sort(raft::handle_t const& handle,
           raft::device_span<vertex_t> srcs,

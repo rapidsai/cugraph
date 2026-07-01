@@ -12,7 +12,8 @@
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <cuda/std/tuple>
 #include <thrust/gather.h>
@@ -204,11 +205,11 @@ shuffle_vertices(raft::handle_t const& handle,
                            ? large_buffer_manager::allocate_memory_buffer<T>(prop.size(),
                                                                              handle.get_stream())
                            : rmm::device_uvector<T>(prop.size(), handle.get_stream());
-              thrust::gather(handle.get_thrust_policy(),
-                             property_positions->begin(),
-                             property_positions->end(),
-                             prop.begin(),
-                             tmp.begin());
+              cugraph::gather(handle.get_thrust_policy(),
+                              property_positions->begin(),
+                              property_positions->end(),
+                              prop.begin(),
+                              tmp.begin());
               std::tie(prop, std::ignore) = shuffle_values(this_step_comm,
                                                            tmp.begin(),
                                                            d_tx_value_counts_span,

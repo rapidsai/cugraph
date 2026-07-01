@@ -10,7 +10,10 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/groupby_and_count.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -702,11 +705,11 @@ remove_multi_edges_impl(
                          (*edgelist_weights)[j].begin() + input_end_offset,
                          multi_edge_weights->begin() + output_start_offset);
           } else {  // edge_property_count > 1
-            thrust::gather(handle.get_thrust_policy(),
-                           (*edgelist_indices)[j].begin() + input_start_offset,
-                           (*edgelist_indices)[j].begin() + input_end_offset,
-                           (*edgelist_weights)[j].begin(),
-                           multi_edge_weights->begin() + output_start_offset);
+            cugraph::gather(handle.get_thrust_policy(),
+                            (*edgelist_indices)[j].begin() + input_start_offset,
+                            (*edgelist_indices)[j].begin() + input_end_offset,
+                            (*edgelist_weights)[j].begin(),
+                            multi_edge_weights->begin() + output_start_offset);
           }
         }
         if (edgelist_edge_ids) {
@@ -716,11 +719,11 @@ remove_multi_edges_impl(
                          (*edgelist_edge_ids)[j].begin() + input_end_offset,
                          multi_edge_edge_ids->begin() + output_start_offset);
           } else {  // edge_property_count > 1
-            thrust::gather(handle.get_thrust_policy(),
-                           (*edgelist_indices)[j].begin() + input_start_offset,
-                           (*edgelist_indices)[j].begin() + input_end_offset,
-                           (*edgelist_edge_ids)[j].begin(),
-                           multi_edge_edge_ids->begin() + output_start_offset);
+            cugraph::gather(handle.get_thrust_policy(),
+                            (*edgelist_indices)[j].begin() + input_start_offset,
+                            (*edgelist_indices)[j].begin() + input_end_offset,
+                            (*edgelist_edge_ids)[j].begin(),
+                            multi_edge_edge_ids->begin() + output_start_offset);
           }
         }
         if (edgelist_edge_types) {
@@ -730,11 +733,11 @@ remove_multi_edges_impl(
                          (*edgelist_edge_types)[j].begin() + input_end_offset,
                          multi_edge_edge_types->begin() + output_start_offset);
           } else {  // edge_property_count > 1
-            thrust::gather(handle.get_thrust_policy(),
-                           (*edgelist_indices)[j].begin() + input_start_offset,
-                           (*edgelist_indices)[j].begin() + input_end_offset,
-                           (*edgelist_edge_types)[j].begin(),
-                           multi_edge_edge_types->begin() + output_start_offset);
+            cugraph::gather(handle.get_thrust_policy(),
+                            (*edgelist_indices)[j].begin() + input_start_offset,
+                            (*edgelist_indices)[j].begin() + input_end_offset,
+                            (*edgelist_edge_types)[j].begin(),
+                            multi_edge_edge_types->begin() + output_start_offset);
           }
         }
         if (edgelist_edge_start_times) {
@@ -744,11 +747,11 @@ remove_multi_edges_impl(
                          (*edgelist_edge_start_times)[j].begin() + input_end_offset,
                          multi_edge_edge_start_times->begin() + output_start_offset);
           } else {  // edge_property_count > 1
-            thrust::gather(handle.get_thrust_policy(),
-                           (*edgelist_indices)[j].begin() + input_start_offset,
-                           (*edgelist_indices)[j].begin() + input_end_offset,
-                           (*edgelist_edge_start_times)[j].begin(),
-                           multi_edge_edge_start_times->begin() + output_start_offset);
+            cugraph::gather(handle.get_thrust_policy(),
+                            (*edgelist_indices)[j].begin() + input_start_offset,
+                            (*edgelist_indices)[j].begin() + input_end_offset,
+                            (*edgelist_edge_start_times)[j].begin(),
+                            multi_edge_edge_start_times->begin() + output_start_offset);
           }
         }
         if (edgelist_edge_end_times) {
@@ -758,11 +761,11 @@ remove_multi_edges_impl(
                          (*edgelist_edge_end_times)[j].begin() + input_end_offset,
                          multi_edge_edge_end_times->begin() + output_start_offset);
           } else {  // edge_property_count > 1
-            thrust::gather(handle.get_thrust_policy(),
-                           (*edgelist_indices)[j].begin() + input_start_offset,
-                           (*edgelist_indices)[j].begin() + input_end_offset,
-                           (*edgelist_edge_end_times)[j].begin(),
-                           multi_edge_edge_end_times->begin() + output_start_offset);
+            cugraph::gather(handle.get_thrust_policy(),
+                            (*edgelist_indices)[j].begin() + input_start_offset,
+                            (*edgelist_indices)[j].begin() + input_end_offset,
+                            (*edgelist_edge_end_times)[j].begin(),
+                            multi_edge_edge_end_times->begin() + output_start_offset);
           }
         }
         if (edgelist_indices) {  // edge_property_count > 1
@@ -873,7 +876,7 @@ remove_multi_edges_impl(
           /* nothing to do */
         } else if (edge_property_count == 1) {
           if (multi_edge_weights) {
-            thrust::gather(
+            cugraph::gather(
               handle.get_thrust_policy(),
               multi_edge_indices.begin() + h_keep_count_offsets[j],
               multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
@@ -881,7 +884,7 @@ remove_multi_edges_impl(
               (*edgelist_weights)[j].begin() + group_disps[j][i] + non_multi_edge_counts[j][i]);
           }
           if (multi_edge_edge_ids) {
-            thrust::gather(
+            cugraph::gather(
               handle.get_thrust_policy(),
               multi_edge_indices.begin() + h_keep_count_offsets[j],
               multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
@@ -889,7 +892,7 @@ remove_multi_edges_impl(
               (*edgelist_edge_ids)[j].begin() + group_disps[j][i] + non_multi_edge_counts[j][i]);
           }
           if (multi_edge_edge_types) {
-            thrust::gather(
+            cugraph::gather(
               handle.get_thrust_policy(),
               multi_edge_indices.begin() + h_keep_count_offsets[j],
               multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
@@ -897,23 +900,23 @@ remove_multi_edges_impl(
               (*edgelist_edge_types)[j].begin() + group_disps[j][i] + non_multi_edge_counts[j][i]);
           }
           if (multi_edge_edge_start_times) {
-            thrust::gather(handle.get_thrust_policy(),
-                           multi_edge_indices.begin() + h_keep_count_offsets[j],
-                           multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
-                           multi_edge_edge_start_times->begin(),
-                           (*edgelist_edge_start_times)[j].begin() + group_disps[j][i] +
-                             non_multi_edge_counts[j][i]);
+            cugraph::gather(handle.get_thrust_policy(),
+                            multi_edge_indices.begin() + h_keep_count_offsets[j],
+                            multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
+                            multi_edge_edge_start_times->begin(),
+                            (*edgelist_edge_start_times)[j].begin() + group_disps[j][i] +
+                              non_multi_edge_counts[j][i]);
           }
           if (multi_edge_edge_end_times) {
-            thrust::gather(handle.get_thrust_policy(),
-                           multi_edge_indices.begin() + h_keep_count_offsets[j],
-                           multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
-                           multi_edge_edge_end_times->begin(),
-                           (*edgelist_edge_end_times)[j].begin() + group_disps[j][i] +
-                             non_multi_edge_counts[j][i]);
+            cugraph::gather(handle.get_thrust_policy(),
+                            multi_edge_indices.begin() + h_keep_count_offsets[j],
+                            multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
+                            multi_edge_edge_end_times->begin(),
+                            (*edgelist_edge_end_times)[j].begin() + group_disps[j][i] +
+                              non_multi_edge_counts[j][i]);
           }
         } else {  // edge_property_count > 1
-          thrust::gather(
+          cugraph::gather(
             handle.get_thrust_policy(),
             multi_edge_indices.begin() + h_keep_count_offsets[j],
             multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
@@ -1016,11 +1019,11 @@ remove_multi_edges_impl(
                        ? large_buffer_manager::allocate_memory_buffer<weight_t>(keep_count,
                                                                                 handle.get_stream())
                        : rmm::device_uvector<weight_t>(keep_count, handle.get_stream());
-          thrust::gather(handle.get_thrust_policy(),
-                         (*edgelist_indices)[i].begin(),
-                         (*edgelist_indices)[i].begin() + keep_count,
-                         (*edgelist_weights)[i].begin(),
-                         tmp.begin());
+          cugraph::gather(handle.get_thrust_policy(),
+                          (*edgelist_indices)[i].begin(),
+                          (*edgelist_indices)[i].begin() + keep_count,
+                          (*edgelist_weights)[i].begin(),
+                          tmp.begin());
           (*edgelist_weights)[i] = std::move(tmp);
         }
         if (edgelist_edge_ids) {
@@ -1028,11 +1031,11 @@ remove_multi_edges_impl(
                        ? large_buffer_manager::allocate_memory_buffer<edge_t>(keep_count,
                                                                               handle.get_stream())
                        : rmm::device_uvector<edge_t>(keep_count, handle.get_stream());
-          thrust::gather(handle.get_thrust_policy(),
-                         (*edgelist_indices)[i].begin(),
-                         (*edgelist_indices)[i].begin() + keep_count,
-                         (*edgelist_edge_ids)[i].begin(),
-                         tmp.begin());
+          cugraph::gather(handle.get_thrust_policy(),
+                          (*edgelist_indices)[i].begin(),
+                          (*edgelist_indices)[i].begin() + keep_count,
+                          (*edgelist_edge_ids)[i].begin(),
+                          tmp.begin());
           (*edgelist_edge_ids)[i] = std::move(tmp);
         }
         if (edgelist_edge_types) {
@@ -1040,11 +1043,11 @@ remove_multi_edges_impl(
                        ? large_buffer_manager::allocate_memory_buffer<edge_type_t>(
                            keep_count, handle.get_stream())
                        : rmm::device_uvector<edge_type_t>(keep_count, handle.get_stream());
-          thrust::gather(handle.get_thrust_policy(),
-                         (*edgelist_indices)[i].begin(),
-                         (*edgelist_indices)[i].begin() + keep_count,
-                         (*edgelist_edge_types)[i].begin(),
-                         tmp.begin());
+          cugraph::gather(handle.get_thrust_policy(),
+                          (*edgelist_indices)[i].begin(),
+                          (*edgelist_indices)[i].begin() + keep_count,
+                          (*edgelist_edge_types)[i].begin(),
+                          tmp.begin());
           (*edgelist_edge_types)[i] = std::move(tmp);
         }
         if (edgelist_edge_start_times) {
@@ -1052,11 +1055,11 @@ remove_multi_edges_impl(
                        ? large_buffer_manager::allocate_memory_buffer<time_stamp_t>(
                            keep_count, handle.get_stream())
                        : rmm::device_uvector<time_stamp_t>(keep_count, handle.get_stream());
-          thrust::gather(handle.get_thrust_policy(),
-                         (*edgelist_indices)[i].begin(),
-                         (*edgelist_indices)[i].begin() + keep_count,
-                         (*edgelist_edge_start_times)[i].begin(),
-                         tmp.begin());
+          cugraph::gather(handle.get_thrust_policy(),
+                          (*edgelist_indices)[i].begin(),
+                          (*edgelist_indices)[i].begin() + keep_count,
+                          (*edgelist_edge_start_times)[i].begin(),
+                          tmp.begin());
           (*edgelist_edge_start_times)[i] = std::move(tmp);
         }
         if (edgelist_edge_end_times) {
@@ -1064,11 +1067,11 @@ remove_multi_edges_impl(
                        ? large_buffer_manager::allocate_memory_buffer<time_stamp_t>(
                            keep_count, handle.get_stream())
                        : rmm::device_uvector<time_stamp_t>(keep_count, handle.get_stream());
-          thrust::gather(handle.get_thrust_policy(),
-                         (*edgelist_indices)[i].begin(),
-                         (*edgelist_indices)[i].begin() + keep_count,
-                         (*edgelist_edge_end_times)[i].begin(),
-                         tmp.begin());
+          cugraph::gather(handle.get_thrust_policy(),
+                          (*edgelist_indices)[i].begin(),
+                          (*edgelist_indices)[i].begin() + keep_count,
+                          (*edgelist_edge_end_times)[i].begin(),
+                          tmp.begin());
           (*edgelist_edge_end_times)[i] = std::move(tmp);
         }
       }
@@ -1275,22 +1278,22 @@ remove_multi_edges_impl(
                      ? large_buffer_manager::allocate_memory_buffer<weight_t>(keep_count,
                                                                               handle.get_stream())
                      : rmm::device_uvector<weight_t>(keep_count, handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       (*edgelist_indices)[0].begin(),
-                       (*edgelist_indices)[0].end(),
-                       (*edgelist_weights)[0].begin(),
-                       tmp.begin());
+        cugraph::gather(handle.get_thrust_policy(),
+                        (*edgelist_indices)[0].begin(),
+                        (*edgelist_indices)[0].end(),
+                        (*edgelist_weights)[0].begin(),
+                        tmp.begin());
         (*edgelist_weights)[0] = std::move(tmp);
       }
       if (edgelist_edge_ids) {
         auto tmp = large_buffer_type ? large_buffer_manager::allocate_memory_buffer<edge_t>(
                                          keep_count, handle.get_stream())
                                      : rmm::device_uvector<edge_t>(keep_count, handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       (*edgelist_indices)[0].begin(),
-                       (*edgelist_indices)[0].end(),
-                       (*edgelist_edge_ids)[0].begin(),
-                       tmp.begin());
+        cugraph::gather(handle.get_thrust_policy(),
+                        (*edgelist_indices)[0].begin(),
+                        (*edgelist_indices)[0].end(),
+                        (*edgelist_edge_ids)[0].begin(),
+                        tmp.begin());
         (*edgelist_edge_ids)[0] = std::move(tmp);
       }
       if (edgelist_edge_types) {
@@ -1298,11 +1301,11 @@ remove_multi_edges_impl(
                      ? large_buffer_manager::allocate_memory_buffer<edge_type_t>(
                          keep_count, handle.get_stream())
                      : rmm::device_uvector<edge_type_t>(keep_count, handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       (*edgelist_indices)[0].begin(),
-                       (*edgelist_indices)[0].end(),
-                       (*edgelist_edge_types)[0].begin(),
-                       tmp.begin());
+        cugraph::gather(handle.get_thrust_policy(),
+                        (*edgelist_indices)[0].begin(),
+                        (*edgelist_indices)[0].end(),
+                        (*edgelist_edge_types)[0].begin(),
+                        tmp.begin());
         (*edgelist_edge_types)[0] = std::move(tmp);
       }
       if (edgelist_edge_start_times) {
@@ -1310,11 +1313,11 @@ remove_multi_edges_impl(
                      ? large_buffer_manager::allocate_memory_buffer<time_stamp_t>(
                          keep_count, handle.get_stream())
                      : rmm::device_uvector<time_stamp_t>(keep_count, handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       (*edgelist_indices)[0].begin(),
-                       (*edgelist_indices)[0].end(),
-                       (*edgelist_edge_start_times)[0].begin(),
-                       tmp.begin());
+        cugraph::gather(handle.get_thrust_policy(),
+                        (*edgelist_indices)[0].begin(),
+                        (*edgelist_indices)[0].end(),
+                        (*edgelist_edge_start_times)[0].begin(),
+                        tmp.begin());
         (*edgelist_edge_start_times)[0] = std::move(tmp);
       }
       if (edgelist_edge_end_times) {
@@ -1322,11 +1325,11 @@ remove_multi_edges_impl(
                      ? large_buffer_manager::allocate_memory_buffer<time_stamp_t>(
                          keep_count, handle.get_stream())
                      : rmm::device_uvector<time_stamp_t>(keep_count, handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       (*edgelist_indices)[0].begin(),
-                       (*edgelist_indices)[0].end(),
-                       (*edgelist_edge_end_times)[0].begin(),
-                       tmp.begin());
+        cugraph::gather(handle.get_thrust_policy(),
+                        (*edgelist_indices)[0].begin(),
+                        (*edgelist_indices)[0].end(),
+                        (*edgelist_edge_end_times)[0].begin(),
+                        tmp.begin());
         (*edgelist_edge_end_times)[0] = std::move(tmp);
       }
     }

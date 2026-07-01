@@ -14,7 +14,7 @@
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/legacy/internals.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
 
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>

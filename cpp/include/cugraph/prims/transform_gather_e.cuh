@@ -16,7 +16,8 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/packed_bool_utils.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <raft/core/handle.hpp>
 

@@ -14,7 +14,7 @@
 #include <cugraph/prims/reduce_v.cuh>
 #include <cugraph/prims/transform_reduce_v.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
 
 #include <cuda/iterator>
 #include <cuda/std/functional>
