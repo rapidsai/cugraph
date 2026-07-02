@@ -12,12 +12,17 @@ conda config --set channel_priority strict
 rapids-logger "Downloading artifacts from previous jobs"
 CPP_CHANNEL=$(rapids-download-from-github "$(rapids-artifact-name conda_cpp libcugraph cugraph --cuda "$RAPIDS_CUDA_VERSION")")
 PYTHON_CHANNEL=$(rapids-download-from-github "$(rapids-artifact-name conda_python cugraph cugraph --stable --cuda "$RAPIDS_CUDA_VERSION")")
+source ./ci/use_conda_packages_from_prs.sh
 
 rapids-logger "Generate notebook testing dependencies"
+source ./ci/use_conda_packages_from_prs.sh
 rapids-dependency-file-generator \
   --output conda \
   --file-key test_notebooks \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch);py=${RAPIDS_PY_VERSION}" \
+  --prepend-channel "${LIBRAFT_CHANNEL}" \
+  --prepend-channel "${RAFT_CHANNEL}" \
+  --prepend-channel "${LIBCUVS_CHANNEL}" \
   --prepend-channel "${CPP_CHANNEL}" \
   --prepend-channel "${PYTHON_CHANNEL}" \
   | tee env.yaml

@@ -7,6 +7,7 @@ set -euo pipefail
 rapids-logger "Downloading artifacts from previous jobs"
 CPP_CHANNEL=$(rapids-download-from-github "$(rapids-artifact-name conda_cpp libcugraph cugraph --cuda "$RAPIDS_CUDA_VERSION")")
 PYTHON_CHANNEL=$(rapids-download-from-github "$(rapids-artifact-name conda_python cugraph cugraph --stable --cuda "$RAPIDS_CUDA_VERSION")")
+./ci/use_conda_packages_from_prs.sh
 
 rapids-logger "Create test conda environment"
 . /opt/conda/etc/profile.d/conda.sh
