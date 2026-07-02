@@ -10,7 +10,7 @@ dependencies:
 - c-compiler
 - certifi
 - cmake>=4.0
-- cuda-bindings==13.*,>=13.0.1
+- cuda-bindings>=13.0.1,<14.0
 - cuda-nvcc
 - cuda-nvrtc-dev
 - cuda-nvtx-dev
