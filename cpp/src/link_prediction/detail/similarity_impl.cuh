@@ -16,7 +16,9 @@
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error_check_utils.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -350,7 +352,7 @@ all_pairs_similarity(raft::handle_t const& handle,
       rmm::device_uvector<size_t> gathered_two_hop_degrees(tmp_vertices.size() + 1,
                                                            handle.get_stream());
 
-      thrust::gather(
+      cugraph::gather(
         handle.get_thrust_policy(),
         cuda::make_transform_iterator(
           tmp_vertices.begin(),

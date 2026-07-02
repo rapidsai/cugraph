@@ -14,8 +14,8 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #ifdef TIMING
 #include <cugraph/utilities/high_res_timer.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
 #endif
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
 
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_vector.hpp>

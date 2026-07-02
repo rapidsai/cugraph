@@ -21,7 +21,10 @@
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/core/handle.hpp>
@@ -462,7 +465,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                             handle.get_stream());
           handle.sync_stream();
           if constexpr (!std::is_same_v<edge_value_t, cuda::std::nullopt_t>) {
-            detail::copy_if_mask_set(
+            cugraph::copy_if_mask_set(
               handle,
               thrust::make_zip_iterator(minor_key_first,
                                         edge_partition_e_value_input.value_first()) +
@@ -476,11 +479,11 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                                           tmp_key_aggregated_edge_values)) +
                 h_edge_offsets[j]);
           } else {
-            detail::copy_if_mask_set(handle,
-                                     minor_key_first + unmasked_ranges[0],
-                                     minor_key_first + unmasked_ranges[1],
-                                     (*edge_partition_e_mask).value_first() + unmasked_ranges[0],
-                                     tmp_minor_keys.begin() + h_edge_offsets[j]);
+            cugraph::copy_if_mask_set(handle,
+                                      minor_key_first + unmasked_ranges[0],
+                                      minor_key_first + unmasked_ranges[1],
+                                      (*edge_partition_e_mask).value_first() + unmasked_ranges[0],
+                                      tmp_minor_keys.begin() + h_edge_offsets[j]);
           }
         } else {
           thrust::copy(handle.get_thrust_policy(),

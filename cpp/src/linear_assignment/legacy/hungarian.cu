@@ -11,7 +11,8 @@
 #endif
 
 #include <cugraph/export.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/solver/linear_assignment.cuh>
 

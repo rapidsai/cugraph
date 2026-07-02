@@ -5,7 +5,9 @@
 #pragma once
 
 #include <cugraph/export.hpp>
+#include <cugraph/utilities/thrust_tuple_utils.hpp>
 
+#include <cuda/iterator>
 #include <thrust/device_ptr.h>
 #include <thrust/iterator/detail/normal_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
@@ -16,6 +18,16 @@
 namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
+
+/** Dereferenced value type of @p Iterator (cv stripped), via @c thrust::iterator_traits. */
+template <typename Iterator>
+using iterator_value_t =
+  std::remove_cv_t<typename thrust::iterator_traits<std::remove_cv_t<Iterator>>::value_type>;
+
+/** True when @p Iterator dereferences to an arithmetic @c cuda::std::tuple (e.g. zip iterator). */
+template <typename Iterator>
+inline constexpr bool is_thrust_zip_iterator_v =
+  is_thrust_tuple_of_arithmetic_v<iterator_value_t<std::remove_cv_t<Iterator>>>;
 
 template <typename Iterator>
 struct is_discard_iterator : public std::false_type {};
@@ -29,6 +41,13 @@ template <typename Iterator>
 inline constexpr bool is_arithmetic_pointer_v =
   std::is_pointer_v<std::decay_t<Iterator>> &&
   std::is_arithmetic_v<std::remove_cv_t<std::remove_pointer_t<std::decay_t<Iterator>>>>;
+
+/** True when @p T is a @c cuda::transform_iterator. */
+template <typename T>
+inline constexpr bool is_cuda_transform_iterator_v = false;
+
+template <typename Fn, typename Iter>
+inline constexpr bool is_cuda_transform_iterator_v<cuda::transform_iterator<Fn, Iter>> = true;
 
 template <typename T>
 T* iter_to_raw_ptr(T* ptr)

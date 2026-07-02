@@ -18,7 +18,7 @@
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <rmm/exec_policy.hpp>
 

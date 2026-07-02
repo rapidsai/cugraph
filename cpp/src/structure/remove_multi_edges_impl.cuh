@@ -9,10 +9,11 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
-// FIXME: mem_frugal_partition should probably not be in shuffle_comm.hpp
-//        It's used here without any notion of shuffling
-#include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/groupby_and_count.cuh>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -25,8 +26,12 @@
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
+#include <thrust/copy.h>
+#include <thrust/gather.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/partition.h>
 #include <thrust/sort.h>
+#include <thrust/transform.h>
 #include <thrust/unique.h>
 
 #include <cuco/hash_functions.cuh>
@@ -203,41 +208,30 @@ std::vector<rmm::device_uvector<bool>> compute_multi_edge_flags(
       cugraph::sort(handle.get_thrust_policy(), hashes.begin(), second_first);
       cugraph::sort(handle.get_thrust_policy(), second_first, hashes.end());
     }
-    auto is_definitely_not_multi_edge_hashes =
-      large_buffer_type
-        ? large_buffer_manager::allocate_memory_buffer<bool>(hashes.size(), handle.get_stream())
-        : rmm::device_uvector<bool>(hashes.size(), handle.get_stream());
-    thrust::tabulate(
-      handle.get_thrust_policy(),
-      is_definitely_not_multi_edge_hashes.begin(),
-      is_definitely_not_multi_edge_hashes.end(),
+    auto [possibly_multi_edge_count, possibly_multi_edge_flags] = mark_entries(
+      hashes.size(),
       cuda::proclaim_return_type<bool>([hashes = raft::device_span<hash_result_type const>(
                                           hashes.data(), hashes.size())] __device__(size_t i) {
         if ((i != 0) && (hashes[i] == hashes[i - 1])) {  // compare with the previous element
-          return false;
+          return true;
         }
         if ((i != hashes.size() - 1) &&
             (hashes[i] == hashes[i + 1])) {  // compare with the next element
-          return false;
+          return true;
         }
-        return true;  // definitely unique (src, dst) pair
-      }));
-
-    num_possibly_multi_edges = thrust::count(handle.get_thrust_policy(),
-                                             is_definitely_not_multi_edge_hashes.begin(),
-                                             is_definitely_not_multi_edge_hashes.end(),
-                                             false);
+        return false;
+      }),
+      handle.get_stream(),
+      large_buffer_type);
+    num_possibly_multi_edges = possibly_multi_edge_count;
     unique_possibly_multi_edge_hashes.resize(num_possibly_multi_edges, handle.get_stream());
-    thrust::copy_if(handle.get_thrust_policy(),
-                    hashes.begin(),
-                    hashes.end(),
-                    is_definitely_not_multi_edge_hashes.begin(),
-                    unique_possibly_multi_edge_hashes.begin(),
-                    cuda::proclaim_return_type<bool>([] __device__(bool definitely_not_multi_edge) {
-                      return !definitely_not_multi_edge;
-                    }));
-    is_definitely_not_multi_edge_hashes.resize(0, handle.get_stream());
-    is_definitely_not_multi_edge_hashes.shrink_to_fit(handle.get_stream());
+    cugraph::copy_if_mask_set(handle,
+                              hashes.begin(),
+                              hashes.end(),
+                              possibly_multi_edge_flags.begin(),
+                              unique_possibly_multi_edge_hashes.begin());
+    possibly_multi_edge_flags.resize(0, handle.get_stream());
+    possibly_multi_edge_flags.shrink_to_fit(handle.get_stream());
 
     cugraph::sort(handle.get_thrust_policy(),
                   unique_possibly_multi_edge_hashes.begin(),
@@ -711,11 +705,11 @@ remove_multi_edges_impl(
                          (*edgelist_weights)[j].begin() + input_end_offset,
                          multi_edge_weights->begin() + output_start_offset);
           } else {  // edge_property_count > 1
-            thrust::gather(handle.get_thrust_policy(),
-                           (*edgelist_indices)[j].begin() + input_start_offset,
-                           (*edgelist_indices)[j].begin() + input_end_offset,
-                           (*edgelist_weights)[j].begin(),
-                           multi_edge_weights->begin() + output_start_offset);
+            cugraph::gather(handle.get_thrust_policy(),
+                            (*edgelist_indices)[j].begin() + input_start_offset,
+                            (*edgelist_indices)[j].begin() + input_end_offset,
+                            (*edgelist_weights)[j].begin(),
+                            multi_edge_weights->begin() + output_start_offset);
           }
         }
         if (edgelist_edge_ids) {
@@ -725,11 +719,11 @@ remove_multi_edges_impl(
                          (*edgelist_edge_ids)[j].begin() + input_end_offset,
                          multi_edge_edge_ids->begin() + output_start_offset);
           } else {  // edge_property_count > 1
-            thrust::gather(handle.get_thrust_policy(),
-                           (*edgelist_indices)[j].begin() + input_start_offset,
-                           (*edgelist_indices)[j].begin() + input_end_offset,
-                           (*edgelist_edge_ids)[j].begin(),
-                           multi_edge_edge_ids->begin() + output_start_offset);
+            cugraph::gather(handle.get_thrust_policy(),
+                            (*edgelist_indices)[j].begin() + input_start_offset,
+                            (*edgelist_indices)[j].begin() + input_end_offset,
+                            (*edgelist_edge_ids)[j].begin(),
+                            multi_edge_edge_ids->begin() + output_start_offset);
           }
         }
         if (edgelist_edge_types) {
@@ -739,11 +733,11 @@ remove_multi_edges_impl(
                          (*edgelist_edge_types)[j].begin() + input_end_offset,
                          multi_edge_edge_types->begin() + output_start_offset);
           } else {  // edge_property_count > 1
-            thrust::gather(handle.get_thrust_policy(),
-                           (*edgelist_indices)[j].begin() + input_start_offset,
-                           (*edgelist_indices)[j].begin() + input_end_offset,
-                           (*edgelist_edge_types)[j].begin(),
-                           multi_edge_edge_types->begin() + output_start_offset);
+            cugraph::gather(handle.get_thrust_policy(),
+                            (*edgelist_indices)[j].begin() + input_start_offset,
+                            (*edgelist_indices)[j].begin() + input_end_offset,
+                            (*edgelist_edge_types)[j].begin(),
+                            multi_edge_edge_types->begin() + output_start_offset);
           }
         }
         if (edgelist_edge_start_times) {
@@ -753,11 +747,11 @@ remove_multi_edges_impl(
                          (*edgelist_edge_start_times)[j].begin() + input_end_offset,
                          multi_edge_edge_start_times->begin() + output_start_offset);
           } else {  // edge_property_count > 1
-            thrust::gather(handle.get_thrust_policy(),
-                           (*edgelist_indices)[j].begin() + input_start_offset,
-                           (*edgelist_indices)[j].begin() + input_end_offset,
-                           (*edgelist_edge_start_times)[j].begin(),
-                           multi_edge_edge_start_times->begin() + output_start_offset);
+            cugraph::gather(handle.get_thrust_policy(),
+                            (*edgelist_indices)[j].begin() + input_start_offset,
+                            (*edgelist_indices)[j].begin() + input_end_offset,
+                            (*edgelist_edge_start_times)[j].begin(),
+                            multi_edge_edge_start_times->begin() + output_start_offset);
           }
         }
         if (edgelist_edge_end_times) {
@@ -767,11 +761,11 @@ remove_multi_edges_impl(
                          (*edgelist_edge_end_times)[j].begin() + input_end_offset,
                          multi_edge_edge_end_times->begin() + output_start_offset);
           } else {  // edge_property_count > 1
-            thrust::gather(handle.get_thrust_policy(),
-                           (*edgelist_indices)[j].begin() + input_start_offset,
-                           (*edgelist_indices)[j].begin() + input_end_offset,
-                           (*edgelist_edge_end_times)[j].begin(),
-                           multi_edge_edge_end_times->begin() + output_start_offset);
+            cugraph::gather(handle.get_thrust_policy(),
+                            (*edgelist_indices)[j].begin() + input_start_offset,
+                            (*edgelist_indices)[j].begin() + input_end_offset,
+                            (*edgelist_edge_end_times)[j].begin(),
+                            multi_edge_edge_end_times->begin() + output_start_offset);
           }
         }
         if (edgelist_indices) {  // edge_property_count > 1
@@ -819,24 +813,24 @@ remove_multi_edges_impl(
 
       auto pair_first = thrust::make_zip_iterator(multi_edge_srcs.begin(), multi_edge_dsts.begin());
       auto [keep_count, keep_flags] =
-        detail::mark_entries(handle,
-                             multi_edge_srcs.size(),
-                             detail::is_first_in_run_t<decltype(pair_first)>{pair_first});
-      multi_edge_srcs = detail::keep_marked_entries(
-        handle,
-        std::move(multi_edge_srcs),
-        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-        keep_count);
-      multi_edge_dsts = detail::keep_marked_entries(
-        handle,
-        std::move(multi_edge_dsts),
-        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-        keep_count);
-      multi_edge_indices = detail::keep_marked_entries(
-        handle,
-        std::move(multi_edge_indices),
-        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-        keep_count);
+        mark_entries(multi_edge_srcs.size(),
+                     detail::is_first_in_run_t<decltype(pair_first)>{pair_first},
+                     handle.get_stream());
+      multi_edge_srcs =
+        keep_marked_entries(handle,
+                            std::move(multi_edge_srcs),
+                            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+                            keep_count);
+      multi_edge_dsts =
+        keep_marked_entries(handle,
+                            std::move(multi_edge_dsts),
+                            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+                            keep_count);
+      multi_edge_indices =
+        keep_marked_entries(handle,
+                            std::move(multi_edge_indices),
+                            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+                            keep_count);
 
       // 6. copy multi-edges back to the original edgelists
 
@@ -882,7 +876,7 @@ remove_multi_edges_impl(
           /* nothing to do */
         } else if (edge_property_count == 1) {
           if (multi_edge_weights) {
-            thrust::gather(
+            cugraph::gather(
               handle.get_thrust_policy(),
               multi_edge_indices.begin() + h_keep_count_offsets[j],
               multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
@@ -890,7 +884,7 @@ remove_multi_edges_impl(
               (*edgelist_weights)[j].begin() + group_disps[j][i] + non_multi_edge_counts[j][i]);
           }
           if (multi_edge_edge_ids) {
-            thrust::gather(
+            cugraph::gather(
               handle.get_thrust_policy(),
               multi_edge_indices.begin() + h_keep_count_offsets[j],
               multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
@@ -898,7 +892,7 @@ remove_multi_edges_impl(
               (*edgelist_edge_ids)[j].begin() + group_disps[j][i] + non_multi_edge_counts[j][i]);
           }
           if (multi_edge_edge_types) {
-            thrust::gather(
+            cugraph::gather(
               handle.get_thrust_policy(),
               multi_edge_indices.begin() + h_keep_count_offsets[j],
               multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
@@ -906,23 +900,23 @@ remove_multi_edges_impl(
               (*edgelist_edge_types)[j].begin() + group_disps[j][i] + non_multi_edge_counts[j][i]);
           }
           if (multi_edge_edge_start_times) {
-            thrust::gather(handle.get_thrust_policy(),
-                           multi_edge_indices.begin() + h_keep_count_offsets[j],
-                           multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
-                           multi_edge_edge_start_times->begin(),
-                           (*edgelist_edge_start_times)[j].begin() + group_disps[j][i] +
-                             non_multi_edge_counts[j][i]);
+            cugraph::gather(handle.get_thrust_policy(),
+                            multi_edge_indices.begin() + h_keep_count_offsets[j],
+                            multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
+                            multi_edge_edge_start_times->begin(),
+                            (*edgelist_edge_start_times)[j].begin() + group_disps[j][i] +
+                              non_multi_edge_counts[j][i]);
           }
           if (multi_edge_edge_end_times) {
-            thrust::gather(handle.get_thrust_policy(),
-                           multi_edge_indices.begin() + h_keep_count_offsets[j],
-                           multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
-                           multi_edge_edge_end_times->begin(),
-                           (*edgelist_edge_end_times)[j].begin() + group_disps[j][i] +
-                             non_multi_edge_counts[j][i]);
+            cugraph::gather(handle.get_thrust_policy(),
+                            multi_edge_indices.begin() + h_keep_count_offsets[j],
+                            multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
+                            multi_edge_edge_end_times->begin(),
+                            (*edgelist_edge_end_times)[j].begin() + group_disps[j][i] +
+                              non_multi_edge_counts[j][i]);
           }
         } else {  // edge_property_count > 1
-          thrust::gather(
+          cugraph::gather(
             handle.get_thrust_policy(),
             multi_edge_indices.begin() + h_keep_count_offsets[j],
             multi_edge_indices.begin() + h_keep_count_offsets[j + 1],
@@ -945,8 +939,7 @@ remove_multi_edges_impl(
       raft::update_device(
         d_group_valid_counts.data(), group_valid_counts[i].data(), num_chunks, handle.get_stream());
 
-      auto [keep_count, keep_flags] = detail::mark_entries(
-        handle,
+      auto [keep_count, keep_flags] = mark_entries(
         edgelist_srcs[i].size(),
         [lasts              = raft::device_span<size_t const>(d_lasts.data(), d_lasts.size()),
          group_valid_counts = raft::device_span<size_t const>(
@@ -956,25 +949,26 @@ remove_multi_edges_impl(
           auto intra_group_idx = i - (group_idx == 0 ? 0 : lasts[group_idx - 1]);
           return intra_group_idx < group_valid_counts[group_idx];
         },
+        handle.get_stream(),
         large_buffer_type);
 
-      edgelist_srcs[i] = detail::keep_marked_entries(
-        handle,
-        std::move(edgelist_srcs[i]),
-        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-        keep_count,
-        large_buffer_type);
-      edgelist_dsts[i] = detail::keep_marked_entries(
-        handle,
-        std::move(edgelist_dsts[i]),
-        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-        keep_count,
-        large_buffer_type);
+      edgelist_srcs[i] =
+        keep_marked_entries(handle,
+                            std::move(edgelist_srcs[i]),
+                            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+                            keep_count,
+                            large_buffer_type);
+      edgelist_dsts[i] =
+        keep_marked_entries(handle,
+                            std::move(edgelist_dsts[i]),
+                            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+                            keep_count,
+                            large_buffer_type);
       if (edge_property_count == 0) {
         /* nothing to do */
       } else if (edge_property_count == 1) {
         if (edgelist_weights) {
-          (*edgelist_weights)[i] = detail::keep_marked_entries(
+          (*edgelist_weights)[i] = keep_marked_entries(
             handle,
             std::move((*edgelist_weights)[i]),
             raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -982,7 +976,7 @@ remove_multi_edges_impl(
             large_buffer_type);
         }
         if (edgelist_edge_ids) {
-          (*edgelist_edge_ids)[i] = detail::keep_marked_entries(
+          (*edgelist_edge_ids)[i] = keep_marked_entries(
             handle,
             std::move((*edgelist_edge_ids)[i]),
             raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -990,7 +984,7 @@ remove_multi_edges_impl(
             large_buffer_type);
         }
         if (edgelist_edge_types) {
-          (*edgelist_edge_types)[i] = detail::keep_marked_entries(
+          (*edgelist_edge_types)[i] = keep_marked_entries(
             handle,
             std::move((*edgelist_edge_types)[i]),
             raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -998,7 +992,7 @@ remove_multi_edges_impl(
             large_buffer_type);
         }
         if (edgelist_edge_start_times) {
-          (*edgelist_edge_start_times)[i] = detail::keep_marked_entries(
+          (*edgelist_edge_start_times)[i] = keep_marked_entries(
             handle,
             std::move((*edgelist_edge_start_times)[i]),
             raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -1006,7 +1000,7 @@ remove_multi_edges_impl(
             large_buffer_type);
         }
         if (edgelist_edge_end_times) {
-          (*edgelist_edge_end_times)[i] = detail::keep_marked_entries(
+          (*edgelist_edge_end_times)[i] = keep_marked_entries(
             handle,
             std::move((*edgelist_edge_end_times)[i]),
             raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -1014,7 +1008,7 @@ remove_multi_edges_impl(
             large_buffer_type);
         }
       } else {  // edge_property_count > 1
-        (*edgelist_indices)[i] = detail::keep_marked_entries(
+        (*edgelist_indices)[i] = keep_marked_entries(
           handle,
           std::move((*edgelist_indices)[i]),
           raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -1025,11 +1019,11 @@ remove_multi_edges_impl(
                        ? large_buffer_manager::allocate_memory_buffer<weight_t>(keep_count,
                                                                                 handle.get_stream())
                        : rmm::device_uvector<weight_t>(keep_count, handle.get_stream());
-          thrust::gather(handle.get_thrust_policy(),
-                         (*edgelist_indices)[i].begin(),
-                         (*edgelist_indices)[i].begin() + keep_count,
-                         (*edgelist_weights)[i].begin(),
-                         tmp.begin());
+          cugraph::gather(handle.get_thrust_policy(),
+                          (*edgelist_indices)[i].begin(),
+                          (*edgelist_indices)[i].begin() + keep_count,
+                          (*edgelist_weights)[i].begin(),
+                          tmp.begin());
           (*edgelist_weights)[i] = std::move(tmp);
         }
         if (edgelist_edge_ids) {
@@ -1037,11 +1031,11 @@ remove_multi_edges_impl(
                        ? large_buffer_manager::allocate_memory_buffer<edge_t>(keep_count,
                                                                               handle.get_stream())
                        : rmm::device_uvector<edge_t>(keep_count, handle.get_stream());
-          thrust::gather(handle.get_thrust_policy(),
-                         (*edgelist_indices)[i].begin(),
-                         (*edgelist_indices)[i].begin() + keep_count,
-                         (*edgelist_edge_ids)[i].begin(),
-                         tmp.begin());
+          cugraph::gather(handle.get_thrust_policy(),
+                          (*edgelist_indices)[i].begin(),
+                          (*edgelist_indices)[i].begin() + keep_count,
+                          (*edgelist_edge_ids)[i].begin(),
+                          tmp.begin());
           (*edgelist_edge_ids)[i] = std::move(tmp);
         }
         if (edgelist_edge_types) {
@@ -1049,11 +1043,11 @@ remove_multi_edges_impl(
                        ? large_buffer_manager::allocate_memory_buffer<edge_type_t>(
                            keep_count, handle.get_stream())
                        : rmm::device_uvector<edge_type_t>(keep_count, handle.get_stream());
-          thrust::gather(handle.get_thrust_policy(),
-                         (*edgelist_indices)[i].begin(),
-                         (*edgelist_indices)[i].begin() + keep_count,
-                         (*edgelist_edge_types)[i].begin(),
-                         tmp.begin());
+          cugraph::gather(handle.get_thrust_policy(),
+                          (*edgelist_indices)[i].begin(),
+                          (*edgelist_indices)[i].begin() + keep_count,
+                          (*edgelist_edge_types)[i].begin(),
+                          tmp.begin());
           (*edgelist_edge_types)[i] = std::move(tmp);
         }
         if (edgelist_edge_start_times) {
@@ -1061,11 +1055,11 @@ remove_multi_edges_impl(
                        ? large_buffer_manager::allocate_memory_buffer<time_stamp_t>(
                            keep_count, handle.get_stream())
                        : rmm::device_uvector<time_stamp_t>(keep_count, handle.get_stream());
-          thrust::gather(handle.get_thrust_policy(),
-                         (*edgelist_indices)[i].begin(),
-                         (*edgelist_indices)[i].begin() + keep_count,
-                         (*edgelist_edge_start_times)[i].begin(),
-                         tmp.begin());
+          cugraph::gather(handle.get_thrust_policy(),
+                          (*edgelist_indices)[i].begin(),
+                          (*edgelist_indices)[i].begin() + keep_count,
+                          (*edgelist_edge_start_times)[i].begin(),
+                          tmp.begin());
           (*edgelist_edge_start_times)[i] = std::move(tmp);
         }
         if (edgelist_edge_end_times) {
@@ -1073,11 +1067,11 @@ remove_multi_edges_impl(
                        ? large_buffer_manager::allocate_memory_buffer<time_stamp_t>(
                            keep_count, handle.get_stream())
                        : rmm::device_uvector<time_stamp_t>(keep_count, handle.get_stream());
-          thrust::gather(handle.get_thrust_policy(),
-                         (*edgelist_indices)[i].begin(),
-                         (*edgelist_indices)[i].begin() + keep_count,
-                         (*edgelist_edge_end_times)[i].begin(),
-                         tmp.begin());
+          cugraph::gather(handle.get_thrust_policy(),
+                          (*edgelist_indices)[i].begin(),
+                          (*edgelist_indices)[i].begin() + keep_count,
+                          (*edgelist_edge_end_times)[i].begin(),
+                          tmp.begin());
           (*edgelist_edge_end_times)[i] = std::move(tmp);
         }
       }
@@ -1206,29 +1200,29 @@ remove_multi_edges_impl(
 
     auto pair_first = thrust::make_zip_iterator(edgelist_srcs[0].begin(), edgelist_dsts[0].begin());
     auto [keep_count, keep_flags] =
-      detail::mark_entries(handle,
-                           edgelist_srcs[0].size(),
-                           detail::is_first_in_run_t<decltype(pair_first)>{pair_first},
-                           large_buffer_type);
+      mark_entries(edgelist_srcs[0].size(),
+                   detail::is_first_in_run_t<decltype(pair_first)>{pair_first},
+                   handle.get_stream(),
+                   large_buffer_type);
 
-    edgelist_srcs[0] = detail::keep_marked_entries(
-      handle,
-      std::move(edgelist_srcs[0]),
-      raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-      keep_count,
-      large_buffer_type);
-    edgelist_dsts[0] = detail::keep_marked_entries(
-      handle,
-      std::move(edgelist_dsts[0]),
-      raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-      keep_count,
-      large_buffer_type);
+    edgelist_srcs[0] =
+      keep_marked_entries(handle,
+                          std::move(edgelist_srcs[0]),
+                          raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+                          keep_count,
+                          large_buffer_type);
+    edgelist_dsts[0] =
+      keep_marked_entries(handle,
+                          std::move(edgelist_dsts[0]),
+                          raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+                          keep_count,
+                          large_buffer_type);
 
     if (edge_property_count == 0) {
       /* nothing to do */
     } else if (edge_property_count == 1) {
       if (edgelist_weights) {
-        (*edgelist_weights)[0] = detail::keep_marked_entries(
+        (*edgelist_weights)[0] = keep_marked_entries(
           handle,
           std::move((*edgelist_weights)[0]),
           raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -1237,7 +1231,7 @@ remove_multi_edges_impl(
       }
 
       if (edgelist_edge_ids) {
-        (*edgelist_edge_ids)[0] = detail::keep_marked_entries(
+        (*edgelist_edge_ids)[0] = keep_marked_entries(
           handle,
           std::move((*edgelist_edge_ids)[0]),
           raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -1246,7 +1240,7 @@ remove_multi_edges_impl(
       }
 
       if (edgelist_edge_types) {
-        (*edgelist_edge_types)[0] = detail::keep_marked_entries(
+        (*edgelist_edge_types)[0] = keep_marked_entries(
           handle,
           std::move((*edgelist_edge_types)[0]),
           raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -1255,7 +1249,7 @@ remove_multi_edges_impl(
       }
 
       if (edgelist_edge_start_times) {
-        (*edgelist_edge_start_times)[0] = detail::keep_marked_entries(
+        (*edgelist_edge_start_times)[0] = keep_marked_entries(
           handle,
           std::move((*edgelist_edge_start_times)[0]),
           raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -1264,7 +1258,7 @@ remove_multi_edges_impl(
       }
 
       if (edgelist_edge_end_times) {
-        (*edgelist_edge_end_times)[0] = detail::keep_marked_entries(
+        (*edgelist_edge_end_times)[0] = keep_marked_entries(
           handle,
           std::move((*edgelist_edge_end_times)[0]),
           raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -1273,33 +1267,33 @@ remove_multi_edges_impl(
       }
     } else {  // edge_property_count > 1
       assert(edgelist_indices);
-      (*edgelist_indices)[0] = detail::keep_marked_entries(
-        handle,
-        std::move((*edgelist_indices)[0]),
-        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-        keep_count,
-        large_buffer_type);
+      (*edgelist_indices)[0] =
+        keep_marked_entries(handle,
+                            std::move((*edgelist_indices)[0]),
+                            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+                            keep_count,
+                            large_buffer_type);
       if (edgelist_weights) {
         auto tmp = large_buffer_type
                      ? large_buffer_manager::allocate_memory_buffer<weight_t>(keep_count,
                                                                               handle.get_stream())
                      : rmm::device_uvector<weight_t>(keep_count, handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       (*edgelist_indices)[0].begin(),
-                       (*edgelist_indices)[0].end(),
-                       (*edgelist_weights)[0].begin(),
-                       tmp.begin());
+        cugraph::gather(handle.get_thrust_policy(),
+                        (*edgelist_indices)[0].begin(),
+                        (*edgelist_indices)[0].end(),
+                        (*edgelist_weights)[0].begin(),
+                        tmp.begin());
         (*edgelist_weights)[0] = std::move(tmp);
       }
       if (edgelist_edge_ids) {
         auto tmp = large_buffer_type ? large_buffer_manager::allocate_memory_buffer<edge_t>(
                                          keep_count, handle.get_stream())
                                      : rmm::device_uvector<edge_t>(keep_count, handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       (*edgelist_indices)[0].begin(),
-                       (*edgelist_indices)[0].end(),
-                       (*edgelist_edge_ids)[0].begin(),
-                       tmp.begin());
+        cugraph::gather(handle.get_thrust_policy(),
+                        (*edgelist_indices)[0].begin(),
+                        (*edgelist_indices)[0].end(),
+                        (*edgelist_edge_ids)[0].begin(),
+                        tmp.begin());
         (*edgelist_edge_ids)[0] = std::move(tmp);
       }
       if (edgelist_edge_types) {
@@ -1307,11 +1301,11 @@ remove_multi_edges_impl(
                      ? large_buffer_manager::allocate_memory_buffer<edge_type_t>(
                          keep_count, handle.get_stream())
                      : rmm::device_uvector<edge_type_t>(keep_count, handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       (*edgelist_indices)[0].begin(),
-                       (*edgelist_indices)[0].end(),
-                       (*edgelist_edge_types)[0].begin(),
-                       tmp.begin());
+        cugraph::gather(handle.get_thrust_policy(),
+                        (*edgelist_indices)[0].begin(),
+                        (*edgelist_indices)[0].end(),
+                        (*edgelist_edge_types)[0].begin(),
+                        tmp.begin());
         (*edgelist_edge_types)[0] = std::move(tmp);
       }
       if (edgelist_edge_start_times) {
@@ -1319,11 +1313,11 @@ remove_multi_edges_impl(
                      ? large_buffer_manager::allocate_memory_buffer<time_stamp_t>(
                          keep_count, handle.get_stream())
                      : rmm::device_uvector<time_stamp_t>(keep_count, handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       (*edgelist_indices)[0].begin(),
-                       (*edgelist_indices)[0].end(),
-                       (*edgelist_edge_start_times)[0].begin(),
-                       tmp.begin());
+        cugraph::gather(handle.get_thrust_policy(),
+                        (*edgelist_indices)[0].begin(),
+                        (*edgelist_indices)[0].end(),
+                        (*edgelist_edge_start_times)[0].begin(),
+                        tmp.begin());
         (*edgelist_edge_start_times)[0] = std::move(tmp);
       }
       if (edgelist_edge_end_times) {
@@ -1331,11 +1325,11 @@ remove_multi_edges_impl(
                      ? large_buffer_manager::allocate_memory_buffer<time_stamp_t>(
                          keep_count, handle.get_stream())
                      : rmm::device_uvector<time_stamp_t>(keep_count, handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       (*edgelist_indices)[0].begin(),
-                       (*edgelist_indices)[0].end(),
-                       (*edgelist_edge_end_times)[0].begin(),
-                       tmp.begin());
+        cugraph::gather(handle.get_thrust_policy(),
+                        (*edgelist_indices)[0].begin(),
+                        (*edgelist_indices)[0].end(),
+                        (*edgelist_edge_end_times)[0].begin(),
+                        tmp.begin());
         (*edgelist_edge_end_times)[0] = std::move(tmp);
       }
     }

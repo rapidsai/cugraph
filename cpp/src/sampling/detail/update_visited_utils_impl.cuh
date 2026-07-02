@@ -12,7 +12,8 @@
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <rmm/exec_policy.hpp>

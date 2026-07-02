@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "detail/gather_sampled_properties.hpp"
+#include "detail/gather_sampled_properties.cuh"
 #include "detail/sampling_utils.hpp"
 #include "utilities/validation_checks.hpp"
 
@@ -13,7 +13,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/sampling_functions.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
 #include <cugraph/vertex_partition_view.hpp>
 
 #include <raft/core/handle.hpp>

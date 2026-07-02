@@ -13,7 +13,9 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -237,7 +239,7 @@ rmm::device_uvector<vertex_t> select_random_vertices(
   }
 
   if (given_set) {
-    thrust::gather(
+    cugraph::gather(
       handle.get_thrust_policy(),
       cuda::make_transform_iterator(
         mg_sample_buffer.begin(), cugraph::detail::shift_left_t<vertex_t>{local_int_vertex_first}),

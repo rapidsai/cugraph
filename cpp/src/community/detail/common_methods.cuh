@@ -17,7 +17,7 @@
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <rmm/exec_policy.hpp>
 

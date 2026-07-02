@@ -15,7 +15,8 @@
 #include <cugraph/prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/scatter.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/core/handle.hpp>
@@ -469,7 +470,7 @@ void bfs(raft::handle_t const& handle,
       {
         auto input_pair_first = thrust::make_zip_iterator(cuda::make_constant_iterator(depth + 1),
                                                           predecessor_buffer.begin());
-        thrust::scatter(
+        cugraph::scatter(
           handle.get_thrust_policy(),
           input_pair_first,
           input_pair_first + new_frontier_vertex_buffer.size(),

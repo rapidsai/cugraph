@@ -11,7 +11,12 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -1587,11 +1592,11 @@ compute_edge_id_renumber_map(
                        handle.get_stream());
 
     renumber_map = rmm::device_uvector<edge_id_t>(tmp_indices.size(), handle.get_stream());
-    thrust::gather(handle.get_thrust_policy(),
-                   tmp_indices.begin(),
-                   tmp_indices.end(),
-                   edgelist_edge_ids.begin(),
-                   renumber_map.begin());
+    cugraph::gather(handle.get_thrust_policy(),
+                    tmp_indices.begin(),
+                    tmp_indices.end(),
+                    edgelist_edge_ids.begin(),
+                    renumber_map.begin());
 
     renumber_map_label_type_offsets =
       rmm::device_uvector<size_t>(num_labels * num_edge_types + 1, handle.get_stream());
@@ -2457,11 +2462,11 @@ void permute_array(raft::handle_t const& handle,
 
   auto tmp_buffer = allocate_dataframe_buffer<value_t>(cuda::std::distance(index_first, index_last),
                                                        handle.get_stream());
-  thrust::gather(handle.get_thrust_policy(),
-                 index_first,
-                 index_last,
-                 value_first,
-                 get_dataframe_buffer_begin(tmp_buffer));
+  cugraph::gather(handle.get_thrust_policy(),
+                  index_first,
+                  index_last,
+                  value_first,
+                  get_dataframe_buffer_begin(tmp_buffer));
   thrust::copy(handle.get_thrust_policy(),
                get_dataframe_buffer_begin(tmp_buffer),
                get_dataframe_buffer_end(tmp_buffer),

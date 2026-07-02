@@ -16,7 +16,7 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
@@ -28,6 +28,7 @@
 #include <rmm/mr/cuda_memory_resource.hpp>
 
 #include <cuda/std/iterator>
+#include <thrust/remove.h>
 
 #include <gtest/gtest.h>
 

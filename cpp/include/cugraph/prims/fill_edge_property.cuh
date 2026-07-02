@@ -9,7 +9,7 @@
 #include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
 
 #include <raft/core/handle.hpp>
 

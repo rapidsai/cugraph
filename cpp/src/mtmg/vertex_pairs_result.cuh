@@ -12,7 +12,7 @@
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <rmm/exec_policy.hpp>
@@ -21,6 +21,7 @@
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/gather.h>
+#include <thrust/remove.h>
 
 namespace cugraph {
 namespace mtmg {

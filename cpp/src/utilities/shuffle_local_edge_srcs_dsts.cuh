@@ -9,7 +9,9 @@
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <thrust/binary_search.h>
 #include <thrust/gather.h>
@@ -149,11 +151,11 @@ shuffle_local_edge_majors_to_local_gpu_by_vertex_partitioning(
                       prop, [&handle, &property_positions](auto& prop) {
                         using T = typename std::remove_reference_t<decltype(prop)>;
                         T tmp(prop.size(), handle.get_stream());
-                        thrust::gather(handle.get_thrust_policy(),
-                                       property_positions.begin(),
-                                       property_positions.end(),
-                                       prop.begin(),
-                                       tmp.begin());
+                        cugraph::gather(handle.get_thrust_policy(),
+                                        property_positions.begin(),
+                                        property_positions.end(),
+                                        prop.begin(),
+                                        tmp.begin());
                         prop = std::move(tmp);
                       });
                   });
@@ -219,11 +221,11 @@ shuffle_local_edge_minors_to_local_gpu_by_vertex_partitioning(
                       prop, [&handle, &property_positions](auto& prop) {
                         using T = typename std::remove_reference_t<decltype(prop)>;
                         T tmp(prop.size(), handle.get_stream());
-                        thrust::gather(handle.get_thrust_policy(),
-                                       property_positions.begin(),
-                                       property_positions.end(),
-                                       prop.begin(),
-                                       tmp.begin());
+                        cugraph::gather(handle.get_thrust_policy(),
+                                        property_positions.begin(),
+                                        property_positions.end(),
+                                        prop.begin(),
+                                        tmp.begin());
                         prop = std::move(tmp);
                       });
                   });

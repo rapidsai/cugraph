@@ -8,7 +8,8 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/scatter.hpp>
 
 #include <cuda/functional>
 #include <cuda/iterator>
@@ -65,11 +66,11 @@ rmm::device_uvector<value_t> collect_local_vertex_values_from_ext_vertex_value_p
   cugraph::fill(
     handle.get_thrust_policy(), d_local_values.begin(), d_local_values.end(), default_value);
 
-  thrust::scatter(handle.get_thrust_policy(),
-                  d_values.begin(),
-                  d_values.end(),
-                  vertex_iterator,
-                  d_local_values.begin());
+  cugraph::scatter(handle.get_thrust_policy(),
+                   d_values.begin(),
+                   d_values.end(),
+                   vertex_iterator,
+                   d_local_values.begin());
 
   return d_local_values;
 }

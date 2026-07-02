@@ -7,7 +7,7 @@
 
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>

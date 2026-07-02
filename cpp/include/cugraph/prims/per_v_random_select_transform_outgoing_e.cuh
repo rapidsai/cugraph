@@ -17,7 +17,9 @@
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
+#include <cugraph/utilities/thrust_wrappers/scatter.hpp>
 
 #include <raft/random/rng.cuh>
 
@@ -555,7 +557,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                     get_dataframe_buffer_begin(tmp_sample_e_op_results),
                     get_dataframe_buffer_end(tmp_sample_e_op_results),
                     *invalid_value);
-      thrust::scatter(
+      cugraph::scatter(
         handle.get_thrust_policy(),
         get_dataframe_buffer_begin(sample_e_op_results),
         get_dataframe_buffer_end(sample_e_op_results),
@@ -582,7 +584,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       resize_dataframe_buffer(tmp_sample_e_op_results,
                               (*sample_offsets).back_element(handle.get_stream()),
                               handle.get_stream());
-      thrust::scatter(
+      cugraph::scatter(
         handle.get_thrust_policy(),
         get_dataframe_buffer_begin(sample_e_op_results),
         get_dataframe_buffer_end(sample_e_op_results),

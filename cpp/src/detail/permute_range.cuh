@@ -9,7 +9,7 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>

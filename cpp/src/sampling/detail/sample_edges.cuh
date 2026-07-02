@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "gather_sampled_properties.hpp"
+#include "gather_sampled_properties.cuh"
 #include "sampling_utils.hpp"
 
 #include <cugraph/arithmetic_variant_types.hpp>
@@ -24,7 +24,7 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
@@ -855,8 +855,7 @@ sample_unvisited_with_one_property(
           random_numbers.resize(0, handle.get_stream());
           random_numbers.shrink_to_fit(handle.get_stream());
 
-          std::tie(keep_count, keep_flags) = detail::mark_entries(
-            handle,
+          std::tie(keep_count, keep_flags) = mark_entries(
             majors.size(),
             cuda::proclaim_return_type<bool>(
               [majors_size             = majors.size(),
@@ -888,6 +887,7 @@ sample_unvisited_with_one_property(
                 auto position_count = (i - cuda::std::distance(d_begin, lb2));
                 return position_count < needed_count;
               }),
+            handle.get_stream(),
             std::nullopt);
 
         } else {
@@ -900,8 +900,7 @@ sample_unvisited_with_one_property(
           random_numbers.resize(0, handle.get_stream());
           random_numbers.shrink_to_fit(handle.get_stream());
 
-          std::tie(keep_count, keep_flags) = detail::mark_entries(
-            handle,
+          std::tie(keep_count, keep_flags) = mark_entries(
             majors.size(),
             cuda::proclaim_return_type<bool>(
               [majors_size             = majors.size(),
@@ -931,6 +930,7 @@ sample_unvisited_with_one_property(
                 auto position_count = (i - cuda::std::distance(d_begin, lb2));
                 return position_count < needed_count;
               }),
+            handle.get_stream(),
             std::nullopt);
         }
       } else {
@@ -944,8 +944,7 @@ sample_unvisited_with_one_property(
           random_numbers.resize(0, handle.get_stream());
           random_numbers.shrink_to_fit(handle.get_stream());
 
-          std::tie(keep_count, keep_flags) = detail::mark_entries(
-            handle,
+          std::tie(keep_count, keep_flags) = mark_entries(
             majors.size(),
             cuda::proclaim_return_type<bool>(
               [majors_size             = majors.size(),
@@ -975,6 +974,7 @@ sample_unvisited_with_one_property(
                 auto position_count = (i - cuda::std::distance(d_begin, lb2));
                 return position_count < needed_count;
               }),
+            handle.get_stream(),
             std::nullopt);
 
         } else {
@@ -986,8 +986,7 @@ sample_unvisited_with_one_property(
           random_numbers.resize(0, handle.get_stream());
           random_numbers.shrink_to_fit(handle.get_stream());
 
-          std::tie(keep_count, keep_flags) = detail::mark_entries(
-            handle,
+          std::tie(keep_count, keep_flags) = mark_entries(
             majors.size(),
             cuda::proclaim_return_type<bool>(
               [majors_size             = majors.size(),
@@ -1012,25 +1011,26 @@ sample_unvisited_with_one_property(
                 auto position_count = (i - cuda::std::distance(d_majors, lb2));
                 return position_count < needed_count;
               }),
+            handle.get_stream(),
             std::nullopt);
         }
       }
 
       raft::device_span<uint32_t const> const keep_mask{keep_flags.data(), keep_flags.size()};
-      majors = detail::keep_marked_entries(handle, std::move(majors), keep_mask, keep_count);
-      minors = detail::keep_marked_entries(handle, std::move(minors), keep_mask, keep_count);
+      majors = keep_marked_entries(handle, std::move(majors), keep_mask, keep_count);
+      minors = keep_marked_entries(handle, std::move(minors), keep_mask, keep_count);
       if (carryover_frontier_types) {
-        types = arithmetic_device_uvector_t{detail::keep_marked_entries(
+        types = arithmetic_device_uvector_t{keep_marked_entries(
           handle, std::move(std::get<rmm::device_uvector<int32_t>>(types)), keep_mask, keep_count)};
       }
       if (!std::holds_alternative<std::monostate>(prop)) {
         prop = cugraph::variant_type_dispatch(prop, [&](auto& index_vec) {
           return arithmetic_device_uvector_t{
-            detail::keep_marked_entries(handle, std::move(index_vec), keep_mask, keep_count)};
+            keep_marked_entries(handle, std::move(index_vec), keep_mask, keep_count)};
         });
       }
       if (labels) {
-        *labels = detail::keep_marked_entries(handle, std::move(*labels), keep_mask, keep_count);
+        *labels = keep_marked_entries(handle, std::move(*labels), keep_mask, keep_count);
       }
 
       sampled_majors   = std::move(majors);

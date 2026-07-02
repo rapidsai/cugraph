@@ -10,9 +10,14 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/mask_utils.cuh>
+#include <cugraph/utilities/mem_frugal_partition.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/utilities/packed_bool_utils.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/util/device_atomics.cuh>
@@ -576,7 +581,7 @@ void sort_adjacency_list(raft::handle_t const& handle,
                    segment_sorted_indices.begin(),
                    segment_sorted_indices.begin() + (h_edge_offsets[i + 1] - h_edge_offsets[i]),
                    index_first + h_edge_offsets[i]);
-      thrust::gather(
+      cugraph::gather(
         handle.get_thrust_policy(),
         segment_sorted_edge_value_offsets.begin(),
         segment_sorted_edge_value_offsets.begin() + (h_edge_offsets[i + 1] - h_edge_offsets[i]),

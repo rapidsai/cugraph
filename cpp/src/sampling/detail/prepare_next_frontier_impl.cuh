@@ -13,7 +13,8 @@
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>

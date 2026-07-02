@@ -22,7 +22,10 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -732,11 +735,11 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           auto map_first = cuda::make_transform_iterator(
             cuda::std::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
             detail::shift_left_t<vertex_t>{level_graph_view.local_vertex_partition_range_first()});
-          thrust::gather(handle.get_thrust_policy(),
-                         map_first,
-                         map_first + vertex_frontier.bucket(bucket_idx_cur).size(),
-                         level_components,
-                         gathered_level_components.begin());
+          cugraph::gather(handle.get_thrust_policy(),
+                          map_first,
+                          map_first + vertex_frontier.bucket(bucket_idx_cur).size(),
+                          level_components,
+                          gathered_level_components.begin());
           update_edge_dst_property(
             handle,
             level_graph_view,

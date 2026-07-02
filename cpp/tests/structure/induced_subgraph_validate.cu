@@ -4,7 +4,7 @@
  */
 #include "structure/induced_subgraph_validate.hpp"
 
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <raft/core/handle.hpp>
 

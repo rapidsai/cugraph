@@ -16,7 +16,9 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -241,12 +243,12 @@ void transform_reduce_minor_nbr_intersection_of_e_endpoints_by_v(
       edge_partition_dst_value_input = edge_partition_dst_input_device_view_t(edge_dst_value_input);
     }
 
-    rmm::device_uvector<vertex_t> majors(
-      edge_partition_e_mask
-        ? detail::count_set_bits(
-            handle, (*edge_partition_e_mask).value_first(), edge_partition.number_of_edges())
-        : static_cast<size_t>(edge_partition.number_of_edges()),
-      handle.get_stream());
+    rmm::device_uvector<vertex_t> majors(edge_partition_e_mask
+                                           ? count_set_bits(handle.get_thrust_policy(),
+                                                            (*edge_partition_e_mask).value_first(),
+                                                            edge_partition.number_of_edges())
+                                           : static_cast<size_t>(edge_partition.number_of_edges()),
+                                         handle.get_stream());
     rmm::device_uvector<vertex_t> minors(majors.size(), handle.get_stream());
 
     auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);

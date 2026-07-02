@@ -7,7 +7,10 @@
 
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <rmm/exec_policy.hpp>
 
@@ -685,7 +688,7 @@ void expand_hypersparse_offsets(raft::handle_t const& handle,
     raft::device_span<offset_t const>(tmp_offsets.data(), tmp_offsets.size()),
     idx_t{0},
     handle.get_stream());
-  thrust::gather(
+  cugraph::gather(
     handle.get_thrust_policy(), tmp.begin(), tmp.end(), nzd_indices.begin(), indices.begin());
 }
 

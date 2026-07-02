@@ -7,7 +7,8 @@
 #include "utilities/conversion_utilities.hpp"
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>

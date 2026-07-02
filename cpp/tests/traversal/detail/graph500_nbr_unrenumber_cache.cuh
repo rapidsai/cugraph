@@ -13,7 +13,11 @@
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/packed_bool_utils.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/scatter.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -840,7 +844,7 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
       thrust::make_counting_iterator(size_t{0}),
       cuda::proclaim_return_type<size_t>(
         [num_unrenumber_rounds, r] __device__(auto i) { return r + i * num_unrenumber_rounds; }));
-    thrust::gather(
+    cugraph::gather(
       handle.get_thrust_policy(),
       offset_first,
       offset_first + this_chunk_nbrs.size(),
@@ -856,11 +860,11 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
       mg_graph_view.local_vertex_partition_range_first());
     this_chunk_nbrs.resize(0, handle.get_stream());
     this_chunk_nbrs.shrink_to_fit(handle.get_stream());
-    thrust::scatter(handle.get_thrust_policy(),
-                    this_chunk_unrenumbered_nbrs.begin(),
-                    this_chunk_unrenumbered_nbrs.end(),
-                    offset_first,
-                    unrenumbered_nbrs.begin());
+    cugraph::scatter(handle.get_thrust_policy(),
+                     this_chunk_unrenumbered_nbrs.begin(),
+                     this_chunk_unrenumbered_nbrs.end(),
+                     offset_first,
+                     unrenumbered_nbrs.begin());
   }
 
   return nbr_unrenumber_cache_t(handle,

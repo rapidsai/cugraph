@@ -20,7 +20,11 @@
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/scatter.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/random/rng_device.cuh>
 
@@ -38,7 +42,6 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/random.h>
-#include <thrust/scatter.h>
 #include <thrust/sequence.h>
 #include <thrust/shuffle.h>
 #include <thrust/tabulate.h>
@@ -559,14 +562,14 @@ refine_clustering(raft::handle_t const& handle,
     //
     // Filter out moves with -ve gains
     //
-    auto [keep_count, keep_flags] = detail::mark_entries(
-      handle,
+    auto [keep_count, keep_flags] = mark_entries(
       static_cast<size_t>(n_local_vertices),
       cuda::proclaim_return_type<bool>([gain_ptr    = vertex_best_move_gain.data(),
                                         cluster_ptr = vertex_best_move_cluster_id.data(),
                                         min_gain    = POSITIVE_GAIN] __device__(size_t i) {
         return (gain_ptr[i] > min_gain) && (cluster_ptr[i] >= vertex_t{0});
-      }));
+      }),
+      handle.get_stream());
 
     vertex_best_move_gain.resize(0, handle.get_stream());
     vertex_best_move_gain.shrink_to_fit(handle.get_stream());
@@ -594,13 +597,13 @@ refine_clustering(raft::handle_t const& handle,
                       graph_view.local_vertex_partition_range_first());
 
     rmm::device_uvector<vertex_t> d_dsts(keep_count, handle.get_stream());
-    copy_if_mask_set(handle,
-                     vertex_best_move_cluster_id.begin(),
-                     vertex_best_move_cluster_id.end(),
-                     keep_flags.begin(),
-                     d_dsts.begin());
+    cugraph::copy_if_mask_set(handle,
+                              vertex_best_move_cluster_id.begin(),
+                              vertex_best_move_cluster_id.end(),
+                              keep_flags.begin(),
+                              d_dsts.begin());
 
-    d_srcs = detail::keep_marked_entries(handle, std::move(d_srcs), keep_mask_span, keep_count);
+    d_srcs = keep_marked_entries(handle, std::move(d_srcs), keep_mask_span, keep_count);
 
     auto vertices_in_mis = vertices_in_mis_from_decision_edgelist<vertex_t, multi_gpu>(
       handle,
@@ -635,11 +638,11 @@ refine_clustering(raft::handle_t const& handle,
       auto map_first = cuda::make_transform_iterator(
         vertices_in_mis.begin(),
         shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()});
-      thrust::gather(handle.get_thrust_policy(),
-                     map_first,
-                     map_first + vertices_in_mis.size(),
-                     vertex_best_move_cluster_id.begin(),
-                     dst_vertices.begin());
+      cugraph::gather(handle.get_thrust_policy(),
+                      map_first,
+                      map_first + vertices_in_mis.size(),
+                      vertex_best_move_cluster_id.begin(),
+                      dst_vertices.begin());
     }
 
     vertex_best_move_cluster_id.resize(0, handle.get_stream());
@@ -676,13 +679,13 @@ refine_clustering(raft::handle_t const& handle,
     //
     // Mark all the dest vertices as non-singleton
     //
-    thrust::scatter(handle.get_thrust_policy(),
-                    cuda::make_constant_iterator(uint8_t{0}),
-                    cuda::make_constant_iterator(uint8_t{0}) + dst_vertices.size(),
-                    cuda::make_transform_iterator(
-                      dst_vertices.begin(),
-                      shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
-                    singleton_and_connected_flags.begin());
+    cugraph::scatter(handle.get_thrust_policy(),
+                     cuda::make_constant_iterator(uint8_t{0}),
+                     cuda::make_constant_iterator(uint8_t{0}) + dst_vertices.size(),
+                     cuda::make_transform_iterator(
+                       dst_vertices.begin(),
+                       shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
+                     singleton_and_connected_flags.begin());
 
     dst_vertices.resize(0, handle.get_stream());
     dst_vertices.shrink_to_fit(handle.get_stream());
