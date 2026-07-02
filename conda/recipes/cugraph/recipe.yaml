@@ -108,8 +108,8 @@ requirements:
     - requests
     - ucxx ${{ ucxx_version }}
     - if: cuda_major == "12"
-      then: cuda-python >=12.9.2,<13.0
-      else: cuda-python >=13.0.1,<14.0
+      then: cuda-bindings >=12.9.2,<13.0
+      else: cuda-bindings >=13.0.1,<14.0
   ignore_run_exports:
     from_package:
     by_name:

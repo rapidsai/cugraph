@@ -10,11 +10,11 @@ dependencies:
 - c-compiler
 - certifi
 - cmake>=4.0
+- cuda-bindings>=13.0.1,<14.0
 - cuda-nvcc
 - cuda-nvrtc-dev
 - cuda-nvtx-dev
 - cuda-profiler-api
-- cuda-python>=13.0.1,<14.0
 - cuda-version=13.3
 - cudf==26.8.*,>=0.0.0a0
 - cupy>=14.0.1,!=14.1.0
