@@ -178,6 +178,15 @@ set(CUGRAPH_COMMON_DISTRIBUTED_SOURCES
     src/utilities/shuffle_vertex_pairs_common_v64_e64.cu
 )
 
+set(CUGRAPH_COMMON_PRIMS_SOURCES
+    src/prims/detail/sampling_helpers.cu
+    src/prims/detail/homogeneous_biased_sample.cu
+    src/prims/detail/heterogeneous_biased_sample.cu
+    src/prims/detail/uniform_and_biased_replacement_sample.cu
+    src/prims/detail/uniform_sampling_index.cu
+    src/prims/detail/finalize_random_select_output.cu
+)
+
 set(CUGRAPH_COMMON_SAMPLING_SOURCES
     src/sampling/detail/shuffle_and_organize_output_common.cu
     src/sampling/detail/remove_visited_vertices_from_frontier_common_v32_e32.cu
@@ -194,6 +203,7 @@ set(CUGRAPH_COMMON_STRUCTURE_SOURCES
 set(CUGRAPH_COMMON_SOURCES
     ${CUGRAPH_COMMON_UTILITY_SOURCES}
     ${CUGRAPH_COMMON_DISTRIBUTED_SOURCES}
+    ${CUGRAPH_COMMON_PRIMS_SOURCES}
     ${CUGRAPH_COMMON_SAMPLING_SOURCES}
     ${CUGRAPH_COMMON_STRUCTURE_SOURCES}
 )

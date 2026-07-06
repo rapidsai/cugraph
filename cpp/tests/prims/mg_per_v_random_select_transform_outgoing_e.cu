@@ -15,6 +15,7 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/detail/finalize_random_select_output.cuh>
 #include <cugraph/prims/per_v_random_select_transform_outgoing_e.cuh>
 #include <cugraph/prims/transform_e.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
@@ -37,6 +38,7 @@
 #include <thrust/iterator/counting_iterator.h>
 
 #include <gtest/gtest.h>
+#include <prims/detail/finalize_random_select_output_impl.cuh>
 
 #include <random>
 

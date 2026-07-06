@@ -10,16 +10,13 @@
 #include <cugraph/export.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/prims/detail/finalize_random_select_output.cuh>
 #include <cugraph/prims/detail/sample_and_compute_local_nbr_indices.cuh>
 #include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
-#include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers/fill.hpp>
-#include <cugraph/utilities/thrust_wrappers/scan.hpp>
-#include <cugraph/utilities/thrust_wrappers/scatter.hpp>
 
 #include <raft/random/rng.cuh>
 
@@ -32,9 +29,7 @@
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/remove.h>
 #include <thrust/sort.h>
-#include <thrust/tabulate.h>
 #include <thrust/unique.h>
 
 #include <optional>
@@ -57,16 +52,6 @@ struct constant_bias_e_op_t {
                               typename EdgeValueInputWrapper::value_type) const
   {
     return 1.0;
-  }
-};
-
-template <typename edge_t, typename T>
-struct check_invalid_t {
-  edge_t invalid_idx{};
-
-  __device__ bool operator()(cuda::std::tuple<edge_t, T> pair) const
-  {
-    return cuda::std::get<0>(pair) == invalid_idx;
   }
 };
 
@@ -149,50 +134,6 @@ struct transform_local_nbr_indices_t {
     } else {
       return T{};
     }
-  }
-};
-
-template <typename edge_t>
-struct count_valids_t {
-  raft::device_span<edge_t const> sample_local_nbr_indices{};
-  size_t K{};
-  edge_t invalid_idx{};
-
-  __device__ int32_t operator()(size_t i) const
-  {
-    auto first = sample_local_nbr_indices.begin() + i * K;
-    return static_cast<int32_t>(
-      cuda::std::distance(first, thrust::find(thrust::seq, first, first + K, invalid_idx)));
-  }
-};
-
-struct count_t {
-  raft::device_span<int32_t> sample_counts{};
-
-  __device__ size_t operator()(size_t key_idx) const
-  {
-    cuda::atomic_ref<int32_t, cuda::thread_scope_device> counter(sample_counts[key_idx]);
-    return counter.fetch_add(int32_t{1}, cuda::std::memory_order_relaxed);
-  }
-};
-
-template <bool use_invalid_value>
-struct return_value_compute_offset_t {
-  raft::device_span<size_t const> sample_key_indices{};
-  raft::device_span<int32_t const> sample_intra_partition_displacements{};
-  std::conditional_t<use_invalid_value, size_t, raft::device_span<size_t const>>
-    K_or_sample_offsets{};
-
-  __device__ size_t operator()(size_t i) const
-  {
-    auto key_idx = sample_key_indices[i];
-    size_t key_start_offset{};
-    if constexpr (use_invalid_value) {
-      key_start_offset = key_idx * K_or_sample_offsets;
-    } else {
-      key_start_offset = K_or_sample_offsets[key_idx];
-    }
-    return key_start_offset + static_cast<size_t>(sample_intra_partition_displacements[i]);
   }
 };
 
@@ -308,12 +249,18 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   }
 
   std::vector<size_t> local_key_list_sizes{};
-  if (minor_comm_size > 1) {
-    auto& minor_comm     = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-    local_key_list_sizes = host_scalar_allgather(minor_comm, key_list.size(), handle.get_stream());
+  if constexpr (GraphViewType::is_multi_gpu) {
+    if (minor_comm_size > 1) {
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      local_key_list_sizes =
+        host_scalar_allgather(minor_comm, key_list.size(), handle.get_stream());
+    } else {
+      local_key_list_sizes = std::vector<size_t>{key_list.size()};
+    }
   } else {
     local_key_list_sizes = std::vector<size_t>{key_list.size()};
   }
+
   std::vector<size_t> local_key_list_offsets(local_key_list_sizes.size() + 1);
   local_key_list_offsets[0] = 0;
   std::inclusive_scan(
@@ -322,19 +269,21 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   // 1. aggregate key_list
 
   std::optional<key_buffer_t> aggregate_local_key_list{std::nullopt};
-  if (minor_comm_size > 1) {
-    auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  if constexpr (GraphViewType::is_multi_gpu) {
+    if (minor_comm_size > 1) {  // multi-GPU
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
 
-    aggregate_local_key_list =
-      allocate_dataframe_buffer<key_t>(local_key_list_offsets.back(), handle.get_stream());
-    device_allgatherv(
-      minor_comm,
-      key_list.begin(),
-      get_dataframe_buffer_begin(*aggregate_local_key_list),
-      raft::host_span<size_t const>(local_key_list_sizes.data(), local_key_list_sizes.size()),
-      raft::host_span<size_t const>(local_key_list_offsets.data(),
-                                    local_key_list_offsets.size() - 1),
-      handle.get_stream());
+      aggregate_local_key_list =
+        allocate_dataframe_buffer<key_t>(local_key_list_offsets.back(), handle.get_stream());
+      device_allgatherv(
+        minor_comm,
+        key_list.begin(),
+        get_dataframe_buffer_begin(*aggregate_local_key_list),
+        raft::host_span<size_t const>(local_key_list_sizes.data(), local_key_list_sizes.size()),
+        raft::host_span<size_t const>(local_key_list_offsets.data(),
+                                      local_key_list_offsets.size() - 1),
+        handle.get_stream());
+    }
   }
 
   // 2. randomly select neighbor indices and compute local neighbor indices for every local edge
@@ -512,131 +461,17 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
 
   // 4. shuffle randomly selected & transformed results and update sample_offsets
 
-  auto sample_offsets = invalid_value ? std::nullopt
-                                      : std::make_optional<rmm::device_uvector<size_t>>(
-                                          key_list.size() + 1, handle.get_stream());
-  assert(K_sum <= std::numeric_limits<int32_t>::max());
-  if (minor_comm_size > 1) {
-    sample_local_nbr_indices.resize(0, handle.get_stream());
-    sample_local_nbr_indices.shrink_to_fit(handle.get_stream());
-
-    auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-
-    std::tie(sample_e_op_results, std::ignore) =
-      shuffle_values(minor_comm,
-                     get_dataframe_buffer_begin(sample_e_op_results),
-                     raft::host_span<size_t const>(local_key_list_sample_counts.data(),
-                                                   local_key_list_sample_counts.size()),
-                     handle.get_stream());
-    std::tie(sample_key_indices, std::ignore) =
-      shuffle_values(minor_comm,
-                     (*sample_key_indices).begin(),
-                     raft::host_span<size_t const>(local_key_list_sample_counts.data(),
-                                                   local_key_list_sample_counts.size()),
-                     handle.get_stream());
-
-    rmm::device_uvector<int32_t> sample_counts(key_list.size(), handle.get_stream());
-    cugraph::fill(
-      handle.get_thrust_policy(), sample_counts.begin(), sample_counts.end(), int32_t{0});
-    auto sample_intra_partition_displacements =
-      rmm::device_uvector<int32_t>((*sample_key_indices).size(), handle.get_stream());
-    thrust::transform(
-      handle.get_thrust_policy(),
-      (*sample_key_indices).begin(),
-      (*sample_key_indices).end(),
-      sample_intra_partition_displacements.begin(),
-      count_t{raft::device_span<int32_t>(sample_counts.data(), sample_counts.size())});
-    auto tmp_sample_e_op_results = allocate_dataframe_buffer<T>(0, handle.get_stream());
-    if (invalid_value) {
-      sample_counts.resize(0, handle.get_stream());
-      sample_counts.shrink_to_fit(handle.get_stream());
-
-      resize_dataframe_buffer(
-        tmp_sample_e_op_results, key_list.size() * K_sum, handle.get_stream());
-      cugraph::fill(handle.get_thrust_policy(),
-                    get_dataframe_buffer_begin(tmp_sample_e_op_results),
-                    get_dataframe_buffer_end(tmp_sample_e_op_results),
-                    *invalid_value);
-      cugraph::scatter(
-        handle.get_thrust_policy(),
-        get_dataframe_buffer_begin(sample_e_op_results),
-        get_dataframe_buffer_end(sample_e_op_results),
-        cuda::make_transform_iterator(
-          thrust::make_counting_iterator(size_t{0}),
-          return_value_compute_offset_t<true>{
-            raft::device_span<size_t const>((*sample_key_indices).data(),
-                                            (*sample_key_indices).size()),
-            raft::device_span<int32_t const>(sample_intra_partition_displacements.data(),
-                                             sample_intra_partition_displacements.size()),
-            K_sum}),
-        get_dataframe_buffer_begin(tmp_sample_e_op_results));
-    } else {
-      (*sample_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
-      auto typecasted_sample_count_first =
-        cuda::make_transform_iterator(sample_counts.begin(), typecast_t<int32_t, size_t>{});
-      cugraph::inclusive_scan(handle.get_thrust_policy(),
-                              typecasted_sample_count_first,
-                              typecasted_sample_count_first + sample_counts.size(),
-                              (*sample_offsets).begin() + 1);
-      sample_counts.resize(0, handle.get_stream());
-      sample_counts.shrink_to_fit(handle.get_stream());
-
-      resize_dataframe_buffer(tmp_sample_e_op_results,
-                              (*sample_offsets).back_element(handle.get_stream()),
-                              handle.get_stream());
-      cugraph::scatter(
-        handle.get_thrust_policy(),
-        get_dataframe_buffer_begin(sample_e_op_results),
-        get_dataframe_buffer_end(sample_e_op_results),
-        cuda::make_transform_iterator(
-          thrust::make_counting_iterator(size_t{0}),
-          return_value_compute_offset_t<false>{
-            raft::device_span<size_t const>((*sample_key_indices).data(),
-                                            (*sample_key_indices).size()),
-            raft::device_span<int32_t const>(sample_intra_partition_displacements.data(),
-                                             sample_intra_partition_displacements.size()),
-            raft::device_span<size_t const>((*sample_offsets).data(), (*sample_offsets).size())}),
-        get_dataframe_buffer_begin(tmp_sample_e_op_results));
-    }
-    sample_e_op_results = std::move(tmp_sample_e_op_results);
-  } else {
-    if (!invalid_value) {
-      rmm::device_uvector<int32_t> sample_counts(key_list.size(), handle.get_stream());
-      thrust::tabulate(
-        handle.get_thrust_policy(),
-        sample_counts.begin(),
-        sample_counts.end(),
-        count_valids_t<edge_t>{raft::device_span<edge_t const>(sample_local_nbr_indices.data(),
-                                                               sample_local_nbr_indices.size()),
-                               K_sum,
-                               cugraph::invalid_edge_id_v<edge_t>});
-      (*sample_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
-      auto typecasted_sample_count_first =
-        cuda::make_transform_iterator(sample_counts.begin(), typecast_t<int32_t, size_t>{});
-      cugraph::inclusive_scan(handle.get_thrust_policy(),
-                              typecasted_sample_count_first,
-                              typecasted_sample_count_first + sample_counts.size(),
-                              (*sample_offsets).begin() + 1);
-      sample_counts.resize(0, handle.get_stream());
-      sample_counts.shrink_to_fit(handle.get_stream());
-
-      auto pair_first = thrust::make_zip_iterator(sample_local_nbr_indices.begin(),
-                                                  get_dataframe_buffer_begin(sample_e_op_results));
-      auto pair_last =
-        thrust::remove_if(handle.get_thrust_policy(),
-                          pair_first,
-                          pair_first + sample_local_nbr_indices.size(),
-                          check_invalid_t<edge_t, T>{cugraph::invalid_edge_id_v<edge_t>});
-      sample_local_nbr_indices.resize(0, handle.get_stream());
-      sample_local_nbr_indices.shrink_to_fit(handle.get_stream());
-
-      resize_dataframe_buffer(
-        sample_e_op_results, cuda::std::distance(pair_first, pair_last), handle.get_stream());
-      shrink_to_fit_dataframe_buffer(sample_e_op_results, handle.get_stream());
-    }
-  }
-
-  return std::make_tuple(std::move(sample_offsets), std::move(sample_e_op_results));
+  return finalize_random_select_output<edge_t, T>(
+    handle,
+    minor_comm_size,
+    sample_local_nbr_indices,
+    sample_e_op_results,
+    sample_key_indices,
+    raft::host_span<size_t const>(local_key_list_sample_counts.data(),
+                                  local_key_list_sample_counts.size()),
+    key_list.size(),
+    K_sum,
+    invalid_value);
 }
 
 }  // namespace detail
