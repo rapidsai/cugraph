@@ -1,0 +1,18 @@
+[package]
+name = "libcugraph-c-sys"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Low-level Rust FFI bindings for libcugraph_c generated with bindgen"
+links = "cugraph_c"
+build = "build.rs"
+
+[features]
+default = []
+runtime-link = []
+
+[build-dependencies]
+bindgen = { version = "=0.69.4", default-features = false, features = ["runtime"] }
+
+[dev-dependencies]
+static_assertions = "1.1"
