@@ -8,7 +8,6 @@
 #include "uniform_sampling_index_impl.cuh"
 
 #include <cugraph/export.hpp>
-#include <cugraph/prims/detail/sample_and_compute_local_nbr_indices.cuh>
 
 #include <cstdint>
 

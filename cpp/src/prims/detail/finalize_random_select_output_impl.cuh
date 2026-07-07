@@ -4,6 +4,11 @@
  */
 #pragma once
 
+#include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/partition_manager.hpp>
+#include <cugraph/prims/detail/finalize_random_select_output.cuh>
+
 namespace cugraph {
 namespace detail {
 

@@ -4,6 +4,43 @@
  */
 #pragma once
 
+#include "sampling_helpers_impl.cuh"
+#include "uniform_sampling_index_impl.cuh"
+
+#include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/partition_manager.hpp>
+#include <cugraph/prims/detail/partition_v_frontier.cuh>
+#include <cugraph/prims/detail/sample_and_compute_local_nbr_indices.cuh>
+#include <cugraph/prims/detail/uniform_and_biased_replacement_sample.cuh>
+#include <cugraph/utilities/dataframe_buffer.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
+
+#include <raft/util/cudart_utils.hpp>
+
+#include <cub/cub.cuh>
+#include <cuda/functional>
+#include <cuda/std/tuple>
+#include <thrust/copy.h>
+#include <thrust/count.h>
+#include <thrust/for_each.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/remove.h>
+#include <thrust/scan.h>
+#include <thrust/tabulate.h>
+#include <thrust/transform.h>
+
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <limits>
+#include <numeric>
+#include <optional>
+#include <tuple>
+#include <vector>
+
 namespace cugraph {
 namespace detail {
 

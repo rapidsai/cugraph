@@ -74,41 +74,6 @@ size_t constexpr compute_valid_local_nbr_count_inclusive_sum_high_local_degree_t
   packed_bools_per_word() * static_cast<size_t>(sample_and_compute_local_nbr_indices_block_size) *
   size_t{4} /* tuning parameter */;  // minimum local degree to use a CUDA block
 
-// this functor output will later be used to convert global value (neighbor index, random number) to
-// (local value, minor_comm_rank) pairs.
-template <typename value_t>
-struct compute_local_value_displacements_and_global_value_t {
-  raft::device_span<value_t const> gathered_local_values{};
-  raft::device_span<value_t>
-    partitioned_local_value_displacements{};  // one partition per gpu in the same minor_comm
-  raft::device_span<value_t> global_values{};
-  int minor_comm_size{};
-  size_t num_values_per_key{};
-
-  __device__ void operator()(size_t i) const
-  {
-    auto key_idx              = i / num_values_per_key;
-    auto value_idx            = i % num_values_per_key;
-    constexpr int buffer_size = 8;  // tuning parameter
-    value_t displacements[buffer_size];
-    value_t sum{0};
-    for (int round = 0; round < (minor_comm_size + buffer_size - 1) / buffer_size; ++round) {
-      auto loop_count = std::min(buffer_size, minor_comm_size - round * buffer_size);
-      for (int j = 0; j < loop_count; ++j) {
-        displacements[j] = sum;
-        sum += gathered_local_values[i + (round * buffer_size + j) * global_values.size()];
-      }
-      thrust::copy(thrust::seq,
-                   displacements,
-                   displacements + loop_count,
-                   partitioned_local_value_displacements.begin() +
-                     key_idx * num_values_per_key * minor_comm_size + value_idx * minor_comm_size +
-                     round * buffer_size);
-    }
-    global_values[i] = sum;
-  }
-};
-
 // convert a (neighbor value, key index) pair  to a (minor_comm_rank, intra-partition offset, local
 // neighbor value, key index) quadruplet, minor_comm_rank is set to -1 if a neighbor value is
 // invalid

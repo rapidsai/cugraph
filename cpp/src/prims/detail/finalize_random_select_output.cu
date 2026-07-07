@@ -8,7 +8,6 @@
 #include "finalize_random_select_output_impl.cuh"
 
 #include <cugraph/export.hpp>
-#include <cugraph/prims/detail/finalize_random_select_output.cuh>
 
 #include <cuda/std/tuple>
 

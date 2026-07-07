@@ -4,6 +4,30 @@
  */
 #pragma once
 
+#include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/partition_manager.hpp>
+#include <cugraph/prims/detail/sampling_helpers.cuh>
+#include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
+
+#include <raft/core/host_span.hpp>
+#include <raft/random/rng.cuh>
+
+#include <cuda/functional>
+#include <cuda/std/optional>
+#include <cuda/std/tuple>
+#include <thrust/binary_search.h>
+#include <thrust/for_each.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/partition.h>
+#include <thrust/transform.h>
+
+#include <optional>
+#include <tuple>
+#include <vector>
+
 namespace cugraph {
 namespace detail {
 
