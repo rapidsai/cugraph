@@ -185,6 +185,7 @@ set(CUGRAPH_COMMON_PRIMS_SOURCES
     src/prims/detail/uniform_and_biased_replacement_sample.cu
     src/prims/detail/uniform_sampling_index.cu
     src/prims/detail/finalize_random_select_output.cu
+    src/prims/detail/compact_nonzero_aggregate_local_frontier_biases.cu
 )
 
 set(CUGRAPH_COMMON_SAMPLING_SOURCES

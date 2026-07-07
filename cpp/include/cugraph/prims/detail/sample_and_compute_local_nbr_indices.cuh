@@ -11,6 +11,7 @@
 #include <cugraph/export.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/prims/detail/compact_nonzero_aggregate_local_frontier_biases.cuh>
 #include <cugraph/prims/detail/heterogeneous_biased_sample.cuh>
 #include <cugraph/prims/detail/homogeneous_biased_sample.cuh>
 #include <cugraph/prims/detail/partition_v_frontier.cuh>
@@ -744,96 +745,13 @@ compute_aggregate_local_frontier_biases(raft::handle_t const& handle,
       bias_e_op,
       raft::host_span<size_t const>(local_frontier_offsets.data(), local_frontier_offsets.size()));
 
-  // 2. expensive check
-
-  if (do_expensive_check) {
-    auto num_invalid_biases = thrust::count_if(
-      handle.get_thrust_policy(),
-      aggregate_local_frontier_biases.begin(),
-      aggregate_local_frontier_biases.end(),
-      check_out_of_range_t<bias_t>{bias_t{0.0}, std::numeric_limits<bias_t>::max()});
-    if constexpr (GraphViewType::is_multi_gpu) {
-      num_invalid_biases = host_scalar_allreduce(
-        handle.get_comms(), num_invalid_biases, raft::comms::op_t::SUM, handle.get_stream());
-    }
-    CUGRAPH_EXPECTS(num_invalid_biases == 0,
-                    "invalid_input_argument: bias_e_op return values should be non-negative and "
-                    "should not exceed std::numeirc_limits<bias_t>::max().");
-  }
-
-  // 3. exclude 0 bias neighbors & update offsets
-
-  rmm::device_uvector<size_t> aggregate_local_frontier_local_degrees(
+  return compact_nonzero_aggregate_local_frontier_biases<edge_t, bias_t>(
+    handle,
+    std::move(aggregate_local_frontier_biases),
+    std::move(aggregate_local_frontier_local_degree_offsets),
     local_frontier_offsets.back(),
-    handle.get_stream());  // excluding 0 bias neighbors
-  {
-    thrust::adjacent_difference(handle.get_thrust_policy(),
-                                aggregate_local_frontier_local_degree_offsets.begin() + 1,
-                                aggregate_local_frontier_local_degree_offsets.end(),
-                                aggregate_local_frontier_local_degrees.begin());
-
-    auto pair_first = thrust::make_zip_iterator(aggregate_local_frontier_biases.begin(),
-                                                thrust::make_counting_iterator(size_t{0}));
-    thrust::for_each(handle.get_thrust_policy(),
-                     pair_first,
-                     pair_first + aggregate_local_frontier_biases.size(),
-                     [offsets = raft::device_span<size_t const>(
-                        aggregate_local_frontier_local_degree_offsets.data(),
-                        aggregate_local_frontier_local_degree_offsets.size()),
-                      degrees = raft::device_span<size_t>(
-                        aggregate_local_frontier_local_degrees.data(),
-                        aggregate_local_frontier_local_degrees.size())] __device__(auto pair) {
-                       auto bias = cuda::std::get<0>(pair);
-                       if (bias == 0.0) {
-                         auto i   = cuda::std::get<1>(pair);
-                         auto idx = cuda::std::distance(
-                           offsets.begin() + 1,
-                           thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), i));
-                         cuda::atomic_ref<size_t, cuda::thread_scope_device> degree(degrees[idx]);
-                         degree.fetch_sub(size_t{1}, cuda::std::memory_order_relaxed);
-                       }
-                     });
-  }
-
-  auto num_nz_bias_nbrs = thrust::reduce(handle.get_thrust_policy(),
-                                         aggregate_local_frontier_local_degrees.begin(),
-                                         aggregate_local_frontier_local_degrees.end());
-
-  rmm::device_uvector<edge_t> aggregate_local_frontier_nz_bias_indices(num_nz_bias_nbrs,
-                                                                       handle.get_stream());
-  {
-    auto nz_biases  = rmm::device_uvector<bias_t>(num_nz_bias_nbrs, handle.get_stream());
-    auto pair_first = thrust::make_zip_iterator(
-      aggregate_local_frontier_biases.begin(),
-      cuda::make_transform_iterator(
-        thrust::make_counting_iterator(size_t{0}),
-        cuda::proclaim_return_type<edge_t>(
-          [offsets = raft::device_span<size_t const>(
-             aggregate_local_frontier_local_degree_offsets.data(),
-             aggregate_local_frontier_local_degree_offsets.size())] __device__(size_t i) {
-            auto idx = cuda::std::distance(
-              offsets.begin() + 1,
-              thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), i));
-            return static_cast<edge_t>(i - offsets[idx]);
-          })));
-    thrust::copy_if(handle.get_thrust_policy(),
-                    pair_first,
-                    pair_first + aggregate_local_frontier_biases.size(),
-                    aggregate_local_frontier_biases.begin(),
-                    thrust::make_zip_iterator(nz_biases.begin(),
-                                              aggregate_local_frontier_nz_bias_indices.begin()),
-                    cuda::proclaim_return_type<bool>([] __device__(bias_t b) { return b != 0.0; }));
-    aggregate_local_frontier_biases = std::move(nz_biases);
-  }
-
-  cugraph::inclusive_scan(handle.get_thrust_policy(),
-                          aggregate_local_frontier_local_degrees.begin(),
-                          aggregate_local_frontier_local_degrees.end(),
-                          aggregate_local_frontier_local_degree_offsets.begin() + 1);
-
-  return std::make_tuple(std::move(aggregate_local_frontier_biases),
-                         std::move(aggregate_local_frontier_nz_bias_indices),
-                         std::move(aggregate_local_frontier_local_degree_offsets));
+    do_expensive_check,
+    GraphViewType::is_multi_gpu);
 }
 
 // return (bias values, edge types, local neighbor indices with non-zero bias values, segment
