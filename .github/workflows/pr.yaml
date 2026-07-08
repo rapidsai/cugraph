@@ -338,7 +338,7 @@ jobs:
   wheel-build-libcugraph:
     needs: checks
     secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@wheels-latest-ctk
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@newest-ctk
     with:
       # build for every combination of arch and CUDA version, but only for the latest Python
       matrix_filter: group_by([.ARCH, (.CUDA_VER|split(".")|map(tonumber)|.[0])]) | map(max_by(.PY_VER|split(".")|map(tonumber)))
@@ -356,7 +356,7 @@ jobs:
   wheel-build-pylibcugraph:
     needs: wheel-build-libcugraph
     secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@wheels-latest-ctk
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@newest-ctk
     with:
       build_type: pull-request
       node_type: cpu8
@@ -388,7 +388,7 @@ jobs:
   wheel-build-cugraph:
     needs: wheel-build-pylibcugraph
     secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@wheels-latest-ctk
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@newest-ctk
     with:
       build_type: pull-request
       node_type: cpu8
