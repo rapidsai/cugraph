@@ -644,12 +644,18 @@ target_link_libraries(cugraph_mtmg PRIVATE cugraph_common)
 
 
 
+rapids_find_package(dlpack REQUIRED
+    BUILD_EXPORT_SET    cugraph-exports
+    INSTALL_EXPORT_SET  cugraph-exports
+    )
+
 ################################################################################
 # - C-API library --------------------------------------------------------------
 
 add_library(cugraph_c
         src/c_api/resource_handle.cpp
         src/c_api/array.cpp
+        src/c_api/dlpack_interop.cpp
         src/c_api/degrees.cu
         src/c_api/degrees_result.cpp
         src/c_api/error.cpp
@@ -746,7 +752,9 @@ target_include_directories(cugraph_c
 
 ################################################################################
 # - C-API link libraries -------------------------------------------------------
-target_link_libraries(cugraph_c PRIVATE cugraph::cugraph cugraph::cugraph_mg)
+target_link_libraries(cugraph_c
+    PUBLIC dlpack::dlpack
+    PRIVATE cugraph::cugraph cugraph::cugraph_mg)
 
 ################################################################################
 # - generate tests -------------------------------------------------------------
