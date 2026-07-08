@@ -756,7 +756,7 @@ target_link_libraries(cugraph_c PRIVATE cugraph::cugraph cugraph::cugraph_mg)
 # tests) only; installed consumers obtain dlpack.h from their own environment,
 # so it is intentionally not part of the install/export interface.
 target_include_directories(cugraph_c
-    PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIRS}>")
+    PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>")
 
 ################################################################################
 # - generate tests -------------------------------------------------------------
