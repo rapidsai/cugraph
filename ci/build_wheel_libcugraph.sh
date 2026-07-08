@@ -19,6 +19,8 @@ rapids-dependency-file-generator \
   --matrix "${matrix_selectors}" \
 | tee /tmp/requirements-build.txt
 
+source ./ci/use_wheels_from_prs.sh
+
 rapids-logger "Installing build requirements"
 rapids-pip-retry install \
     -v \
