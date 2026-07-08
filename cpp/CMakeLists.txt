@@ -644,10 +644,7 @@ target_link_libraries(cugraph_mtmg PRIVATE cugraph_common)
 
 
 
-rapids_find_package(dlpack REQUIRED
-    BUILD_EXPORT_SET    cugraph-exports
-    INSTALL_EXPORT_SET  cugraph-exports
-    )
+include(cmake/thirdparty/get_dlpack.cmake)
 
 ################################################################################
 # - C-API library --------------------------------------------------------------
@@ -752,9 +749,14 @@ target_include_directories(cugraph_c
 
 ################################################################################
 # - C-API link libraries -------------------------------------------------------
-target_link_libraries(cugraph_c
-    PUBLIC dlpack::dlpack
-    PRIVATE cugraph::cugraph cugraph::cugraph_mg)
+target_link_libraries(cugraph_c PRIVATE cugraph::cugraph cugraph::cugraph_mg)
+
+# dlpack is a header-only dependency of the public cugraph_c/dlpack_interop.h
+# header. Expose its include directory to build-tree consumers (e.g. the C API
+# tests) only; installed consumers obtain dlpack.h from their own environment,
+# so it is intentionally not part of the install/export interface.
+target_include_directories(cugraph_c
+    PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIRS}>")
 
 ################################################################################
 # - generate tests -------------------------------------------------------------
