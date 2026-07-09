@@ -6,6 +6,8 @@ use std::ffi::CStr;
 
 include!(concat!(env!("OUT_DIR"), "/bindgen.rs"));
 
+pub mod safe;
+
 /// Convert a cugraph error object into an owned Rust string.
 ///
 /// # Safety
