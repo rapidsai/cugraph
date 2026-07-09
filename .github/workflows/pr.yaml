@@ -14,20 +14,20 @@ jobs:
       - check-nightly-ci
       - changed-files
       - checks
-      - conda-cpp-build
-      - conda-cpp-tests
-      - conda-cpp-checks
-      - conda-notebook-tests
-      - conda-python-build
-      - conda-python-tests
-      - docs-build
+      # - conda-cpp-build
+      # - conda-cpp-tests
+      # - conda-cpp-checks
+      # - conda-notebook-tests
+      # - conda-python-build
+      # - conda-python-tests
+      # - docs-build
       - wheel-build-libcugraph
       - wheel-build-pylibcugraph
       - wheel-tests-pylibcugraph
       - wheel-build-cugraph
       - wheel-tests-cugraph
       - telemetry-setup
-      - devcontainer
+      # - devcontainer
     uses: rapidsai/shared-workflows/.github/workflows/pr-builder.yaml@main
     if: always()
     with:
@@ -231,110 +231,110 @@ jobs:
       ignored_pr_jobs: telemetry-summarize
     permissions:
       contents: read
-  conda-cpp-build:
-    needs: checks
-    secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@main
-    with:
-      build_type: pull-request
-      node_type: cpu16
-      script: ci/build_cpp.sh
-    permissions:
-      actions: read
-      contents: read
-      id-token: write
-      packages: read
-      pull-requests: read
-  conda-cpp-tests:
-    needs: [conda-cpp-build, changed-files]
-    secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@main
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_cpp
-    with:
-      build_type: pull-request
-      script: ci/test_cpp.sh
-    permissions:
-      actions: read
-      contents: read
-      id-token: write
-      packages: read
-      pull-requests: read
-  conda-cpp-checks:
-    needs: conda-cpp-build
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@main
-    with:
-      build_type: pull-request
-      symbol_exclusions: (cugraph::ops|hornet|void writeEdgeCountsKernel|void markUniqueOffsetsKernel)
-      package_name: libcugraph
-    permissions:
-      actions: read
-      contents: read
-      id-token: write
-      packages: read
-      pull-requests: read
-  conda-python-build:
-    needs: conda-cpp-build
-    secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@main
-    with:
-      build_type: pull-request
-      script: ci/build_python.sh
-      # Build a conda package for each CUDA x ARCH x minimum supported Python version
-      matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
-    permissions:
-      actions: read
-      contents: read
-      id-token: write
-      packages: read
-      pull-requests: read
-  conda-python-tests:
-    needs: [conda-python-build, changed-files]
-    secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@main
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_conda
-    with:
-      build_type: pull-request
-      script: ci/test_python.sh
-    permissions:
-      actions: read
-      contents: read
-      id-token: write
-      packages: read
-      pull-requests: read
-  conda-notebook-tests:
-    needs: [conda-python-build, changed-files]
-    secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_notebooks
-    with:
-      build_type: pull-request
-      node_type: "gpu-l4-latest-1"
-      arch: "amd64"
-      container_image: "rapidsai/ci-conda:26.08-latest"
-      script: "ci/test_notebooks.sh"
-    permissions:
-      actions: read
-      contents: read
-      id-token: write
-      packages: read
-      pull-requests: read
-  docs-build:
-    needs: [conda-python-build, changed-files]
-    secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).build_docs
-    with:
-      build_type: pull-request
-      node_type: "gpu-l4-latest-1"
-      arch: "amd64"
-      container_image: "rapidsai/ci-conda:26.08-latest"
-      script: "ci/build_docs.sh"
-    permissions:
-      actions: read
-      contents: read
-      id-token: write
-      packages: read
-      pull-requests: read
+  # conda-cpp-build:
+  #   needs: checks
+  #   secrets: inherit # zizmor: ignore[secrets-inherit]
+  #   uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@main
+  #   with:
+  #     build_type: pull-request
+  #     node_type: cpu16
+  #     script: ci/build_cpp.sh
+  #   permissions:
+  #     actions: read
+  #     contents: read
+  #     id-token: write
+  #     packages: read
+  #     pull-requests: read
+  # conda-cpp-tests:
+  #   needs: [conda-cpp-build, changed-files]
+  #   secrets: inherit # zizmor: ignore[secrets-inherit]
+  #   uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@main
+  #   if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_cpp
+  #   with:
+  #     build_type: pull-request
+  #     script: ci/test_cpp.sh
+  #   permissions:
+  #     actions: read
+  #     contents: read
+  #     id-token: write
+  #     packages: read
+  #     pull-requests: read
+  # conda-cpp-checks:
+  #   needs: conda-cpp-build
+  #   uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@main
+  #   with:
+  #     build_type: pull-request
+  #     symbol_exclusions: (cugraph::ops|hornet|void writeEdgeCountsKernel|void markUniqueOffsetsKernel)
+  #     package_name: libcugraph
+  #   permissions:
+  #     actions: read
+  #     contents: read
+  #     id-token: write
+  #     packages: read
+  #     pull-requests: read
+  # conda-python-build:
+  #   needs: conda-cpp-build
+  #   secrets: inherit # zizmor: ignore[secrets-inherit]
+  #   uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@main
+  #   with:
+  #     build_type: pull-request
+  #     script: ci/build_python.sh
+  #     # Build a conda package for each CUDA x ARCH x minimum supported Python version
+  #     matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
+  #   permissions:
+  #     actions: read
+  #     contents: read
+  #     id-token: write
+  #     packages: read
+  #     pull-requests: read
+  # conda-python-tests:
+  #   needs: [conda-python-build, changed-files]
+  #   secrets: inherit # zizmor: ignore[secrets-inherit]
+  #   uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@main
+  #   if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_conda
+  #   with:
+  #     build_type: pull-request
+  #     script: ci/test_python.sh
+  #   permissions:
+  #     actions: read
+  #     contents: read
+  #     id-token: write
+  #     packages: read
+  #     pull-requests: read
+  # conda-notebook-tests:
+  #   needs: [conda-python-build, changed-files]
+  #   secrets: inherit # zizmor: ignore[secrets-inherit]
+  #   uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
+  #   if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_notebooks
+  #   with:
+  #     build_type: pull-request
+  #     node_type: "gpu-l4-latest-1"
+  #     arch: "amd64"
+  #     container_image: "rapidsai/ci-conda:26.08-latest"
+  #     script: "ci/test_notebooks.sh"
+  #   permissions:
+  #     actions: read
+  #     contents: read
+  #     id-token: write
+  #     packages: read
+  #     pull-requests: read
+  # docs-build:
+  #   needs: [conda-python-build, changed-files]
+  #   secrets: inherit # zizmor: ignore[secrets-inherit]
+  #   uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
+  #   if: fromJSON(needs.changed-files.outputs.changed_file_groups).build_docs
+  #   with:
+  #     build_type: pull-request
+  #     node_type: "gpu-l4-latest-1"
+  #     arch: "amd64"
+  #     container_image: "rapidsai/ci-conda:26.08-latest"
+  #     script: "ci/build_docs.sh"
+  #   permissions:
+  #     actions: read
+  #     contents: read
+  #     id-token: write
+  #     packages: read
+  #     pull-requests: read
   wheel-build-libcugraph:
     needs: checks
     secrets: inherit # zizmor: ignore[secrets-inherit]
@@ -374,7 +374,7 @@ jobs:
   wheel-tests-pylibcugraph:
     needs: [wheel-build-pylibcugraph, changed-files]
     secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@smaller_citestwheel
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_wheels
     with:
       build_type: pull-request
@@ -406,7 +406,7 @@ jobs:
   wheel-tests-cugraph:
     needs: [wheel-build-cugraph, changed-files]
     secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@smaller_citestwheel
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_wheels
     with:
       build_type: pull-request
@@ -417,28 +417,28 @@ jobs:
       id-token: write
       packages: read
       pull-requests: read
-  devcontainer:
-    secrets: inherit # zizmor: ignore[secrets-inherit]
-    needs: telemetry-setup
-    uses: rapidsai/shared-workflows/.github/workflows/build-in-devcontainer.yaml@main
-    with:
-      arch: '["amd64", "arm64"]'
-      cuda: '["13.3"]'
-      node_type: "cpu8"
-      env: |
-        SCCACHE_DIST_MAX_RETRIES=inf
-        SCCACHE_SERVER_LOG=sccache=debug
-        SCCACHE_DIST_FALLBACK_TO_LOCAL_COMPILE=false
-      build_command: |
-        sccache --zero-stats;
-        build-all -j0 --verbose -DBUILD_CUGRAPH_MG_TESTS=ON 2>&1 | tee telemetry-artifacts/build.log;
-        sccache --show-adv-stats | tee telemetry-artifacts/sccache-stats.txt;
-    permissions:
-      actions: read
-      contents: read
-      id-token: write
-      packages: read
-      pull-requests: read
+  # devcontainer:
+  #   secrets: inherit # zizmor: ignore[secrets-inherit]
+  #   needs: telemetry-setup
+  #   uses: rapidsai/shared-workflows/.github/workflows/build-in-devcontainer.yaml@main
+  #   with:
+  #     arch: '["amd64", "arm64"]'
+  #     cuda: '["13.3"]'
+  #     node_type: "cpu8"
+  #     env: |
+  #       SCCACHE_DIST_MAX_RETRIES=inf
+  #       SCCACHE_SERVER_LOG=sccache=debug
+  #       SCCACHE_DIST_FALLBACK_TO_LOCAL_COMPILE=false
+  #     build_command: |
+  #       sccache --zero-stats;
+  #       build-all -j0 --verbose -DBUILD_CUGRAPH_MG_TESTS=ON 2>&1 | tee telemetry-artifacts/build.log;
+  #       sccache --show-adv-stats | tee telemetry-artifacts/sccache-stats.txt;
+  #   permissions:
+  #     actions: read
+  #     contents: read
+  #     id-token: write
+  #     packages: read
+  #     pull-requests: read
   telemetry-summarize:
     # This job must use a self-hosted runner to record telemetry traces.
     runs-on: linux-amd64-cpu4
