@@ -179,6 +179,8 @@ set(CUGRAPH_COMMON_DISTRIBUTED_SOURCES
 )
 
 set(CUGRAPH_COMMON_SAMPLING_SOURCES
+    src/sampling/detail/sample_one_property_common_v64_e64.cu
+    src/sampling/detail/sample_one_property_common_v32_e32.cu
     src/sampling/detail/shuffle_and_organize_output_common.cu
     src/sampling/detail/remove_visited_vertices_from_frontier_common_v32_e32.cu
     src/sampling/detail/remove_visited_vertices_from_frontier_common_v64_e64.cu
@@ -278,8 +280,6 @@ set(CUGRAPH_SG_SOURCES
     src/sampling/detail/gather_one_hop_sg_v64_e64.cu
     src/sampling/detail/sample_edges_sg_v64_e64.cu
     src/sampling/detail/sample_edges_sg_v32_e32.cu
-    src/sampling/detail/temporal_sample_edges_sg_v64_e64.cu
-    src/sampling/detail/temporal_sample_edges_sg_v32_e32.cu
     src/sampling/neighbor_sampling_sg_v32_e32.cu
     src/sampling/neighbor_sampling_sg_v64_e64.cu
     src/sampling/negative_sampling_sg_v32_e32.cu
@@ -434,8 +434,6 @@ set(CUGRAPH_MG_SOURCES
     src/sampling/detail/gather_one_hop_mg_v64_e64.cu
     src/sampling/detail/sample_edges_mg_v64_e64.cu
     src/sampling/detail/sample_edges_mg_v32_e32.cu
-    src/sampling/detail/temporal_sample_edges_mg_v64_e64.cu
-    src/sampling/detail/temporal_sample_edges_mg_v32_e32.cu
     src/sampling/neighbor_sampling_mg_v32_e32.cu
     src/sampling/neighbor_sampling_mg_v64_e64.cu
     src/sampling/negative_sampling_mg_v32_e32.cu
