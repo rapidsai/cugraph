@@ -12,7 +12,7 @@
 function(find_and_configure_dlpack VERSION)
 
     include(${rapids-cmake-dir}/find/generate_module.cmake)
-    rapids_find_generate_module(DLPACK HEADER_NAMES dlpack.h)
+    rapids_find_generate_module(dlpack HEADER_NAMES dlpack.h)
 
     rapids_cpm_find(dlpack ${VERSION}
         GIT_REPOSITORY  https://github.com/dmlc/dlpack.git
