@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 [build-system]
@@ -88,7 +88,7 @@ regex = "(?P<value>.*)"
 [tool.rapids-build-backend]
 build-backend = "scikit_build_core.build"
 requires = [
-    "cmake>=4.0",
+    "cmake>=4.0,<4.4",
     "libcugraph==26.8.*,>=0.0.0a0",
     "libraft==26.8.*,>=0.0.0a0",
     "librmm==26.8.*,>=0.0.0a0",
