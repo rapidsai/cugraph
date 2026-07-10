@@ -1,6 +1,6 @@
 #=============================================================================
 # cmake-format: off
-# SPDX-FileCopyrightText: Copyright (c) 2018-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2018-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 # cmake-format: on
 #=============================================================================
@@ -644,12 +644,15 @@ target_link_libraries(cugraph_mtmg PRIVATE cugraph_common)
 
 
 
+include(cmake/thirdparty/get_dlpack.cmake)
+
 ################################################################################
 # - C-API library --------------------------------------------------------------
 
 add_library(cugraph_c
         src/c_api/resource_handle.cpp
         src/c_api/array.cpp
+        src/c_api/dlpack_interop.cpp
         src/c_api/degrees.cu
         src/c_api/degrees_result.cpp
         src/c_api/error.cpp
@@ -747,6 +750,13 @@ target_include_directories(cugraph_c
 ################################################################################
 # - C-API link libraries -------------------------------------------------------
 target_link_libraries(cugraph_c PRIVATE cugraph::cugraph cugraph::cugraph_mg)
+
+# dlpack is a header-only dependency of the public cugraph_c/dlpack_interop.h
+# header. Expose its include directory to build-tree consumers (e.g. the C API
+# tests) only; installed consumers obtain dlpack.h from their own environment,
+# so it is intentionally not part of the install/export interface.
+target_include_directories(cugraph_c
+    PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>")
 
 ################################################################################
 # - generate tests -------------------------------------------------------------
