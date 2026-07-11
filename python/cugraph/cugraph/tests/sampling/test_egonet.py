@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -83,3 +83,52 @@ def test_multi_column_ego_graph(graph_file, seed, radius):
         assert ego_cugraph_exp.has_edge(
             edgelist_df_res["0_src"].iloc[i], edgelist_df_res["0_dst"].iloc[i]
         )
+
+
+@pytest.fixture
+def multi_seed_graph():
+    df = cudf.DataFrame(
+        {
+            "src": [0, 1, 1, 3, 10, 11],
+            "dst": [1, 2, 3, 4, 11, 12],
+        }
+    )
+    graph = cugraph.Graph()
+    graph.from_cudf_edgelist(df, source="src", destination="dst")
+    return graph
+
+
+@pytest.mark.sg
+def test_multiple_seeds_require_offsets(multi_seed_graph):
+    with pytest.raises(ValueError, match="return_offsets=True"):
+        cugraph.ego_graph(multi_seed_graph, [0, 10], radius=1)
+
+
+@pytest.mark.sg
+def test_multiple_seed_offsets_partition_output(multi_seed_graph):
+    edges, offsets = cugraph.ego_graph(
+        multi_seed_graph, [0, 10], radius=1, return_offsets=True
+    )
+
+    assert len(offsets) == 3
+    assert offsets.iloc[0] == 0
+    assert offsets.iloc[-1] == len(edges)
+    assert offsets.is_monotonic_increasing
+
+    first = edges.iloc[offsets.iloc[0] : offsets.iloc[1]]
+    second = edges.iloc[offsets.iloc[1] : offsets.iloc[2]]
+
+    assert len(first) > 0
+    assert len(second) > 0
+
+
+@pytest.mark.sg
+def test_single_seed_default_still_returns_graph(multi_seed_graph):
+    result = cugraph.ego_graph(multi_seed_graph, 0, radius=1)
+    assert isinstance(result, cugraph.Graph)
+
+
+@pytest.mark.sg
+def test_empty_seed_list_rejected(multi_seed_graph):
+    with pytest.raises(ValueError, match="at least one seed"):
+        cugraph.ego_graph(multi_seed_graph, [], radius=1)
