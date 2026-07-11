@@ -45,7 +45,7 @@ def ego_graph(
     radius : integer, optional
         Include neighbors at distance less than or equal to ``radius``.
     center : bool, optional
-        Must be ``True``.
+        Defaults to True. False is not supported.
     undirected : optional
         Present for NetworkX compatibility and currently ignored.
     distance : optional
@@ -67,9 +67,6 @@ def ego_graph(
         ``(edge_dataframe, offsets)`` when ``return_offsets=True``.
     """
     (G, input_type) = ensure_cugraph_obj(G)
-
-    if center is not True:
-        raise NotImplementedError("center=False is not supported")
 
     if isinstance(n, int):
         n = cudf.Series([n])
