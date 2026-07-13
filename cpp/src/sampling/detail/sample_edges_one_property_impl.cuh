@@ -6,7 +6,7 @@
 #pragma once
 
 #include "gather_sampled_properties.cuh"
-#include "sample_edges_one_property.cuh"
+#include "sample_edges_one_property.hpp"
 #include "sampling_utils.hpp"
 
 #include <cugraph/arithmetic_variant_types.hpp>

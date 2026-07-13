@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "sample_edges_one_property.cuh"
+#include "sample_edges_one_property.hpp"
 #include "sampling_utils.hpp"
 
 #include <cugraph/edge_property.hpp>
