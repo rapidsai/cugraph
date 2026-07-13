@@ -19,13 +19,15 @@
 #include <cugraph/prims/extract_transform_if_e.cuh>
 #include <cugraph/prims/transform_gather_e.cuh>
 #include <cugraph/utilities/high_res_timer.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
 
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <cuda/functional>
 #include <cuda/std/iterator>
@@ -101,8 +103,10 @@ class Tests_MGTransformGatherE
 
     for (size_t i = 0; i < src_chunks.size(); ++i) {
       rmm::device_uvector<edge_t> tmp_ids(src_chunks[i].size(), handle_->get_stream());
-      cugraph::detail::sequence_fill(
-        handle_->get_stream(), tmp_ids.data(), tmp_ids.size(), base_edge_idx);
+      cugraph::sequence(rmm::exec_policy(handle_->get_stream()),
+                        tmp_ids.data(),
+                        tmp_ids.data() + tmp_ids.size(),
+                        base_edge_idx);
       base_edge_idx += src_chunks[i].size();
       edge_id_chunks.push_back(std::move(tmp_ids));
     }
@@ -202,7 +206,7 @@ class Tests_MGTransformGatherE
                                                    multi_edge_indices->begin(),
                                                    should_be_gathered_ids.begin());
       if (prims_usecase.use_sorted_unique_edgelist) {
-        cugraph::sort_wrapper(handle_->get_thrust_policy(), tuple_first, tuple_first + srcs.size());
+        cugraph::sort(handle_->get_thrust_policy(), tuple_first, tuple_first + srcs.size());
       } else {
         thrust::shuffle(handle_->get_thrust_policy(),
                         tuple_first,
@@ -214,7 +218,7 @@ class Tests_MGTransformGatherE
                                                    store_transposed ? srcs.begin() : dsts.begin(),
                                                    should_be_gathered_ids.begin());
       if (prims_usecase.use_sorted_unique_edgelist) {
-        cugraph::sort_wrapper(handle_->get_thrust_policy(), tuple_first, tuple_first + srcs.size());
+        cugraph::sort(handle_->get_thrust_policy(), tuple_first, tuple_first + srcs.size());
       } else {
         thrust::shuffle(handle_->get_thrust_policy(),
                         tuple_first,

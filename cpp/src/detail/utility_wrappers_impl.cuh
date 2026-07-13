@@ -21,11 +21,9 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/remove.h>
-#include <thrust/sequence.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
-#include <thrust/unique.h>
 
 namespace cugraph {
 namespace detail {
@@ -45,29 +43,6 @@ void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
     raft::random::uniform<value_t, size_t>(
       rng_state, d_value, size, min_value, max_value, stream_view.value());
   }
-}
-
-template <typename value_t>
-void scalar_fill(raft::handle_t const& handle, value_t* d_value, size_t size, value_t value)
-{
-  thrust::fill_n(handle.get_thrust_policy(), d_value, size, value);
-}
-
-template <typename value_t>
-size_t unique_ints(raft::handle_t const& handle, raft::device_span<value_t> values)
-{
-  auto unique_element_last =
-    thrust::unique(handle.get_thrust_policy(), values.begin(), values.end());
-  return cuda::std::distance(values.begin(), unique_element_last);
-}
-
-template <typename value_t>
-void sequence_fill(rmm::cuda_stream_view const& stream_view,
-                   value_t* d_value,
-                   size_t size,
-                   value_t start_value)
-{
-  thrust::sequence(rmm::exec_policy(stream_view), d_value, d_value + size, start_value);
 }
 
 template <typename value_t>
@@ -96,22 +71,6 @@ void transform_not_equal(raft::device_span<value_t> values,
                     result.begin(),
                     cuda::proclaim_return_type<bool>(
                       [compare] __device__(value_t value) { return compare != value; }));
-}
-
-template <typename value_t>
-void stride_fill(rmm::cuda_stream_view const& stream_view,
-                 value_t* d_value,
-                 size_t size,
-                 value_t start_value,
-                 value_t stride)
-{
-  thrust::transform(rmm::exec_policy(stream_view),
-                    thrust::make_counting_iterator(size_t{0}),
-                    thrust::make_counting_iterator(size),
-                    d_value,
-                    cuda::proclaim_return_type<value_t>([start_value, stride] __device__(size_t i) {
-                      return static_cast<value_t>(start_value + stride * i);
-                    }));
 }
 
 template <typename vertex_t>

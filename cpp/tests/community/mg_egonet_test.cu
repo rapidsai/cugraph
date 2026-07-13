@@ -15,7 +15,7 @@
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
@@ -186,9 +186,9 @@ class Tests_MGEgonet
                             triplet_first + d_mg_aggregate_edgelist_src.size(),
                             d_mg_aggregate_edgelist_wgt->begin());
       } else {
-        cugraph::sort_wrapper(handle_->get_thrust_policy(),
-                              triplet_first,
-                              triplet_first + d_mg_aggregate_edgelist_src.size());
+        cugraph::sort(handle_->get_thrust_policy(),
+                      triplet_first,
+                      triplet_first + d_mg_aggregate_edgelist_src.size());
       }
 
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);

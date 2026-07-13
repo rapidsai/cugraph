@@ -16,6 +16,8 @@
 #include <cugraph/prims/update_v_frontier.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/util/cudart_utils.hpp>
@@ -98,7 +100,7 @@ std::tuple<size_t, size_t> compute_new_near_near_partition_range(
 
   rmm::device_uvector<vertex_t> d_counts(last_subpartition_idx - first_subpartition_idx,
                                          handle.get_stream());
-  thrust::fill(handle.get_thrust_policy(), d_counts.begin(), d_counts.end(), vertex_t{0});
+  cugraph::fill(handle.get_thrust_policy(), d_counts.begin(), d_counts.end(), vertex_t{0});
   std::vector<weight_t> h_thresholds(d_counts.size() - 1);
   for (size_t i = 0; i < h_thresholds.size(); ++i) {
     h_thresholds[i] = compute_subpartition_start(
@@ -298,17 +300,17 @@ void sssp(raft::handle_t const& handle,
     std::nullopt};  // valid only when in the lower level
   while (true) {
     if constexpr (GraphViewType::is_multi_gpu) {  // FIXME: we may use a thrust fancy iterator
-                                                  // instead of thrust::gather
+                                                  // instead of cugraph::gather
       rmm::device_uvector<weight_t> gathered_distances(
         vertex_frontier.bucket(bucket_idx_cur_near_near).size(), handle.get_stream());
       auto map_first = cuda::make_transform_iterator(
         vertex_frontier.bucket(bucket_idx_cur_near_near).begin(),
         shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()});
-      thrust::gather(handle.get_thrust_policy(),
-                     map_first,
-                     map_first + vertex_frontier.bucket(bucket_idx_cur_near_near).size(),
-                     distances,
-                     gathered_distances.begin());
+      cugraph::gather(handle.get_thrust_policy(),
+                      map_first,
+                      map_first + vertex_frontier.bucket(bucket_idx_cur_near_near).size(),
+                      distances,
+                      gathered_distances.begin());
       update_edge_src_property(handle,
                                graph_view,
                                vertex_frontier.bucket(bucket_idx_cur_near_near).begin(),

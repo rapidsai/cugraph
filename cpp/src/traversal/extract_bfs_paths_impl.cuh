@@ -12,6 +12,7 @@
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/core/handle.hpp>
@@ -180,7 +181,7 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
   rmm::device_uvector<vertex_t> current_frontier(n_destinations, handle.get_stream());
   rmm::device_uvector<size_t> current_position(n_destinations, handle.get_stream());
 
-  thrust::fill(handle.get_thrust_policy(), paths.begin(), paths.end(), invalid_vertex);
+  cugraph::fill(handle.get_thrust_policy(), paths.begin(), paths.end(), invalid_vertex);
   raft::copy(current_frontier.data(), destinations, n_destinations, handle.get_stream());
 
   auto h_vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();

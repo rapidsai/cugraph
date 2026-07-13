@@ -13,6 +13,9 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
+#include <cugraph/utilities/thrust_wrappers/scatter.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/core/handle.hpp>
@@ -194,8 +197,8 @@ k_hop_nbrs(raft::handle_t const& handle,
                         tmp_counts.begin());
 
   rmm::device_uvector<size_t> offsets(start_vertices.size() + size_t{1}, handle.get_stream());
-  thrust::fill(handle.get_thrust_policy(), offsets.begin(), offsets.end(), size_t{0});
-  thrust::scatter(
+  cugraph::fill(handle.get_thrust_policy(), offsets.begin(), offsets.end(), size_t{0});
+  cugraph::scatter(
     handle.get_thrust_policy(),
     tmp_counts.begin(),
     tmp_counts.end(),

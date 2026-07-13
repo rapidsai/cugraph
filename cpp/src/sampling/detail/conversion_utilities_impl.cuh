@@ -9,6 +9,8 @@
 
 #include <cugraph/export.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/scatter.hpp>
 
 #include <cuda/functional>
 
@@ -35,12 +37,12 @@ rmm::device_uvector<int32_t> flatten_label_map(
 
   rmm::device_uvector<int32_t> label_map(max_label + 1, handle.get_stream());
 
-  thrust::fill(handle.get_thrust_policy(), label_map.begin(), label_map.end(), int32_t{0});
-  thrust::scatter(handle.get_thrust_policy(),
-                  std::get<1>(label_to_output_comm_rank).begin(),
-                  std::get<1>(label_to_output_comm_rank).end(),
-                  std::get<0>(label_to_output_comm_rank).begin(),
-                  label_map.begin());
+  cugraph::fill(handle.get_thrust_policy(), label_map.begin(), label_map.end(), int32_t{0});
+  cugraph::scatter(handle.get_thrust_policy(),
+                   std::get<1>(label_to_output_comm_rank).begin(),
+                   std::get<1>(label_to_output_comm_rank).end(),
+                   std::get<0>(label_to_output_comm_rank).begin(),
+                   label_map.begin());
 
   return label_map;
 }

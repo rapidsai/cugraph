@@ -16,7 +16,9 @@
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error_check_utils.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -311,10 +313,10 @@ all_pairs_similarity(raft::handle_t const& handle,
         handle.get_thrust_policy(), vertices->begin(), vertices->end(), tmp_vertices.begin());
     } else {
       tmp_vertices.resize(graph_view.local_vertex_partition_range_size(), handle.get_stream());
-      thrust::sequence(handle.get_thrust_policy(),
-                       tmp_vertices.begin(),
-                       tmp_vertices.end(),
-                       graph_view.local_vertex_partition_range_first());
+      cugraph::sequence(handle.get_thrust_policy(),
+                        tmp_vertices.begin(),
+                        tmp_vertices.end(),
+                        graph_view.local_vertex_partition_range_first());
     }
 
     //  We can reduce memory footprint by doing work in batches and
@@ -350,7 +352,7 @@ all_pairs_similarity(raft::handle_t const& handle,
       rmm::device_uvector<size_t> gathered_two_hop_degrees(tmp_vertices.size() + 1,
                                                            handle.get_stream());
 
-      thrust::gather(
+      cugraph::gather(
         handle.get_thrust_policy(),
         cuda::make_transform_iterator(
           tmp_vertices.begin(),
@@ -599,10 +601,10 @@ all_pairs_similarity(raft::handle_t const& handle,
       vertices_span = raft::device_span<vertex_t const>{vertices->data(), vertices->size()};
     } else {
       tmp_vertices.resize(graph_view.local_vertex_partition_range_size(), handle.get_stream());
-      thrust::sequence(handle.get_thrust_policy(),
-                       tmp_vertices.begin(),
-                       tmp_vertices.end(),
-                       graph_view.local_vertex_partition_range_first());
+      cugraph::sequence(handle.get_thrust_policy(),
+                        tmp_vertices.begin(),
+                        tmp_vertices.end(),
+                        graph_view.local_vertex_partition_range_first());
       vertices_span = raft::device_span<vertex_t const>{tmp_vertices.data(), tmp_vertices.size()};
     }
 

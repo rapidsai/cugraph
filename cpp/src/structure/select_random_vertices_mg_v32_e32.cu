@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "structure/select_random_vertices_impl.hpp"
+#include "structure/select_random_vertices_impl.cuh"
 
 #include <cugraph/export.hpp>
 

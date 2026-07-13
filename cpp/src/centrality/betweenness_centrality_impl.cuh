@@ -22,7 +22,10 @@
 #include <cugraph/prims/update_v_frontier.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/core/handle.hpp>
@@ -146,8 +149,12 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
                                      handle.get_stream());
   rmm::device_uvector<vertex_t> distances(graph_view.local_vertex_partition_range_size(),
                                           handle.get_stream());
-  detail::scalar_fill(handle, distances.data(), distances.size(), invalid_distance);
-  detail::scalar_fill(handle, sigmas.data(), sigmas.size(), edge_t{0});
+  cugraph::fill(handle.get_thrust_policy(),
+                distances.data(),
+                (distances.data()) + (distances.size()),
+                invalid_distance);
+  cugraph::fill(
+    handle.get_thrust_policy(), sigmas.data(), (sigmas.data()) + (sigmas.size()), edge_t{0});
 
   edge_src_property_t<vertex_t, edge_t> src_sigmas(handle, graph_view);
   edge_dst_property_t<vertex_t, vertex_t> dst_distances(handle, graph_view);
@@ -281,11 +288,11 @@ void accumulate_vertex_results(
     // Copy distances for sorting (preserve original)
     raft::copy(distance_keys.data(), distances.data(), distances.size(), handle.get_stream());
 
-    // Use thrust::sequence instead of thrust::copy for vertices
-    thrust::sequence(handle.get_thrust_policy(),
-                     vertices_sorted.begin(),
-                     vertices_sorted.end(),
-                     graph_view.local_vertex_partition_range_first());
+    // Use cugraph::sequence instead of thrust::copy for vertices
+    cugraph::sequence(handle.get_thrust_policy(),
+                      vertices_sorted.begin(),
+                      vertices_sorted.end(),
+                      graph_view.local_vertex_partition_range_first());
 
     // Sort vertices by distance using stable_sort_by_key
     thrust::stable_sort_by_key(handle.get_thrust_policy(),
@@ -408,7 +415,8 @@ void accumulate_edge_results(
     do_expensive_check);
 
   rmm::device_uvector<weight_t> deltas(sigmas.size(), handle.get_stream());
-  detail::scalar_fill(handle, deltas.data(), deltas.size(), weight_t{0});
+  cugraph::fill(
+    handle.get_thrust_policy(), deltas.data(), (deltas.data()) + (deltas.size()), weight_t{0});
 
   edge_src_property_t<vertex_t, cuda::std::tuple<vertex_t, edge_t, weight_t>> src_properties(
     handle, graph_view);
@@ -458,7 +466,7 @@ void accumulate_edge_results(
                                                              do_expensive_check);
 
       auto triplet_first = thrust::make_zip_iterator(srcs.begin(), dsts.begin(), indices->begin());
-      cugraph::sort_wrapper(handle.get_thrust_policy(), triplet_first, triplet_first + srcs.size());
+      cugraph::sort(handle.get_thrust_policy(), triplet_first, triplet_first + srcs.size());
     } else {
       std::tie(srcs, dsts) = extract_transform_if_e(handle,
                                                     graph_view,
@@ -469,7 +477,7 @@ void accumulate_edge_results(
                                                     extract_edge_pred_op_t<vertex_t>{d},
                                                     do_expensive_check);
       auto pair_first      = thrust::make_zip_iterator(srcs.begin(), dsts.begin());
-      cugraph::sort_wrapper(handle.get_thrust_policy(), pair_first, pair_first + srcs.size());
+      cugraph::sort(handle.get_thrust_policy(), pair_first, pair_first + srcs.size());
     }
     edge_list.insert(srcs.begin(),
                      srcs.end(),
@@ -546,7 +554,7 @@ batch_partition_frontier(raft::handle_t const& handle,
     std::nullopt};  // last source IDs (exclusive) for each batch ID
   if (num_sources > 1) {
     rmm::device_uvector<size_t> source_out_edge_counts(num_sources, handle.get_stream());
-    thrust::fill(
+    cugraph::fill(
       handle.get_thrust_policy(), source_out_edge_counts.begin(), source_out_edge_counts.end(), 0);
     thrust::for_each(
       handle.get_thrust_policy(),
@@ -593,7 +601,7 @@ batch_partition_frontier(raft::handle_t const& handle,
 
   std::vector<size_t> batch_offsets{0, frontier.size()};
   if (source_lasts) {
-    cugraph::sort_wrapper(
+    cugraph::sort(
       handle.get_thrust_policy(),
       frontier.begin(),
       frontier.end(),
@@ -673,8 +681,14 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
                                         handle.get_stream());
   rmm::device_uvector<vertex_t> distances_2d(num_sources * local_vertex_partition_range_size,
                                              handle.get_stream());
-  detail::scalar_fill(handle, sigmas_2d.data(), sigmas_2d.size(), edge_t{0});
-  detail::scalar_fill(handle, distances_2d.data(), distances_2d.size(), invalid_distance);
+  cugraph::fill(handle.get_thrust_policy(),
+                sigmas_2d.data(),
+                (sigmas_2d.data()) + (sigmas_2d.size()),
+                edge_t{0});
+  cugraph::fill(handle.get_thrust_policy(),
+                distances_2d.data(),
+                (distances_2d.data()) + (distances_2d.size()),
+                invalid_distance);
 
   {
     auto tagged_source_first =
@@ -885,11 +899,11 @@ void multisource_backward_pass(
     num_sources <= std::numeric_limits<origin_t>::max(),
     "Number of sources exceeds maximum value for origin_t (uint16_t), would cause overflow");
 
-  thrust::fill(handle.get_thrust_policy(), centralities.begin(), centralities.end(), weight_t{0});
+  cugraph::fill(handle.get_thrust_policy(), centralities.begin(), centralities.end(), weight_t{0});
 
   rmm::device_uvector<weight_t> delta_buffer(num_sources * local_vertex_partition_range_size,
                                              handle.get_stream());
-  thrust::fill(handle.get_thrust_policy(), delta_buffer.begin(), delta_buffer.end(), weight_t{0});
+  cugraph::fill(handle.get_thrust_policy(), delta_buffer.begin(), delta_buffer.end(), weight_t{0});
 
   // (vertex, source idx) pairs for each distance level [0, global_max_distance + 1)
   rmm::device_uvector<vertex_t> all_vertices(0, handle.get_stream());
@@ -909,7 +923,7 @@ void multisource_backward_pass(
                                                   thrust::maximum<vertex_t>());
 
     rmm::device_uvector<size_t> d_distance_counts(global_max_distance + 1, handle.get_stream());
-    thrust::fill(
+    cugraph::fill(
       handle.get_thrust_policy(), d_distance_counts.begin(), d_distance_counts.end(), size_t{0});
 
     thrust::for_each_n(
@@ -951,7 +965,7 @@ void multisource_backward_pass(
 
     all_vertices.resize(h_distance_offsets.back(), handle.get_stream());
     all_sources.resize(h_distance_offsets.back(), handle.get_stream());
-    thrust::fill(
+    cugraph::fill(
       handle.get_thrust_policy(), d_distance_counts.begin(), d_distance_counts.end(), size_t{0});
 
     thrust::for_each_n(
@@ -1313,7 +1327,10 @@ rmm::device_uvector<weight_t> betweenness_centrality(
 
   rmm::device_uvector<weight_t> centralities(graph_view.local_vertex_partition_range_size(),
                                              handle.get_stream());
-  detail::scalar_fill(handle, centralities.data(), centralities.size(), weight_t{0});
+  cugraph::fill(handle.get_thrust_policy(),
+                centralities.data(),
+                (centralities.data()) + (centralities.size()),
+                weight_t{0});
 
   size_t num_sources = cuda::std::distance(vertices_begin, vertices_end);
   std::vector<size_t> source_offsets{{0, num_sources}};

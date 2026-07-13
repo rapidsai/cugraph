@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -7,6 +7,7 @@
 #include <cugraph/dendrogram.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -33,10 +34,10 @@ void partition_at_level(raft::handle_t const& handle,
     thrust::make_counting_iterator<size_t>(level),
     [&handle, &dendrogram, &local_vertex_ids_v, d_vertex_ids, &d_partition, local_num_verts](
       size_t l) {
-      detail::sequence_fill(handle.get_stream(),
-                            local_vertex_ids_v.begin(),
-                            dendrogram.get_level_size_nocheck(l),
-                            dendrogram.get_level_first_index_nocheck(l));
+      cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                        local_vertex_ids_v.begin(),
+                        local_vertex_ids_v.begin() + dendrogram.get_level_size_nocheck(l),
+                        dendrogram.get_level_first_index_nocheck(l));
 
       cugraph::relabel<vertex_t, multi_gpu>(
         handle,

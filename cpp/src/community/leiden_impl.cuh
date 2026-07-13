@@ -13,9 +13,12 @@
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <cuda/std/iterator>
 #include <thrust/sort.h>
@@ -37,11 +40,11 @@ void check_clustering(graph_view_t<vertex_t, edge_t, false, multi_gpu> const& gr
 template <typename vertex_t, bool multi_gpu>
 vertex_t remove_duplicates(raft::handle_t const& handle, rmm::device_uvector<vertex_t>& input_array)
 {
-  cugraph::sort_wrapper(handle.get_thrust_policy(), input_array.begin(), input_array.end());
+  cugraph::sort(handle.get_thrust_policy(), input_array.begin(), input_array.end());
 
   auto nr_unique_elements = static_cast<vertex_t>(cuda::std::distance(
     input_array.begin(),
-    thrust::unique(handle.get_thrust_policy(), input_array.begin(), input_array.end())));
+    cugraph::unique(handle.get_thrust_policy(), input_array.begin(), input_array.end())));
 
   input_array.resize(nr_unique_elements, handle.get_stream());
 
@@ -49,11 +52,11 @@ vertex_t remove_duplicates(raft::handle_t const& handle, rmm::device_uvector<ver
     std::tie(input_array, std::ignore) = shuffle_ext_vertices(
       handle, std::move(input_array), std::vector<cugraph::arithmetic_device_uvector_t>{});
 
-    cugraph::sort_wrapper(handle.get_thrust_policy(), input_array.begin(), input_array.end());
+    cugraph::sort(handle.get_thrust_policy(), input_array.begin(), input_array.end());
 
     nr_unique_elements = static_cast<vertex_t>(cuda::std::distance(
       input_array.begin(),
-      thrust::unique(handle.get_thrust_policy(), input_array.begin(), input_array.end())));
+      cugraph::unique(handle.get_thrust_policy(), input_array.begin(), input_array.end())));
 
     input_array.resize(nr_unique_elements, handle.get_stream());
 
@@ -126,15 +129,15 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       cluster_keys.resize(vertex_weights.size(), handle.get_stream());
       cluster_weights.resize(vertex_weights.size(), handle.get_stream());
 
-      detail::sequence_fill(handle.get_stream(),
-                            dendrogram->current_level_begin(),
-                            dendrogram->current_level_size(),
-                            current_graph_view.local_vertex_partition_range_first());
+      cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                        dendrogram->current_level_begin(),
+                        dendrogram->current_level_begin() + dendrogram->current_level_size(),
+                        current_graph_view.local_vertex_partition_range_first());
 
-      detail::sequence_fill(handle.get_stream(),
-                            cluster_keys.begin(),
-                            cluster_keys.size(),
-                            current_graph_view.local_vertex_partition_range_first());
+      cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                        cluster_keys.begin(),
+                        cluster_keys.begin() + cluster_keys.size(),
+                        current_graph_view.local_vertex_partition_range_first());
 
       raft::copy(cluster_weights.begin(),
                  vertex_weights.begin(),
@@ -491,10 +494,10 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
         rmm::device_uvector<vertex_t> numeric_sequence(
           current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
-        detail::sequence_fill(handle.get_stream(),
-                              numeric_sequence.data(),
-                              numeric_sequence.size(),
-                              current_graph_view.local_vertex_partition_range_first());
+        cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                          numeric_sequence.data(),
+                          numeric_sequence.data() + numeric_sequence.size(),
+                          current_graph_view.local_vertex_partition_range_first());
 
         relabel<vertex_t, multi_gpu>(
           handle,
@@ -527,10 +530,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                    louvain_of_refined_graph.size(),
                    handle.get_stream());
 
-        cugraph::sort_wrapper(
-          handle.get_thrust_policy(),
-          thrust::make_zip_iterator(numbering_map->begin(), numeric_sequence.begin()),
-          thrust::make_zip_iterator(numbering_map->end(), numeric_sequence.end()));
+        cugraph::sort(handle.get_thrust_policy(),
+                      thrust::make_zip_iterator(numbering_map->begin(), numeric_sequence.begin()),
+                      thrust::make_zip_iterator(numbering_map->end(), numeric_sequence.end()));
 
         size_t new_size = cuda::std::distance(numbering_map->begin(),
                                               thrust::unique_by_key(handle.get_thrust_policy(),
@@ -552,10 +554,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
               std::move(std::get<rmm::device_uvector<vertex_t>>(vertex_properties[0]));
           }
 
-          cugraph::sort_wrapper(
-            handle.get_thrust_policy(),
-            thrust::make_zip_iterator(numbering_map->begin(), numeric_sequence.begin()),
-            thrust::make_zip_iterator(numbering_map->end(), numeric_sequence.end()));
+          cugraph::sort(handle.get_thrust_policy(),
+                        thrust::make_zip_iterator(numbering_map->begin(), numeric_sequence.begin()),
+                        thrust::make_zip_iterator(numbering_map->end(), numeric_sequence.end()));
 
           size_t new_size = cuda::std::distance(numbering_map->begin(),
                                                 thrust::unique_by_key(handle.get_thrust_policy(),
@@ -580,10 +581,10 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     } else {
       // Reset dendrogram.
       //    FIXME: Revisit how dendrogram is populated
-      detail::sequence_fill(handle.get_stream(),
-                            dendrogram->current_level_begin(),
-                            dendrogram->current_level_size(),
-                            current_graph_view.local_vertex_partition_range_first());
+      cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                        dendrogram->current_level_begin(),
+                        dendrogram->current_level_begin() + dendrogram->current_level_size(),
+                        current_graph_view.local_vertex_partition_range_first());
     }
 
     copied_louvain_partition.resize(0, handle.get_stream());
@@ -627,10 +628,10 @@ void relabel_cluster_ids(raft::handle_t const& handle,
   }
 
   rmm::device_uvector<vertex_t> numbering_indices(unique_cluster_ids.size(), handle.get_stream());
-  detail::sequence_fill(handle.get_stream(),
-                        numbering_indices.data(),
-                        numbering_indices.size(),
-                        local_cluster_id_first);
+  cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                    numbering_indices.data(),
+                    numbering_indices.data() + numbering_indices.size(),
+                    local_cluster_id_first);
 
   relabel<vertex_t, multi_gpu>(
     handle,
@@ -651,10 +652,10 @@ void flatten_leiden_dendrogram(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.local_vertex_partition_range_size(),
                                              handle.get_stream());
 
-  detail::sequence_fill(handle.get_stream(),
-                        vertex_ids_v.begin(),
-                        vertex_ids_v.size(),
-                        graph_view.local_vertex_partition_range_first());
+  cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                    vertex_ids_v.begin(),
+                    vertex_ids_v.begin() + vertex_ids_v.size(),
+                    graph_view.local_vertex_partition_range_first());
 
   partition_at_level<vertex_t, multi_gpu>(
     handle, dendrogram, vertex_ids_v.data(), clustering, dendrogram.num_levels());
