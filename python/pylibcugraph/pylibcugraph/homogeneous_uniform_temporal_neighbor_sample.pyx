@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -57,9 +57,13 @@ from pylibcugraph.graphs cimport (
 )
 from pylibcugraph.utils cimport (
     assert_success,
-    assert_CAI_type,
-    assert_AI_type,
+    assert_device_accessible,
+    assert_host_accessible,
     get_c_type_from_numpy_type,
+    get_c_type_from_py_obj,
+    get_size_from_py_obj,
+    get_last_item_from_py_obj,
+    get_data_ptr_from_py_obj,
 )
 from pylibcugraph.internal_types.sampling_result cimport (
     SamplingResult,
@@ -132,7 +136,7 @@ def homogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handle,
         'starting_vertex_label_offsets' must lead to an array of
         len(start_vertex_list)
 
-    h_fan_out: numpy array type
+    h_fan_out: host-accessible DLPack array
         Device array containing the branching out (fan-out) degrees per
         starting vertex for each hop level
 
@@ -269,65 +273,67 @@ def homogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handle,
 
     print("start_vertex_list", start_vertex_list)
     print("starting_vertex_times", starting_vertex_times)
-    assert_CAI_type(start_vertex_list, "start_vertex_list")
-    assert_CAI_type(starting_vertex_times, "starting_vertex_times", True)
-    assert_CAI_type(starting_vertex_label_offsets, "starting_vertex_label_offsets", True)
+    assert_device_accessible(start_vertex_list, "start_vertex_list")
+    assert_device_accessible(starting_vertex_times, "starting_vertex_times", True)
+    assert_device_accessible(starting_vertex_label_offsets, "starting_vertex_label_offsets", True)
 
-    assert_AI_type(h_fan_out, "h_fan_out")
+    assert_host_accessible(h_fan_out, "h_fan_out")
 
-    if starting_vertex_label_offsets is not None:
-        last_elmnt_idx = len(starting_vertex_label_offsets) - 1
-        if starting_vertex_label_offsets[last_elmnt_idx] != len(start_vertex_list):
-            raise ValueError(
-                "'starting_vertex_label_offsets' and 'start_vertex_list' must be proportional")
+    if (starting_vertex_label_offsets is not None and
+            get_last_item_from_py_obj(starting_vertex_label_offsets) !=
+            get_size_from_py_obj(start_vertex_list)):
+        raise ValueError(
+            "'starting_vertex_label_offsets' and 'start_vertex_list' "
+            "must be proportional"
+        )
 
     ai_fan_out_ptr = \
-        h_fan_out.__array_interface__["data"][0]
+        get_data_ptr_from_py_obj(h_fan_out)
 
     fan_out_ptr = \
         cugraph_type_erased_host_array_view_create(
             <void*>ai_fan_out_ptr,
-            len(h_fan_out),
-            get_c_type_from_numpy_type(h_fan_out.dtype))
+            get_size_from_py_obj(h_fan_out),
+            get_c_type_from_py_obj(h_fan_out))
 
 
 
     cdef cugraph_sample_result_t* result_ptr
 
     cdef uintptr_t cai_start_ptr = \
-        start_vertex_list.__cuda_array_interface__["data"][0]
+        get_data_ptr_from_py_obj(start_vertex_list)
 
     cdef uintptr_t cai_starting_vertex_times_ptr
     if starting_vertex_times is not None:
         cai_starting_vertex_times_ptr = \
-            starting_vertex_times.__cuda_array_interface__['data'][0]
+            get_data_ptr_from_py_obj(starting_vertex_times)
 
     cdef uintptr_t cai_starting_vertex_label_offsets_ptr
     if starting_vertex_label_offsets is not None:
         cai_starting_vertex_label_offsets_ptr = \
-            starting_vertex_label_offsets.__cuda_array_interface__['data'][0]
+            get_data_ptr_from_py_obj(starting_vertex_label_offsets)
 
 
     cdef cugraph_type_erased_device_array_view_t* start_vertex_list_ptr = \
         cugraph_type_erased_device_array_view_create(
             <void*>cai_start_ptr,
-            len(start_vertex_list),
-            get_c_type_from_numpy_type(start_vertex_list.dtype))
+            get_size_from_py_obj(start_vertex_list),
+            get_c_type_from_py_obj(start_vertex_list))
 
     cdef cugraph_type_erased_device_array_view_t* starting_vertex_times_ptr = <cugraph_type_erased_device_array_view_t*>NULL
     if starting_vertex_times is not None:
         starting_vertex_times_ptr = \
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_starting_vertex_times_ptr,
-                len(starting_vertex_times),
-                get_c_type_from_numpy_type(starting_vertex_times.dtype))
+                get_size_from_py_obj(starting_vertex_times),
+                get_c_type_from_py_obj(starting_vertex_times))
 
     cdef cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets_ptr = <cugraph_type_erased_device_array_view_t*>NULL
     if starting_vertex_label_offsets is not None:
         starting_vertex_label_offsets_ptr = \
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_starting_vertex_label_offsets_ptr,
-                len(starting_vertex_label_offsets),
+                get_size_from_py_obj(starting_vertex_label_offsets),
                 SIZE_T
             )
 

@@ -1,7 +1,22 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+import cupy as cp
+import numpy as np
+
+
+class DLPackOnly:
+    """DLPack producer that deliberately exposes no array interface metadata."""
+
+    def __init__(self, array):
+        self._array = array
+
+    def __dlpack__(self, *args, **kwargs):
+        return self._array.__dlpack__(*args, **kwargs)
+
+    def __dlpack_device__(self):
+        return self._array.__dlpack_device__()
 
 
 # =============================================================================
@@ -145,3 +160,54 @@ def test_SGGraph_create_from_cudf():
     )
     print("done", flush=True)
     print(f"created SGGraph {plc_graph=}", flush=True)
+
+
+def test_sg_graph_accepts_dlpack_only_inputs():
+    from pylibcugraph import GraphProperties, ResourceHandle, SGGraph, bfs
+
+    resource_handle = ResourceHandle()
+    graph = SGGraph(
+        resource_handle=resource_handle,
+        graph_properties=GraphProperties(is_symmetric=False, is_multigraph=False),
+        src_or_offset_array=DLPackOnly(cp.asarray([0, 1, 2], dtype=np.int32)),
+        dst_or_index_array=DLPackOnly(cp.asarray([1, 2, 3], dtype=np.int32)),
+        weight_array=DLPackOnly(cp.asarray([1, 1, 1], dtype=np.float32)),
+        store_transposed=False,
+        renumber=False,
+        do_expensive_check=False,
+    )
+    distances, predecessors, vertices = bfs(
+        resource_handle,
+        graph,
+        DLPackOnly(cp.asarray([0], dtype=np.int32)),
+        False,
+        -1,
+        True,
+        False,
+    )
+    assert distances.size == predecessors.size == vertices.size == 4
+    del graph
+
+
+def test_sg_graph_rejects_host_inputs():
+    from pylibcugraph import GraphProperties, ResourceHandle, SGGraph
+
+    with pytest.raises(ValueError, match="accessible from a CUDA device"):
+        SGGraph(
+            resource_handle=ResourceHandle(),
+            graph_properties=GraphProperties(),
+            src_or_offset_array=np.asarray([0, 1], dtype=np.int32),
+            dst_or_index_array=np.asarray([1, 2], dtype=np.int32),
+        )
+
+
+def test_sg_graph_rejects_noncontiguous_inputs():
+    from pylibcugraph import GraphProperties, ResourceHandle, SGGraph
+
+    with pytest.raises(ValueError, match="must be contiguous"):
+        SGGraph(
+            resource_handle=ResourceHandle(),
+            graph_properties=GraphProperties(),
+            src_or_offset_array=DLPackOnly(cp.arange(4, dtype=np.int32)[::2]),
+            dst_or_index_array=DLPackOnly(cp.arange(4, dtype=np.int32)[::2]),
+        )

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -71,7 +71,7 @@ def all_pairs_jaccard_coefficients(ResourceHandle resource_handle,
     graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
 
-    vertices : cudf.Series or None
+    vertices : device-accessible DLPack array or None
         Vertex list to compute all-pairs. If None, then compute based
             on all vertices in the graph.
 

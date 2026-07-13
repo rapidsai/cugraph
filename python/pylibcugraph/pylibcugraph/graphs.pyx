@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -30,12 +30,50 @@ from pylibcugraph.graph_properties cimport (
 )
 from pylibcugraph.utils cimport (
     assert_success,
-    assert_CAI_type,
-    get_c_type_from_numpy_type,
+    assert_device_accessible,
+    get_c_type_from_py_obj,
     create_cugraph_type_erased_device_array_view_from_py_obj,
 )
-from pylibcugraph.utilities.api_tools import ensure_valid_dtypes
 from libc.stdlib cimport malloc
+import warnings
+
+
+cdef ensure_valid_dtypes(
+    src_or_offset_array,
+    dst_or_index_array,
+    vertices_array,
+    edge_id_array,
+    edge_start_time_array,
+    edge_stop_time_array,
+):
+    vertex_args = (
+        src_or_offset_array,
+        dst_or_index_array,
+        vertices_array,
+        edge_id_array,
+    )
+    temporal_args = (edge_start_time_array, edge_stop_time_array)
+    vertex_types = {
+        get_c_type_from_py_obj(arg) for arg in vertex_args if arg is not None
+    }
+    temporal_types = {
+        get_c_type_from_py_obj(arg) for arg in temporal_args if arg is not None
+    }
+
+    if len(vertex_types) > 1:
+        warnings.warn(
+            "The graph requires 'src_or_offset_array', 'dst_or_index_array' "
+            "'vertices_array' and 'edge_id_array' to match. Those will be "
+            "widened to 64-bit.",
+            UserWarning,
+        )
+
+    if len(temporal_types) > 1:
+        warnings.warn(
+            "The graph requires 'edge_start_time_array' and "
+            "'edge_end_time_array' to match. Those will be widened to 64-bit.",
+            UserWarning,
+        )
 
 
 
@@ -178,14 +216,14 @@ cdef class SGGraph(_GPUGraph):
         if not(isinstance(do_expensive_check, (int, bool))):
             raise TypeError("expected int or bool for do_expensive_check, got "
                             f"{type(do_expensive_check)}")
-        assert_CAI_type(src_or_offset_array, "src_or_offset_array")
-        assert_CAI_type(dst_or_index_array, "dst_or_index_array")
-        assert_CAI_type(vertices_array, "vertices_array", True)
-        assert_CAI_type(weight_array, "weight_array", True)
-        assert_CAI_type(edge_id_array, "edge_id_array", True)
-        assert_CAI_type(edge_type_array, "edge_type_array", True)
-        assert_CAI_type(edge_start_time_array, "edge_start_time_array", True)
-        assert_CAI_type(edge_end_time_array, "edge_end_time_array", True)
+        assert_device_accessible(src_or_offset_array, "src_or_offset_array")
+        assert_device_accessible(dst_or_index_array, "dst_or_index_array")
+        assert_device_accessible(vertices_array, "vertices_array", True)
+        assert_device_accessible(weight_array, "weight_array", True)
+        assert_device_accessible(edge_id_array, "edge_id_array", True)
+        assert_device_accessible(edge_type_array, "edge_type_array", True)
+        assert_device_accessible(edge_start_time_array, "edge_start_time_array", True)
+        assert_device_accessible(edge_end_time_array, "edge_end_time_array", True)
 
         # Ensure valid dtypes
         ensure_valid_dtypes(
@@ -450,17 +488,17 @@ cdef class MGGraph(_GPUGraph):
 
         for i in range(num_arrays):
             if do_expensive_check:
-                assert_CAI_type(src_array[i], "src_array")
-                assert_CAI_type(dst_array[i], "dst_array")
-                assert_CAI_type(weight_array[i], "weight_array", True)
-                assert_CAI_type(vertices_array[i], "vertices_array", True)
+                assert_device_accessible(src_array[i], "src_array")
+                assert_device_accessible(dst_array[i], "dst_array")
+                assert_device_accessible(weight_array[i], "weight_array", True)
+                assert_device_accessible(vertices_array[i], "vertices_array", True)
 
-                assert_CAI_type(edge_id_array[i], "edge_id_array", True)
+                assert_device_accessible(edge_id_array[i], "edge_id_array", True)
 
                 if edge_id_array is not None and len(edge_id_array[i]) != len(src_array[i]):
                     raise ValueError('Edge id array must be same length as edgelist')
 
-                assert_CAI_type(edge_type_array[i], "edge_type_array", True)
+                assert_device_accessible(edge_type_array[i], "edge_type_array", True)
                 if edge_type_array[i] is not None and len(edge_type_array[i]) != len(src_array[i]):
                     raise ValueError('Edge type array must be same length as edgelist')
 

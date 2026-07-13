@@ -4,8 +4,6 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
-import numpy as np
-
 from pylibcugraph import GraphProperties, SGGraph
 
 from pylibcugraph._cugraph_c.types cimport (
@@ -40,7 +38,8 @@ from pylibcugraph.graphs cimport (
 )
 from pylibcugraph.utils cimport (
     assert_success,
-    assert_CAI_type,
+    assert_device_accessible,
+    get_c_type_from_py_obj,
     copy_to_cupy_array,
     create_cugraph_type_erased_device_array_view_from_py_obj,
 )
@@ -62,22 +61,22 @@ def _ensure_args(graph, offsets, indices, weights, labels):
                         "a combination of 'offsets', 'indices' and 'weights', not both")
     else:
         if input_type == "csr_arrays":
-            assert_CAI_type(offsets, "offsets")
-            assert_CAI_type(indices, "indices")
-            assert_CAI_type(weights, "weights", True)
+            assert_device_accessible(offsets, "offsets")
+            assert_device_accessible(indices, "indices")
+            assert_device_accessible(weights, "weights", True)
 
     if labels is not None:
-        assert_CAI_type(labels, "labels")
+        assert_device_accessible(labels, "labels")
         if input_type == "csr_arrays":
-            if np.dtype(offsets.dtype) != np.dtype(indices.dtype):
+            if get_c_type_from_py_obj(offsets) != get_c_type_from_py_obj(indices):
                 raise TypeError(
                     "offsets dtype must match indices dtype "
-                    f"(got offsets.dtype={offsets.dtype!r}, indices.dtype={indices.dtype!r})"
+                    "(got different DLPack dtypes)"
                 )
-            if np.dtype(labels.dtype) != np.dtype(indices.dtype):
+            if get_c_type_from_py_obj(labels) != get_c_type_from_py_obj(indices):
                 raise TypeError(
                     "labels dtype must match indices dtype "
-                    f"(got labels.dtype={labels.dtype!r}, indices.dtype={indices.dtype!r})"
+                    "(got different DLPack dtypes)"
                 )
 
     return input_type
@@ -104,19 +103,19 @@ def strongly_connected_components(ResourceHandle resource_handle,
     graph : SGGraph or MGGraph
         The input graph.
 
-    offsets : object supporting a __cuda_array_interface__ interface
+    offsets : device-accessible object supporting DLPack
         Array containing the offsets values of a Compressed Sparse Row matrix
         that represents the graph.
 
-    indices : object supporting a __cuda_array_interface__ interface
+    indices : device-accessible object supporting DLPack
         Array containing the indices values of a Compressed Sparse Row matrix
         that represents the graph.
 
-    weights : object supporting a __cuda_array_interface__ interface
+    weights : device-accessible object supporting DLPack
         Array containing the weights values of a Compressed Sparse Row matrix
         that represents the graph
 
-    labels : optional, object supporting __cuda_array_interface__
+    labels : optional, device-accessible object supporting DLPack
         If provided, component labels are copied into this array; otherwise
         labels are returned in the result tuple.
 

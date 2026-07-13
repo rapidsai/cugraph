@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -31,8 +31,8 @@ from pylibcugraph._cugraph_c.lookup_src_dst cimport (
 )
 from pylibcugraph.utils cimport (
     assert_success,
-    assert_CAI_type,
-    assert_AI_type,
+    assert_device_accessible,
+    assert_host_accessible,
     get_c_type_from_numpy_type,
     create_cugraph_type_erased_device_array_view_from_py_obj
 )

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -28,8 +28,11 @@ from pylibcugraph.resource_handle cimport (
 )
 from pylibcugraph.utils cimport (
     assert_success,
-    assert_CAI_type,
+    assert_device_accessible,
     get_c_type_from_numpy_type,
+    get_c_type_from_py_obj,
+    get_size_from_py_obj,
+    get_data_ptr_from_py_obj,
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
@@ -54,20 +57,20 @@ def create_sampling_result(ResourceHandle resource_handle,
     because SamplingResult instances will be created from a
     cugraph_sample_result_t pointer and not host arrays.
     """
-    assert_CAI_type(device_sources, "device_sources")
-    assert_CAI_type(device_destinations, "device_destinations")
+    assert_device_accessible(device_sources, "device_sources")
+    assert_device_accessible(device_destinations, "device_destinations")
     if device_weights is not None:
-        assert_CAI_type(device_weights, "device_weights")
+        assert_device_accessible(device_weights, "device_weights")
     if device_edge_id is not None:
-        assert_CAI_type(device_edge_id, "device_edge_id")
+        assert_device_accessible(device_edge_id, "device_edge_id")
     if device_edge_type is not None:
-        assert_CAI_type(device_edge_type, "device_edge_type")
+        assert_device_accessible(device_edge_type, "device_edge_type")
     if device_weights is not None:
-        assert_CAI_type(device_weights, "device_weights")
+        assert_device_accessible(device_weights, "device_weights")
     if device_hop is not None:
-        assert_CAI_type(device_hop, "device_hop")
+        assert_device_accessible(device_hop, "device_hop")
     if device_batch_label is not None:
-        assert_CAI_type(device_batch_label, "device_batch_label")
+        assert_device_accessible(device_batch_label, "device_batch_label")
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
@@ -77,45 +80,45 @@ def create_sampling_result(ResourceHandle resource_handle,
     cdef cugraph_error_t* error_ptr
 
     cdef uintptr_t cai_srcs_ptr = \
-        device_sources.__cuda_array_interface__["data"][0]
+        get_data_ptr_from_py_obj(device_sources)
     cdef uintptr_t cai_dsts_ptr = \
-        device_destinations.__cuda_array_interface__["data"][0]
+        get_data_ptr_from_py_obj(device_destinations)
 
     cdef uintptr_t cai_weights_ptr
     if device_weights is not None:
-        cai_weights_ptr = device_weights.__cuda_array_interface__['data'][0]
+        cai_weights_ptr = get_data_ptr_from_py_obj(device_weights)
     cdef uintptr_t cai_edge_ids_ptr
     if device_edge_id is not None:
-        cai_edge_ids_ptr = device_edge_id.__cuda_array_interface__['data'][0]
+        cai_edge_ids_ptr = get_data_ptr_from_py_obj(device_edge_id)
     cdef uintptr_t cai_edge_types_ptr
     if device_edge_type is not None:
-        cai_edge_types_ptr = device_edge_type.__cuda_array_interface__['data'][0]
+        cai_edge_types_ptr = get_data_ptr_from_py_obj(device_edge_type)
     cdef uintptr_t cai_hop_ptr
     if device_hop is not None:
-        cai_hop_ptr = device_hop.__cuda_array_interface__['data'][0]
+        cai_hop_ptr = get_data_ptr_from_py_obj(device_hop)
     cdef uintptr_t cai_batch_id_ptr
     if device_batch_label is not None:
-        cai_batch_id_ptr = device_batch_label.__cuda_array_interface__['data'][0]
+        cai_batch_id_ptr = get_data_ptr_from_py_obj(device_batch_label)
 
     cdef cugraph_type_erased_device_array_view_t* c_srcs_view_ptr = (
         cugraph_type_erased_device_array_view_create(
             <void*>cai_srcs_ptr,
-            len(device_sources),
-            get_c_type_from_numpy_type(device_sources.dtype))
+            get_size_from_py_obj(device_sources),
+            get_c_type_from_py_obj(device_sources))
     )
     cdef cugraph_type_erased_device_array_view_t* c_dsts_view_ptr = (
         cugraph_type_erased_device_array_view_create(
             <void*>cai_dsts_ptr,
-            len(device_destinations),
-            get_c_type_from_numpy_type(device_destinations.dtype))
+            get_size_from_py_obj(device_destinations),
+            get_c_type_from_py_obj(device_destinations))
     )
     cdef cugraph_type_erased_device_array_view_t* c_weight_ptr = <cugraph_type_erased_device_array_view_t*>NULL
     if device_weights is not None:
         c_weight_ptr = (
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_weights_ptr,
-                len(device_weights),
-                get_c_type_from_numpy_type(device_weights.dtype)
+                get_size_from_py_obj(device_weights),
+                get_c_type_from_py_obj(device_weights)
             )
         )
     cdef cugraph_type_erased_device_array_view_t* c_edge_id_ptr = <cugraph_type_erased_device_array_view_t*>NULL
@@ -123,8 +126,8 @@ def create_sampling_result(ResourceHandle resource_handle,
         c_edge_id_ptr = (
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_edge_ids_ptr,
-                len(device_edge_id),
-                get_c_type_from_numpy_type(device_edge_id.dtype)
+                get_size_from_py_obj(device_edge_id),
+                get_c_type_from_py_obj(device_edge_id)
             )
         )
     cdef cugraph_type_erased_device_array_view_t* c_edge_type_ptr = <cugraph_type_erased_device_array_view_t*>NULL
@@ -132,8 +135,8 @@ def create_sampling_result(ResourceHandle resource_handle,
         c_edge_type_ptr = (
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_edge_types_ptr,
-                len(device_edge_type),
-                get_c_type_from_numpy_type(device_edge_type.dtype)
+                get_size_from_py_obj(device_edge_type),
+                get_c_type_from_py_obj(device_edge_type)
             )
         )
 
@@ -142,8 +145,8 @@ def create_sampling_result(ResourceHandle resource_handle,
         c_hop_ptr = (
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_hop_ptr,
-                len(device_hop),
-                get_c_type_from_numpy_type(device_hop.dtype)
+                get_size_from_py_obj(device_hop),
+                get_c_type_from_py_obj(device_hop)
             )
         )
 
@@ -152,8 +155,8 @@ def create_sampling_result(ResourceHandle resource_handle,
         c_label_ptr = (
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_batch_id_ptr,
-                len(device_batch_label),
-                get_c_type_from_numpy_type(device_batch_label.dtype)
+                get_size_from_py_obj(device_batch_label),
+                get_c_type_from_py_obj(device_batch_label)
             )
         )
 

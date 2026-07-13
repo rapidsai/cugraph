@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -41,7 +41,7 @@ from pylibcugraph.graphs cimport (
 from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
-    assert_CAI_type,
+    assert_device_accessible,
     create_cugraph_type_erased_device_array_view_from_py_obj,
 )
 
@@ -99,7 +99,7 @@ def in_degrees(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    assert_CAI_type(source_vertices, "source_vertices", True)
+    assert_device_accessible(source_vertices, "source_vertices", True)
 
     cdef cugraph_type_erased_device_array_view_t* \
         source_vertices_ptr = \
@@ -181,7 +181,7 @@ def out_degrees(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    assert_CAI_type(source_vertices, "source_vertices", True)
+    assert_device_accessible(source_vertices, "source_vertices", True)
 
     cdef cugraph_type_erased_device_array_view_t* \
         source_vertices_ptr = \
@@ -265,7 +265,7 @@ def degrees(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    assert_CAI_type(source_vertices, "source_vertices", True)
+    assert_device_accessible(source_vertices, "source_vertices", True)
 
     cdef cugraph_type_erased_device_array_view_t* \
         source_vertices_ptr = \

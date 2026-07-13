@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -44,8 +44,11 @@ from pylibcugraph.random cimport (
 from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
-    assert_CAI_type,
+    assert_device_accessible,
     get_c_type_from_numpy_type,
+    get_c_type_from_py_obj,
+    get_size_from_py_obj,
+    get_data_ptr_from_py_obj,
 )
 
 
@@ -88,22 +91,22 @@ def biased_random_walks(ResourceHandle resource_handle,
         resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = input_graph.c_graph_ptr
 
-    assert_CAI_type(start_vertices, "start_vertices")
+    assert_device_accessible(start_vertices, "start_vertices")
 
     cdef cugraph_random_walk_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
     cdef uintptr_t cai_start_ptr = \
-        start_vertices.__cuda_array_interface__["data"][0]
+        get_data_ptr_from_py_obj(start_vertices)
 
     cdef cugraph_type_erased_device_array_view_t* weights_ptr
 
     cdef cugraph_type_erased_device_array_view_t* start_ptr = \
         cugraph_type_erased_device_array_view_create(
             <void*>cai_start_ptr,
-            len(start_vertices),
-            get_c_type_from_numpy_type(start_vertices.dtype))
+            get_size_from_py_obj(start_vertices),
+            get_c_type_from_py_obj(start_vertices))
 
     cg_rng_state = CuGraphRandomState(resource_handle, random_state)
 

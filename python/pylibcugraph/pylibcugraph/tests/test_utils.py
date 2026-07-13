@@ -1,9 +1,11 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import types
 
 import pytest
+import cupy as cp
+import numpy as np
 
 
 def test_experimental_warning_wrapper_for_funcs():
@@ -41,3 +43,18 @@ def test_experimental_warning_wrapper_for_unsupported_type():
     mod = types.ModuleType("modname")
     with pytest.raises(TypeError):
         experimental_warning_wrapper(mod)
+
+
+def test_dlpack_memory_accessibility():
+    from pylibcugraph.utils import is_device_accessible, is_host_accessible
+
+    host = np.arange(3)
+    device = cp.arange(3)
+    pinned_memory = cp.cuda.alloc_pinned_memory(host.nbytes)
+    pinned = np.frombuffer(pinned_memory, dtype=host.dtype)
+    assert not is_device_accessible(host)
+    assert is_host_accessible(host)
+    assert is_device_accessible(device)
+    assert not is_host_accessible(device)
+    assert is_device_accessible(pinned)
+    assert is_host_accessible(pinned)
