@@ -110,6 +110,41 @@ def cugraph_call(
     return pos
 
 
+def compute_average_distance_from_center(
+    edgelist_df,
+    vertices,
+    max_iter,
+    barnes_hut_optimize,
+    gravity,
+    random_state,
+):
+    pos = cugraph_call(
+        edgelist_df,
+        max_iter=max_iter,
+        pos_list=None,
+        outbound_attraction_distribution=True,
+        lin_log_mode=False,
+        prevent_overlapping=False,
+        vertex_radius=None,
+        overlap_scaling_ratio=100.0,
+        edge_weight_influence=1.0,
+        jitter_tolerance=1.0,
+        barnes_hut_optimize=barnes_hut_optimize,
+        barnes_hut_theta=0.5,
+        scaling_ratio=2.0,
+        strong_gravity_mode=False,
+        gravity=gravity,
+        vertex_mobility=None,
+        vertex_mass=None,
+        callback=None,
+        vertices=vertices,
+        random_state=random_state,
+    )
+    return (
+        ((pos[["x", "y"]] - pos[["x", "y"]].mean()) ** 2).sum(axis=1) ** 0.5
+    ).mean()
+
+
 DATASETS = [
     (karate, 0.70),
     (polbooks, 0.75),
@@ -461,43 +496,28 @@ def test_force_atlas2_empty(max_iter, barnes_hut_optimize):
     edgelist_df = cudf.DataFrame({"src": [], "dst": [], "wgt": []}, dtype="int32")
     vertices = [0, 1, 2, 3]
 
-    def average_distance_from_center(gravity, random_state):
-        pos = cugraph_call(
-            edgelist_df,
-            max_iter=max_iter,
-            pos_list=None,
-            outbound_attraction_distribution=True,
-            lin_log_mode=False,
-            prevent_overlapping=False,
-            vertex_radius=None,
-            overlap_scaling_ratio=100.0,
-            edge_weight_influence=1.0,
-            jitter_tolerance=1.0,
-            barnes_hut_optimize=barnes_hut_optimize,
-            barnes_hut_theta=0.5,
-            scaling_ratio=2.0,
-            strong_gravity_mode=False,
-            gravity=gravity,
-            vertex_mobility=None,
-            vertex_mass=None,
-            callback=None,
-            vertices=vertices,
-            random_state=random_state,
-        )
-        # Changing gravity should change the distances apart.
-        # Compare average distance from center of mass.
-        return (
-            ((pos[["x", "y"]] - pos[["x", "y"]].mean()) ** 2).sum(axis=1) ** 0.5
-        ).mean()
-
     # FA2 is sensitive to random initialization. Use deterministic seeds and
     # retry a few starts to avoid failing only because of a bad local minimum.
     dist_1 = None
     dist_100 = None
     random_state = None
     for random_state in range(10):
-        dist_1 = average_distance_from_center(gravity=1.0, random_state=random_state)
-        dist_100 = average_distance_from_center(gravity=100.0, random_state=random_state)
+        dist_1 = compute_average_distance_from_center(
+            edgelist_df,
+            vertices,
+            max_iter,
+            barnes_hut_optimize,
+            gravity=1.0,
+            random_state=random_state,
+        )
+        dist_100 = compute_average_distance_from_center(
+            edgelist_df,
+            vertices,
+            max_iter,
+            barnes_hut_optimize,
+            gravity=100.0,
+            random_state=random_state,
+        )
         # Stronger gravity makes vertices closer together.
         if dist_1 > 4 * dist_100:
             break
