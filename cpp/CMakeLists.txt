@@ -181,6 +181,10 @@ set(CUGRAPH_COMMON_DISTRIBUTED_SOURCES
 set(CUGRAPH_COMMON_SAMPLING_SOURCES
     src/sampling/detail/sample_one_property_common_v64_e64.cu
     src/sampling/detail/sample_one_property_common_v32_e32.cu
+    src/sampling/detail/update_visited_utils_common_v32_e32.cu
+    src/sampling/detail/update_visited_utils_common_v64_e64.cu
+    src/sampling/detail/deduplicate_edges_by_minor_common_v32_e32.cu
+    src/sampling/detail/deduplicate_edges_by_minor_common_v64_e64.cu
     src/sampling/detail/shuffle_and_organize_output_common.cu
     src/sampling/detail/remove_visited_vertices_from_frontier_common_v32_e32.cu
     src/sampling/detail/remove_visited_vertices_from_frontier_common_v64_e64.cu
@@ -191,6 +195,8 @@ set(CUGRAPH_COMMON_SAMPLING_SOURCES
 set(CUGRAPH_COMMON_STRUCTURE_SOURCES
     src/structure/renumber_utils_common_v64_e64.cu
     src/structure/renumber_utils_common_v32_e32.cu
+    src/structure/edge_partition_device_view_mask_degrees_common_v32_e32.cu
+    src/structure/edge_partition_device_view_mask_degrees_common_v64_e64.cu
 )
 
 set(CUGRAPH_COMMON_SOURCES
@@ -214,10 +220,6 @@ set(CUGRAPH_MTMG_SOURCES
 set(CUGRAPH_SG_SOURCES
     src/sampling/temporal_sampling_sg_v32_e32.cu
     src/sampling/temporal_sampling_sg_v64_e64.cu
-    src/sampling/detail/update_visited_utils_sg_v32_e32.cu
-    src/sampling/detail/update_visited_utils_sg_v64_e64.cu
-    src/sampling/detail/deduplicate_edges_by_minor_sg_v32_e32.cu
-    src/sampling/detail/deduplicate_edges_by_minor_sg_v64_e64.cu
     src/sampling/detail/gather_sampled_properties_sg_v32_e32.cu
     src/sampling/detail/gather_sampled_properties_sg_v64_e64.cu
     src/sampling/detail/update_temporal_edge_mask_sg_v32_e32.cu
@@ -372,10 +374,6 @@ set(CUGRAPH_SG_SOURCES
 set(CUGRAPH_MG_SOURCES
     src/sampling/temporal_sampling_mg_v32_e32.cu
     src/sampling/temporal_sampling_mg_v64_e64.cu
-    src/sampling/detail/update_visited_utils_mg_v32_e32.cu
-    src/sampling/detail/update_visited_utils_mg_v64_e64.cu
-    src/sampling/detail/deduplicate_edges_by_minor_mg_v32_e32.cu
-    src/sampling/detail/deduplicate_edges_by_minor_mg_v64_e64.cu
     src/sampling/detail/gather_sampled_properties_mg_v32_e32.cu
     src/sampling/detail/gather_sampled_properties_mg_v64_e64.cu
     src/sampling/detail/update_temporal_edge_mask_mg_v32_e32.cu
