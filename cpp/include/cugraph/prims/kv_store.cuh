@@ -9,10 +9,14 @@
 #include <cugraph/prims/detail/optional_dataframe_buffer.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 #include <rmm/mr/polymorphic_allocator.hpp>
 
 #include <cuda/atomic>
@@ -694,7 +698,7 @@ class kv_cuco_store_t {
       // now perform assigns (for k,v pairs that failed to insert)
 
       rmm::device_uvector<size_t> kv_indices(num_keys, stream);
-      thrust::sequence(rmm::exec_policy(), kv_indices.begin(), kv_indices.end(), size_t{0});
+      cugraph::sequence(rmm::exec_policy(), kv_indices.begin(), kv_indices.end(), size_t{0});
       auto pair_first = thrust::make_zip_iterator(store_value_offsets.begin(), kv_indices.begin());
       kv_indices.resize(
         cuda::std::distance(
@@ -708,20 +712,20 @@ class kv_cuco_store_t {
       store_value_offsets.resize(0, stream);
       store_value_offsets.shrink_to_fit(stream);
 
-      cugraph::sort_wrapper(rmm::exec_policy(stream),
-                            kv_indices.begin(),
-                            kv_indices.end(),
-                            [key_first] __device__(auto lhs, auto rhs) {
-                              return *(key_first + lhs) < *(key_first + rhs);
-                            });
+      cugraph::sort(rmm::exec_policy(stream),
+                    kv_indices.begin(),
+                    kv_indices.end(),
+                    [key_first] __device__(auto lhs, auto rhs) {
+                      return *(key_first + lhs) < *(key_first + rhs);
+                    });
       kv_indices.resize(
         cuda::std::distance(kv_indices.begin(),
-                            thrust::unique(rmm::exec_policy(stream),
-                                           kv_indices.begin(),
-                                           kv_indices.end(),
-                                           [key_first] __device__(auto lhs, auto rhs) {
-                                             return *(key_first + lhs) == *(key_first + rhs);
-                                           })),
+                            cugraph::unique(rmm::exec_policy(stream),
+                                            kv_indices.begin(),
+                                            kv_indices.end(),
+                                            [key_first] __device__(auto lhs, auto rhs) {
+                                              return *(key_first + lhs) == *(key_first + rhs);
+                                            })),
         stream);
 
       thrust::for_each(
@@ -805,11 +809,11 @@ class kv_cuco_store_t {
       keys.resize(cuda::std::distance(keys.begin(), std::get<0>(pair_last)), stream);
       indices.resize(keys.size(), stream);
       resize_dataframe_buffer(values, keys.size(), stream);
-      thrust::gather(rmm::exec_policy(stream),
-                     indices.begin(),
-                     indices.end(),
-                     get_optional_dataframe_buffer_begin<value_t>(store_values_),
-                     get_dataframe_buffer_begin(values));
+      cugraph::gather(rmm::exec_policy(stream),
+                      indices.begin(),
+                      indices.end(),
+                      get_optional_dataframe_buffer_begin<value_t>(store_values_),
+                      get_dataframe_buffer_begin(values));
     }
     return std::make_tuple(std::move(keys), std::move(values));
   }

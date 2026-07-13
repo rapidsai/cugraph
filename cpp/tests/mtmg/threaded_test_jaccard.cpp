@@ -18,7 +18,8 @@
 #include <cugraph/mtmg/renumber_map.hpp>
 #include <cugraph/mtmg/resource_manager.hpp>
 #include <cugraph/mtmg/vertex_pair_result.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/util/cudart_utils.hpp>
 
@@ -160,12 +161,12 @@ class Tests_Multithreaded
                d_dst_v.begin(),
                d_dst_v.size(),
                handle.get_stream());
-    cugraph::sort_wrapper(
-      handle.get_thrust_policy(), d_unique_vertices.begin(), d_unique_vertices.end());
-    d_unique_vertices.resize(
-      cugraph::detail::unique_ints(
-        handle, raft::device_span<vertex_t>{d_unique_vertices.data(), d_unique_vertices.size()}),
-      handle.get_stream());
+    cugraph::sort(handle.get_thrust_policy(), d_unique_vertices.begin(), d_unique_vertices.end());
+    d_unique_vertices.resize(cuda::std::distance(d_unique_vertices.begin(),
+                                                 cugraph::unique(handle.get_thrust_policy(),
+                                                                 d_unique_vertices.begin(),
+                                                                 d_unique_vertices.end())),
+                             handle.get_stream());
 
     auto h_src_v         = cugraph::test::to_host(handle, d_src_v);
     auto h_dst_v         = cugraph::test::to_host(handle, d_dst_v);

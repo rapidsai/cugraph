@@ -21,7 +21,11 @@
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/scatter.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
@@ -72,11 +76,11 @@ find_trees_from_2cores(
 
   rmm::device_uvector<vertex_t> parents(mg_graph_view.local_vertex_partition_range_size(),
                                         handle.get_stream());
-  thrust::fill(handle.get_thrust_policy(), parents.begin(), parents.end(), invalid_vertex);
+  cugraph::fill(handle.get_thrust_policy(), parents.begin(), parents.end(), invalid_vertex);
   std::optional<rmm::device_uvector<weight_t>> w_to_parents{std::nullopt};
   if (mg_edge_weight_view) {
     w_to_parents = rmm::device_uvector<weight_t>(parents.size(), handle.get_stream());
-    thrust::fill(
+    cugraph::fill(
       handle.get_thrust_policy(), w_to_parents->begin(), w_to_parents->end(), *invalid_distance);
   }
 
@@ -247,7 +251,7 @@ find_trees_from_2cores(
       weights = std::nullopt;
 
       auto new_reachable_vertices = std::move(srcs);
-      cugraph::sort_wrapper(
+      cugraph::sort(
         handle.get_thrust_policy(), new_reachable_vertices.begin(), new_reachable_vertices.end());
       fill_edge_src_property(handle,
                              tmp_graph_view,
@@ -508,7 +512,7 @@ extract_forest_pruned_graph_and_isolated_trees(
                  mg_isolated_trees_renumber_map.end(),
                  sorted_vertices.begin());
     rmm::device_uvector<vertex_t> indices(sorted_vertices.size(), handle.get_stream());
-    thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
+    cugraph::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
     thrust::sort_by_key(
       handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end(), indices.begin());
     mg_graph_to_isolated_trees_map.resize(mg_renumber_map.size(), handle.get_stream());
@@ -537,7 +541,7 @@ extract_forest_pruned_graph_and_isolated_trees(
                  mg_renumber_map.end(),
                  sorted_vertices.begin());
     indices.resize(sorted_vertices.size(), handle.get_stream());
-    thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
+    cugraph::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
     thrust::sort_by_key(
       handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end(), indices.begin());
     mg_isolated_trees_to_graph_map.resize(mg_isolated_trees_renumber_map.size(),
@@ -570,7 +574,7 @@ extract_forest_pruned_graph_and_isolated_trees(
                  mg_pruned_graph_renumber_map.end(),
                  sorted_vertices.begin());
     rmm::device_uvector<vertex_t> indices(sorted_vertices.size(), handle.get_stream());
-    thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
+    cugraph::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
     thrust::sort_by_key(
       handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end(), indices.begin());
     mg_graph_to_pruned_graph_map.resize(mg_renumber_map.size(), handle.get_stream());
@@ -599,7 +603,7 @@ extract_forest_pruned_graph_and_isolated_trees(
                  mg_renumber_map.end(),
                  sorted_vertices.begin());
     indices.resize(sorted_vertices.size(), handle.get_stream());
-    thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
+    cugraph::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
     thrust::sort_by_key(
       handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end(), indices.begin());
     mg_pruned_graph_to_graph_map.resize(mg_pruned_graph_renumber_map.size(), handle.get_stream());
@@ -879,11 +883,11 @@ void update_unvisited_vertex_distances(
     auto gather_offset_first = cuda::make_transform_iterator(
       remaining_vertices.begin(),
       cugraph::detail::shift_left_t<vertex_t>{local_vertex_partition_range_first});
-    thrust::gather(handle.get_thrust_policy(),
-                   gather_offset_first,
-                   gather_offset_first + remaining_vertices.size(),
-                   parents.begin(),
-                   remaining_vertex_parents.begin());
+    cugraph::gather(handle.get_thrust_policy(),
+                    gather_offset_first,
+                    gather_offset_first + remaining_vertices.size(),
+                    parents.begin(),
+                    remaining_vertex_parents.begin());
     auto remaining_vertex_parent_dists = cugraph::collect_values_for_int_vertices(
       handle,
       remaining_vertex_parents.begin(),
@@ -919,21 +923,21 @@ void update_unvisited_vertex_distances(
                                          // as Graph 500 assumes an undirected graph)
             return cuda::std::get<1>(pair) + w;
           }));
-      thrust::scatter(handle.get_thrust_policy(),
-                      dist_first,
-                      dist_first + (remaining_vertices.size() - new_size),
-                      scatter_offset_first,
-                      mg_distances.begin());
+      cugraph::scatter(handle.get_thrust_policy(),
+                       dist_first,
+                       dist_first + (remaining_vertices.size() - new_size),
+                       scatter_offset_first,
+                       mg_distances.begin());
     } else {  // BFS
       auto dist_first =
         cuda::make_transform_iterator(remaining_vertex_parent_dists.begin() + new_size,
                                       cuda::proclaim_return_type<distance_t>(
                                         [] __device__(auto d) { return d + distance_t{1}; }));
-      thrust::scatter(handle.get_thrust_policy(),
-                      dist_first,
-                      dist_first + (remaining_vertices.size() - new_size),
-                      scatter_offset_first,
-                      mg_distances.begin());
+      cugraph::scatter(handle.get_thrust_policy(),
+                       dist_first,
+                       dist_first + (remaining_vertices.size() - new_size),
+                       scatter_offset_first,
+                       mg_distances.begin());
     }
     remaining_vertices.resize(new_size, handle.get_stream());
   }

@@ -13,6 +13,9 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+
+#include <rmm/exec_policy.hpp>
 
 #include <optional>
 #include <tuple>
@@ -62,10 +65,10 @@ rmm::device_uvector<vertex_t> vertices_in_mis_from_decision_edgelist(
     maximal_independent_moves<vertex_t, edge_t, multi_gpu>(handle, decision_graph_view, rng_state);
 
   rmm::device_uvector<vertex_t> numbering_indices((*renumber_map).size(), handle.get_stream());
-  detail::sequence_fill(handle.get_stream(),
-                        numbering_indices.data(),
-                        numbering_indices.size(),
-                        decision_graph_view.local_vertex_partition_range_first());
+  cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                    numbering_indices.data(),
+                    numbering_indices.data() + numbering_indices.size(),
+                    decision_graph_view.local_vertex_partition_range_first());
 
   relabel<vertex_t, multi_gpu>(
     handle,

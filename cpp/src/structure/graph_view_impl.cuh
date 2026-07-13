@@ -17,7 +17,9 @@
 #include <cugraph/utilities/error_check_utils.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
@@ -100,7 +102,7 @@ rmm::device_uvector<edge_t> compute_major_degrees(
     max_num_local_degrees = std::max(max_num_local_degrees, num_local_degrees);
     if (i == minor_comm_rank) {
       degrees.resize(major_range_vertex_partition_size, handle.get_stream());
-      thrust::fill(
+      cugraph::fill(
         handle.get_thrust_policy(), degrees.begin() + num_local_degrees, degrees.end(), edge_t{0});
     }
   }
@@ -134,16 +136,16 @@ rmm::device_uvector<edge_t> compute_major_degrees(
                         auto local_degree = offsets[i + 1] - offsets[i];
                         if (masks) {
                           local_degree = static_cast<edge_t>(
-                            detail::count_set_bits((*masks).begin(), offsets[i], local_degree));
+                            count_set_bits((*masks).begin(), offsets[i], local_degree));
                         }
                         return local_degree;
                       }));
     if (use_dcs) {
       auto dcs_nzd_vertices = (*edge_partition_dcs_nzd_vertices)[i];
-      thrust::fill(execution_policy,
-                   local_degrees.begin() + (major_hypersparse_first - major_range_first),
-                   local_degrees.begin() + num_local_degrees,
-                   edge_t{0});
+      cugraph::fill(execution_policy,
+                    local_degrees.begin() + (major_hypersparse_first - major_range_first),
+                    local_degrees.begin() + num_local_degrees,
+                    edge_t{0});
       thrust::for_each(
         execution_policy,
         thrust::make_counting_iterator(vertex_t{0}),
@@ -158,7 +160,7 @@ rmm::device_uvector<edge_t> compute_major_degrees(
           auto local_degree = offsets[major_idx + 1] - offsets[major_idx];
           if (masks) {
             local_degree = static_cast<edge_t>(
-              detail::count_set_bits((*masks).begin(), offsets[major_idx], local_degree));
+              count_set_bits((*masks).begin(), offsets[major_idx], local_degree));
           }
           auto v                               = dcs_nzd_vertices[i];
           local_degrees[v - major_range_first] = local_degree;
@@ -194,7 +196,7 @@ rmm::device_uvector<edge_t> compute_major_degrees(
       auto local_degree = offsets[i + 1] - offsets[i];
       if (masks) {
         local_degree =
-          static_cast<edge_t>(detail::count_set_bits((*masks).begin(), offsets[i], local_degree));
+          static_cast<edge_t>(count_set_bits((*masks).begin(), offsets[i], local_degree));
       }
       return local_degree;
     });
@@ -428,13 +430,14 @@ compute_edge_indices_and_edge_partition_offsets(
   auto edge_first = thrust::make_zip_iterator(edge_majors.begin(), edge_minors.begin());
 
   rmm::device_uvector<size_t> edge_indices(edge_majors.size(), handle.get_stream());
-  thrust::sequence(handle.get_thrust_policy(), edge_indices.begin(), edge_indices.end(), size_t{0});
-  cugraph::sort_wrapper(handle.get_thrust_policy(),
-                        edge_indices.begin(),
-                        edge_indices.end(),
-                        [edge_first] __device__(size_t lhs, size_t rhs) {
-                          return *(edge_first + lhs) < *(edge_first + rhs);
-                        });
+  cugraph::sequence(
+    handle.get_thrust_policy(), edge_indices.begin(), edge_indices.end(), size_t{0});
+  cugraph::sort(handle.get_thrust_policy(),
+                edge_indices.begin(),
+                edge_indices.end(),
+                [edge_first] __device__(size_t lhs, size_t rhs) {
+                  return *(edge_first + lhs) < *(edge_first + rhs);
+                });
 
   std::vector<size_t> h_major_range_lasts(graph_view.number_of_local_edge_partitions());
   for (size_t i = 0; i < h_major_range_lasts.size(); ++i) {
@@ -560,7 +563,8 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
     auto value_firsts = (*(this->edge_mask_view())).value_firsts();
     auto edge_counts  = (*(this->edge_mask_view())).edge_counts();
     for (size_t i = 0; i < value_firsts.size(); ++i) {
-      ret += static_cast<edge_t>(detail::count_set_bits(handle, value_firsts[i], edge_counts[i]));
+      ret += static_cast<edge_t>(
+        count_set_bits(handle.get_thrust_policy(), value_firsts[i], edge_counts[i]));
     }
 #if 1  // FIXME: we should add host_allreduce to raft
     ret =
@@ -584,7 +588,8 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
     auto edge_counts  = (*(this->edge_mask_view())).edge_counts();
     assert(value_firsts.size() == 1);
     assert(edge_counts.size() == 1);
-    return static_cast<edge_t>(detail::count_set_bits(handle, value_firsts[0], edge_counts[0]));
+    return static_cast<edge_t>(
+      count_set_bits(handle.get_thrust_policy(), value_firsts[0], edge_counts[0]));
   } else {
     return this->number_of_edges_;
   }
@@ -1013,7 +1018,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
           auto upper_it = thrust::upper_bound(thrust::seq, indices, indices + local_degree, minor);
           auto multiplicity = static_cast<edge_t>(cuda::std::distance(lower_it, upper_it));
           if (edge_partition_e_mask && (multiplicity > 0)) {
-            multiplicity = static_cast<edge_t>(detail::count_set_bits(
+            multiplicity = static_cast<edge_t>(count_set_bits(
               (*edge_partition_e_mask).value_first(),
               static_cast<size_t>(local_edge_offset + cuda::std::distance(indices, lower_it)),
               static_cast<size_t>(multiplicity)));
@@ -1082,7 +1087,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
       auto upper_it     = thrust::upper_bound(thrust::seq, indices, indices + local_degree, minor);
       auto multiplicity = static_cast<edge_t>(cuda::std::distance(lower_it, upper_it));
       if (edge_partition_e_mask && (multiplicity > 0)) {
-        multiplicity = static_cast<edge_t>(detail::count_set_bits(
+        multiplicity = static_cast<edge_t>(count_set_bits(
           (*edge_partition_e_mask).value_first(),
           static_cast<size_t>(local_edge_offset + cuda::std::distance(indices, lower_it)),
           static_cast<size_t>(multiplicity)));

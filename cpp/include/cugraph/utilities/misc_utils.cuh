@@ -5,13 +5,16 @@
 #pragma once
 
 #include <cugraph/export.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
 
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <cuda/atomic>
 #include <cuda/functional>
@@ -52,11 +55,11 @@ std::tuple<std::vector<vertex_t>, std::vector<offset_t>> compute_offset_aligned_
                         search_offset_first + d_chunk_offsets.size(),
                         d_chunk_offsets.begin());
     rmm::device_uvector<offset_t> d_element_offsets(d_chunk_offsets.size(), handle.get_stream());
-    thrust::gather(handle.get_thrust_policy(),
-                   d_chunk_offsets.begin(),
-                   d_chunk_offsets.end(),
-                   offsets.begin(),
-                   d_element_offsets.begin());
+    cugraph::gather(handle.get_thrust_policy(),
+                    d_chunk_offsets.begin(),
+                    d_chunk_offsets.end(),
+                    offsets.begin(),
+                    d_element_offsets.begin());
     std::vector<offset_t> h_element_offsets(num_chunks + 1, offset_t{0});
     h_element_offsets.back() = num_elements;
     raft::update_host(h_element_offsets.data() + 1,
@@ -108,7 +111,7 @@ rmm::device_uvector<idx_t> expand_sparse_offsets(raft::device_span<offset_t cons
   rmm::device_uvector<idx_t> results(num_entries, stream_view);
 
   if (num_entries > 0) {
-    thrust::fill(rmm::exec_policy(stream_view), results.begin(), results.end(), idx_t{0});
+    cugraph::fill(rmm::exec_policy(stream_view), results.begin(), results.end(), idx_t{0});
 
     if (base_idx != idx_t{0}) { raft::update_device(results.data(), &base_idx, 1, stream_view); }
 

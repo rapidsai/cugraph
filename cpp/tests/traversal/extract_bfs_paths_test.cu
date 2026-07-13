@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -14,15 +14,18 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
 
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 #include <rmm/mr/cuda_memory_resource.hpp>
 
 #include <cuda/std/iterator>
+#include <thrust/remove.h>
 
 #include <gtest/gtest.h>
 
@@ -120,8 +123,10 @@ class Tests_ExtractBfsPaths
     {
       constexpr vertex_t invalid_vertex = cugraph::invalid_vertex_id<vertex_t>::value;
       auto local_vertex_first           = vertex_t{0};
-      cugraph::detail::sequence_fill(
-        handle.get_stream(), d_vertices.begin(), d_vertices.size(), local_vertex_first);
+      cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                        d_vertices.begin(),
+                        d_vertices.begin() + d_vertices.size(),
+                        local_vertex_first);
       auto end_iter = thrust::remove_if(
         handle.get_thrust_policy(),
         d_vertices.begin(),

@@ -1,6 +1,6 @@
 # =============================================================================
 # cmake-format: off
-# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 # cmake-format: on
 # =============================================================================
@@ -82,3 +82,8 @@ rapids_cython_create_modules(
   LINKED_LIBRARIES ${linked_libraries}
   ASSOCIATED_TARGETS cugraph
 )
+
+# utils.pyx uses the DLPack interop API and includes dlpack/dlpack.h, which is
+# not provided by an installed libcugraph. Provide the downloaded/located dlpack
+# headers to that module.
+target_include_directories(utils PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>")

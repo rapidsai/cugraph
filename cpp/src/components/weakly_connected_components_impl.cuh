@@ -22,7 +22,10 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -500,15 +503,15 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                                                        GraphViewType::is_multi_gpu>(
           handle, tmp_graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
       }
-      cugraph::sort_wrapper(handle.get_thrust_policy(),
-                            get_dataframe_buffer_begin(edge_buffer),
-                            get_dataframe_buffer_end(edge_buffer));
+      cugraph::sort(handle.get_thrust_policy(),
+                    get_dataframe_buffer_begin(edge_buffer),
+                    get_dataframe_buffer_end(edge_buffer));
       resize_dataframe_buffer(
         edge_buffer,
         cuda::std::distance(get_dataframe_buffer_begin(edge_buffer),
-                            thrust::unique(handle.get_thrust_policy(),
-                                           get_dataframe_buffer_begin(edge_buffer),
-                                           get_dataframe_buffer_end(edge_buffer))),
+                            cugraph::unique(handle.get_thrust_policy(),
+                                            get_dataframe_buffer_begin(edge_buffer),
+                                            get_dataframe_buffer_end(edge_buffer))),
         handle.get_stream());
       auto num_edges = size_dataframe_buffer(edge_buffer);
       num_edge_inserts.set_value_async(num_edges, handle.get_stream());
@@ -710,7 +713,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           next_candidate_offset += num_scanned;
           edge_count += degree_sum;
 
-          cugraph::sort_wrapper(handle.get_thrust_policy(), new_roots.begin(), new_roots.end());
+          cugraph::sort(handle.get_thrust_policy(), new_roots.begin(), new_roots.end());
 
           thrust::for_each(
             handle.get_thrust_policy(),
@@ -732,11 +735,11 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           auto map_first = cuda::make_transform_iterator(
             cuda::std::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
             detail::shift_left_t<vertex_t>{level_graph_view.local_vertex_partition_range_first()});
-          thrust::gather(handle.get_thrust_policy(),
-                         map_first,
-                         map_first + vertex_frontier.bucket(bucket_idx_cur).size(),
-                         level_components,
-                         gathered_level_components.begin());
+          cugraph::gather(handle.get_thrust_policy(),
+                          map_first,
+                          map_first + vertex_frontier.bucket(bucket_idx_cur).size(),
+                          level_components,
+                          gathered_level_components.begin());
           update_edge_dst_property(
             handle,
             level_graph_view,
@@ -828,9 +831,9 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         auto new_num_edge_inserts = num_edge_inserts.value(handle.get_stream());
         if (new_num_edge_inserts > old_num_edge_inserts) {
           auto edge_first = get_dataframe_buffer_begin(edge_buffer);
-          cugraph::sort_wrapper(handle.get_thrust_policy(),
-                                edge_first + old_num_edge_inserts,
-                                edge_first + new_num_edge_inserts);
+          cugraph::sort(handle.get_thrust_policy(),
+                        edge_first + old_num_edge_inserts,
+                        edge_first + new_num_edge_inserts);
           if (old_num_edge_inserts > 0) {
             auto tmp_edge_buffer = allocate_dataframe_buffer<cuda::std::tuple<vertex_t, vertex_t>>(
               new_num_edge_inserts, handle.get_stream());
@@ -844,7 +847,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
             edge_buffer = std::move(tmp_edge_buffer);
           }
           edge_first            = get_dataframe_buffer_begin(edge_buffer);
-          auto unique_edge_last = thrust::unique(
+          auto unique_edge_last = cugraph::unique(
             handle.get_thrust_policy(), edge_first, edge_first + new_num_edge_inserts);
           auto num_unique_edges =
             static_cast<size_t>(cuda::std::distance(edge_first, unique_edge_last));
@@ -910,8 +913,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                             GraphViewType::is_storage_transposed);
         auto edge_first = get_dataframe_buffer_begin(edge_buffer);
         auto edge_last  = get_dataframe_buffer_end(edge_buffer);
-        cugraph::sort_wrapper(handle.get_thrust_policy(), edge_first, edge_last);
-        auto unique_edge_last = thrust::unique(handle.get_thrust_policy(), edge_first, edge_last);
+        cugraph::sort(handle.get_thrust_policy(), edge_first, edge_last);
+        auto unique_edge_last = cugraph::unique(handle.get_thrust_policy(), edge_first, edge_last);
         resize_dataframe_buffer(
           edge_buffer,
           static_cast<size_t>(cuda::std::distance(edge_first, unique_edge_last)),
@@ -982,12 +985,12 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                    current_level_components,
                    current_level_components + current_level_local_vertex_partition_range_size,
                    sorted_unique_keys.begin());
-      cugraph::sort_wrapper(
+      cugraph::sort(
         handle.get_thrust_policy(), sorted_unique_keys.begin(), sorted_unique_keys.end());
       sorted_unique_keys.resize(cuda::std::distance(sorted_unique_keys.begin(),
-                                                    thrust::unique(handle.get_thrust_policy(),
-                                                                   sorted_unique_keys.begin(),
-                                                                   sorted_unique_keys.end())),
+                                                    cugraph::unique(handle.get_thrust_policy(),
+                                                                    sorted_unique_keys.begin(),
+                                                                    sorted_unique_keys.end())),
                                 handle.get_stream());
       auto [unique_keys, values_for_unique_keys] = collect_values_for_unique_keys(
         handle,

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -8,6 +8,7 @@
 
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_generators.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <cuda/std/tuple>
 #include <thrust/execution_policy.h>
@@ -27,13 +28,13 @@ void test_symmetric(std::vector<vertex_t>& h_src_v, std::vector<vertex_t>& h_dst
   std::copy(h_src_v.begin(), h_src_v.end(), reverse_dst_v.begin());
   std::copy(h_dst_v.begin(), h_dst_v.end(), reverse_src_v.begin());
 
-  thrust::sort(thrust::host,
-               thrust::make_zip_iterator(h_src_v.begin(), h_dst_v.begin()),
-               thrust::make_zip_iterator(h_src_v.end(), h_dst_v.end()));
+  cugraph::sort(thrust::host,
+                thrust::make_zip_iterator(h_src_v.begin(), h_dst_v.begin()),
+                thrust::make_zip_iterator(h_src_v.end(), h_dst_v.end()));
 
-  thrust::sort(thrust::host,
-               thrust::make_zip_iterator(reverse_src_v.begin(), reverse_dst_v.begin()),
-               thrust::make_zip_iterator(reverse_src_v.end(), reverse_dst_v.end()));
+  cugraph::sort(thrust::host,
+                thrust::make_zip_iterator(reverse_src_v.begin(), reverse_dst_v.begin()),
+                thrust::make_zip_iterator(reverse_src_v.end(), reverse_dst_v.end()));
 
   EXPECT_EQ(reverse_src_v, h_src_v);
   EXPECT_EQ(reverse_dst_v, h_dst_v);

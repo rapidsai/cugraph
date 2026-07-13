@@ -7,7 +7,10 @@
 
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <rmm/exec_policy.hpp>
 
@@ -45,9 +48,9 @@ cugraph::dataframe_buffer_type_t<value_t> sort(
                cugraph::get_dataframe_buffer_end(values),
                cugraph::get_dataframe_buffer_begin(sorted_values));
 
-  cugraph::sort_wrapper(handle.get_thrust_policy(),
-                        cugraph::get_dataframe_buffer_begin(sorted_values),
-                        cugraph::get_dataframe_buffer_end(sorted_values));
+  cugraph::sort(handle.get_thrust_policy(),
+                cugraph::get_dataframe_buffer_begin(sorted_values),
+                cugraph::get_dataframe_buffer_end(sorted_values));
 
   return sorted_values;
 }
@@ -64,9 +67,9 @@ cugraph::dataframe_buffer_type_t<value_t> sort(raft::handle_t const& handle,
 {
   auto sorted_values = std::move(values);
 
-  cugraph::sort_wrapper(handle.get_thrust_policy(),
-                        cugraph::get_dataframe_buffer_begin(sorted_values),
-                        cugraph::get_dataframe_buffer_end(sorted_values));
+  cugraph::sort(handle.get_thrust_policy(),
+                cugraph::get_dataframe_buffer_begin(sorted_values),
+                cugraph::get_dataframe_buffer_end(sorted_values));
 
   return sorted_values;
 }
@@ -96,7 +99,7 @@ sort(raft::handle_t const& handle,
                input_first,
                input_first + size_dataframe_buffer(first),
                output_first);
-  cugraph::sort_wrapper(
+  cugraph::sort(
     handle.get_thrust_policy(), output_first, output_first + size_dataframe_buffer(sorted_first));
 
   return std::make_tuple(std::move(sorted_first), std::move(sorted_second));
@@ -348,9 +351,9 @@ template <typename value_t>
 cugraph::dataframe_buffer_type_t<value_t> unique(raft::handle_t const& handle,
                                                  cugraph::dataframe_buffer_type_t<value_t>&& values)
 {
-  auto last = thrust::unique(handle.get_thrust_policy(),
-                             cugraph::get_dataframe_buffer_begin(values),
-                             cugraph::get_dataframe_buffer_end(values));
+  auto last = cugraph::unique(handle.get_thrust_policy(),
+                              cugraph::get_dataframe_buffer_begin(values),
+                              cugraph::get_dataframe_buffer_end(values));
   cugraph::resize_dataframe_buffer(
     values,
     cuda::std::distance(cugraph::get_dataframe_buffer_begin(values), last),
@@ -516,7 +519,7 @@ cugraph::dataframe_buffer_type_t<value_t> sequence(raft::handle_t const& handle,
 {
   auto values = cugraph::allocate_dataframe_buffer<value_t>(length, handle.get_stream());
   if (repeat_count == 1) {
-    thrust::sequence(handle.get_thrust_policy(), values.begin(), values.end(), init);
+    cugraph::sequence(handle.get_thrust_policy(), values.begin(), values.end(), init);
   } else {
     thrust::tabulate(handle.get_thrust_policy(),
                      values.begin(),
@@ -616,7 +619,7 @@ void populate_vertex_ids(raft::handle_t const& handle,
                          rmm::device_uvector<vertex_t>& d_vertices_v,
                          vertex_t vertex_id_offset)
 {
-  thrust::sequence(
+  cugraph::sequence(
     handle.get_thrust_policy(), d_vertices_v.begin(), d_vertices_v.end(), vertex_id_offset);
 }
 
@@ -685,7 +688,7 @@ void expand_hypersparse_offsets(raft::handle_t const& handle,
     raft::device_span<offset_t const>(tmp_offsets.data(), tmp_offsets.size()),
     idx_t{0},
     handle.get_stream());
-  thrust::gather(
+  cugraph::gather(
     handle.get_thrust_policy(), tmp.begin(), tmp.end(), nzd_indices.begin(), indices.begin());
 }
 

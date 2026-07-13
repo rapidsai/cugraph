@@ -1,6 +1,6 @@
 #=============================================================================
 # cmake-format: off
-# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 # cmake-format: on
 #
@@ -573,6 +573,15 @@ ConfigureTest(LOOKUP_SRC_DST_TEST lookup/lookup_src_dst_test.cpp)
 # - K-hop Neighbors tests -------------------------------------------------------------------------
 ConfigureTest(K_HOP_NBRS_TEST traversal/k_hop_nbrs_test.cpp)
 
+###################################################################################################
+# - Dynamic graph memory manager tests ------------------------------------------------------------
+ConfigureTest(DYNAMIC_BIT_TREE_TEST dynamic/memory_manager/bit_tree_test.cpp)
+
+ConfigureTest(DYNAMIC_BLOCK_ARRAY_TEST dynamic/memory_manager/block_array_test.cpp)
+
+ConfigureTest(DYNAMIC_BLOCK_ARRAY_MANAGER_TEST
+              dynamic/memory_manager/block_array_manager_test.cpp)
+
 
 ###################################################################################################
 # - install tests ---------------------------------------------------------------------------------
@@ -910,6 +919,7 @@ endif()
 ###################################################################################################
 # - C API tests -----------------------------------------------------------------------------------
 
+ConfigureCTest(CAPI_DLPACK_INTEROP_TEST c_api/dlpack_interop_test.c)
 ConfigureCTest(CAPI_CREATE_GRAPH_TEST c_api/create_graph_test.c)
 ConfigureCTest(CAPI_GENERATE_RMAT_TEST c_api/generate_rmat_test.c)
 ConfigureCTest(CAPI_PAGERANK_TEST c_api/pagerank_test.c)

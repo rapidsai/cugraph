@@ -16,7 +16,9 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/error_check_utils.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -227,14 +229,14 @@ void per_v_pair_transform_minor_nbr_intersection(
                  elem1_first,
                  elem1_first + num_input_pairs,
                  (*sorted_unique_vertices).begin() + num_input_pairs);
-    cugraph::sort_wrapper(handle.get_thrust_policy(),
-                          (*sorted_unique_vertices).begin(),
-                          (*sorted_unique_vertices).end());
+    cugraph::sort(handle.get_thrust_policy(),
+                  (*sorted_unique_vertices).begin(),
+                  (*sorted_unique_vertices).end());
     (*sorted_unique_vertices)
       .resize(cuda::std::distance((*sorted_unique_vertices).begin(),
-                                  thrust::unique(handle.get_thrust_policy(),
-                                                 (*sorted_unique_vertices).begin(),
-                                                 (*sorted_unique_vertices).end())),
+                                  cugraph::unique(handle.get_thrust_policy(),
+                                                  (*sorted_unique_vertices).begin(),
+                                                  (*sorted_unique_vertices).end())),
               handle.get_stream());
 
     property_buffer_for_sorted_unique_vertices = collect_values_for_sorted_unique_int_vertices(
@@ -247,7 +249,7 @@ void per_v_pair_transform_minor_nbr_intersection(
   }
 
   rmm::device_uvector<size_t> vertex_pair_indices(num_input_pairs, handle.get_stream());
-  thrust::sequence(
+  cugraph::sequence(
     handle.get_thrust_policy(), vertex_pair_indices.begin(), vertex_pair_indices.end(), size_t{0});
 
   std::vector<vertex_t> h_edge_partition_major_range_lasts(
@@ -327,12 +329,12 @@ void per_v_pair_transform_minor_nbr_intersection(
     for (size_t j = 0; j < h_chunk_sizes.size(); ++j) {
       auto this_chunk_size = h_chunk_sizes[j];
 
-      cugraph::sort_wrapper(handle.get_thrust_policy(),
-                            chunk_vertex_pair_index_first,
-                            chunk_vertex_pair_index_first + this_chunk_size,
-                            detail::indirection_compare_less_t<VertexPairIterator>{
-                              vertex_pair_first});  // detail::nbr_intersection() requires the input
-                                                    // vertex pairs to be sorted.
+      cugraph::sort(handle.get_thrust_policy(),
+                    chunk_vertex_pair_index_first,
+                    chunk_vertex_pair_index_first + this_chunk_size,
+                    detail::indirection_compare_less_t<VertexPairIterator>{
+                      vertex_pair_first});  // detail::nbr_intersection() requires the input
+                                            // vertex pairs to be sorted.
 
       // FIXME: better restrict detail::nbr_intersection input vertex pairs to a single edge
       // partition? This may provide additional performance improvement opportunities???

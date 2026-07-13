@@ -18,7 +18,7 @@
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/core/handle.hpp>
@@ -182,10 +182,9 @@ extract_induced_subgraphs(
     graph_ids_v = cugraph::detail::device_allgatherv(
       handle, major_comm, raft::device_span<size_t const>(graph_ids_v.data(), graph_ids_v.size()));
 
-    cugraph::sort_wrapper(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(graph_ids_v.begin(), dst_subgraph_vertices_v.begin()),
-      thrust::make_zip_iterator(graph_ids_v.end(), dst_subgraph_vertices_v.end()));
+    cugraph::sort(handle.get_thrust_policy(),
+                  thrust::make_zip_iterator(graph_ids_v.begin(), dst_subgraph_vertices_v.begin()),
+                  thrust::make_zip_iterator(graph_ids_v.end(), dst_subgraph_vertices_v.end()));
 
     dst_subgraph_offsets_v =
       detail::compute_sparse_offsets<size_t>(handle,
@@ -203,10 +202,9 @@ extract_induced_subgraphs(
                subgraph_vertices.data(),
                subgraph_vertices.size(),
                handle.get_stream());
-    cugraph::sort_wrapper(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(graph_ids_v.begin(), dst_subgraph_vertices_v.begin()),
-      thrust::make_zip_iterator(graph_ids_v.end(), dst_subgraph_vertices_v.end()));
+    cugraph::sort(handle.get_thrust_policy(),
+                  thrust::make_zip_iterator(graph_ids_v.begin(), dst_subgraph_vertices_v.begin()),
+                  thrust::make_zip_iterator(graph_ids_v.end(), dst_subgraph_vertices_v.end()));
   }
 
   graph_ids_v.resize(0, handle.get_stream());
@@ -271,12 +269,11 @@ extract_induced_subgraphs(
           dst_subgraph_offsets, dst_subgraph_vertices},
         do_expensive_check);
 
-    cugraph::sort_wrapper(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(
-        subgraph_edge_graph_ids.begin(), edge_majors.begin(), edge_minors.begin()),
-      thrust::make_zip_iterator(
-        subgraph_edge_graph_ids.end(), edge_majors.end(), edge_minors.end()));
+    cugraph::sort(handle.get_thrust_policy(),
+                  thrust::make_zip_iterator(
+                    subgraph_edge_graph_ids.begin(), edge_majors.begin(), edge_minors.begin()),
+                  thrust::make_zip_iterator(
+                    subgraph_edge_graph_ids.end(), edge_majors.end(), edge_minors.end()));
   }
 
   auto subgraph_edge_offsets =
