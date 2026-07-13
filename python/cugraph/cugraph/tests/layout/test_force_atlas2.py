@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import time
@@ -140,9 +140,7 @@ def compute_average_distance_from_center(
         vertices=vertices,
         random_state=random_state,
     )
-    return (
-        ((pos[["x", "y"]] - pos[["x", "y"]].mean()) ** 2).sum(axis=1) ** 0.5
-    ).mean()
+    return (((pos[["x", "y"]] - pos[["x", "y"]].mean()) ** 2).sum(axis=1) ** 0.5).mean()
 
 
 DATASETS = [
