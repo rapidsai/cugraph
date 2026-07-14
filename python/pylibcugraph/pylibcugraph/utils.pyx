@@ -177,6 +177,7 @@ cdef DLTensor* get_dlpack_tensor_from_capsule(
     cdef pylibcugraph_DLManagedTensorVersioned* versioned = NULL
     cdef DLManagedTensor* legacy = NULL
 
+    # Most tensors should be versioned.
     if PyCapsule_IsValid(dlpack_capsule, "dltensor_versioned"):
         versioned = <pylibcugraph_DLManagedTensorVersioned*>PyCapsule_GetPointer(
             dlpack_capsule, "dltensor_versioned"
