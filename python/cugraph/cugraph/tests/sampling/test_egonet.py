@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -122,9 +122,7 @@ def weighted_multi_seed_graph():
         }
     )
     graph = cugraph.Graph()
-    graph.from_cudf_edgelist(
-        df, source="src", destination="dst", edge_attr="weight"
-    )
+    graph.from_cudf_edgelist(df, source="src", destination="dst", edge_attr="weight")
     return graph
 
 
