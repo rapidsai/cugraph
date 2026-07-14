@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -304,10 +304,9 @@ sort_and_reduce_buffer_elements(
         handle.get_thrust_policy(),
         key_first + num_unique_prefix_elements,
         key_first + size_dataframe_buffer(key_buffer),
-        cuda::proclaim_return_type<bool>([invalid_key = *invalid_key] __device__(auto key) {
-          return key == invalid_key;
-        }));
-      valid_size          = static_cast<size_t>(cuda::std::distance(key_first, valid_key_last));
+        cuda::proclaim_return_type<bool>(
+          [invalid_key = *invalid_key] __device__(auto key) { return key == invalid_key; }));
+      valid_size = static_cast<size_t>(cuda::std::distance(key_first, valid_key_last));
     } else {
       auto pair_first      = thrust::make_zip_iterator(get_dataframe_buffer_begin(key_buffer),
                                                   get_dataframe_buffer_begin(payload_buffer));

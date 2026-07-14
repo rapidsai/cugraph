@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "sampling/random_walks_check.hpp"
@@ -87,7 +87,7 @@ void random_walks_validate(
           //    should add a check to verify that degree(src) == 0
           if (d != cugraph::invalid_vertex_id<vertex_t>::value) {
             auto iter = thrust::make_zip_iterator(src, dst);
-            auto pos = thrust::find_if(thrust::seq, iter, iter + num_edges, [s, d](auto edge) {
+            auto pos  = thrust::find_if(thrust::seq, iter, iter + num_edges, [s, d](auto edge) {
               return edge == cuda::std::make_tuple(s, d);
             });
 
@@ -132,7 +132,7 @@ void random_walks_validate(
           //    should add a check to verify that degree(src) == 0
           if (d != cugraph::invalid_vertex_id<vertex_t>::value) {
             auto iter = thrust::make_zip_iterator(src, dst);
-            auto pos = thrust::find_if(thrust::seq, iter, iter + num_edges, [s, d](auto edge) {
+            auto pos  = thrust::find_if(thrust::seq, iter, iter + num_edges, [s, d](auto edge) {
               return edge == cuda::std::make_tuple(s, d);
             });
 
