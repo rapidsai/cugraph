@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # This file test the Renumbering features
@@ -247,3 +247,20 @@ def test_renumber_unrenumber_non_default_vert_names():
     assert sorted(expected_values) == sorted(
         some_result_gdf["vertex"].to_arrow().to_pylist()
     )
+
+
+@pytest.mark.sg
+def test_unrenumber_string_vertex_dtype_is_nullable_string():
+    input_gdf = cudf.DataFrame(
+        {
+            "src": ["a1", "a1", "a2", "a3"],
+            "dst": ["a2", "a3", "a4", "a4"],
+        }
+    )
+
+    _, number_map = NumberMap.renumber(input_gdf, "src", "dst")
+    result_gdf = cudf.DataFrame({"vertex": [0, 1, 2, 3]})
+
+    result_gdf = number_map.unrenumber(result_gdf, "vertex")
+
+    assert str(result_gdf["vertex"].dtype) == "string"

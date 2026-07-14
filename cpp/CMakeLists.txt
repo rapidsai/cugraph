@@ -1,6 +1,6 @@
 #=============================================================================
 # cmake-format: off
-# SPDX-FileCopyrightText: Copyright (c) 2018-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2018-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 # cmake-format: on
 #=============================================================================
@@ -179,6 +179,12 @@ set(CUGRAPH_COMMON_DISTRIBUTED_SOURCES
 )
 
 set(CUGRAPH_COMMON_SAMPLING_SOURCES
+    src/sampling/detail/sample_one_property_common_v64_e64.cu
+    src/sampling/detail/sample_one_property_common_v32_e32.cu
+    src/sampling/detail/update_visited_utils_common_v32_e32.cu
+    src/sampling/detail/update_visited_utils_common_v64_e64.cu
+    src/sampling/detail/deduplicate_edges_by_minor_common_v32_e32.cu
+    src/sampling/detail/deduplicate_edges_by_minor_common_v64_e64.cu
     src/sampling/detail/shuffle_and_organize_output_common.cu
     src/sampling/detail/remove_visited_vertices_from_frontier_common_v32_e32.cu
     src/sampling/detail/remove_visited_vertices_from_frontier_common_v64_e64.cu
@@ -189,6 +195,8 @@ set(CUGRAPH_COMMON_SAMPLING_SOURCES
 set(CUGRAPH_COMMON_STRUCTURE_SOURCES
     src/structure/renumber_utils_common_v64_e64.cu
     src/structure/renumber_utils_common_v32_e32.cu
+    src/structure/edge_partition_device_view_mask_degrees_common_v32_e32.cu
+    src/structure/edge_partition_device_view_mask_degrees_common_v64_e64.cu
 )
 
 set(CUGRAPH_COMMON_SOURCES
@@ -212,10 +220,6 @@ set(CUGRAPH_MTMG_SOURCES
 set(CUGRAPH_SG_SOURCES
     src/sampling/temporal_sampling_sg_v32_e32.cu
     src/sampling/temporal_sampling_sg_v64_e64.cu
-    src/sampling/detail/update_visited_utils_sg_v32_e32.cu
-    src/sampling/detail/update_visited_utils_sg_v64_e64.cu
-    src/sampling/detail/deduplicate_edges_by_minor_sg_v32_e32.cu
-    src/sampling/detail/deduplicate_edges_by_minor_sg_v64_e64.cu
     src/sampling/detail/gather_sampled_properties_sg_v32_e32.cu
     src/sampling/detail/gather_sampled_properties_sg_v64_e64.cu
     src/sampling/detail/update_temporal_edge_mask_sg_v32_e32.cu
@@ -278,8 +282,6 @@ set(CUGRAPH_SG_SOURCES
     src/sampling/detail/gather_one_hop_sg_v64_e64.cu
     src/sampling/detail/sample_edges_sg_v64_e64.cu
     src/sampling/detail/sample_edges_sg_v32_e32.cu
-    src/sampling/detail/temporal_sample_edges_sg_v64_e64.cu
-    src/sampling/detail/temporal_sample_edges_sg_v32_e32.cu
     src/sampling/neighbor_sampling_sg_v32_e32.cu
     src/sampling/neighbor_sampling_sg_v64_e64.cu
     src/sampling/negative_sampling_sg_v32_e32.cu
@@ -372,10 +374,6 @@ set(CUGRAPH_SG_SOURCES
 set(CUGRAPH_MG_SOURCES
     src/sampling/temporal_sampling_mg_v32_e32.cu
     src/sampling/temporal_sampling_mg_v64_e64.cu
-    src/sampling/detail/update_visited_utils_mg_v32_e32.cu
-    src/sampling/detail/update_visited_utils_mg_v64_e64.cu
-    src/sampling/detail/deduplicate_edges_by_minor_mg_v32_e32.cu
-    src/sampling/detail/deduplicate_edges_by_minor_mg_v64_e64.cu
     src/sampling/detail/gather_sampled_properties_mg_v32_e32.cu
     src/sampling/detail/gather_sampled_properties_mg_v64_e64.cu
     src/sampling/detail/update_temporal_edge_mask_mg_v32_e32.cu
@@ -434,8 +432,6 @@ set(CUGRAPH_MG_SOURCES
     src/sampling/detail/gather_one_hop_mg_v64_e64.cu
     src/sampling/detail/sample_edges_mg_v64_e64.cu
     src/sampling/detail/sample_edges_mg_v32_e32.cu
-    src/sampling/detail/temporal_sample_edges_mg_v64_e64.cu
-    src/sampling/detail/temporal_sample_edges_mg_v32_e32.cu
     src/sampling/neighbor_sampling_mg_v32_e32.cu
     src/sampling/neighbor_sampling_mg_v64_e64.cu
     src/sampling/negative_sampling_mg_v32_e32.cu
@@ -644,12 +640,15 @@ target_link_libraries(cugraph_mtmg PRIVATE cugraph_common)
 
 
 
+include(cmake/thirdparty/get_dlpack.cmake)
+
 ################################################################################
 # - C-API library --------------------------------------------------------------
 
 add_library(cugraph_c
         src/c_api/resource_handle.cpp
         src/c_api/array.cpp
+        src/c_api/dlpack_interop.cpp
         src/c_api/degrees.cu
         src/c_api/degrees_result.cpp
         src/c_api/error.cpp
@@ -747,6 +746,13 @@ target_include_directories(cugraph_c
 ################################################################################
 # - C-API link libraries -------------------------------------------------------
 target_link_libraries(cugraph_c PRIVATE cugraph::cugraph cugraph::cugraph_mg)
+
+# dlpack is a header-only dependency of the public cugraph_c/dlpack_interop.h
+# header. Expose its include directory to build-tree consumers (e.g. the C API
+# tests) only; installed consumers obtain dlpack.h from their own environment,
+# so it is intentionally not part of the install/export interface.
+target_include_directories(cugraph_c
+    PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>")
 
 ################################################################################
 # - generate tests -------------------------------------------------------------

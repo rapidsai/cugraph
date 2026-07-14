@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Dependency list for https://github.com/rapidsai/dependency-file-generator
@@ -358,7 +358,7 @@ dependencies:
               use_cuda_wheels: "true"
             packages:
               - &ctk_cu13 cuda-toolkit[cublas,curand,cusolver,cusparse,nvrtc]==13.*
-              - &nvjitlink_cu13 nvidia-nvjitlink>=13.0,<14
+              - &nvjitlink_cu13 nvidia-nvjitlink>=13.3,<14
           # if no matching matrix selectors passed, list the CUDA 13 requirement
           # (just as a source of documentation, as this populates pyproject.toml in source control)
           - matrix:
@@ -378,6 +378,7 @@ dependencies:
           - c-compiler
           - cuda-nvcc
           - cxx-compiler
+          - dlpack
           - openmpi # Required for building cpp-mgtests (multi-GPU tests)
     specific:
       - output_types: [conda]
