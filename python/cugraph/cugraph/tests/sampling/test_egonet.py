@@ -148,12 +148,8 @@ def test_multiple_seed_offsets_partition_output(multi_seed_graph):
     first = edges.iloc[offsets.iloc[0] : offsets.iloc[1]]
     second = edges.iloc[offsets.iloc[1] : offsets.iloc[2]]
 
-    expected_first = cugraph.ego_graph(
-        multi_seed_graph, 0, radius=1
-    ).view_edge_list()
-    expected_second = cugraph.ego_graph(
-        multi_seed_graph, 10, radius=1
-    ).view_edge_list()
+    expected_first = cugraph.ego_graph(multi_seed_graph, 0, radius=1).view_edge_list()
+    expected_second = cugraph.ego_graph(multi_seed_graph, 10, radius=1).view_edge_list()
 
     assert _canonical_edges(first) == _canonical_edges(expected_first)
     assert _canonical_edges(second) == _canonical_edges(expected_second)
