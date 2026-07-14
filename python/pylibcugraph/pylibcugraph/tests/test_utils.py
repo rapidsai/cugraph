@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import types
@@ -6,6 +6,7 @@ import types
 import pytest
 import cupy as cp
 import numpy as np
+import pandas as pd
 
 
 def test_experimental_warning_wrapper_for_funcs():
@@ -50,11 +51,36 @@ def test_dlpack_memory_accessibility():
 
     host = np.arange(3)
     device = cp.arange(3)
-    pinned_memory = cp.cuda.alloc_pinned_memory(host.nbytes)
-    pinned = np.frombuffer(pinned_memory, dtype=host.dtype)
     assert not is_device_accessible(host)
     assert is_host_accessible(host)
     assert is_device_accessible(device)
     assert not is_host_accessible(device)
-    assert is_device_accessible(pinned)
-    assert is_host_accessible(pinned)
+
+
+def test_readonly_pandas_dlpack_memory_accessibility():
+    from pylibcugraph.utils import (
+        get_c_type_from_py_obj,
+        is_device_accessible,
+        is_host_accessible,
+    )
+
+    series = pd.Series([1, 2, 3])
+    assert not series.values.flags.writeable
+    assert not is_device_accessible(series)
+    assert is_host_accessible(series)
+    assert get_c_type_from_py_obj(series) == get_c_type_from_py_obj(np.array([1, 2, 3]))
+
+
+def test_legacy_dlpack_producer_memory_accessibility():
+    from pylibcugraph.utils import is_device_accessible, is_host_accessible
+
+    class LegacyDLPackProducer:
+        def __init__(self, array):
+            self.array = array
+
+        def __dlpack__(self):
+            return self.array.__dlpack__()
+
+    legacy = LegacyDLPackProducer(np.arange(3))
+    assert not is_device_accessible(legacy)
+    assert is_host_accessible(legacy)

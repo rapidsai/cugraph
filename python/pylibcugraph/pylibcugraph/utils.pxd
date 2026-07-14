@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -23,7 +23,7 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.dlpack_interop cimport (
     DLDataType,
-    DLManagedTensor,
+    DLTensor,
 )
 
 
@@ -41,7 +41,7 @@ cdef assert_host_accessible(obj, var_name, allow_None=*)
 
 cdef get_numpy_type_from_c_type(cugraph_data_type_id_t c_type)
 
-cdef DLManagedTensor* get_dlpack_managed_tensor_from_capsule(
+cdef DLTensor* get_dlpack_tensor_from_capsule(
     object dlpack_capsule
 ) except NULL
 
