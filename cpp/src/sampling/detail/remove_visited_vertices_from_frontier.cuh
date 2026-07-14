@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -23,41 +23,109 @@
 namespace cugraph {
 namespace detail {
 
+template <typename time_stamp_t>
+struct min_time_window_end_t {
+  __device__ cuda::std::tuple<time_stamp_t, time_stamp_t> operator()(
+    cuda::std::tuple<time_stamp_t, time_stamp_t> a,
+    cuda::std::tuple<time_stamp_t, time_stamp_t> b) const
+  {
+    return (cuda::std::get<0>(a) <= cuda::std::get<0>(b)) ? a : b;
+  }
+};
+
 template <typename vertex_t, typename label_t, typename time_stamp_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<label_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
            std::optional<rmm::device_uvector<time_stamp_t>>>
 remove_visited_vertices_from_frontier(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& frontier_vertices,
   std::optional<rmm::device_uvector<label_t>>&& frontier_vertex_labels,
   std::optional<rmm::device_uvector<time_stamp_t>>&& frontier_vertex_times,
+  std::optional<rmm::device_uvector<time_stamp_t>>&& frontier_vertex_window_ends,
   raft::device_span<vertex_t const> vertices_used_as_source,
   std::optional<raft::device_span<label_t const>> vertex_labels_used_as_source)
 {
   if (frontier_vertex_times) {
     if (frontier_vertex_labels) {
-      auto sort_iter = thrust::make_zip_iterator(
-        frontier_vertex_labels->begin(), frontier_vertices.begin(), frontier_vertex_times->begin());
+      if (frontier_vertex_window_ends) {
+        auto sort_iter = thrust::make_zip_iterator(frontier_vertex_labels->begin(),
+                                                   frontier_vertices.begin(),
+                                                   frontier_vertex_times->begin(),
+                                                   frontier_vertex_window_ends->begin());
+        cugraph::sort(handle.get_thrust_policy(), sort_iter, sort_iter + frontier_vertices.size());
+
+        auto begin_iter =
+          thrust::make_zip_iterator(frontier_vertex_labels->begin(), frontier_vertices.begin());
+        auto time_window_iter = thrust::make_zip_iterator(frontier_vertex_times->begin(),
+                                                          frontier_vertex_window_ends->begin());
+        auto new_end =
+          thrust::reduce_by_key(handle.get_thrust_policy(),
+                                begin_iter,
+                                begin_iter + frontier_vertices.size(),
+                                time_window_iter,
+                                begin_iter,
+                                time_window_iter,
+                                cuda::std::equal_to<cuda::std::tuple<label_t, vertex_t>>{},
+                                min_time_window_end_t<time_stamp_t>{});
+
+        frontier_vertices.resize(cuda::std::distance(begin_iter, new_end.first),
+                                 handle.get_stream());
+        frontier_vertex_labels->resize(cuda::std::distance(begin_iter, new_end.first),
+                                       handle.get_stream());
+        frontier_vertex_times->resize(cuda::std::distance(time_window_iter, new_end.second),
+                                      handle.get_stream());
+        frontier_vertex_window_ends->resize(cuda::std::distance(time_window_iter, new_end.second),
+                                            handle.get_stream());
+      } else {
+        auto sort_iter = thrust::make_zip_iterator(frontier_vertex_labels->begin(),
+                                                   frontier_vertices.begin(),
+                                                   frontier_vertex_times->begin());
+        cugraph::sort(handle.get_thrust_policy(), sort_iter, sort_iter + frontier_vertices.size());
+
+        auto begin_iter =
+          thrust::make_zip_iterator(frontier_vertex_labels->begin(), frontier_vertices.begin());
+        auto new_end =
+          thrust::reduce_by_key(handle.get_thrust_policy(),
+                                begin_iter,
+                                begin_iter + frontier_vertices.size(),
+                                frontier_vertex_times->begin(),
+                                begin_iter,
+                                frontier_vertex_times->begin(),
+                                cuda::std::equal_to<cuda::std::tuple<label_t, vertex_t>>{},
+                                cuda::minimum<time_stamp_t>{});
+
+        frontier_vertices.resize(cuda::std::distance(begin_iter, new_end.first),
+                                 handle.get_stream());
+        frontier_vertex_labels->resize(cuda::std::distance(begin_iter, new_end.first),
+                                       handle.get_stream());
+        frontier_vertex_times->resize(cuda::std::distance(begin_iter, new_end.first),
+                                      handle.get_stream());
+      }
+    } else if (frontier_vertex_window_ends) {
+      auto sort_iter = thrust::make_zip_iterator(frontier_vertices.begin(),
+                                                 frontier_vertex_times->begin(),
+                                                 frontier_vertex_window_ends->begin());
       cugraph::sort(handle.get_thrust_policy(), sort_iter, sort_iter + frontier_vertices.size());
 
-      auto begin_iter =
-        thrust::make_zip_iterator(frontier_vertex_labels->begin(), frontier_vertices.begin());
-      auto new_end =
-        thrust::reduce_by_key(handle.get_thrust_policy(),
-                              begin_iter,
-                              begin_iter + frontier_vertices.size(),
-                              frontier_vertex_times->begin(),
-                              begin_iter,
-                              frontier_vertex_times->begin(),
-                              cuda::std::equal_to<cuda::std::tuple<label_t, vertex_t>>{},
-                              cuda::minimum<time_stamp_t>{});
+      auto time_window_iter = thrust::make_zip_iterator(frontier_vertex_times->begin(),
+                                                        frontier_vertex_window_ends->begin());
+      auto new_end          = thrust::reduce_by_key(handle.get_thrust_policy(),
+                                           frontier_vertices.begin(),
+                                           frontier_vertices.end(),
+                                           time_window_iter,
+                                           frontier_vertices.begin(),
+                                           time_window_iter,
+                                           cuda::std::equal_to<vertex_t>{},
+                                           min_time_window_end_t<time_stamp_t>{});
 
-      frontier_vertices.resize(cuda::std::distance(begin_iter, new_end.first), handle.get_stream());
-      frontier_vertex_labels->resize(cuda::std::distance(begin_iter, new_end.first),
-                                     handle.get_stream());
-      frontier_vertex_times->resize(cuda::std::distance(begin_iter, new_end.first),
+      frontier_vertices.resize(cuda::std::distance(frontier_vertices.begin(), new_end.first),
+                               handle.get_stream());
+      frontier_vertex_times->resize(cuda::std::distance(time_window_iter, new_end.second),
                                     handle.get_stream());
+      frontier_vertex_window_ends->resize(cuda::std::distance(time_window_iter, new_end.second),
+                                          handle.get_stream());
     } else {
       auto sort_iter =
         thrust::make_zip_iterator(frontier_vertices.begin(), frontier_vertex_times->begin());
@@ -79,26 +147,72 @@ remove_visited_vertices_from_frontier(
     }
   } else {
     if (frontier_vertex_labels) {
+      if (frontier_vertex_window_ends) {
+        auto begin_iter = thrust::make_zip_iterator(frontier_vertices.begin(),
+                                                    frontier_vertex_labels->begin(),
+                                                    frontier_vertex_window_ends->begin());
+        auto new_end    = thrust::remove_if(
+          handle.get_thrust_policy(),
+          begin_iter,
+          begin_iter + frontier_vertices.size(),
+          begin_iter,
+          [a_begin = vertices_used_as_source.begin(),
+           a_end   = vertices_used_as_source.end(),
+           b_begin = vertex_labels_used_as_source->begin(),
+           b_end   = vertex_labels_used_as_source
+                     ->end()] __device__(cuda::std::tuple<vertex_t, label_t, time_stamp_t> tuple) {
+            return thrust::binary_search(
+              thrust::seq,
+              thrust::make_zip_iterator(a_begin, b_begin),
+              thrust::make_zip_iterator(a_end, b_end),
+              cuda::std::make_tuple(cuda::std::get<0>(tuple), cuda::std::get<1>(tuple)));
+          });
+
+        frontier_vertices.resize(cuda::std::distance(begin_iter, new_end), handle.get_stream());
+        frontier_vertex_labels->resize(cuda::std::distance(begin_iter, new_end),
+                                       handle.get_stream());
+        frontier_vertex_window_ends->resize(cuda::std::distance(begin_iter, new_end),
+                                            handle.get_stream());
+      } else {
+        auto begin_iter =
+          thrust::make_zip_iterator(frontier_vertices.begin(), frontier_vertex_labels->begin());
+        auto new_end = thrust::remove_if(
+          handle.get_thrust_policy(),
+          begin_iter,
+          begin_iter + frontier_vertices.size(),
+          begin_iter,
+          [a_begin = vertices_used_as_source.begin(),
+           a_end   = vertices_used_as_source.end(),
+           b_begin = vertex_labels_used_as_source->begin(),
+           b_end   = vertex_labels_used_as_source
+                     ->end()] __device__(cuda::std::tuple<vertex_t, label_t> tuple) {
+            return thrust::binary_search(thrust::seq,
+                                         thrust::make_zip_iterator(a_begin, b_begin),
+                                         thrust::make_zip_iterator(a_end, b_end),
+                                         tuple);
+          });
+
+        frontier_vertices.resize(cuda::std::distance(begin_iter, new_end), handle.get_stream());
+        frontier_vertex_labels->resize(cuda::std::distance(begin_iter, new_end),
+                                       handle.get_stream());
+      }
+    } else if (frontier_vertex_window_ends) {
       auto begin_iter =
-        thrust::make_zip_iterator(frontier_vertices.begin(), frontier_vertex_labels->begin());
+        thrust::make_zip_iterator(frontier_vertices.begin(), frontier_vertex_window_ends->begin());
       auto new_end = thrust::remove_if(
         handle.get_thrust_policy(),
         begin_iter,
         begin_iter + frontier_vertices.size(),
         begin_iter,
         [a_begin = vertices_used_as_source.begin(),
-         a_end   = vertices_used_as_source.end(),
-         b_begin = vertex_labels_used_as_source->begin(),
-         b_end   = vertex_labels_used_as_source
-                   ->end()] __device__(cuda::std::tuple<vertex_t, label_t> tuple) {
-          return thrust::binary_search(thrust::seq,
-                                       thrust::make_zip_iterator(a_begin, b_begin),
-                                       thrust::make_zip_iterator(a_end, b_end),
-                                       tuple);
+         a_end   = vertices_used_as_source
+                   .end()] __device__(cuda::std::tuple<vertex_t, time_stamp_t> tuple) {
+          return thrust::binary_search(thrust::seq, a_begin, a_end, cuda::std::get<0>(tuple));
         });
 
       frontier_vertices.resize(cuda::std::distance(begin_iter, new_end), handle.get_stream());
-      frontier_vertex_labels->resize(cuda::std::distance(begin_iter, new_end), handle.get_stream());
+      frontier_vertex_window_ends->resize(cuda::std::distance(begin_iter, new_end),
+                                          handle.get_stream());
     } else {
       auto new_end =
         thrust::copy_if(handle.get_thrust_policy(),
@@ -116,7 +230,8 @@ remove_visited_vertices_from_frontier(
 
   return std::make_tuple(std::move(frontier_vertices),
                          std::move(frontier_vertex_labels),
-                         std::move(frontier_vertex_times));
+                         std::move(frontier_vertex_times),
+                         std::move(frontier_vertex_window_ends));
 }
 
 }  // namespace detail

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -21,6 +21,7 @@
 #include <cugraph/utilities/assert.cuh>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
 #include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/util/cudart_utils.hpp>
@@ -29,6 +30,7 @@
 #include <thrust/binary_search.h>
 #include <thrust/iterator/zip_iterator.h>
 
+#include <limits>
 #include <variant>
 
 namespace cugraph {
@@ -451,6 +453,7 @@ temporal_gather_one_hop_edgelist(
   std::optional<edge_property_view_t<edge_t, int32_t const*>> edge_type_view,
   raft::device_span<vertex_t const> active_majors,
   raft::device_span<time_stamp_t const> active_major_times,
+  std::optional<raft::device_span<time_stamp_t const>> active_major_window_ends,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::device_span<bool const>> gather_flags,
   temporal_sampling_comparison_t temporal_sampling_comparison,
@@ -470,11 +473,13 @@ temporal_gather_one_hop_edgelist(
   using label_t = int32_t;
 
   // Only used if active_major_labels is set
-  kv_store_t<size_t, cuda::std::tuple<time_stamp_t, label_t>, true> kv_store{handle.get_stream()};
+  kv_store_t<size_t, cuda::std::tuple<time_stamp_t, time_stamp_t, label_t>, true> kv_store{
+    handle.get_stream()};
   std::optional<rmm::device_uvector<size_t>> tmp_positions{std::nullopt};
 
   // Only used if active_major_labels is not set
   std::optional<rmm::device_uvector<time_stamp_t>> tmp_times{std::nullopt};
+  std::optional<rmm::device_uvector<time_stamp_t>> tmp_window_ends{std::nullopt};
 
   // Only used if graph_view is a multi_graph
   arithmetic_device_uvector_t tmp_edge_indices{std::monostate{}};
@@ -516,26 +521,59 @@ temporal_gather_one_hop_edgelist(
                           minor_comm,
                           raft::device_span<time_stamp_t const>{active_major_times.data(),
                                                                 active_major_times.size()});
+      rmm::device_uvector<time_stamp_t> local_window_ends(active_majors.size(),
+                                                          handle.get_stream());
+      if (active_major_window_ends) {
+        raft::copy(local_window_ends.data(),
+                   active_major_window_ends->data(),
+                   active_major_window_ends->size(),
+                   handle.get_stream());
+      } else {
+        cugraph::fill(handle.get_thrust_policy(),
+                      local_window_ends.begin(),
+                      local_window_ends.end(),
+                      std::numeric_limits<time_stamp_t>::max());
+      }
+      auto all_minor_window_ends = device_allgatherv(
+        handle,
+        minor_comm,
+        raft::device_span<time_stamp_t const>{local_window_ends.data(), local_window_ends.size()});
       auto all_minor_labels = device_allgatherv(
         handle,
         minor_comm,
         raft::device_span<label_t const>{active_major_labels->data(), active_major_labels->size()});
 
-      kv_store = kv_store_t<size_t, cuda::std::tuple<time_stamp_t, label_t>, true>(
+      kv_store = kv_store_t<size_t, cuda::std::tuple<time_stamp_t, time_stamp_t, label_t>, true>(
         all_minor_keys.begin(),
         all_minor_keys.end(),
-        thrust::make_zip_iterator(all_minor_times.begin(), all_minor_labels.begin()),
-        cuda::std::make_tuple(time_stamp_t{-1}, label_t{-1}),
+        thrust::make_zip_iterator(
+          all_minor_times.begin(), all_minor_window_ends.begin(), all_minor_labels.begin()),
+        cuda::std::make_tuple(time_stamp_t{-1}, time_stamp_t{-1}, label_t{-1}),
         true,
         handle.get_stream());
 
     } else {
-      kv_store = kv_store_t<size_t, cuda::std::tuple<time_stamp_t, label_t>, true>(
+      rmm::device_uvector<time_stamp_t> local_window_ends(active_majors.size(),
+                                                          handle.get_stream());
+      if (active_major_window_ends) {
+        raft::copy(local_window_ends.data(),
+                   active_major_window_ends->data(),
+                   active_major_window_ends->size(),
+                   handle.get_stream());
+      } else {
+        cugraph::fill(handle.get_thrust_policy(),
+                      local_window_ends.begin(),
+                      local_window_ends.end(),
+                      std::numeric_limits<time_stamp_t>::max());
+      }
+
+      kv_store = kv_store_t<size_t, cuda::std::tuple<time_stamp_t, time_stamp_t, label_t>, true>(
         vertex_label_time_positions.begin(),
         vertex_label_time_positions.end(),
         thrust::make_zip_iterator(active_major_times.begin(),
+                                  local_window_ends.begin(),
                                   active_major_labels->begin()),  // multi_gpu is different
-        cuda::std::make_tuple(time_stamp_t{-1}, label_t{-1}),
+        cuda::std::make_tuple(time_stamp_t{-1}, time_stamp_t{-1}, label_t{-1}),
         true,
         handle.get_stream());
     }
@@ -568,6 +606,10 @@ temporal_gather_one_hop_edgelist(
     }
   } else {
     // Can use time directly
+    if (active_major_window_ends) {
+      tmp_window_ends = rmm::device_uvector<time_stamp_t>(0, handle.get_stream());
+    }
+
     if (graph_view.is_multigraph()) {
       cugraph::edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle,
                                                                                   graph_view);
@@ -582,6 +624,18 @@ temporal_gather_one_hop_edgelist(
                                                       active_majors,
                                                       std::make_optional(active_major_times),
                                                       do_expensive_check);
+      if (active_major_window_ends) {
+        rmm::device_uvector<vertex_t> unused_majors(0, handle.get_stream());
+        rmm::device_uvector<vertex_t> unused_minors(0, handle.get_stream());
+        rmm::device_uvector<edge_t> unused_edge_indices(0, handle.get_stream());
+        std::tie(unused_majors, unused_minors, unused_edge_indices, tmp_window_ends) =
+          simple_gather_one_hop_with_multi_edge_indices(handle,
+                                                        graph_view,
+                                                        multi_index_property.view(),
+                                                        active_majors,
+                                                        active_major_window_ends,
+                                                        do_expensive_check);
+      }
     } else {
       std::tie(result_majors, result_minors, tmp_times) =
         simple_gather_one_hop_without_multi_edge_indices(handle,
@@ -589,6 +643,13 @@ temporal_gather_one_hop_edgelist(
                                                          active_majors,
                                                          std::make_optional(active_major_times),
                                                          do_expensive_check);
+      if (active_major_window_ends) {
+        rmm::device_uvector<vertex_t> unused_majors(0, handle.get_stream());
+        rmm::device_uvector<vertex_t> unused_minors(0, handle.get_stream());
+        std::tie(unused_majors, unused_minors, tmp_window_ends) =
+          simple_gather_one_hop_without_multi_edge_indices(
+            handle, graph_view, active_majors, active_major_window_ends, do_expensive_check);
+      }
     }
   }
 
@@ -638,18 +699,20 @@ temporal_gather_one_hop_edgelist(
              kv_store_view =
                kv_binary_search_store_device_view_t<decltype(kv_store.view())>{
                  kv_store.view()}] __device__(auto index) {
-              auto edge_time = d_tmp[index];
-              auto key_time  = cuda::std::get<0>(kv_store_view.find(d_tmp_positions[index]));
+              auto edge_time  = d_tmp[index];
+              auto key        = kv_store_view.find(d_tmp_positions[index]);
+              auto key_time   = cuda::std::get<0>(key);
+              auto window_end = cuda::std::get<1>(key);
 
               switch (temporal_sampling_comparison) {
                 case temporal_sampling_comparison_t::STRICTLY_INCREASING:
-                  return (edge_time > key_time);
+                  return (edge_time > key_time) && (edge_time <= window_end);
                 case temporal_sampling_comparison_t::MONOTONICALLY_INCREASING:
-                  return (edge_time >= key_time);
+                  return (edge_time >= key_time) && (edge_time <= window_end);
                 case temporal_sampling_comparison_t::STRICTLY_DECREASING:
-                  return (edge_time < key_time);
+                  return (edge_time < key_time) && (edge_time >= window_end);
                 case temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
-                  return (edge_time <= key_time);
+                  return (edge_time <= key_time) && (edge_time >= window_end);
               }
               CUGRAPH_UNREACHABLE("Unsupported temporal sampling comparison");
             },
@@ -658,19 +721,23 @@ temporal_gather_one_hop_edgelist(
             edge_times.size(),
             [temporal_sampling_comparison,
              d_tmp      = edge_times.data(),
-             d_tmp_time = tmp_times->data()] __device__(auto index) {
-              auto edge_time = d_tmp[index];
-              auto key_time  = d_tmp_time[index];
+             d_tmp_time = tmp_times->data(),
+             d_tmp_window_end =
+               tmp_window_ends ? tmp_window_ends->data() : nullptr] __device__(auto index) {
+              auto edge_time  = d_tmp[index];
+              auto key_time   = d_tmp_time[index];
+              auto window_end = d_tmp_window_end ? d_tmp_window_end[index]
+                                                 : std::numeric_limits<time_stamp_t>::max();
 
               switch (temporal_sampling_comparison) {
                 case temporal_sampling_comparison_t::STRICTLY_INCREASING:
-                  return (edge_time > key_time);
+                  return (edge_time > key_time) && (edge_time <= window_end);
                 case temporal_sampling_comparison_t::MONOTONICALLY_INCREASING:
-                  return (edge_time >= key_time);
+                  return (edge_time >= key_time) && (edge_time <= window_end);
                 case temporal_sampling_comparison_t::STRICTLY_DECREASING:
-                  return (edge_time < key_time);
+                  return (edge_time < key_time) && (edge_time >= window_end);
                 case temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
-                  return (edge_time <= key_time);
+                  return (edge_time <= key_time) && (edge_time >= window_end);
               }
               CUGRAPH_UNREACHABLE("Unsupported temporal sampling comparison");
             },
@@ -698,13 +765,18 @@ temporal_gather_one_hop_edgelist(
       *tmp_positions =
         keep_marked_entries(handle, std::move(*tmp_positions), marked_entry_span, keep_count);
     }
+    if (tmp_window_ends) {
+      *tmp_window_ends =
+        keep_marked_entries(handle, std::move(*tmp_window_ends), marked_entry_span, keep_count);
+    }
 
     if (active_major_labels) {
       result_labels = rmm::device_uvector<label_t>(keep_count, handle.get_stream());
       kv_store.view().find(
         tmp_positions->begin(),
         tmp_positions->end(),
-        thrust::make_zip_iterator(thrust::make_discard_iterator(), result_labels->begin()),
+        thrust::make_zip_iterator(
+          thrust::make_discard_iterator(), thrust::make_discard_iterator(), result_labels->begin()),
         handle.get_stream());
     }
   }

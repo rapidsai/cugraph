@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -458,7 +458,8 @@ neighbor_sample_impl(raft::handle_t const& handle,
       }
     }
 
-    std::tie(frontier_vertices, frontier_vertex_labels, std::ignore, vertex_used_as_source) =
+    std::tie(
+      frontier_vertices, frontier_vertex_labels, std::ignore, std::ignore, vertex_used_as_source) =
       prepare_next_frontier(
         handle,
         hop == 0
@@ -470,6 +471,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
                                                                 frontier_vertex_labels->size()))
           : std::nullopt,
         std::optional<raft::device_span<time_stamp_t const>>{std::nullopt},
+        std::optional<raft::device_span<time_stamp_t const>>{std::nullopt},
         raft::host_span<raft::device_span<vertex_t const>>{next_frontier_vertex_spans.data(),
                                                            next_frontier_vertex_spans.size()},
         next_frontier_vertex_label_spans
@@ -480,6 +482,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
           ? std::make_optional(raft::host_span<raft::device_span<time_stamp_t const>>{
               next_frontier_vertex_time_spans->data(), next_frontier_vertex_time_spans->size()})
           : std::nullopt,
+        std::optional<raft::host_span<raft::device_span<time_stamp_t const>>>{std::nullopt},
         std::move(vertex_used_as_source),
         graph_view.vertex_partition_range_lasts(),
         sampling_flags.prior_sources_behavior,

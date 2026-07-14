@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -146,6 +146,7 @@ int generic_uniform_temporal_neighbor_sample_test(
                                                                   graph,
                                                                   "edge_start_time",
                                                                   d_start_view,
+                                                                  NULL,
                                                                   NULL,
                                                                   d_start_label_offsets_view,
                                                                   h_fan_out_view,

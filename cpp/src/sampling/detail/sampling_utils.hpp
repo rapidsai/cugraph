@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -151,6 +151,7 @@ temporal_gather_one_hop_edgelist(
   std::optional<edge_property_view_t<edge_t, int32_t const*>> edge_type_view,
   raft::device_span<vertex_t const> active_majors,
   raft::device_span<time_stamp_t const> active_major_times,
+  std::optional<raft::device_span<time_stamp_t const>> active_major_window_ends,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::device_span<bool const>> gather_flags,
   temporal_sampling_comparison_t temporal_sampling_comparison,
@@ -240,6 +241,7 @@ temporal_sample_edges(raft::handle_t const& handle,
                       std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
                       raft::device_span<vertex_t const> active_majors,
                       raft::device_span<time_stamp_t const> active_major_times,
+                      std::optional<raft::device_span<time_stamp_t const>> active_major_window_ends,
                       std::optional<raft::device_span<int32_t const>> active_major_labels,
                       raft::host_span<size_t const> Ks,
                       bool with_replacement,
@@ -259,9 +261,11 @@ temporal_sample_edges(raft::handle_t const& handle,
  * @param sampled_src_vertices The source vertices for the current frontier
  * @param sampled_src_vertex_labels Optional labels for the vertices for the current frontier
  * @param sampled_src_vertex_times Optional times for the vertices for the current frontier
+ * @param sampled_src_vertex_window_ends Optional window end times for the current frontier
  * @param sampled_dst_vertices Vertices for the next frontier
  * @param sampled_dst_vertex_labels Optional labels for the next frontier
  * @param sampled_dst_vertex_times Optional times for the next frontier
+ * @param sampled_dst_vertex_window_end_spans Optional window end times for the next frontier
  * @param vertex_used_as_source Optional. If specified then we want to exclude vertices that
  * were previously used as sources.  These vertices (and optional labels and times) will be
  * updated based on the contents of sampled_src_vertices / sampled_src_vertex_labels /
@@ -275,12 +279,13 @@ temporal_sample_edges(raft::handle_t const& handle,
  `true`).
  *
  * @return A tuple of device vectors containing the vertices for the next frontier expansion and
- *  optional labels and times associated with the vertices, along with the updated value for
- *  @p vertex_used_as_sources
+ *  optional labels and times associated with the vertices, optional window end times, along with
+ *  the updated value for @p vertex_used_as_sources
  */
 template <typename vertex_t, typename label_t, typename time_stamp_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<label_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
            std::optional<rmm::device_uvector<time_stamp_t>>,
            std::optional<std::tuple<rmm::device_uvector<vertex_t>,
                                     std::optional<rmm::device_uvector<label_t>>,
@@ -290,9 +295,12 @@ prepare_next_frontier(
   raft::device_span<vertex_t const> sampled_src_vertices,
   std::optional<raft::device_span<label_t const>> sampled_src_vertex_labels,
   std::optional<raft::device_span<time_stamp_t const>> sampled_src_vertex_times,
+  std::optional<raft::device_span<time_stamp_t const>> sampled_src_vertex_window_ends,
   raft::host_span<raft::device_span<vertex_t const>> sampled_dst_vertices,
   std::optional<raft::host_span<raft::device_span<label_t const>>> sampled_dst_vertex_labels,
   std::optional<raft::host_span<raft::device_span<time_stamp_t const>>> sampled_dst_vertex_times,
+  std::optional<raft::host_span<raft::device_span<time_stamp_t const>>>
+    sampled_dst_vertex_window_end_spans,
   std::optional<std::tuple<rmm::device_uvector<vertex_t>,
                            std::optional<rmm::device_uvector<label_t>>,
                            std::optional<rmm::device_uvector<time_stamp_t>>>>&&
@@ -326,12 +334,14 @@ prepare_next_frontier(
 template <typename vertex_t, typename label_t, typename time_stamp_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<label_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
            std::optional<rmm::device_uvector<time_stamp_t>>>
 remove_visited_vertices_from_frontier(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& frontier_vertices,
   std::optional<rmm::device_uvector<label_t>>&& frontier_vertex_labels,
   std::optional<rmm::device_uvector<time_stamp_t>>&& frontier_vertex_times,
+  std::optional<rmm::device_uvector<time_stamp_t>>&& frontier_vertex_window_ends,
   raft::device_span<vertex_t const> vertices_used_as_source,
   std::optional<raft::device_span<label_t const>> vertex_labels_used_as_source);
 
@@ -412,23 +422,29 @@ rmm::device_uvector<int32_t> flatten_label_map(
  * @param vertex_times Device span identifying the time associated with each vertex in the frontier
  * @param vertex_labels Device span identifying the optional vertex label associated with each
  * vertex in the frontier
+ * @param vertex_window_ends Optional device span identifying the end of the time window associated
+ * with each vertex in the frontier
  *
  * @returns Tuple containing: device vector of vertices that appear only once in the frontier, times
- * associated with those vertices and optional labels associated with those vertices, vertices that
- * appear multiple times in the frontier, times associated with those vertices and optional labels
- * associated with those vertices.
+ * associated with those vertices, optional labels and optional window ends associated with those
+ * vertices, vertices that appear multiple times in the frontier, times associated with those
+ * vertices and optional labels and optional window ends associated with those vertices.
  */
 template <typename vertex_t, typename time_stamp_t, typename label_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<time_stamp_t>,
            std::optional<rmm::device_uvector<label_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
            rmm::device_uvector<vertex_t>,
            rmm::device_uvector<time_stamp_t>,
-           std::optional<rmm::device_uvector<label_t>>>
-temporal_partition_vertices(raft::handle_t const& handle,
-                            raft::device_span<vertex_t const> vertices,
-                            raft::device_span<time_stamp_t const> vertex_times,
-                            std::optional<raft::device_span<label_t const>> vertex_labels);
+           std::optional<rmm::device_uvector<label_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>>
+temporal_partition_vertices(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> vertices,
+  raft::device_span<time_stamp_t const> vertex_times,
+  std::optional<raft::device_span<label_t const>> vertex_labels,
+  std::optional<raft::device_span<time_stamp_t const>> vertex_window_ends);
 
 /**
  * @brief   Updated temporal edge mask
@@ -447,6 +463,8 @@ temporal_partition_vertices(raft::handle_t const& handle,
  * @param edge_start_time_view Object holding edge start times for @p graph_view.
  * @param vertices Device span identifying the vertices in the frontier
  * @param vertex_times Device span identifying the time associated with each vertex in the frontier
+ * @param vertex_window_ends Optional device span identifying the end of the time window associated
+ * with each vertex in the frontier
  * @param edge_time_mask_view Edge property view for bit mask.  Will be updated by this call.  Bit
  * will be set to 1 if an edge should be considered and 0 if not.
  * @param temporal_sampling_comparison Temporal sampling comparison type
@@ -458,6 +476,7 @@ void update_temporal_edge_mask(
   edge_property_view_t<edge_t, time_stamp_t const*> edge_start_time_view,
   raft::device_span<vertex_t const> vertices,
   raft::device_span<time_stamp_t const> vertex_times,
+  std::optional<raft::device_span<time_stamp_t const>> vertex_window_ends,
   edge_property_view_t<edge_t, uint32_t*, bool> edge_time_mask_view,
   temporal_sampling_comparison_t temporal_sampling_comparison);
 

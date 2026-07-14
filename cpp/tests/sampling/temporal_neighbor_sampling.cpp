@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -226,6 +226,7 @@ class Tests_Temporal_Neighbor_Sampling
           starting_vertex_times ? std::make_optional(raft::device_span<time_stamp_t const>{
                                     starting_vertex_times->data(), starting_vertex_times->size()})
                                 : std::nullopt,
+          std::optional<raft::device_span<time_stamp_t const>>{std::nullopt},
           batch_number ? std::make_optional(raft::device_span<int32_t const>{batch_number->data(),
                                                                              batch_number->size()})
                        : std::nullopt,
@@ -256,6 +257,7 @@ class Tests_Temporal_Neighbor_Sampling
           starting_vertex_times ? std::make_optional(raft::device_span<time_stamp_t const>{
                                     starting_vertex_times->data(), starting_vertex_times->size()})
                                 : std::nullopt,
+          std::optional<raft::device_span<time_stamp_t const>>{std::nullopt},
           batch_number ? std::make_optional(raft::device_span<int32_t const>{batch_number->data(),
                                                                              batch_number->size()})
                        : std::nullopt,

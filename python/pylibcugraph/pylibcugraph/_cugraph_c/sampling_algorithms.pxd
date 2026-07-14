@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -155,6 +155,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
             const char* temporal_property_name,
             const cugraph_type_erased_device_array_view_t* start_vertices,
             const cugraph_type_erased_device_array_view_t* starting_vertex_times,
+            const cugraph_type_erased_device_array_view_t* starting_vertex_end_times,
             const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
             const cugraph_type_erased_host_array_view_t* fan_out,
             const cugraph_sampling_options_t* sampling_options,
@@ -172,6 +173,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
             const cugraph_edge_property_view_t* edge_biases,
             const cugraph_type_erased_device_array_view_t* start_vertices,
             const cugraph_type_erased_device_array_view_t* starting_vertex_times,
+            const cugraph_type_erased_device_array_view_t* starting_vertex_end_times,
             const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
             const cugraph_type_erased_host_array_view_t* fan_out,
             const cugraph_sampling_options_t* sampling_options,
@@ -188,6 +190,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
             const char* temporal_property_name,
             const cugraph_type_erased_device_array_view_t* start_vertices,
             const cugraph_type_erased_device_array_view_t* starting_vertex_times,
+            const cugraph_type_erased_device_array_view_t* starting_vertex_end_times,
             const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
             const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
             const cugraph_type_erased_host_array_view_t* fan_out,
@@ -207,6 +210,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
             const cugraph_edge_property_view_t* edge_biases,
             const cugraph_type_erased_device_array_view_t* start_vertices,
             const cugraph_type_erased_device_array_view_t* starting_vertex_times,
+            const cugraph_type_erased_device_array_view_t* starting_vertex_end_times,
             const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
             const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
             const cugraph_type_erased_host_array_view_t* fan_out,

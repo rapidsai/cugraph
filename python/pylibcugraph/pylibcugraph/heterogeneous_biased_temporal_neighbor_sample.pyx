@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -434,6 +434,7 @@ def heterogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle
         <cugraph_edge_property_view_t*>NULL, # FIXME: Add support for biased neighbor sampling
         start_vertex_list_ptr,
         starting_vertex_times_ptr,
+        <cugraph_type_erased_device_array_view_t*>NULL,
         starting_vertex_label_offsets_ptr,
         vertex_type_offsets_ptr,
         fan_out_ptr,

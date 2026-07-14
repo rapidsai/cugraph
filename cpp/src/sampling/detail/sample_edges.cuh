@@ -127,6 +127,7 @@ temporal_sample_edges(raft::handle_t const& handle,
                       std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
                       raft::device_span<vertex_t const> active_majors,
                       raft::device_span<time_stamp_t const> active_major_times,
+                      std::optional<raft::device_span<time_stamp_t const>> active_major_window_ends,
                       std::optional<raft::device_span<int32_t const>> active_major_labels,
                       raft::host_span<size_t const> Ks,
                       bool with_replacement,
@@ -171,6 +172,9 @@ temporal_sample_edges(raft::handle_t const& handle,
                                         Ks,
                                         with_replacement,
                                         active_major_labels,
+                                        active_majors,
+                                        active_major_times,
+                                        active_major_window_ends,
                                         temporal_sampling_comparison);
 
   } else {
@@ -186,6 +190,9 @@ temporal_sample_edges(raft::handle_t const& handle,
                                         Ks,
                                         with_replacement,
                                         active_major_labels,
+                                        active_majors,
+                                        active_major_times,
+                                        active_major_window_ends,
                                         temporal_sampling_comparison);
   }
 

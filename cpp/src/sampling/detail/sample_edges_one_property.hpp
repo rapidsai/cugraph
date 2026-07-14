@@ -114,6 +114,9 @@ temporal_sample_with_one_property(
   raft::host_span<size_t const> Ks,
   bool with_replacement,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
+  raft::device_span<vertex_t const> active_majors,
+  raft::device_span<time_stamp_t const> active_major_times,
+  std::optional<raft::device_span<time_stamp_t const>> active_major_window_ends,
   temporal_sampling_comparison_t temporal_sampling_comparison);
 
 }  // namespace detail

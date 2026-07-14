@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -448,8 +448,13 @@ heterogeneous_biased_neighbor_sample(
  * @param edge_end_time_view Optional view object holding edge end times for @p graph_view.
  * @param starting_vertices Device span of starting vertex IDs for the sampling.
  * In a multi-gpu context the starting vertices should be local to this GPU.
- * @param starting_vertex_times Optional device span of times associated with each starting
- * vertex for the sampling.
+ * @param starting_vertex_times Optional device span of start times defining the lower bound of the
+ * time window for each starting vertex. When specified with @p starting_vertex_end_times, must be
+ * less than or equal to the corresponding end time. For increasing walks the frontier begins at
+ * this time; for decreasing walks the frontier begins at @p starting_vertex_end_times.
+ * @param starting_vertex_end_times Optional device span of end times defining the upper bound of
+ * the time window for each starting vertex. Edge start times must fall within
+ * [@p starting_vertex_times, @p starting_vertex_end_times] when both bounds are specified.
  * @param starting_vertex_labels Optional device span of labels associated with each starting
  * vertex for the sampling.
  * @param label_to_output_comm_rank Optional device span identifying which rank should get sampling
@@ -490,6 +495,7 @@ homogeneous_uniform_temporal_neighbor_sample(
   std::optional<edge_property_view_t<edge_t, time_stamp_t const*>> edge_end_time_view,
   raft::device_span<vertex_t const> starting_vertices,
   std::optional<raft::device_span<time_stamp_t const>> starting_vertex_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_end_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -540,8 +546,13 @@ homogeneous_uniform_temporal_neighbor_sample(
  * @param edge_end_time_view Optional view object holding edge end times for @p graph_view.
  * @param starting_vertices Device span of starting vertex IDs for the sampling.
  * In a multi-gpu context the starting vertices should be local to this GPU.
- * @param starting_vertex_times Optional device span of times associated with each starting
- * vertex for the sampling.
+ * @param starting_vertex_times Optional device span of start times defining the lower bound of the
+ * time window for each starting vertex. When specified with @p starting_vertex_end_times, must be
+ * less than or equal to the corresponding end time. For increasing walks the frontier begins at
+ * this time; for decreasing walks the frontier begins at @p starting_vertex_end_times.
+ * @param starting_vertex_end_times Optional device span of end times defining the upper bound of
+ * the time window for each starting vertex. Edge start times must fall within
+ * [@p starting_vertex_times, @p starting_vertex_end_times] when both bounds are specified.
  * @param starting_vertex_labels Optional device span of labels associated with each starting
  * vertex for the sampling.
  * @param label_to_output_comm_rank Optional device span identifying which rank should get sampling
@@ -585,6 +596,7 @@ heterogeneous_uniform_temporal_neighbor_sample(
   std::optional<edge_property_view_t<edge_t, time_stamp_t const*>> edge_end_time_view,
   raft::device_span<vertex_t const> starting_vertices,
   std::optional<raft::device_span<time_stamp_t const>> starting_vertex_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_end_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -640,8 +652,13 @@ heterogeneous_uniform_temporal_neighbor_sample(
  * corresponding edge can never be selected.
  * @param starting_vertices Device span of starting vertex IDs for the sampling.
  * In a multi-gpu context the starting vertices should be local to this GPU.
- * @param starting_vertex_times Optional device span of times associated with each starting
- * vertex for the sampling.
+ * @param starting_vertex_times Optional device span of start times defining the lower bound of the
+ * time window for each starting vertex. When specified with @p starting_vertex_end_times, must be
+ * less than or equal to the corresponding end time. For increasing walks the frontier begins at
+ * this time; for decreasing walks the frontier begins at @p starting_vertex_end_times.
+ * @param starting_vertex_end_times Optional device span of end times defining the upper bound of
+ * the time window for each starting vertex. Edge start times must fall within
+ * [@p starting_vertex_times, @p starting_vertex_end_times] when both bounds are specified.
  * @param starting_vertex_labels Optional device span of labels associated with each starting
  * vertex for the sampling.
  * @param label_to_output_comm_rank Optional device span identifying which rank should get sampling
@@ -684,6 +701,7 @@ homogeneous_biased_temporal_neighbor_sample(
   edge_property_view_t<edge_t, bias_t const*> edge_bias_view,
   raft::device_span<vertex_t const> starting_vertices,
   std::optional<raft::device_span<time_stamp_t const>> starting_vertex_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_end_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -739,8 +757,13 @@ homogeneous_biased_temporal_neighbor_sample(
  * corresponding edge can never be selected.
  * @param starting_vertices Device span of starting vertex IDs for the sampling.
  * In a multi-gpu context the starting vertices should be local to this GPU.
- * @param starting_vertex_times Optional device span of times associated with each starting
- * vertex for the sampling.
+ * @param starting_vertex_times Optional device span of start times defining the lower bound of the
+ * time window for each starting vertex. When specified with @p starting_vertex_end_times, must be
+ * less than or equal to the corresponding end time. For increasing walks the frontier begins at
+ * this time; for decreasing walks the frontier begins at @p starting_vertex_end_times.
+ * @param starting_vertex_end_times Optional device span of end times defining the upper bound of
+ * the time window for each starting vertex. Edge start times must fall within
+ * [@p starting_vertex_times, @p starting_vertex_end_times] when both bounds are specified.
  * @param starting_vertex_labels Optional device span of labels associated with each starting
  * vertex for the sampling.
  * @param label_to_output_comm_rank Optional device span identifying which rank should get sampling
@@ -786,6 +809,7 @@ heterogeneous_biased_temporal_neighbor_sample(
   edge_property_view_t<edge_t, bias_t const*> edge_bias_view,
   raft::device_span<vertex_t const> starting_vertices,
   std::optional<raft::device_span<time_stamp_t const>> starting_vertex_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_end_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
