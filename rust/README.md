@@ -5,6 +5,13 @@ This folder contains a minimal Rust setup to generate FFI bindings for
 
 It is intentionally low-level and does not provide a high-level Rust wrapper.
 
+## Not a library
+This collection of code provides C API headers and illustrative examples for users seeking to take advantage of the performance capabilities of GPU-accelerated cuGraph. It is not intended to serve as a standalone library; rather, it comprises components that developers may incorporate into their own codebases.
+This code is provided on an “as is” basis and should be regarded as a foundation for further development, adaptation, and customization.
+
+
+
+
 ## What this provides
 
 - `bindgen`-based generation from headers under `cpp/include/cugraph_c`
