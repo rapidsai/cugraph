@@ -9,7 +9,7 @@
 
 #include <stdio.h>
 
-static int check_conversion(DLDataType dlpack_dtype,
+static int check_conversion(cugraph_dlpack_data_type_t dlpack_dtype,
                             cugraph_data_type_id_t expected_dtype,
                             cugraph_error_code_t expected_code)
 {
@@ -43,53 +43,82 @@ int test_dlpack_interop_conversions()
   int test_ret_value = 0;
 
   TEST_ASSERT(test_ret_value,
-              check_conversion((DLDataType){kDLInt, 8, 1}, INT8, CUGRAPH_SUCCESS) == 0,
+              check_conversion((cugraph_dlpack_data_type_t){CUGRAPH_DL_DATA_TYPE_CODE_INT, 8, 1},
+                               INT8,
+                               CUGRAPH_SUCCESS) == 0,
               "INT8 conversion failed");
   TEST_ASSERT(test_ret_value,
-              check_conversion((DLDataType){kDLInt, 16, 1}, INT16, CUGRAPH_SUCCESS) == 0,
+              check_conversion((cugraph_dlpack_data_type_t){CUGRAPH_DL_DATA_TYPE_CODE_INT, 16, 1},
+                               INT16,
+                               CUGRAPH_SUCCESS) == 0,
               "INT16 conversion failed");
   TEST_ASSERT(test_ret_value,
-              check_conversion((DLDataType){kDLInt, 32, 1}, INT32, CUGRAPH_SUCCESS) == 0,
+              check_conversion((cugraph_dlpack_data_type_t){CUGRAPH_DL_DATA_TYPE_CODE_INT, 32, 1},
+                               INT32,
+                               CUGRAPH_SUCCESS) == 0,
               "INT32 conversion failed");
   TEST_ASSERT(test_ret_value,
-              check_conversion((DLDataType){kDLInt, 64, 1}, INT64, CUGRAPH_SUCCESS) == 0,
+              check_conversion((cugraph_dlpack_data_type_t){CUGRAPH_DL_DATA_TYPE_CODE_INT, 64, 1},
+                               INT64,
+                               CUGRAPH_SUCCESS) == 0,
               "INT64 conversion failed");
   TEST_ASSERT(test_ret_value,
-              check_conversion((DLDataType){kDLUInt, 8, 1}, UINT8, CUGRAPH_SUCCESS) == 0,
+              check_conversion((cugraph_dlpack_data_type_t){CUGRAPH_DL_DATA_TYPE_CODE_UINT, 8, 1},
+                               UINT8,
+                               CUGRAPH_SUCCESS) == 0,
               "UINT8 conversion failed");
   TEST_ASSERT(test_ret_value,
-              check_conversion((DLDataType){kDLUInt, 16, 1}, UINT16, CUGRAPH_SUCCESS) == 0,
+              check_conversion((cugraph_dlpack_data_type_t){CUGRAPH_DL_DATA_TYPE_CODE_UINT, 16, 1},
+                               UINT16,
+                               CUGRAPH_SUCCESS) == 0,
               "UINT16 conversion failed");
   TEST_ASSERT(test_ret_value,
-              check_conversion((DLDataType){kDLUInt, 32, 1}, UINT32, CUGRAPH_SUCCESS) == 0,
+              check_conversion((cugraph_dlpack_data_type_t){CUGRAPH_DL_DATA_TYPE_CODE_UINT, 32, 1},
+                               UINT32,
+                               CUGRAPH_SUCCESS) == 0,
               "UINT32 conversion failed");
   TEST_ASSERT(test_ret_value,
-              check_conversion((DLDataType){kDLUInt, 64, 1}, UINT64, CUGRAPH_SUCCESS) == 0,
+              check_conversion((cugraph_dlpack_data_type_t){CUGRAPH_DL_DATA_TYPE_CODE_UINT, 64, 1},
+                               UINT64,
+                               CUGRAPH_SUCCESS) == 0,
               "UINT64 conversion failed");
   TEST_ASSERT(test_ret_value,
-              check_conversion((DLDataType){kDLFloat, 32, 1}, FLOAT32, CUGRAPH_SUCCESS) == 0,
+              check_conversion((cugraph_dlpack_data_type_t){CUGRAPH_DL_DATA_TYPE_CODE_FLOAT, 32, 1},
+                               FLOAT32,
+                               CUGRAPH_SUCCESS) == 0,
               "FLOAT32 conversion failed");
   TEST_ASSERT(test_ret_value,
-              check_conversion((DLDataType){kDLFloat, 64, 1}, FLOAT64, CUGRAPH_SUCCESS) == 0,
+              check_conversion((cugraph_dlpack_data_type_t){CUGRAPH_DL_DATA_TYPE_CODE_FLOAT, 64, 1},
+                               FLOAT64,
+                               CUGRAPH_SUCCESS) == 0,
               "FLOAT64 conversion failed");
   TEST_ASSERT(test_ret_value,
-              check_conversion((DLDataType){kDLBool, 8, 1}, BOOL, CUGRAPH_SUCCESS) == 0,
+              check_conversion((cugraph_dlpack_data_type_t){CUGRAPH_DL_DATA_TYPE_CODE_BOOL, 8, 1},
+                               BOOL,
+                               CUGRAPH_SUCCESS) == 0,
               "BOOL conversion failed");
 
+  TEST_ASSERT(test_ret_value,
+              check_conversion((cugraph_dlpack_data_type_t){CUGRAPH_DL_DATA_TYPE_CODE_FLOAT, 32, 4},
+                               0,
+                               CUGRAPH_UNSUPPORTED_TYPE_COMBINATION) == 0,
+              "vectorized dtype should be rejected");
   TEST_ASSERT(
     test_ret_value,
-    check_conversion((DLDataType){kDLFloat, 32, 4}, 0, CUGRAPH_UNSUPPORTED_TYPE_COMBINATION) == 0,
-    "vectorized dtype should be rejected");
-  TEST_ASSERT(
-    test_ret_value,
-    check_conversion((DLDataType){kDLBfloat, 16, 1}, 0, CUGRAPH_UNSUPPORTED_TYPE_COMBINATION) == 0,
+    check_conversion((cugraph_dlpack_data_type_t){CUGRAPH_DL_DATA_TYPE_CODE_BFLOAT, 16, 1},
+                     0,
+                     CUGRAPH_UNSUPPORTED_TYPE_COMBINATION) == 0,
     "bfloat16 should be rejected");
   TEST_ASSERT(
     test_ret_value,
-    check_conversion((DLDataType){kDLComplex, 64, 1}, 0, CUGRAPH_UNSUPPORTED_TYPE_COMBINATION) == 0,
+    check_conversion((cugraph_dlpack_data_type_t){CUGRAPH_DL_DATA_TYPE_CODE_COMPLEX, 64, 1},
+                     0,
+                     CUGRAPH_UNSUPPORTED_TYPE_COMBINATION) == 0,
     "complex should be rejected");
   TEST_ASSERT(test_ret_value,
-              check_conversion((DLDataType){kDLInt, 24, 1}, 0, CUGRAPH_INVALID_INPUT) == 0,
+              check_conversion((cugraph_dlpack_data_type_t){CUGRAPH_DL_DATA_TYPE_CODE_INT, 24, 1},
+                               0,
+                               CUGRAPH_INVALID_INPUT) == 0,
               "unsupported bit width should be rejected");
 
   return test_ret_value;

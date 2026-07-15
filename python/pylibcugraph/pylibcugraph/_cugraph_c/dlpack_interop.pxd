@@ -19,62 +19,55 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.types cimport cugraph_data_type_id_t
 
-cdef extern from "dlpack/dlpack.h" nogil:
-    ctypedef enum DLDeviceType:
-        kDLCPU
-        kDLCUDA
-        kDLCUDAHost
-        kDLCUDAManaged
+cdef extern from "cugraph_c/dlpack_interop.h" nogil:
+    ctypedef enum cugraph_dlpack_device_type_t:
+        CUGRAPH_DL_DEVICE_TYPE_CPU
+        CUGRAPH_DL_DEVICE_TYPE_CUDA
+        CUGRAPH_DL_DEVICE_TYPE_CUDA_HOST
+        CUGRAPH_DL_DEVICE_TYPE_CUDA_MANAGED
 
-    ctypedef struct DLDevice:
-        DLDeviceType device_type
+    ctypedef struct cugraph_dlpack_device_t:
+        cugraph_dlpack_device_type_t device_type
         int32_t device_id
 
-    cdef enum DLDataTypeCode:
-        kDLInt
-        kDLUInt
-        kDLFloat
-        kDLBfloat
-        kDLComplex
-        kDLBool
+    ctypedef enum cugraph_dlpack_data_type_code_t:
+        CUGRAPH_DL_DATA_TYPE_CODE_INT
+        CUGRAPH_DL_DATA_TYPE_CODE_UINT
+        CUGRAPH_DL_DATA_TYPE_CODE_FLOAT
+        CUGRAPH_DL_DATA_TYPE_CODE_BFLOAT
+        CUGRAPH_DL_DATA_TYPE_CODE_COMPLEX
+        CUGRAPH_DL_DATA_TYPE_CODE_BOOL
 
-    ctypedef struct DLDataType:
+    ctypedef struct cugraph_dlpack_data_type_t:
         uint8_t code
         uint8_t bits
         uint16_t lanes
 
-    ctypedef struct DLTensor:
+    ctypedef struct cugraph_dlpack_tensor_t:
         void* data
-        DLDevice device
+        cugraph_dlpack_device_t device
         int32_t ndim
-        DLDataType dtype
+        cugraph_dlpack_data_type_t dtype
         int64_t* shape
         int64_t* strides
         uint64_t byte_offset
 
-    ctypedef struct DLManagedTensor:
-        DLTensor dl_tensor
+    ctypedef struct cugraph_dlpack_managed_tensor_t:
+        cugraph_dlpack_tensor_t dl_tensor
 
+    ctypedef struct cugraph_dlpack_version_t:
+        uint32_t major
+        uint32_t minor
 
-# pylibcugraph currently builds against DLPack 0.8, which predates the
-# versioned managed-tensor declaration. Mirror the DLPack 1.0 layout here so
-# newer producers can communicate flags such as read-only without requiring a
-# project-wide DLPack dependency upgrade. manager_ctx and deleter are retained
-# as opaque pointers because only their size and position affect the ABI here.
-ctypedef struct pylibcugraph_DLPackVersion:
-    uint32_t major
-    uint32_t minor
+    ctypedef struct cugraph_dlpack_managed_tensor_versioned_t:
+        cugraph_dlpack_version_t version
+        void* manager_ctx
+        void* deleter
+        uint64_t flags
+        cugraph_dlpack_tensor_t dl_tensor
 
-ctypedef struct pylibcugraph_DLManagedTensorVersioned:
-    pylibcugraph_DLPackVersion version
-    void* manager_ctx
-    void* deleter
-    uint64_t flags
-    DLTensor dl_tensor
-
-cdef extern from "cugraph_c/dlpack_interop.h":
     cdef cugraph_error_code_t cugraph_data_type_id_from_dlpack(
-        const DLDataType* dlpack_dtype,
+        const cugraph_dlpack_data_type_t* dlpack_dtype,
         cugraph_data_type_id_t* dtype,
         cugraph_error_t** error,
     )

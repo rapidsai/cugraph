@@ -75,7 +75,6 @@ dependencies-file = "../../dependencies.yaml"
 requires = [
     "cmake>=4.0",
     "cython>=3.2.2",
-    "dlpack>=0.8",
     "libcugraph==26.8.*,>=0.0.0a0",
     "libraft==26.8.*,>=0.0.0a0",
     "librmm==26.8.*,>=0.0.0a0",

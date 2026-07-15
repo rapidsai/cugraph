@@ -22,8 +22,8 @@ from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_t,
 )
 from pylibcugraph._cugraph_c.dlpack_interop cimport (
-    DLDataType,
-    DLTensor,
+    cugraph_dlpack_data_type_t,
+    cugraph_dlpack_tensor_t,
 )
 
 
@@ -41,12 +41,12 @@ cdef assert_host_accessible(obj, var_name, allow_None=*)
 
 cdef get_numpy_type_from_c_type(cugraph_data_type_id_t c_type)
 
-cdef DLTensor* get_dlpack_tensor_from_capsule(
+cdef cugraph_dlpack_tensor_t* get_dlpack_tensor_from_capsule(
     object dlpack_capsule
 ) except NULL
 
 cdef cugraph_data_type_id_t get_c_type_from_dlpack_dtype(
-    const DLDataType* dl_dtype
+    const cugraph_dlpack_data_type_t* dl_dtype
 )
 
 cpdef cugraph_data_type_id_t get_c_type_from_py_obj(object python_obj) except *

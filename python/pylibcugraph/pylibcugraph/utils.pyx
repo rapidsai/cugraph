@@ -26,19 +26,15 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 
 from pylibcugraph._cugraph_c.dlpack_interop cimport (
-    DLDataType,
-    DLTensor,
-    DLManagedTensor,
-    pylibcugraph_DLManagedTensorVersioned,
-    kDLBool,
-    kDLFloat,
-    kDLInt,
-    kDLUInt,
+    cugraph_dlpack_data_type_t,
+    cugraph_dlpack_tensor_t,
+    cugraph_dlpack_managed_tensor_t,
+    cugraph_dlpack_managed_tensor_versioned_t,
     cugraph_data_type_id_from_dlpack,
-    kDLCPU,
-    kDLCUDA,
-    kDLCUDAHost,
-    kDLCUDAManaged,
+    CUGRAPH_DL_DEVICE_TYPE_CPU,
+    CUGRAPH_DL_DEVICE_TYPE_CUDA,
+    CUGRAPH_DL_DEVICE_TYPE_CUDA_HOST,
+    CUGRAPH_DL_DEVICE_TYPE_CUDA_MANAGED,
 )
 
 # FIXME: add tests for this
@@ -119,22 +115,30 @@ def _get_dlpack_capsule(obj):
 
 cpdef bint is_device_accessible(obj):
     # Pinned or managed memory is recognized only when the DLPack producer
-    # reports it as kDLCUDAHost or kDLCUDAManaged, respectively.
+    # reports it as CUDA host or CUDA managed memory, respectively.
     _assert_dlpack(obj, "array")
     capsule = _get_dlpack_capsule(obj)
-    cdef DLTensor* tensor = get_dlpack_tensor_from_capsule(capsule)
+    cdef cugraph_dlpack_tensor_t* tensor = get_dlpack_tensor_from_capsule(capsule)
     device_type = tensor.device.device_type
-    return device_type in (kDLCUDA, kDLCUDAHost, kDLCUDAManaged)
+    return device_type in (
+        CUGRAPH_DL_DEVICE_TYPE_CUDA,
+        CUGRAPH_DL_DEVICE_TYPE_CUDA_HOST,
+        CUGRAPH_DL_DEVICE_TYPE_CUDA_MANAGED,
+    )
 
 
 cpdef bint is_host_accessible(obj):
     # Pinned or managed memory is recognized only when the DLPack producer
-    # reports it as kDLCUDAHost or kDLCUDAManaged, respectively.
+    # reports it as CUDA host or CUDA managed memory, respectively.
     _assert_dlpack(obj, "array")
     capsule = _get_dlpack_capsule(obj)
-    cdef DLTensor* tensor = get_dlpack_tensor_from_capsule(capsule)
+    cdef cugraph_dlpack_tensor_t* tensor = get_dlpack_tensor_from_capsule(capsule)
     device_type = tensor.device.device_type
-    return device_type in (kDLCPU, kDLCUDAHost, kDLCUDAManaged)
+    return device_type in (
+        CUGRAPH_DL_DEVICE_TYPE_CPU,
+        CUGRAPH_DL_DEVICE_TYPE_CUDA_HOST,
+        CUGRAPH_DL_DEVICE_TYPE_CUDA_MANAGED,
+    )
 
 
 cdef assert_device_accessible(obj, var_name, allow_None=False):
@@ -171,15 +175,15 @@ cdef get_numpy_type_from_c_type(cugraph_data_type_id_t c_type):
                            f"from C: {c_type}")
 
 
-cdef DLTensor* get_dlpack_tensor_from_capsule(
+cdef cugraph_dlpack_tensor_t* get_dlpack_tensor_from_capsule(
     object dlpack_capsule
 ) except NULL:
-    cdef pylibcugraph_DLManagedTensorVersioned* versioned = NULL
-    cdef DLManagedTensor* legacy = NULL
+    cdef cugraph_dlpack_managed_tensor_versioned_t* versioned = NULL
+    cdef cugraph_dlpack_managed_tensor_t* legacy = NULL
 
     # Most tensors should be versioned.
     if PyCapsule_IsValid(dlpack_capsule, "dltensor_versioned"):
-        versioned = <pylibcugraph_DLManagedTensorVersioned*>PyCapsule_GetPointer(
+        versioned = <cugraph_dlpack_managed_tensor_versioned_t*>PyCapsule_GetPointer(
             dlpack_capsule, "dltensor_versioned"
         )
         if versioned.version.major != 1:
@@ -190,7 +194,7 @@ cdef DLTensor* get_dlpack_tensor_from_capsule(
         return &versioned.dl_tensor
 
     if PyCapsule_IsValid(dlpack_capsule, "dltensor"):
-        legacy = <DLManagedTensor*>PyCapsule_GetPointer(
+        legacy = <cugraph_dlpack_managed_tensor_t*>PyCapsule_GetPointer(
             dlpack_capsule, "dltensor"
         )
         return &legacy.dl_tensor
@@ -202,7 +206,7 @@ cdef DLTensor* get_dlpack_tensor_from_capsule(
 
 
 cdef cugraph_data_type_id_t get_c_type_from_dlpack_dtype(
-    const DLDataType* dl_dtype
+    const cugraph_dlpack_data_type_t* dl_dtype
 ):
     cdef cugraph_data_type_id_t c_type
     cdef cugraph_error_t* error = NULL
@@ -212,7 +216,7 @@ cdef cugraph_data_type_id_t get_c_type_from_dlpack_dtype(
     return c_type
 
 
-cdef _assert_valid_dlpack_tensor(const DLTensor* tensor):
+cdef _assert_valid_dlpack_tensor(const cugraph_dlpack_tensor_t* tensor):
     if tensor.ndim != 1:
         raise ValueError("pylibcugraph array inputs must be one-dimensional")
     if tensor.shape == NULL:
@@ -226,7 +230,7 @@ cdef _assert_valid_dlpack_tensor(const DLTensor* tensor):
 cpdef cugraph_data_type_id_t get_c_type_from_py_obj(object python_obj) except *:
     _assert_dlpack(python_obj, "array")
     capsule = _get_dlpack_capsule(python_obj)
-    cdef DLTensor* tensor = get_dlpack_tensor_from_capsule(capsule)
+    cdef cugraph_dlpack_tensor_t* tensor = get_dlpack_tensor_from_capsule(capsule)
     _assert_valid_dlpack_tensor(tensor)
     return get_c_type_from_dlpack_dtype(&tensor.dtype)
 
@@ -234,7 +238,7 @@ cpdef cugraph_data_type_id_t get_c_type_from_py_obj(object python_obj) except *:
 cdef size_t get_size_from_py_obj(object python_obj) except *:
     _assert_dlpack(python_obj, "array")
     capsule = _get_dlpack_capsule(python_obj)
-    cdef DLTensor* tensor = get_dlpack_tensor_from_capsule(capsule)
+    cdef cugraph_dlpack_tensor_t* tensor = get_dlpack_tensor_from_capsule(capsule)
     _assert_valid_dlpack_tensor(tensor)
     return <size_t>tensor.shape[0]
 
@@ -250,7 +254,7 @@ cdef get_last_item_from_py_obj(object python_obj):
 cdef uintptr_t get_data_ptr_from_py_obj(object python_obj) except *:
     _assert_dlpack(python_obj, "array")
     capsule = _get_dlpack_capsule(python_obj)
-    cdef DLTensor* tensor = get_dlpack_tensor_from_capsule(capsule)
+    cdef cugraph_dlpack_tensor_t* tensor = get_dlpack_tensor_from_capsule(capsule)
     _assert_valid_dlpack_tensor(tensor)
     return <uintptr_t>tensor.data + tensor.byte_offset
 
@@ -358,7 +362,7 @@ cdef cugraph_type_erased_device_array_view_t* \
     create_cugraph_type_erased_device_array_view_from_py_obj(python_obj):
         cdef uintptr_t data_ptr = <uintptr_t>NULL
         cdef cugraph_type_erased_device_array_view_t* view_ptr = NULL
-        cdef DLTensor* tensor = NULL
+        cdef cugraph_dlpack_tensor_t* tensor = NULL
         if python_obj is not None:
             assert_device_accessible(python_obj, "array")
             capsule = _get_dlpack_capsule(python_obj)
@@ -377,7 +381,7 @@ cdef cugraph_type_erased_host_array_view_t* \
     create_cugraph_type_erased_host_array_view_from_py_obj(python_obj):
         cdef uintptr_t data_ptr = <uintptr_t>NULL
         cdef cugraph_type_erased_host_array_view_t* view_ptr = NULL
-        cdef DLTensor* tensor = NULL
+        cdef cugraph_dlpack_tensor_t* tensor = NULL
         if python_obj is not None:
             assert_host_accessible(python_obj, "array")
             capsule = _get_dlpack_capsule(python_obj)

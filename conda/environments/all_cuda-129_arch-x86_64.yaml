@@ -23,7 +23,6 @@ dependencies:
 - dask-cuda==26.8.*,>=0.0.0a0
 - dask-cudf==26.8.*,>=0.0.0a0
 - dlpack
-- dlpack>=0.8
 - doxygen
 - fsspec>=0.6.0
 - gcc_linux-64=14.*

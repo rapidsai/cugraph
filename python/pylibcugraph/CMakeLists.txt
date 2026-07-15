@@ -22,12 +22,6 @@ project(
 
 find_package(cugraph "${RAPIDS_VERSION}" REQUIRED)
 
-# an installed version of libcugraph doesn't provide the dlpack headers so we
-# need to download dlpack for the DLPack interop used by utils.pyx
-include(rapids-cpm)
-rapids_cpm_init()
-include(../../cpp/cmake/thirdparty/get_dlpack.cmake)
-
 include(rapids-cython-core)
 
 rapids_cython_init()

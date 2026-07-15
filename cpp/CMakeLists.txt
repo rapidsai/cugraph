@@ -747,12 +747,9 @@ target_include_directories(cugraph_c
 # - C-API link libraries -------------------------------------------------------
 target_link_libraries(cugraph_c PRIVATE cugraph::cugraph cugraph::cugraph_mg)
 
-# dlpack is a header-only dependency of the public cugraph_c/dlpack_interop.h
-# header. Expose its include directory to build-tree consumers (e.g. the C API
-# tests) only; installed consumers obtain dlpack.h from their own environment,
-# so it is intentionally not part of the install/export interface.
-target_include_directories(cugraph_c
-    PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>")
+# DLPack is used privately to verify that the self-contained C API declarations
+# remain ABI-compatible with the upstream definitions.
+target_include_directories(cugraph_c PRIVATE "${DLPACK_INCLUDE_DIR}")
 
 ################################################################################
 # - generate tests -------------------------------------------------------------

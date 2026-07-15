@@ -5,10 +5,10 @@
 # cmake-format: on
 #=============================================================================
 
-# dlpack is a header-only library used by the cugraph_c DLPack interop API
-# (cugraph_c/dlpack_interop.h). In conda environments it is provided as an
-# installed package; in other environments (e.g. pip / devcontainer / wheel
-# builds) it may not be installed, so we fall back to downloading the headers.
+# dlpack is used privately to verify that the self-contained cugraph_c DLPack
+# declarations remain ABI-compatible with the upstream API. In conda
+# environments it is provided as an installed package; otherwise we fall back
+# to downloading the headers.
 function(find_and_configure_dlpack VERSION)
 
     include(${rapids-cmake-dir}/find/generate_module.cmake)

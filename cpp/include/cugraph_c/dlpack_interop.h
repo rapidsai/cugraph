@@ -9,17 +9,87 @@
 #include <cugraph_c/export.h>
 #include <cugraph_c/types.h>
 
-#include <dlpack/dlpack.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /**
- * @brief Convert a DLPack DLDataType to a cugraph_data_type_id_t.
+ * @brief DLPack-compatible device types used by the cuGraph C API.
  *
- * Converts the dtype field from a DLPack tensor (e.g. DLTensor::dtype or
- * __dlpack__ metadata) into the cugraph_data_type_id_t required by
+ * The numeric values are part of the DLPack ABI. These cuGraph-prefixed
+ * declarations keep this public header self-contained and avoid requiring C
+ * API consumers to install or include DLPack headers.
+ */
+typedef enum {
+  CUGRAPH_DL_DEVICE_TYPE_CPU          = 1,
+  CUGRAPH_DL_DEVICE_TYPE_CUDA         = 2,
+  CUGRAPH_DL_DEVICE_TYPE_CUDA_HOST    = 3,
+  CUGRAPH_DL_DEVICE_TYPE_CUDA_MANAGED = 13,
+} cugraph_dlpack_device_type_t;
+
+/** @brief DLPack-compatible device descriptor. */
+typedef struct {
+  cugraph_dlpack_device_type_t device_type;
+  int32_t device_id;
+} cugraph_dlpack_device_t;
+
+/** @brief DLPack-compatible data type codes used by the cuGraph C API. */
+typedef enum {
+  CUGRAPH_DL_DATA_TYPE_CODE_INT     = 0,
+  CUGRAPH_DL_DATA_TYPE_CODE_UINT    = 1,
+  CUGRAPH_DL_DATA_TYPE_CODE_FLOAT   = 2,
+  CUGRAPH_DL_DATA_TYPE_CODE_BFLOAT  = 4,
+  CUGRAPH_DL_DATA_TYPE_CODE_COMPLEX = 5,
+  CUGRAPH_DL_DATA_TYPE_CODE_BOOL    = 6,
+} cugraph_dlpack_data_type_code_t;
+
+/** @brief DLPack-compatible scalar data type descriptor. */
+typedef struct {
+  uint8_t code;
+  uint8_t bits;
+  uint16_t lanes;
+} cugraph_dlpack_data_type_t;
+
+/** @brief DLPack-compatible tensor descriptor. */
+typedef struct {
+  void* data;
+  cugraph_dlpack_device_t device;
+  int32_t ndim;
+  cugraph_dlpack_data_type_t dtype;
+  int64_t* shape;
+  int64_t* strides;
+  uint64_t byte_offset;
+} cugraph_dlpack_tensor_t;
+
+/** @brief DLPack-compatible legacy managed tensor. */
+typedef struct cugraph_dlpack_managed_tensor_t {
+  cugraph_dlpack_tensor_t dl_tensor;
+  void* manager_ctx;
+  void (*deleter)(struct cugraph_dlpack_managed_tensor_t* self);
+} cugraph_dlpack_managed_tensor_t;
+
+/** @brief DLPack protocol version. */
+typedef struct {
+  uint32_t major;
+  uint32_t minor;
+} cugraph_dlpack_version_t;
+
+/** @brief DLPack-compatible versioned managed tensor. */
+typedef struct cugraph_dlpack_managed_tensor_versioned_t {
+  cugraph_dlpack_version_t version;
+  void* manager_ctx;
+  void (*deleter)(struct cugraph_dlpack_managed_tensor_versioned_t* self);
+  uint64_t flags;
+  cugraph_dlpack_tensor_t dl_tensor;
+} cugraph_dlpack_managed_tensor_versioned_t;
+
+/**
+ * @brief Convert a DLPack-compatible data type to a cugraph_data_type_id_t.
+ *
+ * Converts the dtype field from a DLPack tensor or __dlpack__ metadata into
+ * the cugraph_data_type_id_t required by
  * cugraph_type_erased_device_array_view_create() and related array APIs.
  *
  * Only scalar types (lanes == 1) are supported. Vectorized DLPack types,
@@ -34,9 +104,10 @@ extern "C" {
  *                             not CUGRAPH_SUCCESS. Must not be NULL.
  * @return CUGRAPH_SUCCESS on success, or an error code on failure.
  */
-CUGRAPH_EXPORT cugraph_error_code_t cugraph_data_type_id_from_dlpack(const DLDataType* dlpack_dtype,
-                                                                     cugraph_data_type_id_t* dtype,
-                                                                     cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_data_type_id_from_dlpack(const cugraph_dlpack_data_type_t* dlpack_dtype,
+                                 cugraph_data_type_id_t* dtype,
+                                 cugraph_error_t** error);
 
 #ifdef __cplusplus
 }
