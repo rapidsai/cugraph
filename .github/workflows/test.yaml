@@ -23,7 +23,7 @@ on:
 permissions: {}
 jobs:
   conda-cpp-checks:
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@release/26.08
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@main
     with:
       build_type: ${{ inputs.build_type }}
       branch: ${{ inputs.branch }}
@@ -39,7 +39,7 @@ jobs:
       pull-requests: read
   conda-cpp-tests:
     secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@release/26.08
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@main
     with:
       build_type: ${{ inputs.build_type }}
       branch: ${{ inputs.branch }}
@@ -54,7 +54,7 @@ jobs:
       pull-requests: read
   conda-python-tests:
     secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@release/26.08
+    uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@main
     with:
       build_type: ${{ inputs.build_type }}
       branch: ${{ inputs.branch }}
@@ -69,7 +69,7 @@ jobs:
       pull-requests: read
   wheel-tests-pylibcugraph:
     secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@release/26.08
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
     with:
       build_type: ${{ inputs.build_type }}
       branch: ${{ inputs.branch }}
@@ -84,7 +84,7 @@ jobs:
       pull-requests: read
   wheel-tests-cugraph:
     secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@release/26.08
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
     with:
       build_type: ${{ inputs.build_type }}
       branch: ${{ inputs.branch }}
