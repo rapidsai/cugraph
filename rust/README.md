@@ -25,7 +25,7 @@ This code is provided on an “as is” basis and should be regarded as a founda
 - `build.rs` : runs bindgen and (optionally) emits linker directives
 - `wrapper.h` : aggregation header including the full C API surface
 - `src/lib.rs` : includes generated bindings and one small utility helper
-- `examples/resource_handle.rs` : minimal runtime example
+- `examples/resource_handle_example.rs` : minimal runtime example
 - `tests/abi_surface.rs` : compile-time shape checks
 - `tests/runtime_smoke.rs` : runtime smoke test (feature-gated)
 
@@ -61,7 +61,7 @@ This runs `build.rs`, which generates `bindgen.rs` into Cargo `OUT_DIR`.
 ## Run example with runtime linking
 
 ```bash
-CUGRAPH_LIB_DIR=/path/to/lib cargo run --example resource_handle --features runtime-link
+CUGRAPH_LIB_DIR=/path/to/lib cargo run --example resource_handle_example --features runtime-link
 ```
 
 ## Run tests

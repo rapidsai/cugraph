@@ -34,7 +34,7 @@ The include root must contain `cugraph_c/*.h`.
 ## 4) Run runtime example (links to libcugraph_c)
 
 ```bash
-CUGRAPH_LIB_DIR=/path/to/lib cargo run --example resource_handle --features runtime-link
+CUGRAPH_LIB_DIR=/path/to/lib cargo run --example resource_handle_example --features runtime-link
 ```
 
 ## 5) Run tests

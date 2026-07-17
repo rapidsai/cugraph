@@ -16,3 +16,9 @@ bindgen = { version = "=0.69.4", default-features = false, features = ["runtime"
 
 [dev-dependencies]
 static_assertions = "1.1"
+polars = { version = "=0.35.4", default-features = false, features = ["csv"] }
+home = "=0.5.9"
+indexmap = "=2.11.4"
+rayon = "=1.10.0"
+rayon-core = "=1.12.1"
+ethnum = "=1.3.2"
