@@ -141,37 +141,100 @@ struct sample_unvisited_edge_biases_op_t {
   }
 };
 
+// Combined temporal + unvisited bias operator.  Returns bias 0 (excluding the edge from selection)
+// when the destination minor has already been visited (per-label when labels are used) OR when the
+// edge fails the temporal window filter; otherwise returns the edge bias (1 when unbiased).
+//
+// The per-source time and window end are looked up from side spans keyed on the frontier entry.
+// Under always-disjoint sampling each vertex appears at most once per label in the frontier, so the
+// key is (major) when unlabeled and (major, label) when labeled; both are unique.  The side spans
+// must be sorted by that same key.
 template <typename vertex_t, typename bias_t, typename time_stamp_t>
-struct temporal_sample_edge_biases_op_t {
+struct sample_unvisited_temporal_edge_biases_op_t {
   temporal_sampling_comparison_t temporal_sampling_comparison{};
-  raft::device_span<vertex_t const> active_majors{};
-  raft::device_span<time_stamp_t const> active_major_times{};
-  raft::device_span<time_stamp_t const> active_major_window_ends{};
+  raft::device_span<vertex_t const> active_majors{};           // sorted by (major[, label])
+  raft::device_span<time_stamp_t const> active_major_times{};  // parallel to active_majors
+  // Parallel to active_majors when present.  nullopt => unbounded: max() for increasing walks
+  // (upper bound), lowest() for decreasing walks (lower bound).
+  cuda::std::optional<raft::device_span<time_stamp_t const>> active_major_window_ends{};
+  cuda::std::optional<raft::device_span<int32_t const>> active_major_labels{};   // parallel, sorted
+  raft::device_span<vertex_t const> visited_minors{};                            // sorted
+  cuda::std::optional<raft::device_span<int32_t const>> visited_minor_labels{};  // sorted parallel
 
-  // The frontier tag only carries the current (major, time) pair, so the per-seed window end is
-  // looked up here from side spans keyed on (major, time).  When no window ends were provided the
-  // window is unbounded.
-  __device__ time_stamp_t window_end(vertex_t major, time_stamp_t major_time) const
+  // Extract the edge time from the (possibly concatenated) edge property passed by the selection
+  // primitive.  Shapes: time_stamp_t | (bias, time) | (time, type) | (bias, time, type).
+  template <typename edge_property_t>
+  static __device__ time_stamp_t extract_edge_time(edge_property_t edge_property)
   {
-    if (active_major_window_ends.empty()) { return std::numeric_limits<time_stamp_t>::max(); }
+    if constexpr (std::is_arithmetic_v<edge_property_t>) {
+      // Either a bare time (unbiased temporal) or a bare bias (a should-not-happen selection call
+      // that is compiled but never executed).  Only the time case is meaningful.
+      if constexpr (std::is_same_v<edge_property_t, time_stamp_t>) {
+        return edge_property;
+      } else {
+        return time_stamp_t{};
+      }
+    } else {
+      using first_t = std::decay_t<decltype(cuda::std::get<0>(edge_property))>;
+      if constexpr (cuda::std::tuple_size<edge_property_t>::value == 2) {
+        // (bias, time) when the first element is the floating bias, else (time, type).
+        if constexpr (std::is_floating_point_v<first_t>) {
+          return cuda::std::get<1>(edge_property);
+        } else {
+          return cuda::std::get<0>(edge_property);
+        }
+      } else {
+        // (bias, time, type)
+        return cuda::std::get<1>(edge_property);
+      }
+    }
+  }
 
-    auto begin = thrust::make_zip_iterator(active_majors.begin(), active_major_times.begin());
-    auto end   = thrust::make_zip_iterator(active_majors.end(), active_major_times.end());
-    auto key   = cuda::std::make_tuple(major, major_time);
-    auto it    = thrust::lower_bound(thrust::seq, begin, end, key);
-    return active_major_window_ends[static_cast<size_t>(cuda::std::distance(begin, it))];
+  template <typename edge_property_t>
+  static __device__ bias_t extract_edge_bias(edge_property_t edge_property)
+  {
+    if constexpr (std::is_arithmetic_v<edge_property_t>) {
+      return bias_t{1};
+    } else {
+      using first_t = std::decay_t<decltype(cuda::std::get<0>(edge_property))>;
+      if constexpr (std::is_floating_point_v<first_t>) {
+        return static_cast<bias_t>(cuda::std::get<0>(edge_property));
+      } else {
+        return bias_t{1};
+      }
+    }
+  }
+
+  __device__ size_t lookup_index(vertex_t major) const
+  {
+    auto it = thrust::lower_bound(thrust::seq, active_majors.begin(), active_majors.end(), major);
+    return static_cast<size_t>(cuda::std::distance(active_majors.begin(), it));
+  }
+
+  __device__ size_t lookup_index(vertex_t major, int32_t label) const
+  {
+    auto begin = thrust::make_zip_iterator(active_majors.begin(), active_major_labels->begin());
+    auto end   = thrust::make_zip_iterator(active_majors.end(), active_major_labels->end());
+    auto it    = thrust::lower_bound(thrust::seq, begin, end, cuda::std::make_tuple(major, label));
+    return static_cast<size_t>(cuda::std::distance(begin, it));
+  }
+
+  __device__ time_stamp_t window_end_at(size_t idx) const
+  {
+    if (active_major_window_ends) { return (*active_major_window_ends)[idx]; }
+    // nullopt => unbounded window.  Increasing walks use an upper bound (max); decreasing
+    // walks use a lower bound (lowest).  Using max() for decreasing would reject nearly all edges.
+    return (temporal_sampling_comparison == temporal_sampling_comparison_t::STRICTLY_DECREASING ||
+            temporal_sampling_comparison ==
+              temporal_sampling_comparison_t::MONOTONICALLY_DECREASING)
+             ? std::numeric_limits<time_stamp_t>::lowest()
+             : std::numeric_limits<time_stamp_t>::max();
   }
 
   __device__ bool passes_temporal_filter(time_stamp_t major_time,
                                          time_stamp_t window_end,
                                          time_stamp_t edge_time) const
   {
-    // TODO: This logic is wrong.  The window bounds are a function of the comparison
-    // type.  If we're decreasing then the window bound is between the start time
-    // and the major time, if we're increasing then the window bound is between the
-    // major time and the end time.  Perhaps best resolved by specifying the window
-    // bounds as the parameters and moving the comparison check to the caller to
-    // determine the proper bounds.
     switch (temporal_sampling_comparison) {
       case temporal_sampling_comparison_t::STRICTLY_INCREASING:
         return (major_time < edge_time) && (edge_time <= window_end);
@@ -185,71 +248,55 @@ struct temporal_sample_edge_biases_op_t {
     return false;
   }
 
-  bias_t __device__ operator()(cuda::std::tuple<vertex_t, time_stamp_t> tagged_major,
-                               vertex_t,
-                               cuda::std::nullopt_t,
-                               cuda::std::nullopt_t,
-                               bias_t) const
+  __device__ bool is_visited(vertex_t minor) const
   {
-    // Should not happen at runtime
-    return bias_t{0};
+    return thrust::binary_search(thrust::seq, visited_minors.begin(), visited_minors.end(), minor);
   }
 
-  bias_t __device__ operator()(cuda::std::tuple<vertex_t, time_stamp_t> tagged_major,
-                               vertex_t,
-                               cuda::std::nullopt_t,
-                               cuda::std::nullopt_t,
-                               time_stamp_t edge_time) const
+  __device__ bool is_visited(vertex_t minor, int32_t label) const
   {
-    auto major      = cuda::std::get<0>(tagged_major);
-    auto major_time = cuda::std::get<1>(tagged_major);
-    return passes_temporal_filter(major_time, window_end(major, major_time), edge_time) ? bias_t{1}
-                                                                                        : bias_t{0};
+    return thrust::binary_search(
+      thrust::seq,
+      thrust::make_zip_iterator(visited_minors.begin(), visited_minor_labels->begin()),
+      thrust::make_zip_iterator(visited_minors.end(), visited_minor_labels->end()),
+      cuda::std::make_tuple(minor, label));
   }
 
-  bias_t __device__ operator()(cuda::std::tuple<vertex_t, time_stamp_t> tagged_major,
-                               vertex_t,
+  // Unlabeled frontier (tag == void): key is the major only.
+  template <typename edge_property_t>
+  bias_t __device__ operator()(vertex_t major,
+                               vertex_t minor,
                                cuda::std::nullopt_t,
                                cuda::std::nullopt_t,
-                               cuda::std::tuple<bias_t, time_stamp_t> bias_and_time) const
+                               edge_property_t edge_property) const
   {
-    auto major      = cuda::std::get<0>(tagged_major);
-    auto major_time = cuda::std::get<1>(tagged_major);
-    return passes_temporal_filter(
-             major_time, window_end(major, major_time), cuda::std::get<1>(bias_and_time))
-             ? cuda::std::get<0>(bias_and_time)
+    if (is_visited(minor)) { return bias_t{0}; }
+    auto const idx        = lookup_index(major);
+    auto const major_time = active_major_times[idx];
+    auto const window_end = window_end_at(idx);
+    auto const edge_time  = extract_edge_time(edge_property);
+    return passes_temporal_filter(major_time, window_end, edge_time)
+             ? extract_edge_bias(edge_property)
              : bias_t{0};
   }
 
-  template <typename edge_type_t,
-            typename std::enable_if_t<std::is_integral_v<edge_type_t>>* = nullptr>
-  bias_t __device__ operator()(cuda::std::tuple<vertex_t, time_stamp_t> tagged_major,
-                               vertex_t,
+  // Labeled frontier (tag == int32 label): key is (major, label).
+  template <typename edge_property_t>
+  bias_t __device__ operator()(cuda::std::tuple<vertex_t, int32_t> tagged_major,
+                               vertex_t minor,
                                cuda::std::nullopt_t,
                                cuda::std::nullopt_t,
-                               cuda::std::tuple<time_stamp_t, edge_type_t> time_and_type) const
+                               edge_property_t edge_property) const
   {
-    auto major      = cuda::std::get<0>(tagged_major);
-    auto major_time = cuda::std::get<1>(tagged_major);
-    return passes_temporal_filter(
-             major_time, window_end(major, major_time), cuda::std::get<0>(time_and_type))
-             ? bias_t{1}
-             : bias_t{0};
-  }
-
-  template <typename edge_type_t>
-  bias_t __device__
-  operator()(cuda::std::tuple<vertex_t, time_stamp_t> tagged_major,
-             vertex_t,
-             cuda::std::nullopt_t,
-             cuda::std::nullopt_t,
-             cuda::std::tuple<bias_t, time_stamp_t, edge_type_t> bias_time_and_type) const
-  {
-    auto major      = cuda::std::get<0>(tagged_major);
-    auto major_time = cuda::std::get<1>(tagged_major);
-    return passes_temporal_filter(
-             major_time, window_end(major, major_time), cuda::std::get<1>(bias_time_and_type))
-             ? cuda::std::get<0>(bias_time_and_type)
+    auto const major = cuda::std::get<0>(tagged_major);
+    auto const label = cuda::std::get<1>(tagged_major);
+    if (is_visited(minor, label)) { return bias_t{0}; }
+    auto const idx        = lookup_index(major, label);
+    auto const major_time = active_major_times[idx];
+    auto const window_end = window_end_at(idx);
+    auto const edge_time  = extract_edge_time(edge_property);
+    return passes_temporal_filter(major_time, window_end, edge_time)
+             ? extract_edge_bias(edge_property)
              : bias_t{0};
   }
 };
@@ -278,14 +325,9 @@ struct segmented_fill_t {
  *    type filtering. Used when sampling neighbors without an "unvisited" constraint.
  *
  * 2. Unvisited-neighbor biased sampling (sample_unvisited_with_one_property): biases_op is
- *    sample_unvisited_edge_biases_op_t, which down-weights or excludes already-visited minors
- *    (and optionally uses edge weights). edge_biases_view may be a real weight view or
- *    edge_dummy_property_view_t when no edge weights are used.
- *
- * 3. Temporal sampling (temporal_sample_with_one_property): biases_op is
- *    temporal_sample_edge_biases_op_t; edge_biases_view is either a concatenated (bias, time)
- *    view or time-only view. Selection respects temporal_sampling_comparison (e.g. strictly
- *    increasing time).
+ *    sample_unvisited_edge_biases_op_t or, when temporal_unvisited_params_t is supplied,
+ *    sample_unvisited_temporal_edge_biases_op_t.  The latter down-weights or excludes
+ *    already-visited minors and edges outside the temporal window.
  */
 template <typename vertex_t,
           typename edge_t,
@@ -529,9 +571,8 @@ call_unbiased_per_v_random_select_transform_outgoing_e(
 }
 
 /**
- * Values passed as edge_property_view to sample_with_one_property,
- * sample_unvisited_with_one_property, and temporal_sample_with_one_property (and thus to
- * call_biased_* / call_unbiased_*):
+ * Values passed as edge_property_view to sample_with_one_property and
+ * sample_unvisited_with_one_property (and thus to call_biased_* / call_unbiased_*):
  *
  * - edge_dummy_property_view_t{}: When edge_property_views.size() == 0 (no properties to return),
  * or when edge_property_views.size() > 1 and the graph is not a multigraph (we only need topology;
@@ -675,7 +716,8 @@ template <typename vertex_t,
           typename edge_t,
           typename tag_t,
           typename property_view_t,
-          bool multi_gpu>
+          bool multi_gpu,
+          typename temporal_params_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            arithmetic_device_uvector_t,
@@ -694,10 +736,13 @@ sample_unvisited_with_one_property(
   std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
   raft::host_span<size_t const> Ks,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
-  bool with_replacement)
+  bool with_replacement,
+  temporal_params_t temporal_params)
 {
   using edge_type_t = int32_t;
   using T           = typename decltype(edge_property_view)::value_type;
+
+  constexpr bool is_temporal = !std::is_same_v<temporal_params_t, no_temporal_params_t>;
 
   CUGRAPH_EXPECTS(Ks.size() >= 1, "Ks must be non-empty.");
 
@@ -730,79 +775,146 @@ sample_unvisited_with_one_property(
     rmm::device_uvector<vertex_t> sampled_minors(0, handle.get_stream());
     arithmetic_device_uvector_t sampled_property{std::monostate{}};
 
+    auto const visited_minors_span =
+      raft::device_span<vertex_t const>{visited_minors.data(), visited_minors.size()};
+    auto const visited_minor_labels_span =
+      visited_minor_labels ? cuda::std::make_optional(raft::device_span<int32_t const>{
+                               visited_minor_labels->data(), visited_minor_labels->size()})
+                           : cuda::std::nullopt;
+    auto const edge_type_filter =
+      edge_type_view
+        ? std::make_optional(
+            std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(*edge_type_view))
+        : std::nullopt;
+
     if (edge_bias_view) {
       if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, float const*>>(
             *edge_bias_view)) {
         using bias_t = float;
-
+        auto const bview =
+          std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view);
+        if constexpr (is_temporal) {
+          using time_stamp_t = typename temporal_params_t::time_type;
+          std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
+            call_biased_per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              active_bucket_view,
+              view_concat(bview, temporal_params.edge_time_view),
+              edge_property_view,
+              sample_unvisited_temporal_edge_biases_op_t<vertex_t, bias_t, time_stamp_t>{
+                temporal_params.temporal_sampling_comparison,
+                temporal_params.active_majors,
+                temporal_params.active_major_times,
+                temporal_params.active_major_window_ends,
+                temporal_params.active_major_labels,
+                visited_minors_span,
+                visited_minor_labels_span},
+              edge_type_filter,
+              rng_state,
+              Ks,
+              active_major_labels,
+              with_replacement);
+        } else {
+          std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
+            call_biased_per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              active_bucket_view,
+              bview,
+              edge_property_view,
+              sample_unvisited_edge_biases_op_t<vertex_t, bias_t>{visited_minors_span,
+                                                                  visited_minor_labels_span},
+              edge_type_filter,
+              rng_state,
+              Ks,
+              active_major_labels,
+              with_replacement);
+        }
+      } else if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, double const*>>(
+                   *edge_bias_view)) {
+        using bias_t = double;
+        auto const bview =
+          std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view);
+        if constexpr (is_temporal) {
+          using time_stamp_t = typename temporal_params_t::time_type;
+          std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
+            call_biased_per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              active_bucket_view,
+              view_concat(bview, temporal_params.edge_time_view),
+              edge_property_view,
+              sample_unvisited_temporal_edge_biases_op_t<vertex_t, bias_t, time_stamp_t>{
+                temporal_params.temporal_sampling_comparison,
+                temporal_params.active_majors,
+                temporal_params.active_major_times,
+                temporal_params.active_major_window_ends,
+                temporal_params.active_major_labels,
+                visited_minors_span,
+                visited_minor_labels_span},
+              edge_type_filter,
+              rng_state,
+              Ks,
+              active_major_labels,
+              with_replacement);
+        } else {
+          std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
+            call_biased_per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              active_bucket_view,
+              bview,
+              edge_property_view,
+              sample_unvisited_edge_biases_op_t<vertex_t, bias_t>{visited_minors_span,
+                                                                  visited_minor_labels_span},
+              edge_type_filter,
+              rng_state,
+              Ks,
+              active_major_labels,
+              with_replacement);
+        }
+      }
+    } else {
+      using bias_t = float;
+      if constexpr (is_temporal) {
+        using time_stamp_t = typename temporal_params_t::time_type;
         std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
           call_biased_per_v_random_select_transform_outgoing_e(
             handle,
             graph_view,
             active_bucket_view,
-            std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
+            temporal_params.edge_time_view,
             edge_property_view,
-            sample_unvisited_edge_biases_op_t<vertex_t, bias_t>{
-              raft::device_span<vertex_t const>{visited_minors.data(), visited_minors.size()},
-              visited_minor_labels ? cuda::std::make_optional(raft::device_span<int32_t const>{
-                                       visited_minor_labels->data(), visited_minor_labels->size()})
-                                   : cuda::std::nullopt},
-            edge_type_view ? std::make_optional(
-                               std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
-                                 *edge_type_view))
-                           : std::nullopt,
+            sample_unvisited_temporal_edge_biases_op_t<vertex_t, bias_t, time_stamp_t>{
+              temporal_params.temporal_sampling_comparison,
+              temporal_params.active_majors,
+              temporal_params.active_major_times,
+              temporal_params.active_major_window_ends,
+              temporal_params.active_major_labels,
+              visited_minors_span,
+              visited_minor_labels_span},
+            edge_type_filter,
             rng_state,
             Ks,
             active_major_labels,
             with_replacement);
-      } else if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, double const*>>(
-                   *edge_bias_view)) {
-        using bias_t = double;
-
+      } else {
         std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
           call_biased_per_v_random_select_transform_outgoing_e(
             handle,
             graph_view,
             active_bucket_view,
-            std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
+            cugraph::edge_dummy_property_view_t{},
             edge_property_view,
-            sample_unvisited_edge_biases_op_t<vertex_t, bias_t>{
-              raft::device_span<vertex_t const>{visited_minors.data(), visited_minors.size()},
-              visited_minor_labels ? cuda::std::make_optional(raft::device_span<int32_t const>{
-                                       visited_minor_labels->data(), visited_minor_labels->size()})
-                                   : cuda::std::nullopt},
-            edge_type_view ? std::make_optional(
-                               std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
-                                 *edge_type_view))
-                           : std::nullopt,
+            sample_unvisited_edge_biases_op_t<vertex_t, bias_t>{visited_minors_span,
+                                                                visited_minor_labels_span},
+            edge_type_filter,
             rng_state,
             Ks,
             active_major_labels,
             with_replacement);
       }
-    } else {
-      using bias_t = float;
-
-      std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
-        call_biased_per_v_random_select_transform_outgoing_e(
-          handle,
-          graph_view,
-          active_bucket_view,
-          cugraph::edge_dummy_property_view_t{},
-          edge_property_view,
-          sample_unvisited_edge_biases_op_t<vertex_t, bias_t>{
-            raft::device_span<vertex_t const>{visited_minors.data(), visited_minors.size()},
-            visited_minor_labels ? cuda::std::make_optional(raft::device_span<int32_t const>{
-                                     visited_minor_labels->data(), visited_minor_labels->size()})
-                                 : cuda::std::nullopt},
-          edge_type_view ? std::make_optional(
-                             std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
-                               *edge_type_view))
-                         : std::nullopt,
-          rng_state,
-          Ks,
-          active_major_labels,
-          with_replacement);
     }
 
     arithmetic_device_uvector_t sampled_types{std::monostate{}};
@@ -1262,127 +1374,6 @@ sample_unvisited_with_one_property(
                          std::move(result_labels),
                          std::move(visited_minors),
                          std::move(visited_minor_labels));
-}
-
-template <typename vertex_t,
-          typename edge_t,
-          typename property_view_t,
-          typename time_stamp_t,
-          bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           arithmetic_device_uvector_t,
-           std::optional<rmm::device_uvector<int32_t>>>
-temporal_sample_with_one_property(
-  raft::handle_t const& handle,
-  raft::random::RngState& rng_state,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  property_view_t edge_property_view,
-  edge_property_view_t<edge_t, time_stamp_t const*> edge_time_view,
-  std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
-  std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
-  cugraph::key_bucket_view_t<vertex_t, time_stamp_t, multi_gpu, false> const& key_bucket_view,
-  raft::host_span<size_t const> Ks,
-  bool with_replacement,
-  std::optional<raft::device_span<int32_t const>> active_major_labels,
-  raft::device_span<vertex_t const> active_majors,
-  raft::device_span<time_stamp_t const> active_major_times,
-  std::optional<raft::device_span<time_stamp_t const>> active_major_window_ends,
-  temporal_sampling_comparison_t temporal_sampling_comparison)
-{
-  using edge_type_t = int32_t;
-
-  using T = typename decltype(edge_property_view)::value_type;
-
-  std::optional<rmm::device_uvector<int32_t>> sample_labels{std::nullopt};
-  rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
-  arithmetic_device_uvector_t sampled_properties{std::monostate{}};
-
-  if (edge_bias_view) {
-    if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, float const*>>(
-          *edge_bias_view)) {
-      using bias_t = float;
-
-      std::tie(sample_labels, majors, minors, sampled_properties) =
-        call_biased_per_v_random_select_transform_outgoing_e(
-          handle,
-          graph_view,
-          key_bucket_view,
-          view_concat(
-            std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
-            edge_time_view),
-          edge_property_view,
-          temporal_sample_edge_biases_op_t<vertex_t, bias_t, time_stamp_t>{
-            temporal_sampling_comparison,
-            active_majors,
-            active_major_times,
-            active_major_window_ends ? *active_major_window_ends
-                                     : raft::device_span<time_stamp_t const>{}},
-          edge_type_view ? std::make_optional(
-                             std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
-                               *edge_type_view))
-                         : std::nullopt,
-          rng_state,
-          Ks,
-          active_major_labels,
-          with_replacement);
-    } else if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, double const*>>(
-                 *edge_bias_view)) {
-      using bias_t = double;
-
-      std::tie(sample_labels, majors, minors, sampled_properties) =
-        call_biased_per_v_random_select_transform_outgoing_e(
-          handle,
-          graph_view,
-          key_bucket_view,
-          view_concat(
-            std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
-            edge_time_view),
-          edge_property_view,
-          temporal_sample_edge_biases_op_t<vertex_t, bias_t, time_stamp_t>{
-            temporal_sampling_comparison,
-            active_majors,
-            active_major_times,
-            active_major_window_ends ? *active_major_window_ends
-                                     : raft::device_span<time_stamp_t const>{}},
-          edge_type_view ? std::make_optional(
-                             std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
-                               *edge_type_view))
-                         : std::nullopt,
-          rng_state,
-          Ks,
-          active_major_labels,
-          with_replacement);
-    }
-  } else {
-    using bias_t = float;
-
-    std::tie(sample_labels, majors, minors, sampled_properties) =
-      call_biased_per_v_random_select_transform_outgoing_e(
-        handle,
-        graph_view,
-        key_bucket_view,
-        edge_time_view,
-        edge_property_view,
-        temporal_sample_edge_biases_op_t<vertex_t, bias_t, time_stamp_t>{
-          temporal_sampling_comparison,
-          active_majors,
-          active_major_times,
-          active_major_window_ends ? *active_major_window_ends
-                                   : raft::device_span<time_stamp_t const>{}},
-        edge_type_view
-          ? std::make_optional(
-              std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(*edge_type_view))
-          : std::nullopt,
-        rng_state,
-        Ks,
-        active_major_labels,
-        with_replacement);
-  }
-
-  return std::make_tuple(
-    std::move(majors), std::move(minors), std::move(sampled_properties), std::move(sample_labels));
 }
 
 }  // namespace detail

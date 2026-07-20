@@ -158,6 +158,36 @@ temporal_gather_one_hop_edgelist(
   bool do_expensive_check);
 
 /**
+ * @brief Gather one-hop temporally-valid edges to unvisited neighbors
+ *
+ * Like temporal_gather_one_hop_edgelist, but additionally deduplicates by (minor[, label]) and
+ * drops edges whose destinations are already in the visited sets, then updates the visited sets.
+ * Used by always-disjoint temporal neighbor sampling.
+ */
+template <typename vertex_t, typename edge_t, typename time_stamp_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::vector<arithmetic_device_uvector_t>,
+           std::optional<rmm::device_uvector<int32_t>>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<int32_t>>>
+temporal_gather_one_hop_edgelist_to_unvisited_neighbors(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  raft::host_span<edge_arithmetic_property_view_t<edge_t>> edge_property_views,
+  edge_property_view_t<edge_t, time_stamp_t const*> edge_time_view,
+  std::optional<edge_property_view_t<edge_t, int32_t const*>> edge_type_view,
+  raft::device_span<vertex_t const> active_majors,
+  raft::device_span<time_stamp_t const> active_major_times,
+  std::optional<raft::device_span<time_stamp_t const>> active_major_window_ends,
+  std::optional<raft::device_span<int32_t const>> active_major_labels,
+  std::optional<raft::device_span<bool const>> gather_flags,
+  rmm::device_uvector<vertex_t>&& visited_minors,
+  std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
+  temporal_sampling_comparison_t temporal_sampling_comparison,
+  bool do_expensive_check);
+
+/**
  * @brief Randomly sample edges from the adjacency list of specified vertices
  *
  * Returns majors, minors, and tmp_edge_indices (for gather_sampled_properties). Caller should call
@@ -216,36 +246,37 @@ sample_edges_to_unvisited_neighbors(
   bool with_replacement);
 
 /**
- * @brief Randomly sample edges with temporal filter
+ * @brief Randomly sample temporally-valid edges to unvisited neighbors
  *
- * Returns majors, minors, and tmp_edge_indices. Caller should call gather_sampled_properties
- * (number_of_edge_properties > 0, required for temporal) to obtain edge properties.
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam time_stamp_t Type of time. Needs to be an integral type.
- * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU
- * (false)
+ * Combines the per-source temporal window filter with the disjoint (unvisited) constraint, reusing
+ * the resample-to-K loop so each source yields up to K distinct unvisited temporal neighbors.
+ * Returns majors, minors, tmp_edge_indices (for gather_sampled_properties), optional labels, and
+ * the updated visited sets.  Used by always-disjoint temporal neighbor sampling.
  */
 template <typename vertex_t, typename edge_t, typename time_stamp_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            arithmetic_device_uvector_t,
+           std::optional<rmm::device_uvector<int32_t>>,
+           rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<int32_t>>>
-temporal_sample_edges(raft::handle_t const& handle,
-                      raft::random::RngState& rng_state,
-                      graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-                      size_t number_of_edge_properties,
-                      edge_property_view_t<edge_t, time_stamp_t const*> edge_time_view,
-                      std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
-                      std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
-                      raft::device_span<vertex_t const> active_majors,
-                      raft::device_span<time_stamp_t const> active_major_times,
-                      std::optional<raft::device_span<time_stamp_t const>> active_major_window_ends,
-                      std::optional<raft::device_span<int32_t const>> active_major_labels,
-                      raft::host_span<size_t const> Ks,
-                      bool with_replacement,
-                      temporal_sampling_comparison_t temporal_sampling_comparison);
+temporal_sample_edges_to_unvisited_neighbors(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  size_t number_of_edge_properties,
+  edge_property_view_t<edge_t, time_stamp_t const*> edge_time_view,
+  std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
+  std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
+  raft::device_span<vertex_t const> active_majors,
+  raft::device_span<time_stamp_t const> active_major_times,
+  std::optional<raft::device_span<time_stamp_t const>> active_major_window_ends,
+  std::optional<raft::device_span<int32_t const>> active_major_labels,
+  raft::host_span<size_t const> Ks,
+  rmm::device_uvector<vertex_t>&& visited_minors,
+  std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
+  bool with_replacement,
+  temporal_sampling_comparison_t temporal_sampling_comparison);
 
 /**
  * @brief Use the sampling results from hop N to populate the new frontier for hop N+1.
@@ -405,80 +436,6 @@ rmm::device_uvector<int32_t> flatten_label_map(
   raft::handle_t const& handle,
   std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>
     label_to_output_comm_rank);
-
-/**
- * @brief   Partition the temporal frontier for sampling
- *
- * Temporal sampling requires special logic if a vertex appears in the frontier with different
- * timestamps.  This function will partition the frontier appropriately.
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam time_stamp_t Type of time. Needs to be an integral type.
- * @tparam label_t Type of label. Needs to be an integral type.
- *
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param vertices Device span identifying the vertices in the frontier
- * @param vertex_times Device span identifying the time associated with each vertex in the frontier
- * @param vertex_labels Device span identifying the optional vertex label associated with each
- * vertex in the frontier
- * @param vertex_window_ends Optional device span identifying the end of the time window associated
- * with each vertex in the frontier
- *
- * @returns Tuple containing: device vector of vertices that appear only once in the frontier, times
- * associated with those vertices, optional labels and optional window ends associated with those
- * vertices, vertices that appear multiple times in the frontier, times associated with those
- * vertices and optional labels and optional window ends associated with those vertices.
- */
-template <typename vertex_t, typename time_stamp_t, typename label_t>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<time_stamp_t>,
-           std::optional<rmm::device_uvector<label_t>>,
-           std::optional<rmm::device_uvector<time_stamp_t>>,
-           rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<time_stamp_t>,
-           std::optional<rmm::device_uvector<label_t>>,
-           std::optional<rmm::device_uvector<time_stamp_t>>>
-temporal_partition_vertices(
-  raft::handle_t const& handle,
-  raft::device_span<vertex_t const> vertices,
-  raft::device_span<time_stamp_t const> vertex_times,
-  std::optional<raft::device_span<label_t const>> vertex_labels,
-  std::optional<raft::device_span<time_stamp_t const>> vertex_window_ends);
-
-/**
- * @brief   Updated temporal edge mask
- *
- * Temporal sampling requires an edge mask that reflects which edges should be included in the
- * expansion of the current frontier.  This function updates the edge mask.
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam edge_t Type of edge identifiers.  Needs to be an integral type.
- * @tparam time_stamp_t Type of time. Needs to be an integral type.
- * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
- *
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Graph View object to generate edge mask from.
- * @param edge_start_time_view Object holding edge start times for @p graph_view.
- * @param vertices Device span identifying the vertices in the frontier
- * @param vertex_times Device span identifying the time associated with each vertex in the frontier
- * @param vertex_window_ends Optional device span identifying the end of the time window associated
- * with each vertex in the frontier
- * @param edge_time_mask_view Edge property view for bit mask.  Will be updated by this call.  Bit
- * will be set to 1 if an edge should be considered and 0 if not.
- * @param temporal_sampling_comparison Temporal sampling comparison type
- */
-template <typename vertex_t, typename edge_t, typename time_stamp_t, bool multi_gpu>
-void update_temporal_edge_mask(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  edge_property_view_t<edge_t, time_stamp_t const*> edge_start_time_view,
-  raft::device_span<vertex_t const> vertices,
-  raft::device_span<time_stamp_t const> vertex_times,
-  std::optional<raft::device_span<time_stamp_t const>> vertex_window_ends,
-  edge_property_view_t<edge_t, uint32_t*, bool> edge_time_mask_view,
-  temporal_sampling_comparison_t temporal_sampling_comparison);
 
 /**
  * @brief Update visited destination vertices and optional labels with newly sampled items.

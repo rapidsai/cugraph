@@ -1041,6 +1041,12 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neighbor_sample(
                "starting_vertex_end_times should have the same size as start_vertices",
                *error);
 
+  CAPI_EXPECTS(options_cpp.disjoint_sampling_ == TRUE,
+               CUGRAPH_INVALID_INPUT,
+               "temporal neighbor sampling requires disjoint sampling; set disjoint_sampling to "
+               "TRUE in the sampling options",
+               *error);
+
   temporal_neighbor_sampling_functor functor{handle,
                                              rng_state,
                                              graph,
@@ -1137,6 +1143,12 @@ cugraph_error_code_t cugraph_heterogeneous_biased_temporal_neighbor_sample(
                "starting_vertex_end_times should have the same size as start_vertices",
                *error);
 
+  CAPI_EXPECTS(options_cpp.disjoint_sampling_ == TRUE,
+               CUGRAPH_INVALID_INPUT,
+               "temporal neighbor sampling requires disjoint sampling; set disjoint_sampling to "
+               "TRUE in the sampling options",
+               *error);
+
   temporal_neighbor_sampling_functor functor{handle,
                                              rng_state,
                                              graph,
@@ -1221,6 +1233,12 @@ extern "C" cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sa
                      ->size_,
                CUGRAPH_INVALID_INPUT,
                "starting_vertex_end_times should have the same size as start_vertices",
+               *error);
+
+  CAPI_EXPECTS(options_cpp.disjoint_sampling_ == TRUE,
+               CUGRAPH_INVALID_INPUT,
+               "temporal neighbor sampling requires disjoint sampling; set disjoint_sampling to "
+               "TRUE in the sampling options",
                *error);
 
   temporal_neighbor_sampling_functor functor{handle,
@@ -1315,6 +1333,12 @@ extern "C" cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor_sam
                      ->size_,
                CUGRAPH_INVALID_INPUT,
                "starting_vertex_end_times should have the same size as start_vertices",
+               *error);
+
+  CAPI_EXPECTS(options_cpp.disjoint_sampling_ == TRUE,
+               CUGRAPH_INVALID_INPUT,
+               "temporal neighbor sampling requires disjoint sampling; set disjoint_sampling to "
+               "TRUE in the sampling options",
                *error);
 
   temporal_neighbor_sampling_functor functor{handle,
