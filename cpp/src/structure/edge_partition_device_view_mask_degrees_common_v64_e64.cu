@@ -4,8 +4,8 @@
  */
 
 // The single-GPU and multi-GPU biased-sampling paths that are instantiated in
-// libcugraph_common.so (see sampling/detail/sample_one_property_common_*.cu) reference the masked
-// local-degree helpers.  libcugraph_common.so must be self-contained (no undefined cugraph
+// libcugraph_common.so (see sampling/detail/sample_edges_one_property_common_*.cu) reference the
+// masked local-degree helpers.  libcugraph_common.so must be self-contained (no undefined cugraph
 // symbols), so instantiate both the SG and MG variants here rather than relying on the downstream
 // libcugraph.so / libcugraph_mg.so definitions.
 

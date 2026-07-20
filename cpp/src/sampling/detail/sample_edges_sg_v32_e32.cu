@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "sampling/detail/sample_edges.cuh"
+#include "sampling/detail/sample_edges_impl.cuh"
 
 #include <cugraph/export.hpp>
 
