@@ -1,4 +1,9 @@
 #![allow(non_camel_case_types)]
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
 
