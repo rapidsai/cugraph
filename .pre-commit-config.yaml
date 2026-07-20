@@ -20,9 +20,6 @@ repos:
     hooks:
       - id: ruff-check
         args: [--fix]
-        exclude: |
-          (?x)
-            ^notebooks/algorithms/layout/Force-Atlas2[.]ipynb$
       - id: ruff-format
   - repo: https://github.com/asottile/yesqa
     rev: v1.5.0
