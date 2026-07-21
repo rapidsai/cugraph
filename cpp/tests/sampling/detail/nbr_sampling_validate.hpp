@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -43,6 +43,27 @@ bool validate_temporal_integrity(
   raft::device_span<vertex_t const> dsts,
   raft::device_span<time_stamp_t const> edge_times,
   raft::device_span<vertex_t const> source_vertices,
+  cugraph::temporal_sampling_comparison_t temporal_sampling_comparison);
+
+/**
+ * @brief Validate sampled edge times against each starting vertex's time window.
+ *
+ * When @p starting_vertex_end_times is specified, every sampled edge must be within the inclusive
+ * window [starting_vertex_times, starting_vertex_end_times] of the seed from which it descends.
+ * Without end times, starting_vertex_times is the lower bound for increasing walks and the upper
+ * bound for decreasing walks.
+ */
+template <typename vertex_t, typename time_stamp_t>
+bool validate_temporal_time_windows(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> srcs,
+  raft::device_span<vertex_t const> dsts,
+  raft::device_span<time_stamp_t const> edge_times,
+  raft::device_span<vertex_t const> starting_vertices,
+  raft::device_span<time_stamp_t const> starting_vertex_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_end_times,
+  std::optional<raft::device_span<size_t const>> label_offsets,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   cugraph::temporal_sampling_comparison_t temporal_sampling_comparison);
 
 /**
