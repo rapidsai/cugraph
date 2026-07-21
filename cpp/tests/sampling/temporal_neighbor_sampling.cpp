@@ -381,6 +381,7 @@ class Tests_Temporal_Neighbor_Sampling
           batch_number ? std::make_optional(raft::device_span<int32_t const>{batch_number->data(),
                                                                              batch_number->size()})
                        : std::nullopt,
+          std::nullopt,
           temporal_neighbor_sampling_usecase.temporal_sampling_comparison));
       }
 

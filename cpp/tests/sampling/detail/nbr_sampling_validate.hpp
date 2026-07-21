@@ -64,6 +64,7 @@ bool validate_temporal_time_windows(
   std::optional<raft::device_span<time_stamp_t const>> starting_vertex_end_times,
   std::optional<raft::device_span<size_t const>> label_offsets,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+  std::optional<raft::device_span<int32_t const>> edge_labels,
   cugraph::temporal_sampling_comparison_t temporal_sampling_comparison);
 
 /**

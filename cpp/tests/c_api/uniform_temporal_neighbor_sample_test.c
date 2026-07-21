@@ -1340,6 +1340,71 @@ int test_uniform_temporal_neighbor_sample_with_vertex_end_times_limits_multihop(
     sizeof(expected_edges) / sizeof(expected_edges[0]));
 }
 
+int test_uniform_temporal_neighbor_sample_with_per_seed_time_windows(
+  const cugraph_resource_handle_t* handle)
+{
+  size_t num_edges        = 4;
+  size_t num_vertices     = 6;
+  size_t fan_out_size     = 1;
+  size_t num_starts       = 2;
+  size_t num_start_labels = 3;
+
+  vertex_t src[]                          = {0, 0, 1, 1};
+  vertex_t dst[]                          = {2, 3, 4, 5};
+  edge_t edge_ids[]                       = {0, 1, 2, 3};
+  weight_t weight[]                       = {0.1, 0.2, 0.3, 0.4};
+  int32_t edge_types[]                    = {0, 1, 2, 3};
+  time_stamp_t edge_start_times[]         = {2, 6, 4, 8};
+  time_stamp_t edge_end_times[]           = {3, 7, 5, 9};
+  vertex_t start[]                        = {0, 1};
+  time_stamp_t start_vertex_start_times[] = {1, 7};
+  time_stamp_t start_vertex_end_times[]   = {3, 9};
+  size_t start_vertex_label_offsets[]     = {0, 1, 2};
+  int fan_out[]                           = {-1};
+
+  bool_t with_replacement                                             = FALSE;
+  bool_t return_hops                                                  = TRUE;
+  cugraph_prior_sources_behavior_t prior_sources_behavior             = DEFAULT;
+  bool_t dedupe_sources                                               = FALSE;
+  bool_t renumber_results                                             = FALSE;
+  cugraph_temporal_sampling_comparison_t temporal_sampling_comparison = MONOTONICALLY_INCREASING;
+
+  // Each seed has a distinct window. Seed 0 admits only time 2 from [1, 3], while seed 1 admits
+  // only time 8 from [7, 9].
+  expected_temporal_sample_edge_t expected_edges[] = {
+    {0, 2, 2, 0},
+    {1, 5, 8, 0},
+  };
+
+  return generic_uniform_temporal_neighbor_sample_test(
+    handle,
+    src,
+    dst,
+    weight,
+    edge_ids,
+    edge_types,
+    edge_start_times,
+    edge_end_times,
+    num_vertices,
+    num_edges,
+    start,
+    start_vertex_start_times,
+    start_vertex_end_times,
+    start_vertex_label_offsets,
+    num_starts,
+    num_start_labels,
+    fan_out,
+    fan_out_size,
+    with_replacement,
+    return_hops,
+    prior_sources_behavior,
+    dedupe_sources,
+    temporal_sampling_comparison,
+    renumber_results,
+    expected_edges,
+    sizeof(expected_edges) / sizeof(expected_edges[0]));
+}
+
 int test_uniform_temporal_neighbor_sample_with_vertex_end_times_monotonically_decreasing(
   const cugraph_resource_handle_t* handle)
 {
@@ -1491,6 +1556,7 @@ int main(int argc, char** argv)
   result |= RUN_TEST_NEW(test_uniform_temporal_neighbor_sample_with_vertex_end_times, handle);
   result |= RUN_TEST_NEW(
     test_uniform_temporal_neighbor_sample_with_vertex_end_times_limits_multihop, handle);
+  result |= RUN_TEST_NEW(test_uniform_temporal_neighbor_sample_with_per_seed_time_windows, handle);
   result |= RUN_TEST_NEW(
     test_uniform_temporal_neighbor_sample_with_vertex_end_times_monotonically_decreasing, handle);
   result |= RUN_TEST_NEW(

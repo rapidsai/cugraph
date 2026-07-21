@@ -439,14 +439,18 @@ bool validate_temporal_time_windows(
   std::optional<raft::device_span<time_stamp_t const>> starting_vertex_end_times,
   std::optional<raft::device_span<size_t const>> label_offsets,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+  std::optional<raft::device_span<int32_t const>> edge_labels,
   cugraph::temporal_sampling_comparison_t temporal_sampling_comparison)
 {
   if ((srcs.size() != dsts.size()) || (srcs.size() != edge_times.size()) ||
       (starting_vertices.size() != starting_vertex_times.size()) ||
       (starting_vertex_end_times &&
        (starting_vertex_end_times->size() != starting_vertices.size())) ||
-      (label_offsets.has_value() != starting_vertex_labels.has_value()) ||
-      (starting_vertex_labels && (starting_vertex_labels->size() != starting_vertices.size()))) {
+      ((label_offsets.has_value() || edge_labels.has_value()) !=
+       starting_vertex_labels.has_value()) ||
+      (label_offsets && edge_labels) ||
+      (starting_vertex_labels && (starting_vertex_labels->size() != starting_vertices.size())) ||
+      (edge_labels && (edge_labels->size() != srcs.size()))) {
     return false;
   }
 
@@ -463,20 +467,49 @@ bool validate_temporal_time_windows(
     starting_vertex_labels
       ? std::make_optional(cugraph::test::to_host(handle, *starting_vertex_labels))
       : std::nullopt;
-  auto h_label_offsets = label_offsets ? cugraph::test::to_host(handle, *label_offsets)
-                                       : std::vector<size_t>{size_t{0}, h_srcs.size()};
+  auto h_edge_labels =
+    edge_labels ? std::make_optional(cugraph::test::to_host(handle, *edge_labels)) : std::nullopt;
 
-  if ((h_label_offsets.size() < 2) || (h_label_offsets.front() != 0) ||
-      (h_label_offsets.back() != h_srcs.size()) ||
-      !std::is_sorted(h_label_offsets.begin(), h_label_offsets.end())) {
-    return false;
+  std::vector<std::vector<size_t>> label_edge_indices{};
+  if (label_offsets) {
+    auto h_label_offsets = cugraph::test::to_host(handle, *label_offsets);
+    if ((h_label_offsets.size() < 2) || (h_label_offsets.front() != 0) ||
+        (h_label_offsets.back() != h_srcs.size()) ||
+        !std::is_sorted(h_label_offsets.begin(), h_label_offsets.end())) {
+      return false;
+    }
+    label_edge_indices.resize(h_label_offsets.size() - 1);
+    for (size_t label = 0; label < label_edge_indices.size(); ++label) {
+      for (size_t i = h_label_offsets[label]; i < h_label_offsets[label + 1]; ++i) {
+        label_edge_indices[label].push_back(i);
+      }
+    }
+  } else if (h_edge_labels) {
+    int32_t max_label{-1};
+    for (auto label : *h_starting_vertex_labels) {
+      if (label < 0) { return false; }
+      max_label = std::max(max_label, label);
+    }
+    for (auto label : *h_edge_labels) {
+      if (label < 0) { return false; }
+      max_label = std::max(max_label, label);
+    }
+    label_edge_indices.resize(static_cast<size_t>(max_label) + 1);
+    for (size_t i = 0; i < h_edge_labels->size(); ++i) {
+      label_edge_indices[static_cast<size_t>((*h_edge_labels)[i])].push_back(i);
+    }
+  } else {
+    label_edge_indices.resize(1);
+    label_edge_indices.front().resize(h_srcs.size());
+    std::iota(label_edge_indices.front().begin(), label_edge_indices.front().end(), size_t{0});
   }
-  if (h_starting_vertex_labels &&
-      std::any_of(h_starting_vertex_labels->begin(),
-                  h_starting_vertex_labels->end(),
-                  [num_labels = h_label_offsets.size() - 1](auto label) {
-                    return (label < 0) || (static_cast<size_t>(label) >= num_labels);
-                  })) {
+
+  if (h_starting_vertex_labels && std::any_of(h_starting_vertex_labels->begin(),
+                                              h_starting_vertex_labels->end(),
+                                              [num_labels = label_edge_indices.size()](auto label) {
+                                                return (label < 0) ||
+                                                       (static_cast<size_t>(label) >= num_labels);
+                                              })) {
     return false;
   }
 
@@ -494,7 +527,7 @@ bool validate_temporal_time_windows(
     std::optional<time_stamp_t> upper{};
   };
 
-  for (size_t label = 0; label + 1 < h_label_offsets.size(); ++label) {
+  for (size_t label = 0; label < label_edge_indices.size(); ++label) {
     std::unordered_map<vertex_t, time_window_t> vertex_windows{};
 
     for (size_t i = 0; i < h_starting_vertices.size(); ++i) {
@@ -516,9 +549,8 @@ bool validate_temporal_time_windows(
       if (!vertex_windows.emplace(h_starting_vertices[i], window).second) { return false; }
     }
 
-    auto const first = h_label_offsets[label];
-    auto const last  = h_label_offsets[label + 1];
-    std::vector<bool> validated(last - first, false);
+    auto const& edge_indices = label_edge_indices[label];
+    std::vector<bool> validated(edge_indices.size(), false);
     size_t num_validated{0};
 
     // Output ordering is not part of this validator's contract. Repeatedly consume every edge
@@ -526,8 +558,9 @@ bool validate_temporal_time_windows(
     // to the destination.
     while (num_validated < validated.size()) {
       bool made_progress{false};
-      for (size_t i = first; i < last; ++i) {
-        if (validated[i - first]) { continue; }
+      for (size_t j = 0; j < edge_indices.size(); ++j) {
+        if (validated[j]) { continue; }
+        auto const i = edge_indices[j];
 
         auto window_it = vertex_windows.find(h_srcs[i]);
         if (window_it == vertex_windows.end()) { continue; }
@@ -544,7 +577,7 @@ bool validate_temporal_time_windows(
 
         if (!vertex_windows.emplace(h_dsts[i], window).second) { return false; }
 
-        validated[i - first] = true;
+        validated[j] = true;
         ++num_validated;
         made_progress = true;
       }
@@ -564,6 +597,7 @@ template bool validate_temporal_time_windows(raft::handle_t const&,
                                              std::optional<raft::device_span<int32_t const>>,
                                              std::optional<raft::device_span<size_t const>>,
                                              std::optional<raft::device_span<int32_t const>>,
+                                             std::optional<raft::device_span<int32_t const>>,
                                              cugraph::temporal_sampling_comparison_t);
 
 template bool validate_temporal_time_windows(raft::handle_t const&,
@@ -574,6 +608,7 @@ template bool validate_temporal_time_windows(raft::handle_t const&,
                                              raft::device_span<int32_t const>,
                                              std::optional<raft::device_span<int32_t const>>,
                                              std::optional<raft::device_span<size_t const>>,
+                                             std::optional<raft::device_span<int32_t const>>,
                                              std::optional<raft::device_span<int32_t const>>,
                                              cugraph::temporal_sampling_comparison_t);
 
