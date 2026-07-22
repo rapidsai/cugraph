@@ -28,8 +28,6 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 | [Cores](cores/README.md)            |                                                              |                                                              |
 |                | [core-number](cores/Core-number.ipynb)   | Computes the core number for every vertex of a graph G. The core number of a vertex is a maximal subgraph that contains only that vertex and others of degree k or more. |
 |                | [kcore](cores/kcore.ipynb)               |Find the k-core of a graph which is a maximal subgraph that contains nodes of degree k or more.|
-Layout            |                                                              |                                                              |
-|                | [Force-Atlas2](layout/Force-Atlas2.ipynb)   |A large graph visualization achieved with cuGraph. |
 | [Link Analysis](link_analysis/README.md)   |                                                              |                                                              |
 |                 | [Pagerank](link_analysis/Pagerank.ipynb)                     | Compute the PageRank of every vertex in a graph              |
 |                 | [HITS](link_analysis/HITS.ipynb)                             | Compute the HITS' Hub and Authority scores for every vertex in a graph              |
