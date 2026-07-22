@@ -354,7 +354,15 @@ class simpleDistributedGraphImpl:
             is_multigraph=self.properties.multi_edge,
             is_symmetric=not self.properties.directed,
         )
-        ddf = ddf.repartition(npartitions=len(workers) * 2)
+        n_workers_before_repart = len(workers)
+        target_npartitions = max(1, n_workers_before_repart)
+        print(
+            f"[cugraph_mg_persist_debug] graph_from_edgelist_before_persist "
+            f"n_workers={n_workers_before_repart} input_npartitions={ddf.npartitions} "
+            f"target_npartitions={target_npartitions}",
+            flush=True,
+        )
+        ddf = ddf.repartition(npartitions=target_npartitions)
         workers = _client.scheduler_info(n_workers=-1)["workers"].keys()
         persisted_keys_d = persist_dask_df_equal_parts_per_worker(
             ddf, _client, return_type="dict"
@@ -387,6 +395,16 @@ class simpleDistributedGraphImpl:
             )
             for w, delayed_task in delayed_tasks_d.items()
         }
+        comms_workers = list(Comms.get_workers())
+        print(
+            f"[cugraph_mg_persist_debug] graph_plc_built "
+            f"plc_keys={list(self._plc_graph.keys())!r} "
+            f"comms_workers={comms_workers!r} "
+            f"scheduler_workers={list(workers)!r} "
+            f"plc_not_in_comms={set(self._plc_graph.keys()) - set(comms_workers)!r} "
+            f"comms_not_in_plc={set(comms_workers) - set(self._plc_graph.keys())!r}",
+            flush=True,
+        )
         del delayed_tasks_d
         run_gc_on_dask_cluster(_client)
         wait(list(self._plc_graph.values()))

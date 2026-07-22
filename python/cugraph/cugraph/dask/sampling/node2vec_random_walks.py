@@ -151,6 +151,14 @@ def node2vec_random_walks(
     start_vertices = persist_dask_df_equal_parts_per_worker(
         start_vertices, client, return_type="dict"
     )
+    print(
+        f"[cugraph_mg_persist_debug] node2vec_after_persist "
+        f"start_vertex_workers={list(start_vertices.keys())!r} "
+        f"plc_keys={list(input_graph._plc_graph.keys())!r} "
+        f"comms_workers={list(Comms.get_workers())!r} "
+        f"plc_not_in_comms={set(input_graph._plc_graph.keys()) - set(Comms.get_workers())!r}",
+        flush=True,
+    )
 
     result = [
         client.submit(
@@ -184,6 +192,17 @@ def node2vec_random_walks(
     ]
 
     wait([cudf_vertex_paths, cudf_edge_wgt_paths])
+
+    print(
+        f"[cugraph_mg_persist_debug] node2vec_before_from_delayed "
+        f"n_cudf_vertex_paths={len(cudf_vertex_paths)} "
+        f"n_result={len(result)}",
+        flush=True,
+    )
+    if not cudf_vertex_paths:
+        raise RuntimeError(
+            "[cugraph_mg_persist_debug] node2vec: empty cudf_vertex_paths after persist/submit"
+        )
 
     ddf_vertex_paths = dask_cudf.from_delayed(cudf_vertex_paths).persist()
     ddf_edge_wgt_paths = dask_cudf.from_delayed(cudf_edge_wgt_paths).persist()
