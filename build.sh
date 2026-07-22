@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # cugraph build script
@@ -120,21 +120,6 @@ function cleanPythonDir {
     find . -type f -name "*.cpython*.so" -delete
     find . -type d -name _external_repositories -print0 | xargs -0 rm -rf
     popd > /dev/null
-}
-
-function cmakeBuild {
-    local build_dir="$1"
-    shift
-    local cmake_build_args=("${build_dir}" "-j${PARALLEL_LEVEL}")
-
-    if (( $# != 0 )); then
-        cmake_build_args+=("$@")
-    fi
-    if [[ "${VERBOSE_FLAG}" != "" ]]; then
-        cmake_build_args+=("${VERBOSE_FLAG}")
-    fi
-
-    cmake --build "${cmake_build_args[@]}"
 }
 
 if hasArg -h || hasArg --help; then
@@ -262,7 +247,7 @@ if buildDefault || hasArg libcugraph || hasArg all; then
               "${CMAKE_VERBOSE_OPTION[@]}" \
               ${EXTRA_CMAKE_ARGS}
 
-        cmakeBuild "${LIBCUGRAPH_BUILD_DIR}" "${INSTALL_TARGET[@]}"
+        cmake --build "${LIBCUGRAPH_BUILD_DIR}" "-j${PARALLEL_LEVEL}" "${INSTALL_TARGET[@]}" "${VERBOSE_FLAG}"
     fi
 fi
 
@@ -294,7 +279,7 @@ if buildDefault || hasArg libcugraph_etl || hasArg all; then
               "${CMAKE_GENERATOR_OPTION[@]}" \
               "${CMAKE_VERBOSE_OPTION[@]}" \
               "${REPODIR}/cpp/libcugraph_etl"
-        cmakeBuild "${LIBCUGRAPH_ETL_BUILD_DIR}" "${INSTALL_TARGET[@]}"
+        cmake --build "${LIBCUGRAPH_ETL_BUILD_DIR}" "-j${PARALLEL_LEVEL}" "${INSTALL_TARGET[@]}" "${VERBOSE_FLAG}"
     fi
 fi
 
@@ -337,7 +322,7 @@ if hasArg docs || hasArg all; then
     fi
 
     cd "${LIBCUGRAPH_BUILD_DIR}"
-    cmakeBuild "${LIBCUGRAPH_BUILD_DIR}" --target docs_cugraph
+    cmake --build "${LIBCUGRAPH_BUILD_DIR}" "-j${PARALLEL_LEVEL}" --target docs_cugraph ${VERBOSE_FLAG}
 
     echo "making libcugraph doc dir"
     rm -rf "${REPODIR}/docs/cugraph/libcugraph"
