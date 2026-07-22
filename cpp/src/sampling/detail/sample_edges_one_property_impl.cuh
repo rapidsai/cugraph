@@ -8,6 +8,7 @@
 #include "gather_sampled_properties.cuh"
 #include "sample_edges_one_property.hpp"
 #include "sampling_utils.hpp"
+#include "temporal_sampling_utils.cuh"
 
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -54,6 +55,7 @@
 
 namespace cugraph {
 namespace detail {
+
 struct return_edge_property_t {
   template <typename key_t, typename vertex_t, typename T>
   T __device__
@@ -154,8 +156,8 @@ struct sample_unvisited_temporal_edge_biases_op_t {
   temporal_sampling_comparison_t temporal_sampling_comparison{};
   raft::device_span<vertex_t const> active_majors{};           // sorted by (major[, label])
   raft::device_span<time_stamp_t const> active_major_times{};  // parallel to active_majors
-  // Parallel to active_majors when present.  nullopt => unbounded: max() for increasing walks
-  // (upper bound), lowest() for decreasing walks (lower bound).
+  // Parallel to active_majors when present.  nullopt => unbounded via
+  // unbounded_temporal_window_end (max for increasing, lowest for decreasing).
   cuda::std::optional<raft::device_span<time_stamp_t const>> active_major_window_ends{};
   cuda::std::optional<raft::device_span<int32_t const>> active_major_labels{};   // parallel, sorted
   raft::device_span<vertex_t const> visited_minors{};                            // sorted
@@ -205,47 +207,10 @@ struct sample_unvisited_temporal_edge_biases_op_t {
     }
   }
 
-  __device__ size_t lookup_index(vertex_t major) const
-  {
-    auto it = thrust::lower_bound(thrust::seq, active_majors.begin(), active_majors.end(), major);
-    return static_cast<size_t>(cuda::std::distance(active_majors.begin(), it));
-  }
-
-  __device__ size_t lookup_index(vertex_t major, int32_t label) const
-  {
-    auto begin = thrust::make_zip_iterator(active_majors.begin(), active_major_labels->begin());
-    auto end   = thrust::make_zip_iterator(active_majors.end(), active_major_labels->end());
-    auto it    = thrust::lower_bound(thrust::seq, begin, end, cuda::std::make_tuple(major, label));
-    return static_cast<size_t>(cuda::std::distance(begin, it));
-  }
-
   __device__ time_stamp_t window_end_at(size_t idx) const
   {
     if (active_major_window_ends) { return (*active_major_window_ends)[idx]; }
-    // nullopt => unbounded window.  Increasing walks use an upper bound (max); decreasing
-    // walks use a lower bound (lowest).  Using max() for decreasing would reject nearly all edges.
-    return (temporal_sampling_comparison == temporal_sampling_comparison_t::STRICTLY_DECREASING ||
-            temporal_sampling_comparison ==
-              temporal_sampling_comparison_t::MONOTONICALLY_DECREASING)
-             ? std::numeric_limits<time_stamp_t>::lowest()
-             : std::numeric_limits<time_stamp_t>::max();
-  }
-
-  __device__ bool passes_temporal_filter(time_stamp_t major_time,
-                                         time_stamp_t window_end,
-                                         time_stamp_t edge_time) const
-  {
-    switch (temporal_sampling_comparison) {
-      case temporal_sampling_comparison_t::STRICTLY_INCREASING:
-        return (major_time < edge_time) && (edge_time <= window_end);
-      case temporal_sampling_comparison_t::MONOTONICALLY_INCREASING:
-        return (major_time <= edge_time) && (edge_time <= window_end);
-      case temporal_sampling_comparison_t::STRICTLY_DECREASING:
-        return (major_time > edge_time) && (edge_time >= window_end);
-      case temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
-        return (major_time >= edge_time) && (edge_time >= window_end);
-    }
-    return false;
+    return unbounded_temporal_window_end<time_stamp_t>(temporal_sampling_comparison);
   }
 
   __device__ bool is_visited(vertex_t minor) const
@@ -271,13 +236,14 @@ struct sample_unvisited_temporal_edge_biases_op_t {
                                edge_property_t edge_property) const
   {
     if (is_visited(minor)) { return bias_t{0}; }
-    auto const idx        = lookup_index(major);
+    size_t idx{};
+    if (!try_find_temporal_key_index(active_majors, major, idx)) { return bias_t{0}; }
     auto const major_time = active_major_times[idx];
     auto const window_end = window_end_at(idx);
     auto const edge_time  = extract_edge_time(edge_property);
-    return passes_temporal_filter(major_time, window_end, edge_time)
-             ? extract_edge_bias(edge_property)
-             : bias_t{0};
+    auto const passes =
+      passes_temporal_filter(temporal_sampling_comparison, major_time, window_end, edge_time);
+    return passes ? extract_edge_bias(edge_property) : bias_t{0};
   }
 
   // Labeled frontier (tag == int32 label): key is (major, label).
@@ -291,13 +257,16 @@ struct sample_unvisited_temporal_edge_biases_op_t {
     auto const major = cuda::std::get<0>(tagged_major);
     auto const label = cuda::std::get<1>(tagged_major);
     if (is_visited(minor, label)) { return bias_t{0}; }
-    auto const idx        = lookup_index(major, label);
+    size_t idx{};
+    if (!try_find_temporal_key_index(active_majors, *active_major_labels, major, label, idx)) {
+      return bias_t{0};
+    }
     auto const major_time = active_major_times[idx];
     auto const window_end = window_end_at(idx);
     auto const edge_time  = extract_edge_time(edge_property);
-    return passes_temporal_filter(major_time, window_end, edge_time)
-             ? extract_edge_bias(edge_property)
-             : bias_t{0};
+    auto const passes =
+      passes_temporal_filter(temporal_sampling_comparison, major_time, window_end, edge_time);
+    return passes ? extract_edge_bias(edge_property) : bias_t{0};
   }
 };
 

@@ -9,6 +9,7 @@
 #include "detail/sampling_result_utils.hpp"
 #include "detail/sampling_utils.hpp"
 #include "detail/shuffle_wrappers.hpp"
+#include "detail/temporal_sampling_utils.cuh"
 #include "utilities/validation_checks.hpp"
 
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -35,6 +36,7 @@
 #include <thrust/fill.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/reduce.h>
 #include <thrust/transform.h>
 
 #include <cstddef>
@@ -46,12 +48,6 @@
 
 namespace cugraph {
 namespace detail {
-
-inline bool is_temporal_decreasing(temporal_sampling_comparison_t comparison)
-{
-  return comparison == temporal_sampling_comparison_t::STRICTLY_DECREASING ||
-         comparison == temporal_sampling_comparison_t::MONOTONICALLY_DECREASING;
-}
 
 template <typename time_stamp_t>
 void validate_starting_vertex_time_windows(
@@ -120,6 +116,192 @@ void validate_no_duplicate_seeds(
   CUGRAPH_EXPECTS(num_duplicates == 0,
                   "Invalid input argument: temporal neighbor sampling requires disjoint sampling, "
                   "which does not allow duplicate starting vertices per label.");
+}
+
+struct temporal_time_window_reduce_t {
+  bool increasing{};
+  template <typename time_stamp_t>
+  __device__ cuda::std::tuple<time_stamp_t, time_stamp_t> operator()(
+    cuda::std::tuple<time_stamp_t, time_stamp_t> a,
+    cuda::std::tuple<time_stamp_t, time_stamp_t> b) const
+  {
+    auto const time_a = cuda::std::get<0>(a);
+    auto const time_b = cuda::std::get<0>(b);
+    if (increasing) { return time_a >= time_b ? a : b; }
+    return time_a <= time_b ? a : b;
+  }
+};
+
+// prepare_next_frontier can emit the same (vertex[, label]) multiple times when several edge lists
+// are concatenated for a hop.  Keep the frontier time extremum required by the temporal mode so
+// downstream sampling/gather filters use the tightest valid bound.
+template <typename vertex_t, typename time_stamp_t, typename label_t>
+void dedupe_temporal_frontier(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>& frontier_vertices,
+  std::optional<rmm::device_uvector<label_t>>& frontier_vertex_labels,
+  std::optional<rmm::device_uvector<time_stamp_t>>& frontier_vertex_times,
+  std::optional<rmm::device_uvector<time_stamp_t>>& frontier_vertex_window_ends,
+  temporal_sampling_comparison_t temporal_sampling_comparison)
+{
+  if (!frontier_vertex_times || frontier_vertices.size() < 2) { return; }
+
+  auto const n          = frontier_vertices.size();
+  bool const increasing = !is_temporal_decreasing(temporal_sampling_comparison);
+
+  if (frontier_vertex_labels && frontier_vertex_window_ends) {
+    rmm::device_uvector<vertex_t> out_vertices(n, handle.get_stream());
+    rmm::device_uvector<label_t> out_labels(n, handle.get_stream());
+    rmm::device_uvector<time_stamp_t> out_times(n, handle.get_stream());
+    rmm::device_uvector<time_stamp_t> out_window_ends(n, handle.get_stream());
+
+    cugraph::sort(handle.get_thrust_policy(),
+                  thrust::make_zip_iterator(frontier_vertices.begin(),
+                                            frontier_vertex_labels->begin(),
+                                            frontier_vertex_times->begin(),
+                                            frontier_vertex_window_ends->begin()),
+                  thrust::make_zip_iterator(frontier_vertices.end(),
+                                            frontier_vertex_labels->end(),
+                                            frontier_vertex_times->end(),
+                                            frontier_vertex_window_ends->end()));
+
+    temporal_time_window_reduce_t reducer{increasing};
+    auto ends = thrust::reduce_by_key(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(frontier_vertices.begin(), frontier_vertex_labels->begin()),
+      thrust::make_zip_iterator(frontier_vertices.end(), frontier_vertex_labels->end()),
+      thrust::make_zip_iterator(frontier_vertex_times->begin(),
+                                frontier_vertex_window_ends->begin()),
+      thrust::make_zip_iterator(out_vertices.begin(), out_labels.begin()),
+      thrust::make_zip_iterator(out_times.begin(), out_window_ends.begin()),
+      thrust::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
+      reducer);
+    auto const new_size = static_cast<size_t>(cuda::std::distance(
+      thrust::make_zip_iterator(out_vertices.begin(), out_labels.begin()), ends.first));
+
+    frontier_vertices            = std::move(out_vertices);
+    *frontier_vertex_labels      = std::move(out_labels);
+    *frontier_vertex_times       = std::move(out_times);
+    *frontier_vertex_window_ends = std::move(out_window_ends);
+    frontier_vertices.resize(new_size, handle.get_stream());
+    frontier_vertex_labels->resize(new_size, handle.get_stream());
+    frontier_vertex_times->resize(new_size, handle.get_stream());
+    frontier_vertex_window_ends->resize(new_size, handle.get_stream());
+  } else if (frontier_vertex_labels) {
+    rmm::device_uvector<vertex_t> out_vertices(n, handle.get_stream());
+    rmm::device_uvector<label_t> out_labels(n, handle.get_stream());
+    rmm::device_uvector<time_stamp_t> out_times(n, handle.get_stream());
+
+    cugraph::sort(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(
+        frontier_vertices.begin(), frontier_vertex_labels->begin(), frontier_vertex_times->begin()),
+      thrust::make_zip_iterator(
+        frontier_vertices.end(), frontier_vertex_labels->end(), frontier_vertex_times->end()));
+
+    size_t new_size{};
+    if (increasing) {
+      auto ends = thrust::reduce_by_key(
+        handle.get_thrust_policy(),
+        thrust::make_zip_iterator(frontier_vertices.begin(), frontier_vertex_labels->begin()),
+        thrust::make_zip_iterator(frontier_vertices.end(), frontier_vertex_labels->end()),
+        frontier_vertex_times->begin(),
+        thrust::make_zip_iterator(out_vertices.begin(), out_labels.begin()),
+        out_times.begin(),
+        thrust::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
+        thrust::maximum<time_stamp_t>{});
+      new_size = static_cast<size_t>(cuda::std::distance(
+        thrust::make_zip_iterator(out_vertices.begin(), out_labels.begin()), ends.first));
+    } else {
+      auto ends = thrust::reduce_by_key(
+        handle.get_thrust_policy(),
+        thrust::make_zip_iterator(frontier_vertices.begin(), frontier_vertex_labels->begin()),
+        thrust::make_zip_iterator(frontier_vertices.end(), frontier_vertex_labels->end()),
+        frontier_vertex_times->begin(),
+        thrust::make_zip_iterator(out_vertices.begin(), out_labels.begin()),
+        out_times.begin(),
+        thrust::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
+        thrust::minimum<time_stamp_t>{});
+      new_size = static_cast<size_t>(cuda::std::distance(
+        thrust::make_zip_iterator(out_vertices.begin(), out_labels.begin()), ends.first));
+    }
+
+    frontier_vertices       = std::move(out_vertices);
+    *frontier_vertex_labels = std::move(out_labels);
+    *frontier_vertex_times  = std::move(out_times);
+    frontier_vertices.resize(new_size, handle.get_stream());
+    frontier_vertex_labels->resize(new_size, handle.get_stream());
+    frontier_vertex_times->resize(new_size, handle.get_stream());
+  } else if (frontier_vertex_window_ends) {
+    rmm::device_uvector<vertex_t> out_vertices(n, handle.get_stream());
+    rmm::device_uvector<time_stamp_t> out_times(n, handle.get_stream());
+    rmm::device_uvector<time_stamp_t> out_window_ends(n, handle.get_stream());
+
+    cugraph::sort(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(frontier_vertices.begin(),
+                                frontier_vertex_times->begin(),
+                                frontier_vertex_window_ends->begin()),
+      thrust::make_zip_iterator(
+        frontier_vertices.end(), frontier_vertex_times->end(), frontier_vertex_window_ends->end()));
+
+    temporal_time_window_reduce_t reducer{increasing};
+    auto ends =
+      thrust::reduce_by_key(handle.get_thrust_policy(),
+                            frontier_vertices.begin(),
+                            frontier_vertices.end(),
+                            thrust::make_zip_iterator(frontier_vertex_times->begin(),
+                                                      frontier_vertex_window_ends->begin()),
+                            out_vertices.begin(),
+                            thrust::make_zip_iterator(out_times.begin(), out_window_ends.begin()),
+                            thrust::equal_to<vertex_t>{},
+                            reducer);
+    auto const new_size =
+      static_cast<size_t>(cuda::std::distance(out_vertices.begin(), ends.first));
+
+    frontier_vertices            = std::move(out_vertices);
+    *frontier_vertex_times       = std::move(out_times);
+    *frontier_vertex_window_ends = std::move(out_window_ends);
+    frontier_vertices.resize(new_size, handle.get_stream());
+    frontier_vertex_times->resize(new_size, handle.get_stream());
+    frontier_vertex_window_ends->resize(new_size, handle.get_stream());
+  } else {
+    rmm::device_uvector<vertex_t> out_vertices(n, handle.get_stream());
+    rmm::device_uvector<time_stamp_t> out_times(n, handle.get_stream());
+
+    cugraph::sort(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(frontier_vertices.begin(), frontier_vertex_times->begin()),
+      thrust::make_zip_iterator(frontier_vertices.end(), frontier_vertex_times->end()));
+
+    size_t new_size{};
+    if (increasing) {
+      auto ends = thrust::reduce_by_key(handle.get_thrust_policy(),
+                                        frontier_vertices.begin(),
+                                        frontier_vertices.end(),
+                                        frontier_vertex_times->begin(),
+                                        out_vertices.begin(),
+                                        out_times.begin(),
+                                        thrust::equal_to<vertex_t>{},
+                                        thrust::maximum<time_stamp_t>{});
+      new_size  = static_cast<size_t>(cuda::std::distance(out_vertices.begin(), ends.first));
+    } else {
+      auto ends = thrust::reduce_by_key(handle.get_thrust_policy(),
+                                        frontier_vertices.begin(),
+                                        frontier_vertices.end(),
+                                        frontier_vertex_times->begin(),
+                                        out_vertices.begin(),
+                                        out_times.begin(),
+                                        thrust::equal_to<vertex_t>{},
+                                        thrust::minimum<time_stamp_t>{});
+      new_size  = static_cast<size_t>(cuda::std::distance(out_vertices.begin(), ends.first));
+    }
+
+    frontier_vertices      = std::move(out_vertices);
+    *frontier_vertex_times = std::move(out_times);
+    frontier_vertices.resize(new_size, handle.get_stream());
+    frontier_vertex_times->resize(new_size, handle.get_stream());
+  }
 }
 
 // Propagate the per-seed window-end bound from the current frontier to each sampled edge by looking
@@ -757,6 +939,13 @@ temporal_neighbor_sample_impl(
         sampling_flags.dedupe_sources,
         multi_gpu,
         do_expensive_check);
+    dedupe_temporal_frontier<vertex_t, time_stamp_t, label_t>(
+      handle,
+      frontier_vertices,
+      frontier_vertex_labels,
+      frontier_vertex_times,
+      frontier_vertex_window_ends,
+      sampling_flags.temporal_sampling_comparison);
   }
 
   // Assemble the output by concatenating every produced edge list, in order.
@@ -864,7 +1053,7 @@ homogeneous_uniform_temporal_neighbor_sample(
   CUGRAPH_EXPECTS(sampling_flags.disjoint_sampling,
                   "Invalid input argument: temporal neighbor sampling requires disjoint sampling; "
                   "set sampling_flags.disjoint_sampling to true.");
-  return detail::
+  auto result = detail::
     temporal_neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, bias_t>(
       handle,
       rng_state,
@@ -885,6 +1074,7 @@ homogeneous_uniform_temporal_neighbor_sample(
       std::optional<edge_type_t>{std::nullopt},
       sampling_flags,
       do_expensive_check);
+  return result;
 }
 
 template <typename vertex_t,

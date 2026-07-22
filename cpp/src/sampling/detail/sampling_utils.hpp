@@ -109,7 +109,9 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
 /**
  * @brief Gather edge list for specified vertices with a temporal filter
  *
- * Collect all the edges that are present in the adjacency lists on the current gpu
+ * Collect all the edges that are present in the adjacency lists on the current gpu. Returns majors,
+ * minors, and edge indices (for gather_sampled_properties). Caller should gather edge properties
+ * after any further filtering / deduplication that needs to preserve MG ownership of those indices.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -118,14 +120,10 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph View object to generate neighbor sampling on.
- * @param edge_property_views Span of property views holding edge properties for @p graph_view.  All
- * types included in this span will be sampled and returned with the result.
  * @param edge_time_view View object holding edge times for @p graph_view that will be used for time
- * filtering.  This edge time view should also be part of @p edge_property_views in order to be
- * included in the sampled results.
+ * filtering.
  * @param edge_type_view Optional view object holding edge types for @p graph_view.  If specified
- * this view will be used for heterogeneous type filtering.  The edge type view should also be part
- * of @p edge_property_views in order to be included in the sampled results.
+ * this view will be used for heterogeneous type filtering.
  * @param active_majors Device vector containing all the vertex id that are processed by
  * gpus in the column communicator
  * @param active_major_times Device vector containing timestamp associated with each active major.
@@ -135,18 +133,17 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
  * @param gather_flags Optional device span indicating whether to gather edge or not for each edge
  * type. @p gather_flags.has_value() should coincide with @p edge_type_view.has_value().
  * @param temporal_sampling_comparison Temporal sampling comparison type
- * @return A tuple of device vectors containing the sampled majors, minors, edge properties and
+ * @return A tuple of device vectors containing the sampled majors, minors, edge indices and
  * optional label
  */
 template <typename vertex_t, typename edge_t, typename time_stamp_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::vector<arithmetic_device_uvector_t>,
+           arithmetic_device_uvector_t,
            std::optional<rmm::device_uvector<int32_t>>>
 temporal_gather_one_hop_edgelist(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  raft::host_span<edge_arithmetic_property_view_t<edge_t>> edge_property_views,
   edge_property_view_t<edge_t, time_stamp_t const*> edge_time_view,
   std::optional<edge_property_view_t<edge_t, int32_t const*>> edge_type_view,
   raft::device_span<vertex_t const> active_majors,
@@ -160,9 +157,10 @@ temporal_gather_one_hop_edgelist(
 /**
  * @brief Gather one-hop temporally-valid edges to unvisited neighbors
  *
- * Like temporal_gather_one_hop_edgelist, but additionally deduplicates by (minor[, label]) and
- * drops edges whose destinations are already in the visited sets, then updates the visited sets.
- * Used by always-disjoint temporal neighbor sampling.
+ * Like temporal_gather_one_hop_edgelist, but additionally drops edges whose destinations are
+ * already in the visited sets, deduplicates by (minor[, label]) while carrying graph edge indices
+ * through the MG shuffle, gathers the requested output properties from the surviving indices, and
+ * updates the visited sets. Used by always-disjoint temporal neighbor sampling.
  */
 template <typename vertex_t, typename edge_t, typename time_stamp_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
