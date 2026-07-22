@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -163,8 +163,7 @@ def persist_dask_df_equal_parts_per_worker(
     if len(ddf_keys) == 0:
         _debug_mg_persist("empty_delayed_keys_recover", workers=workers)
         persisted_keys_d = {
-            w: _create_empty_dask_df_future(dask_df._meta, client, w)
-            for w in workers
+            w: _create_empty_dask_df_future(dask_df._meta, client, w) for w in workers
         }
     else:
         ddf_keys_ls = _chunk_lst(ddf_keys, n_workers)
@@ -207,7 +206,9 @@ def persist_dask_df_equal_parts_per_worker(
             persisted_keys_ls, meta=dask_df._meta
         ).persist()
         wait(dask_df)
-        _debug_mg_persist("exit", return_type=return_type, npartitions=dask_df.npartitions)
+        _debug_mg_persist(
+            "exit", return_type=return_type, npartitions=dask_df.npartitions
+        )
         return dask_df
 
     _debug_mg_persist(
