@@ -224,9 +224,30 @@ class simpleDistributedGraphImpl:
         ddf_columns = s_col + d_col
         self.vertex_columns = ddf_columns.copy()
         _client = default_client()
+
+        # Primary fix: block until at least one worker has registered so the
+        # scheduler_info() read below is not empty.
+        try:
+            _client.wait_for_workers(n_workers=1)
+        except Exception as e:
+            print(
+                f"[cugraph_mg_persist_debug] wait_for_workers(n_workers=1) failed: {e!r}",
+                flush=True,
+            )
+
         workers = _client.scheduler_info(n_workers=-1)["workers"]
+
+        # Fallback / safety net: if the worker list is still empty after waiting,
+        # log it and clamp so npartitions never becomes 0 (avoids ZeroDivisionError).
+        if len(workers) == 0:
+            print(
+                "[cugraph_mg_persist_debug] scheduler_info still reports 0 workers "
+                "after wait_for_workers; applying npartitions=max(1, len(workers)*2)",
+                flush=True,
+            )
+
         # Repartition to 2 partitions per GPU for memory efficient process
-        input_ddf = input_ddf.repartition(npartitions=len(workers) * 2)
+        input_ddf = input_ddf.repartition(npartitions=max(1, len(workers) * 2))
         # The dataframe will be symmetrized iff the graph is undirected
         # otherwise, the inital dataframe will be returned
         if edge_attr is not None:
