@@ -29,6 +29,6 @@ function(find_and_configure_dlpack VERSION)
 
 endfunction()
 
-set(CUGRAPH_MIN_VERSION_dlpack 0.8)
+set(CUGRAPH_MIN_VERSION_dlpack 1.0)
 
 find_and_configure_dlpack(${CUGRAPH_MIN_VERSION_dlpack})
