@@ -642,6 +642,25 @@ target_link_libraries(cugraph_mtmg PRIVATE cugraph_common)
 
 include(cmake/thirdparty/get_dlpack.cmake)
 
+include(CheckCXXSourceCompiles)
+include(CMakePushCheckState)
+cmake_push_check_state(RESET)
+set(CMAKE_REQUIRED_INCLUDES "${DLPACK_INCLUDE_DIR}")
+check_cxx_source_compiles([=[
+    #include <dlpack/dlpack.h>
+    #if DLPACK_MAJOR_VERSION > 1
+    #error "DLPack versions 1.1 or greater are not supported"
+    #elif DLPACK_MAJOR_VERSION == 1 && DLPACK_MINOR_VERSION >= 1
+    #error "DLPack versions 1.1 or greater are not supported"
+    #endif
+    int main() { return 0; }
+]=] CUGRAPH_DLPACK_VERSION_SUPPORTED)
+cmake_pop_check_state()
+
+if(NOT CUGRAPH_DLPACK_VERSION_SUPPORTED)
+    message(FATAL_ERROR "DLPack versions 1.1 or greater are not supported")
+endif()
+
 ################################################################################
 # - C-API library --------------------------------------------------------------
 
