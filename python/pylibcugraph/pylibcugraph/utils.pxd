@@ -16,14 +16,9 @@ from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_host_array_view_t,
 )
 
-from libc.stdint cimport uintptr_t
 from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_code_t,
     cugraph_error_t,
-)
-from pylibcugraph._cugraph_c.dlpack_interop cimport (
-    cugraph_dlpack_data_type_t,
-    cugraph_dlpack_tensor_t,
 )
 
 
@@ -41,21 +36,11 @@ cdef assert_host_accessible(obj, var_name, allow_None=*)
 
 cdef get_numpy_type_from_c_type(cugraph_data_type_id_t c_type)
 
-cdef cugraph_dlpack_tensor_t* get_dlpack_tensor_from_capsule(
-    object dlpack_capsule
-) except NULL
-
-cdef cugraph_data_type_id_t get_c_type_from_dlpack_dtype(
-    const cugraph_dlpack_data_type_t* dl_dtype
-)
-
 cpdef cugraph_data_type_id_t get_c_type_from_py_obj(object python_obj) except *
 
 cdef size_t get_size_from_py_obj(object python_obj) except *
 
 cdef get_last_item_from_py_obj(object python_obj)
-
-cdef uintptr_t get_data_ptr_from_py_obj(object python_obj) except *
 
 cdef get_c_type_from_numpy_type(numpy_type)
 
@@ -73,6 +58,12 @@ cdef copy_to_cupy_array_ids(
 
 cdef cugraph_type_erased_device_array_view_t* \
     create_cugraph_type_erased_device_array_view_from_py_obj(python_obj)
+
+cdef cugraph_type_erased_device_array_view_t* \
+    create_cugraph_type_erased_device_array_view_from_py_obj_as_type(
+        python_obj,
+        cugraph_data_type_id_t dtype
+    )
 
 cdef cugraph_type_erased_host_array_view_t* \
     create_cugraph_type_erased_host_array_view_from_py_obj(python_obj)

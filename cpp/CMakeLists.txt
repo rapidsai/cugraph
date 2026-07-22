@@ -747,8 +747,8 @@ target_include_directories(cugraph_c
 # - C-API link libraries -------------------------------------------------------
 target_link_libraries(cugraph_c PRIVATE cugraph::cugraph cugraph::cugraph_mg)
 
-# DLPack is used privately to verify that the self-contained C API declarations
-# remain ABI-compatible with the upstream definitions.
+# DLPack is an implementation detail used to interpret opaque managed tensor
+# pointers passed through the C API.
 target_include_directories(cugraph_c PRIVATE "${DLPACK_INCLUDE_DIR}")
 
 ################################################################################

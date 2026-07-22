@@ -6,7 +6,6 @@
 
 import cupy
 
-from libc.stdint cimport uintptr_t
 from libc.stdint cimport int32_t
 from libc.limits cimport INT_MAX
 
@@ -22,7 +21,6 @@ from pylibcugraph._cugraph_c.algorithms cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
-    cugraph_type_erased_device_array_view_create,
 )
 from pylibcugraph._cugraph_c.types cimport (
     bool_t,
@@ -39,9 +37,7 @@ from pylibcugraph.utils cimport (
     copy_to_cupy_array,
     assert_device_accessible,
     get_c_type_from_numpy_type,
-    get_c_type_from_py_obj,
-    get_size_from_py_obj,
-    get_data_ptr_from_py_obj,
+    create_cugraph_type_erased_device_array_view_from_py_obj,
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
@@ -154,14 +150,8 @@ def bfs(ResourceHandle handle, _GPUGraph graph,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    cdef uintptr_t cai_sources_ptr = \
-        get_data_ptr_from_py_obj(sources)
-
     cdef cugraph_type_erased_device_array_view_t* sources_view_ptr = \
-        cugraph_type_erased_device_array_view_create(
-            <void*>cai_sources_ptr,
-            get_size_from_py_obj(sources),
-            get_c_type_from_py_obj(sources))
+        create_cugraph_type_erased_device_array_view_from_py_obj(sources)
 
     cdef cugraph_paths_result_t* result_ptr
 

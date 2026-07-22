@@ -4,8 +4,6 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
-from libc.stdint cimport uintptr_t
-
 from pylibcugraph._cugraph_c.types cimport (
     bool_t,
 )
@@ -18,10 +16,8 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
-    cugraph_type_erased_device_array_view_create,
     cugraph_type_erased_device_array_view_free,
     cugraph_type_erased_host_array_view_t,
-    cugraph_type_erased_host_array_view_create,
     cugraph_type_erased_host_array_view_free,
 )
 from pylibcugraph.resource_handle cimport (

@@ -4,7 +4,6 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
-from libc.stdint cimport uintptr_t
 from pylibcugraph._cugraph_c.types cimport (
     bool_t,
     SIZE_T
@@ -18,10 +17,8 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
-    cugraph_type_erased_device_array_view_create,
     cugraph_type_erased_device_array_view_free,
     cugraph_type_erased_host_array_view_t,
-    cugraph_type_erased_host_array_view_create,
     cugraph_type_erased_host_array_view_free,
 )
 from pylibcugraph._cugraph_c.graph cimport (
@@ -60,10 +57,11 @@ from pylibcugraph.utils cimport (
     assert_device_accessible,
     assert_host_accessible,
     get_c_type_from_numpy_type,
-    get_c_type_from_py_obj,
     get_size_from_py_obj,
     get_last_item_from_py_obj,
-    get_data_ptr_from_py_obj,
+    create_cugraph_type_erased_device_array_view_from_py_obj,
+    create_cugraph_type_erased_device_array_view_from_py_obj_as_type,
+    create_cugraph_type_erased_host_array_view_from_py_obj,
 )
 from pylibcugraph.internal_types.sampling_result cimport (
     SamplingResult,
@@ -275,9 +273,6 @@ def heterogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handl
 
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
-    cdef uintptr_t ai_fan_out_ptr
-
-    # FIXME: refactor the way we are creating pointer. Can use a single helper function to create
 
     assert_device_accessible(start_vertex_list, "start_vertex_list")
     assert_device_accessible(starting_vertex_times, "starting_vertex_times", True)
@@ -294,68 +289,35 @@ def heterogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handl
             "must be proportional"
         )
 
-    ai_fan_out_ptr = \
-        get_data_ptr_from_py_obj(h_fan_out)
-
     fan_out_ptr = \
-        cugraph_type_erased_host_array_view_create(
-            <void*>ai_fan_out_ptr,
-            get_size_from_py_obj(h_fan_out),
-            get_c_type_from_py_obj(h_fan_out))
-
-
+        create_cugraph_type_erased_host_array_view_from_py_obj(h_fan_out)
 
     cdef cugraph_sample_result_t* result_ptr
 
-    cdef uintptr_t cai_start_ptr = \
-        get_data_ptr_from_py_obj(start_vertex_list)
-
-    cdef uintptr_t cai_starting_vertex_times_ptr
-    if starting_vertex_times is not None:
-        cai_starting_vertex_times_ptr = \
-            get_data_ptr_from_py_obj(starting_vertex_times)
-
-    cdef uintptr_t cai_starting_vertex_label_offsets_ptr
-    if starting_vertex_label_offsets is not None:
-        cai_starting_vertex_label_offsets_ptr = \
-            get_data_ptr_from_py_obj(starting_vertex_label_offsets)
-
-    cdef uintptr_t cai_vertex_type_offsets_ptr
-    if vertex_type_offsets is not None:
-        cai_vertex_type_offsets_ptr = \
-            get_data_ptr_from_py_obj(vertex_type_offsets)
-
     cdef cugraph_type_erased_device_array_view_t* start_vertex_list_ptr = \
-        cugraph_type_erased_device_array_view_create(
-            <void*>cai_start_ptr,
-            get_size_from_py_obj(start_vertex_list),
-            get_c_type_from_py_obj(start_vertex_list))
+        create_cugraph_type_erased_device_array_view_from_py_obj(start_vertex_list)
 
     cdef cugraph_type_erased_device_array_view_t* starting_vertex_times_ptr = <cugraph_type_erased_device_array_view_t*>NULL
     if starting_vertex_times is not None:
         starting_vertex_times_ptr = \
-            cugraph_type_erased_device_array_view_create(
-                <void*>cai_starting_vertex_times_ptr,
-                get_size_from_py_obj(starting_vertex_times),
-                get_c_type_from_py_obj(starting_vertex_times)
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                starting_vertex_times
             )
 
 
     cdef cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets_ptr = <cugraph_type_erased_device_array_view_t*>NULL
     if starting_vertex_label_offsets is not None:
         starting_vertex_label_offsets_ptr = \
-            cugraph_type_erased_device_array_view_create(
-                <void*>cai_starting_vertex_label_offsets_ptr,
-                get_size_from_py_obj(starting_vertex_label_offsets),
+            create_cugraph_type_erased_device_array_view_from_py_obj_as_type(
+                starting_vertex_label_offsets,
                 SIZE_T
             )
 
     cdef cugraph_type_erased_device_array_view_t* vertex_type_offsets_ptr = <cugraph_type_erased_device_array_view_t*>NULL
     if vertex_type_offsets is not None:
         vertex_type_offsets_ptr = \
-            cugraph_type_erased_device_array_view_create(
-                <void*>cai_vertex_type_offsets_ptr,
-                get_size_from_py_obj(vertex_type_offsets),
+            create_cugraph_type_erased_device_array_view_from_py_obj_as_type(
+                vertex_type_offsets,
                 SIZE_T
             )
 
