@@ -108,9 +108,10 @@ rapids_cpm_init()
 # lags behind.
 ###
 
-# Need CCCL, then rmm, then cuCollections, then RAFT.
+# Need CCCL, DLPack, then rmm, then cuCollections, then RAFT.
 # This ensures that libraries can be overridden for testing.
 include(cmake/thirdparty/get_cccl.cmake)
+include(cmake/thirdparty/get_dlpack.cmake)
 include(${rapids-cmake-dir}/cpm/rmm.cmake)
 rapids_cpm_rmm(BUILD_EXPORT_SET cugraph-exports)
 include(${rapids-cmake-dir}/cpm/cuco.cmake)
@@ -636,12 +637,6 @@ endforeach()
 target_link_libraries(cugraph PUBLIC cugraph_common)
 target_link_libraries(cugraph_mg PRIVATE cugraph_common)
 target_link_libraries(cugraph_mtmg PRIVATE cugraph_common)
-
-
-
-
-include(cmake/thirdparty/get_dlpack.cmake)
-
 ################################################################################
 # - C-API library --------------------------------------------------------------
 
