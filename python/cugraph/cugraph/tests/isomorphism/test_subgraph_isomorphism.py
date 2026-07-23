@@ -9,7 +9,7 @@ import pytest
 from networkx.algorithms.isomorphism import GraphMatcher
 
 import cugraph
-from cugraph.datasets import karate
+from cugraph.datasets import email_Eu_core, karate
 from cugraph.experimental import (  # noqa: F401
     MotifData,
     default_motif_library,
@@ -206,13 +206,44 @@ def test_no_match_returns_empty_dataframe():
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("batch_size", [None, 7, 100000])
-def test_batch_size_gives_identical_results(batch_size):
+def test_tiny_join_budget_gives_identical_results(monkeypatch):
+    # Force many small streamed-join batches (and multiple partition-writer
+    # flushes) through the public API by shrinking the adaptive memory
+    # budget; results must be identical to the default single-batch solve.
+    from cugraph.experimental.isomorphism.solver import (
+        _MotifSubgraphIsomorphismSolver,
+    )
+
     G = karate.get_graph(download=True)
     pattern_G = build_cugraph_from_edges(PATTERNS["4-cycle"])
-
-    result_df = subgraph_isomorphism(G, pattern_G, batch_size=batch_size)
     baseline_df = subgraph_isomorphism(G, pattern_G)
+
+    monkeypatch.setattr(
+        _MotifSubgraphIsomorphismSolver, "_JOIN_MEM_BUDGET_FRACTION", 0.0
+    )
+    monkeypatch.setattr(
+        _MotifSubgraphIsomorphismSolver, "_JOIN_MEM_BUDGET_MIN_GIB", 1e-6
+    )
+    monkeypatch.setattr(_MotifSubgraphIsomorphismSolver, "_FANOUT_SAMPLE_ROWS", 8)
+    result_df = subgraph_isomorphism(G, pattern_G)
+    assert result_to_set(result_df) == result_to_set(baseline_df)
+
+
+@pytest.mark.sg
+def test_multi_partition_results_give_identical_results(monkeypatch):
+    # Force intermediate and final results to span many partitions so the
+    # multi-partition (host NumPy) assembly path is exercised; in normal
+    # operation it only triggers for results beyond ~1.8B rows.
+    from cugraph.experimental.isomorphism.solver import (
+        _MotifSubgraphIsomorphismSolver,
+    )
+
+    G = karate.get_graph(download=True)
+    pattern_G = build_cugraph_from_edges(PATTERNS["4-cycle"])
+    baseline_df = subgraph_isomorphism(G, pattern_G)
+
+    monkeypatch.setattr(_MotifSubgraphIsomorphismSolver, "_ROW_LIMIT", 100)
+    result_df = subgraph_isomorphism(G, pattern_G)
     assert result_to_set(result_df) == result_to_set(baseline_df)
 
 
@@ -224,3 +255,53 @@ def test_motif_library_gives_identical_results():
     baseline_df = subgraph_isomorphism(G, pattern_G)
     result_df = subgraph_isomorphism(G, pattern_G, motifs=default_motif_library())
     assert result_to_set(result_df) == result_to_set(baseline_df)
+
+
+@pytest.mark.sg
+def test_user_supplied_motifs_give_identical_results():
+    # Motifs passed directly as MotifData objects, without going through
+    # default_motif_library().
+    G = karate.get_graph(download=True)
+    pattern_G = build_cugraph_from_edges(PATTERNS["K4"])
+    baseline_df = subgraph_isomorphism(G, pattern_G)
+
+    motifs = [
+        MotifData(name="M3-path", motif=[(0, 1), (1, 2)]),
+        MotifData(name="M3-triangle", motif=[(0, 1), (1, 2), (0, 2)]),
+        MotifData(name="M4-star", motif=[(0, 1), (0, 2), (0, 3)]),
+    ]
+    result_df = subgraph_isomorphism(G, pattern_G, motifs=motifs)
+    assert result_to_set(result_df) == result_to_set(baseline_df)
+
+    # Supplying the pattern itself as a motif also works: the decomposition
+    # then covers the pattern with a single slice.
+    result_df = subgraph_isomorphism(
+        G, pattern_G, motifs=[MotifData(name="K4", motif=PATTERNS["K4"])]
+    )
+    assert result_to_set(result_df) == result_to_set(baseline_df)
+
+
+@pytest.mark.sg
+def test_large_graph_triangle_count():
+    # A denser, larger target than karate (~1k vertices, ~25k edges,
+    # ~100k triangles); validated by count against nx.triangles plus
+    # validity spot-checks, since full NetworkX enumeration would be slow.
+    G = email_Eu_core.get_graph(download=True, ignore_weights=True)
+    pattern_G = build_cugraph_from_edges(PATTERNS["triangle"])
+
+    result_df = subgraph_isomorphism(G, pattern_G)
+
+    target_nx = cugraph_to_nx(G)
+    target_nx.remove_edges_from(nx.selfloop_edges(target_nx))
+    n_triangles = sum(nx.triangles(target_nx).values()) // 3
+    # each undirected triangle appears as 3! = 6 ordered embeddings
+    assert len(result_df) == 6 * n_triangles
+
+    # validity spot-check on a sample of embeddings
+    pattern_vertices = [int(c) for c in result_df.columns]
+    sample = result_df.head(500).to_pandas()
+    for row in sample.itertuples(index=False):
+        mapping = dict(zip(pattern_vertices, (int(v) for v in row)))
+        assert len(set(mapping.values())) == len(mapping)
+        for u, v in PATTERNS["triangle"]:
+            assert target_nx.has_edge(mapping[u], mapping[v])

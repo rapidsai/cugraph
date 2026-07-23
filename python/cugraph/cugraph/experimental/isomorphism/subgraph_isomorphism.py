@@ -31,7 +31,7 @@ def _pattern_to_nx(pattern_G):
     return pattern_nx
 
 
-def EXPERIMENTAL__subgraph_isomorphism(G, pattern_G, motifs=None, batch_size=None):
+def EXPERIMENTAL__subgraph_isomorphism(G, pattern_G, motifs=None):
     """
     Find all subgraph isomorphisms (monomorphisms) of a pattern graph in a
     target graph using GPU-accelerated motif-based decomposition. Algortithm
@@ -43,7 +43,14 @@ def EXPERIMENTAL__subgraph_isomorphism(G, pattern_G, motifs=None, batch_size=Non
     The pattern is decomposed into small motifs (CPU VF2 on the pattern
     only), each motif's embeddings in the target are computed as cuDF
     tables, and full embeddings are assembled with cuDF joins plus an
-    overlap-consistency filter.
+    overlap-consistency filter. The joins are streamed in adaptively sized
+    batches (scaled to free device memory) and intermediate results are
+    held as partitions below cuDF's 2**31 - 1 column-size limit, so
+    intermediate solution sets may exceed that limit. For problems whose
+    intermediates exceed GPU memory entirely, enable cuDF spilling or RMM
+    managed memory in your application before calling (e.g.
+    ``cudf.set_option("spill", True)`` or
+    ``rmm.reinitialize(managed_memory=True)``).
 
     Note on semantics: the returned embeddings are *monomorphisms*, i.e., 
     every pattern edge maps to a target edge and vertices map injectively, 
@@ -68,12 +75,6 @@ def EXPERIMENTAL__subgraph_isomorphism(G, pattern_G, motifs=None, batch_size=Non
         default finds embeddings edge by edge. Larger motifs can speed up
         big patterns, but each one costs a full pre-solve to enumerate its
         embeddings in the target.
-
-    batch_size : int, optional (default=None)
-        If set to a positive integer, intermediate join inputs are processed
-        in row batches of this size. Use this when large intermediate join
-        products approach cuDF's 2**31 - 1 column-size limit or exhaust GPU
-        memory. None or 0 disables batching.
 
     Returns
     -------
@@ -115,9 +116,7 @@ def EXPERIMENTAL__subgraph_isomorphism(G, pattern_G, motifs=None, batch_size=Non
 
     pattern_nx = _pattern_to_nx(pattern_G)
 
-    solver = _MotifSubgraphIsomorphismSolver(
-        edge_df, num_vertices, batch_size=batch_size
-    )
+    solver = _MotifSubgraphIsomorphismSolver(edge_df, num_vertices)
     solver.generate_graph_motif_data(motifs)
     result = solver.solve(pattern_nx)
 

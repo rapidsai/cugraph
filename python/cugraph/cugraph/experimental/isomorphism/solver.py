@@ -27,11 +27,56 @@ nx = import_optional("networkx")
 
 @dataclass
 class SolverResult:
-    # One row per embedding; columns follow pattern_vertices order.
-    mappings: np.ndarray
+    # One row per embedding; columns follow pattern_vertices order. A device
+    # (cupy) array when the result fit in a single partition (the common
+    # case, avoiding a device->host round trip), otherwise a host (numpy,
+    # 64-bit indexed) array assembled from multiple partitions.
+    mappings: object
     # Sorted pattern vertex ids corresponding to the columns of mappings.
     pattern_vertices: np.ndarray
     timings: Optional[dict] = None
+
+
+class _PartitionWriter:
+    """Accumulate filtered chunks into partitions each below a row limit.
+
+    cuDF columns cannot exceed ~2**31 rows. This writer buffers small
+    filtered chunks and emits partitions just under ``row_limit`` so that
+    arbitrarily large solution sets stay representable; they are combined
+    only as NumPy arrays (64-bit indexed) at the very end.
+    """
+
+    def __init__(self, row_limit):
+        self._row_limit = row_limit
+        self._done = []
+        self._buffer = []
+        self._buffered_rows = 0
+
+    def add(self, df):
+        n = len(df)
+        if n == 0:
+            return
+        if self._buffer and self._buffered_rows + n > self._row_limit:
+            self._flush()
+        self._buffer.append(df)
+        self._buffered_rows += n
+        if self._buffered_rows >= self._row_limit:
+            self._flush()
+
+    def _flush(self):
+        if not self._buffer:
+            return
+        if len(self._buffer) == 1:
+            part = self._buffer[0]
+        else:
+            part = cudf.concat(self._buffer, ignore_index=True)
+        self._done.append(part)
+        self._buffer = []
+        self._buffered_rows = 0
+
+    def finish(self):
+        self._flush()
+        return self._done
 
 
 class _MotifSubgraphIsomorphismSolver:
@@ -40,9 +85,30 @@ class _MotifSubgraphIsomorphismSolver:
     look up each motif's embeddings in the target graph, and assemble full
     embeddings via relational joins with an overlap-consistency filter.
 
+    The join-and-filter step is streamed so the intermediate produced by
+    each motif merge stays within a memory budget rather than being
+    materialized in full; the running table is held as a list of partitions
+    (each below cuDF's ~2**31 row limit) and combined only as NumPy at the
+    end. Join-key columns contributed by each new motif duplicate the
+    columns they were joined on and are dropped after every merge, which
+    nearly halves the table width for path-like decompositions.
+
     The target graph is given as a cudf edge list in the compact
     ``0..num_target_vertices-1`` vertex space with self-loops removed.
     """
+
+    #: Fraction of currently-free device memory targeted for a single
+    #: streamed join's intermediate result when no explicit batch_size is
+    #: given. The filter step allocates transients of a few times the merged
+    #: table's size, so this stays well below 1.
+    _JOIN_MEM_BUDGET_FRACTION = 1 / 8
+    #: Floor (GiB) for the join memory budget, used when free-memory
+    #: information is unavailable or very low.
+    _JOIN_MEM_BUDGET_MIN_GIB = 0.5
+    #: Number of left rows sampled to estimate join fan-out before batching.
+    _FANOUT_SAMPLE_ROWS = 8192
+    #: Max rows per cuDF partition (kept below the ~2**31 column row limit).
+    _ROW_LIMIT = 1_800_000_000
 
     def __init__(
         self,
@@ -53,8 +119,8 @@ class _MotifSubgraphIsomorphismSolver:
     ):
         self._target_edge_df = target_edge_df
         self._num_target_vertices = num_target_vertices
-        # Merge in row batches so no single join input exceeds cuDF's
-        # 2**31 - 1 column size limit; <= 0 disables batching.
+        # Explicit rows-per-batch override; <= 0 selects adaptive batching
+        # that targets _JOIN_MEM_BUDGET_GIB per join intermediate.
         self._batch_size = int(batch_size) if batch_size else 0
         self.motif_metadata = motif_metadata if motif_metadata is not None else []
         self.decomposition = None
@@ -114,11 +180,10 @@ class _MotifSubgraphIsomorphismSolver:
         if len(initial_motif.isomorphisms) == 0:
             return None
 
-        current_mappings_df = initial_motif.isomorphisms
-        # Rename columns: m4_v5 means 4th motif, 5th motif vertex
-        current_mappings_df.columns = [
-            f"m0_v{col}" for col in current_mappings_df.columns
-        ]
+        initial_df = initial_motif.isomorphisms
+        # Positional renaming: m4_v5 means 4th motif, 5th motif vertex.
+        initial_df.columns = [f"m0_v{i}" for i in range(len(initial_df.columns))]
+        partitions = [initial_df]
 
         count = 0
         while slicing_res.chosen_motifs:
@@ -126,141 +191,225 @@ class _MotifSubgraphIsomorphismSolver:
             next_boundary = slicing_res.boundaries.pop(0)
             intersection = slicing_res.intersections.pop(0)
             count += 1
-
-            processed_batches = []
-            for batch_df in self._create_batches(
-                current_mappings_df, self._batch_size
-            ):
-                # Step 2-1: Match the two tables on the boundary conditions
-                start = time()
-                batch_df = self._merging_with_new_motif(
-                    batch_df, count, next_motif, next_boundary
-                )
-                self._times["step 2-1 join"] += time() - start
-
-                # Step 2-2: Keep only rows with the correct number of
-                # overlapped vertices
-                start = time()
-                batch_df = self._filtering_invalid_mappings(
-                    batch_df, slicing_res.slices, intersection, count
-                )
-                self._times["step 2-2 filter"] += time() - start
-                processed_batches.append(batch_df)
-
-            start = time()
-            if len(processed_batches) == 1:
-                current_mappings_df = processed_batches[0]
-            else:
-                current_mappings_df = cudf.concat(
-                    processed_batches, ignore_index=True
-                )
-            del processed_batches
-            self._times["step 2-3 concat batches"] += time() - start
+            partitions = self._merge_and_filter_streamed(
+                partitions, count, next_motif, next_boundary, intersection
+            )
 
         # Step 3: Format the output
         start = time()
-        mappings, pattern_vertices = self._format_output(
-            slicing_res.slices, current_mappings_df
+        mappings, pattern_vertices = self._format_output_parts(
+            slicing_res.slices, partitions
         )
         self._times["step 3 format output"] = time() - start
 
-        del current_mappings_df
+        del partitions
 
         return SolverResult(mappings, pattern_vertices, dict(self._times))
 
-    def _merging_with_new_motif(
+    def _merge_and_filter_streamed(
         self,
-        current_mappings_df,
+        partitions,
         count,
         next_motif: MotifData,
         next_boundary,
-    ):
-        next_motifs_df = next_motif.isomorphisms
-        original_column_names = next_motifs_df.columns
-        next_motifs_df.columns = [
-            f"m{count}_v{col}" for col in next_motifs_df.columns
-        ]
-
-        current_boundary_columns, next_boundary_columns = [], []
-        for (group, node_idx), next_node_idx in next_boundary:
-            current_boundary_columns.append(f"m{group}_v{node_idx}")
-            next_boundary_columns.append(f"m{count}_v{next_node_idx}")
-
-        # The input ordering is not preserved with cuDF
-        current_mappings_df = current_mappings_df.merge(
-            next_motifs_df,
-            how="inner",
-            left_on=current_boundary_columns,
-            right_on=next_boundary_columns,
-        )
-        # Restore names so this motif can be merged again (next batch or
-        # reuse)
-        next_motifs_df.columns = original_column_names
-        return current_mappings_df
-
-    @staticmethod
-    def _create_batches(df, batch_size):
-        if batch_size <= 0 or len(df) == 0:
-            yield df
-            return
-        for i in range(0, len(df), batch_size):
-            yield df.iloc[i : i + batch_size]
-
-    def _filtering_invalid_mappings(
-        self,
-        current_mappings_df,
-        slices,
         intersection,
-        count,
     ):
-        num_overlapped_nodes = sum(
-            node in intersection
-            for each_slice in slices[:count]
-            for node in each_slice
-        )
+        """Merge each partition with the next motif and filter, batch by
+        batch.
 
+        The join-key columns contributed by the new motif duplicate the
+        columns they were joined on, so they are dropped after filtering.
+        Output is re-partitioned to keep every cuDF table below the ~2**31
+        row limit.
+        """
+        next_df = next_motif.isomorphisms
+        next_df.columns = [f"m{count}_v{i}" for i in range(len(next_df.columns))]
+
+        left_keys, right_keys = [], []
+        for (group, node_idx), next_node_idx in next_boundary:
+            left_keys.append(f"m{group}_v{node_idx}")
+            right_keys.append(f"m{count}_v{next_node_idx}")
+
+        # With duplicate columns dropped, each retained vertex is unique, so
+        # a valid row shares exactly ``len(intersection)`` values between the
+        # previous block and the new motif's block.
+        num_overlapped_nodes = len(intersection)
+
+        writer = _PartitionWriter(self._ROW_LIMIT)
+        budget_bytes = self._join_mem_budget_bytes()
+        total_batches = 0
+        for part in partitions:
+            n_rows = len(part)
+            if n_rows == 0:
+                continue
+            if self._batch_size > 0:
+                batch_rows = self._batch_size
+            else:
+                batch_rows = self._choose_batch_rows(
+                    part, next_df, left_keys, right_keys, budget_bytes
+                )
+            for chunk_start in range(0, n_rows, batch_rows):
+                left_batch = part.iloc[chunk_start : chunk_start + batch_rows]
+                writer.add(
+                    self._merge_filter_one(
+                        left_batch,
+                        next_df,
+                        left_keys,
+                        right_keys,
+                        count,
+                        num_overlapped_nodes,
+                    )
+                )
+                del left_batch
+                total_batches += 1
+        self._times["step 2 batches"] += total_batches
+
+        result = writer.finish()
+        return result if result else [partitions[0].iloc[:0]]
+
+    def _merge_filter_one(
+        self,
+        left_df,
+        next_df,
+        left_keys,
+        right_keys,
+        count,
+        num_overlapped_nodes,
+    ):
+        """Merge one left batch with the motif table, filter, and drop the
+        duplicate join-key columns."""
+        start = time()
+        merged = left_df.merge(
+            next_df, how="inner", left_on=left_keys, right_on=right_keys
+        )
+        self._times["step 2-1 join"] += time() - start
+        if len(merged) == 0:
+            return merged.drop(columns=right_keys)
+        start = time()
+        filtered = self._filter_merged(merged, count, num_overlapped_nodes)
+        filtered = filtered.drop(columns=right_keys)
+        self._times["step 2-2 filter"] += time() - start
+        return filtered
+
+    def _join_mem_budget_bytes(self):
+        """Memory budget for one streamed join's intermediate result.
+
+        Scales with the free device memory reported by the driver (a
+        read-only query; allocator state is never modified) so larger GPUs
+        run fewer, bigger batches. Falls back to the floor if the query
+        fails or memory is tight. Note: under a pooling allocator the
+        driver's free-memory figure can undercount what is actually
+        available; the floor keeps progress possible in that case.
+        """
+        floor = int(self._JOIN_MEM_BUDGET_MIN_GIB * (1024**3))
+        try:
+            free_bytes, _total = cp.cuda.runtime.memGetInfo()
+        except Exception:
+            return floor
+        return max(floor, int(free_bytes * self._JOIN_MEM_BUDGET_FRACTION))
+
+    def _choose_batch_rows(self, left_df, next_df, left_keys, right_keys, budget_bytes):
+        """Pick a left-batch size so the merged intermediate stays within
+        the memory budget.
+
+        The join fan-out is estimated from a small sample of the left table;
+        the batch size is then the memory budget divided by
+        ``fan-out * row_width``.
+        """
+        n_rows = len(left_df)
+        if n_rows <= self._FANOUT_SAMPLE_ROWS:
+            return n_rows
+
+        dtype_bytes = int(np.dtype(left_df[left_df.columns[0]].dtype).itemsize)
+        row_width = len(left_df.columns) + len(next_df.columns)
+        bytes_per_row = max(row_width * dtype_bytes, 1)
+
+        sample = left_df.iloc[: self._FANOUT_SAMPLE_ROWS]
+        sample_merged = sample.merge(
+            next_df, how="inner", left_on=left_keys, right_on=right_keys
+        )
+        fanout = len(sample_merged) / self._FANOUT_SAMPLE_ROWS
+        del sample, sample_merged
+        if fanout <= 0:
+            return n_rows
+
+        budget_rows = budget_bytes / bytes_per_row
+        batch_rows = int(budget_rows / fanout)
+        # Independent of the byte budget, never let a single merge output
+        # exceed the cuDF row limit: with small vertex dtypes on large GPUs
+        # the byte budget alone can project past 2**31 rows. fanout is a
+        # sampled estimate; _ROW_LIMIT's ~15% margin under 2**31 absorbs
+        # estimation error.
+        batch_rows = min(batch_rows, int(self._ROW_LIMIT / fanout))
+        return max(1, min(batch_rows, n_rows))
+
+    def _filter_merged(self, merged_df, count, num_overlapped_nodes):
         prev_cols = [
-            col
-            for col in current_mappings_df.columns
-            if not col.startswith(f"m{count}_")
+            col for col in merged_df.columns if not col.startswith(f"m{count}_")
         ]
         new_cols = [
-            col for col in current_mappings_df.columns if col.startswith(f"m{count}_")
+            col for col in merged_df.columns if col.startswith(f"m{count}_")
         ]
+        match_counts = self._count_cross_matches(merged_df, prev_cols, new_cols)
+        return merged_df[match_counts == num_overlapped_nodes]
 
-        prev_values = cp.from_dlpack(current_mappings_df[prev_cols].to_dlpack())
-        new_values = cp.from_dlpack(current_mappings_df[new_cols].to_dlpack())
-        del prev_cols, new_cols
+    @staticmethod
+    def _count_cross_matches(df, prev_cols, new_cols):
+        """Count, per row, shared vertex assignments between two column
+        blocks.
 
-        # Use broadcasting to compare every row's previous values with its
-        # new values, summing in chunks so no chunk exceeds 2**32 elements
-        output_shape = cp.broadcast(
-            prev_values[..., None], new_values[:, None, :]
-        ).shape
-        match_counts = cp.empty(output_shape[0], dtype=cp.int64)
-        max_size = 2**32
-        chunk_size = max(1, int(max_size / np.prod(output_shape[1:])))
-        for chunk_start in range(0, output_shape[0], chunk_size):
-            chunk_end = min(chunk_start + chunk_size, output_shape[0])
-            match_counts[chunk_start:chunk_end] = (
-                prev_values[chunk_start:chunk_end, ..., None]
-                == new_values[chunk_start:chunk_end, None, :]
-            ).sum(axis=(1, 2))
-        del prev_values, new_values
+        Accumulating one new column at a time uses ``rows x |prev|`` memory
+        instead of the ``rows x |prev| x |new|`` boolean tensor, with the
+        same result.
+        """
+        prev_values = cp.from_dlpack(df[prev_cols].to_dlpack())
+        new_values = cp.from_dlpack(df[new_cols].to_dlpack())
+        match_counts = cp.zeros(prev_values.shape[0], dtype=cp.int64)
+        for j in range(new_values.shape[1]):
+            match_counts += (prev_values == new_values[:, j : j + 1]).sum(axis=1)
+        return match_counts
 
-        # Keep only rows where the exact overlap count occurs
-        current_mappings_df = current_mappings_df[
-            match_counts == num_overlapped_nodes
-        ]
-        del match_counts
-        return current_mappings_df
+    def _format_output_parts(self, slices, partitions):
+        """Format result partitions into one ``(n_solutions, n_vertices)``
+        array plus the sorted pattern-vertex order of its columns.
 
-    def _format_output(self, slices, mappings_df):
-        """Reorder columns from motif-slice order to sorted pattern-vertex
-        order and return (mappings ndarray, sorted pattern vertices)."""
-        flat_vertices = np.array([node for slice_ in slices for node in slice_])
-        pattern_vertices, idx = np.unique(flat_vertices, return_index=True)
-        mappings = cp.asnumpy(cp.from_dlpack(mappings_df.to_dlpack())[:, idx])
+        Each retained column ``m{g}_v{i}`` holds the target vertex matched
+        to pattern vertex ``slices[g][i]``; duplicate columns were dropped
+        during the joins, so every pattern vertex maps to exactly one
+        retained column. Partitions are formatted independently and the
+        (NumPy, 64-bit indexed) arrays concatenated, so the combined
+        solution set can exceed cuDF's ~2**31 row limit.
+        """
+        available = set(partitions[0].columns)
+        col_for_vertex = {}
+        for group, slice_ in enumerate(slices):
+            for node_idx, vertex in enumerate(slice_):
+                col = f"m{group}_v{node_idx}"
+                if col in available:
+                    col_for_vertex.setdefault(vertex, col)
+
+        pattern_vertices = np.array(sorted(col_for_vertex))
+        ordered_cols = [col_for_vertex[v] for v in pattern_vertices]
+
+        parts = [part for part in partitions if len(part)]
+        if not parts:
+            mappings = np.empty((0, len(ordered_cols)), dtype=np.int64)
+        elif len(parts) == 1:
+            # Common case: the whole result fits in one partition; keep it
+            # on device (to_dlpack yields a self-owned contiguous copy).
+            mappings = cp.from_dlpack(parts[0][ordered_cols].to_dlpack())
+        else:
+            # Multi-partition results are near or beyond cuDF's 2**31 row
+            # limit; assemble on host with 64-bit indexing. An on-device
+            # concat is deliberately avoided: it would transiently need
+            # ~2x the (tens-of-GiB) result resident at once.
+            mappings = np.concatenate(
+                [
+                    cp.asnumpy(cp.from_dlpack(part[ordered_cols].to_dlpack()))
+                    for part in parts
+                ],
+                axis=0,
+            )
         return mappings, pattern_vertices
 
     def _validate_input(self, pattern_graph: nx.Graph) -> None:
