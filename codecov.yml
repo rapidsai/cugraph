@@ -2,5 +2,5 @@
 comment: false
 coverage:
   status:
-    project: off
-    patch: off
+    project: off  # yamllint disable-line rule:truthy
+    patch: off  # yamllint disable-line rule:truthy
