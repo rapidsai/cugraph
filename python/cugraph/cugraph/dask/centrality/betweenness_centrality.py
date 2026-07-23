@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -81,16 +81,6 @@ def _mg_call_plc_betweenness_centrality(
     endpoints: bool = False,
     edge_bc: bool = False,
 ) -> dask_cudf.DataFrame:
-    comms_workers = list(Comms.get_workers())
-    plc_keys = list(input_graph._plc_graph.keys())
-    missing = set(comms_workers) - set(plc_keys)
-    extra = set(plc_keys) - set(comms_workers)
-    print(
-        f"[cugraph_mg_persist_debug] betweenness_plc_lookup "
-        f"comms_workers={comms_workers!r} plc_keys={plc_keys!r} "
-        f"missing={missing!r} extra={extra!r}",
-        flush=True,
-    )
     result = [
         client.submit(
             _call_plc_betweenness_centrality,

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -88,12 +88,6 @@ def _chunk_lst(ls, num_parts):
     return [ls[i::num_parts] for i in range(num_parts)]
 
 
-def _debug_mg_persist(msg, **kwargs):
-    """CI debug logging for MG persist/partition issues (remove after root-cause found)."""
-    parts = " ".join(f"{k}={v!r}" for k, v in kwargs.items())
-    print(f"[cugraph_mg_persist_debug] {msg} {parts}", flush=True)
-
-
 def persist_dask_df_equal_parts_per_worker(
     dask_df, client, return_type="dask_cudf.DataFrame"
 ):
@@ -109,113 +103,31 @@ def persist_dask_df_equal_parts_per_worker(
     if return_type not in ["dask_cudf.DataFrame", "dict"]:
         raise ValueError("return_type must be either 'dask_cudf.DataFrame' or 'dict'")
 
+    ddf_keys = dask_df.to_delayed()
     rank_to_worker = Comms.rank_to_worker(client)
     # rank-worker mappings are in ascending order
-    workers = list(dict(sorted(rank_to_worker.items())).values())
-    n_workers = len(workers)
+    workers = dict(sorted(rank_to_worker.items())).values()
 
-    try:
-        input_npartitions = dask_df.npartitions
-    except Exception as exc:
-        input_npartitions = f"error:{exc!r}"
-
-    _debug_mg_persist(
-        "enter",
-        input_npartitions=input_npartitions,
-        n_workers=n_workers,
-        return_type=return_type,
-        comms_workers=workers,
-    )
-
-    if n_workers == 0:
-        _debug_mg_persist("zero_workers", comms_workers=workers)
-        raise RuntimeError(
-            "persist_dask_df_equal_parts_per_worker: no comms workers available"
+    ddf_keys_ls = _chunk_lst(ddf_keys, len(workers))
+    persisted_keys_d = {}
+    for w, ddf_k in zip(workers, ddf_keys_ls):
+        persisted_keys_d[w] = client.compute(
+            ddf_k,
+            workers=w,
+            allow_other_workers=False,
         )
-
-    # Fix: materialize with a stable, non-zero partition count before to_delayed().
-    # Avoids dask-expr repartition optimizer hitting n_new_partitions == 0.
-    target_npartitions = max(1, n_workers)
-    if isinstance(input_npartitions, int) and input_npartitions != target_npartitions:
-        _debug_mg_persist(
-            "repartition_before_to_delayed",
-            input_npartitions=input_npartitions,
-            target_npartitions=target_npartitions,
-        )
-        dask_df = dask_df.repartition(npartitions=target_npartitions).persist()
-    else:
-        dask_df = dask_df.persist()
-    wait(dask_df)
-    _debug_mg_persist("after_materialize", npartitions=dask_df.npartitions)
-
-    try:
-        ddf_keys = dask_df.to_delayed()
-    except Exception as exc:
-        _debug_mg_persist(
-            "to_delayed_failed",
-            error=repr(exc),
-            npartitions=dask_df.npartitions,
-        )
-        raise
-
-    _debug_mg_persist("after_to_delayed", n_delayed=len(ddf_keys))
-
-    if len(ddf_keys) == 0:
-        _debug_mg_persist("empty_delayed_keys_recover", workers=workers)
-        persisted_keys_d = {
-            w: _create_empty_dask_df_future(dask_df._meta, client, w) for w in workers
-        }
-    else:
-        ddf_keys_ls = _chunk_lst(ddf_keys, n_workers)
-        _debug_mg_persist(
-            "chunked_delayed_keys",
-            chunk_sizes=[len(chunk) for chunk in ddf_keys_ls],
-        )
-        persisted_keys_d = {}
-        for w, ddf_k in zip(workers, ddf_keys_ls):
-            if not ddf_k:
-                _debug_mg_persist("empty_chunk_for_worker_recover", worker=w)
-                persisted_keys_d[w] = _create_empty_dask_df_future(
-                    dask_df._meta, client, w
-                )
-            else:
-                persisted_keys_d[w] = client.compute(
-                    ddf_k,
-                    workers=w,
-                    allow_other_workers=False,
-                )
 
     persisted_keys_ls = [
         item for sublist in persisted_keys_d.values() for item in sublist
     ]
-    _debug_mg_persist(
-        "before_wait",
-        n_persisted_keys=len(persisted_keys_ls),
-        persisted_workers=list(persisted_keys_d.keys()),
-    )
     wait(persisted_keys_ls)
     if return_type == "dask_cudf.DataFrame":
-        if not persisted_keys_ls:
-            _debug_mg_persist("empty_persisted_keys_ls_recover", workers=workers)
-            persisted_keys_ls = [
-                item
-                for w in workers
-                for item in _create_empty_dask_df_future(dask_df._meta, client, w)
-            ]
         dask_df = dask_cudf.from_delayed(
             persisted_keys_ls, meta=dask_df._meta
         ).persist()
         wait(dask_df)
-        _debug_mg_persist(
-            "exit", return_type=return_type, npartitions=dask_df.npartitions
-        )
         return dask_df
 
-    _debug_mg_persist(
-        "exit",
-        return_type=return_type,
-        persisted_workers=list(persisted_keys_d.keys()),
-    )
     return persisted_keys_d
 
 
