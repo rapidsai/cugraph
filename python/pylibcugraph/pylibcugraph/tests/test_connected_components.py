@@ -383,8 +383,8 @@ def test_bad_dtypes(api_name):
 
     cp_offsets = cp.asarray(scipy_csr.indptr)
     cp_indices = cp.asarray(scipy_csr.indices)
-    cp_labels = cp.zeros(num_verts, dtype=np.int64)  # unsupported
-    with pytest.raises(TypeError):
+    cp_labels = cp.zeros(num_verts, dtype=np.int64)
+    with pytest.raises(TypeError, match="got labels=int64, indices=int32"):
         api(
             None,
             None,
@@ -395,10 +395,10 @@ def test_bad_dtypes(api_name):
             False,
         )
 
-    cp_offsets = cp.asarray(scipy_csr.indptr, dtype=np.int64)  # unsupported
+    cp_offsets = cp.asarray(scipy_csr.indptr, dtype=np.int64)
     cp_indices = cp.asarray(scipy_csr.indices)
     cp_labels = cp.zeros(num_verts, dtype=np.int32)
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError, match="got offsets=int64, indices=int32"):
         api(
             None,
             None,
@@ -410,9 +410,9 @@ def test_bad_dtypes(api_name):
         )
 
     cp_offsets = cp.asarray(scipy_csr.indptr)
-    cp_indices = cp.asarray(scipy_csr.indices, dtype=np.float32)  # unsupported
+    cp_indices = cp.asarray(scipy_csr.indices, dtype=np.float32)
     cp_labels = cp.zeros(num_verts, dtype=np.int32)
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError, match="got offsets=int32, indices=float32"):
         api(
             None,
             None,

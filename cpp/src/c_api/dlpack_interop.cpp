@@ -153,7 +153,7 @@ extern "C" cugraph_error_code_t cugraph_dlpack_get_array_info(void const* manage
   if (code != CUGRAPH_SUCCESS) { return code; }
   CAPI_EXPECTS(tensor->ndim == 1,
                CUGRAPH_INVALID_INPUT,
-               "pylibcugraph array inputs must be one-dimensional",
+               "cuGraph array inputs must be one-dimensional",
                *error);
   CAPI_EXPECTS(
     tensor->shape != nullptr, CUGRAPH_INVALID_INPUT, "DLPack tensor shape cannot be NULL", *error);
@@ -161,9 +161,9 @@ extern "C" cugraph_error_code_t cugraph_dlpack_get_array_info(void const* manage
                CUGRAPH_INVALID_INPUT,
                "DLPack tensor dimensions cannot be negative",
                *error);
-  CAPI_EXPECTS(tensor->strides == nullptr || tensor->strides[0] == 1,
+  CAPI_EXPECTS(tensor->strides == nullptr || tensor->shape[0] <= 1 || tensor->strides[0] == 1,
                CUGRAPH_INVALID_INPUT,
-               "pylibcugraph array inputs must be contiguous",
+               "cuGraph array inputs must be contiguous",
                *error);
 
   code = data_type_id_from_dlpack(tensor->dtype, *dtype, *error);

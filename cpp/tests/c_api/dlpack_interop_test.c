@@ -121,6 +121,45 @@ int test_dlpack_array_info()
   return test_ret_value;
 }
 
+int test_dlpack_array_info_contiguity()
+{
+  int test_ret_value = 0;
+  int32_t values[]   = {1, 2, 3};
+  int64_t stride     = 2;
+  void* data         = NULL;
+  size_t size        = 0;
+  cugraph_data_type_id_t dtype;
+  cugraph_error_t* error = NULL;
+
+  int64_t shape = 0;
+  DLManagedTensor tensor =
+    make_tensor(values, kDLCUDA, (DLDataType){kDLInt, 32, 1}, &shape, &stride, 0);
+  cugraph_error_code_t code =
+    cugraph_dlpack_get_array_info(&tensor, FALSE, &data, &size, &dtype, &error);
+  TEST_ASSERT(test_ret_value,
+              code == CUGRAPH_SUCCESS && size == 0,
+              "zero-size tensor with explicit stride should be accepted");
+  cugraph_error_free(error);
+
+  shape = 1;
+  error = NULL;
+  code  = cugraph_dlpack_get_array_info(&tensor, FALSE, &data, &size, &dtype, &error);
+  TEST_ASSERT(test_ret_value,
+              code == CUGRAPH_SUCCESS && size == 1,
+              "single-element tensor with explicit stride should be accepted");
+  cugraph_error_free(error);
+
+  shape = 2;
+  error = NULL;
+  code  = cugraph_dlpack_get_array_info(&tensor, FALSE, &data, &size, &dtype, &error);
+  TEST_ASSERT(test_ret_value,
+              code == CUGRAPH_INVALID_INPUT && error != NULL,
+              "multi-element tensor with non-unit stride should be rejected");
+  cugraph_error_free(error);
+
+  return test_ret_value;
+}
+
 int test_dlpack_accessibility()
 {
   int test_ret_value = 0;
@@ -195,6 +234,7 @@ int main(int argc, char** argv)
 {
   int result = 0;
   result |= RUN_TEST(test_dlpack_array_info);
+  result |= RUN_TEST(test_dlpack_array_info_contiguity);
   result |= RUN_TEST(test_dlpack_accessibility);
   result |= RUN_TEST(test_versioned_dlpack_tensor);
   return result;

@@ -8,6 +8,7 @@ from pylibcugraph import GraphProperties, SGGraph
 
 from pylibcugraph._cugraph_c.types cimport (
     bool_t,
+    cugraph_data_type_id_t,
 )
 from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
@@ -40,6 +41,7 @@ from pylibcugraph.utils cimport (
     assert_success,
     assert_device_accessible,
     get_c_type_from_py_obj,
+    get_dtype_name_from_c_type,
     copy_to_cupy_array,
     create_cugraph_type_erased_device_array_view_from_py_obj,
 )
@@ -47,6 +49,9 @@ from pylibcugraph.utils cimport (
 
 def _ensure_args(graph, offsets, indices, weights, labels):
     i = 0
+    cdef cugraph_data_type_id_t offsets_type
+    cdef cugraph_data_type_id_t indices_type
+    cdef cugraph_data_type_id_t labels_type
     if graph is not None:
         # ensure the remaining parametes are None
         invalid_input = [i for p in [offsets, indices, weights] if p is not None]
@@ -68,15 +73,20 @@ def _ensure_args(graph, offsets, indices, weights, labels):
     if labels is not None:
         assert_device_accessible(labels, "labels")
         if input_type == "csr_arrays":
-            if get_c_type_from_py_obj(offsets) != get_c_type_from_py_obj(indices):
+            offsets_type = get_c_type_from_py_obj(offsets)
+            indices_type = get_c_type_from_py_obj(indices)
+            labels_type = get_c_type_from_py_obj(labels)
+            if offsets_type != indices_type:
                 raise TypeError(
                     "offsets dtype must match indices dtype "
-                    "(got different DLPack dtypes)"
+                    f"(got offsets={get_dtype_name_from_c_type(offsets_type)}, "
+                    f"indices={get_dtype_name_from_c_type(indices_type)})"
                 )
-            if get_c_type_from_py_obj(labels) != get_c_type_from_py_obj(indices):
+            if labels_type != indices_type:
                 raise TypeError(
                     "labels dtype must match indices dtype "
-                    "(got different DLPack dtypes)"
+                    f"(got labels={get_dtype_name_from_c_type(labels_type)}, "
+                    f"indices={get_dtype_name_from_c_type(indices_type)})"
                 )
 
     return input_type

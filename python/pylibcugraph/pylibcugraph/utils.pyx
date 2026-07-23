@@ -218,6 +218,10 @@ cpdef cugraph_data_type_id_t get_c_type_from_py_obj(object python_obj) except *:
     return dtype
 
 
+cdef get_dtype_name_from_c_type(cugraph_data_type_id_t c_type):
+    return numpy.dtype(get_numpy_type_from_c_type(c_type)).name
+
+
 cdef size_t get_size_from_py_obj(object python_obj) except *:
     _assert_dlpack(python_obj, "array")
     cdef void* data

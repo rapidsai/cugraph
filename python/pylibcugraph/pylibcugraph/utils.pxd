@@ -38,6 +38,8 @@ cdef get_numpy_type_from_c_type(cugraph_data_type_id_t c_type)
 
 cpdef cugraph_data_type_id_t get_c_type_from_py_obj(object python_obj) except *
 
+cdef get_dtype_name_from_c_type(cugraph_data_type_id_t c_type)
+
 cdef size_t get_size_from_py_obj(object python_obj) except *
 
 cdef get_last_item_from_py_obj(object python_obj)
