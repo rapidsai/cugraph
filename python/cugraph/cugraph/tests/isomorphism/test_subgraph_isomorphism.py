@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -10,7 +10,7 @@ from networkx.algorithms.isomorphism import GraphMatcher
 
 import cugraph
 from cugraph.datasets import email_Eu_core, karate
-from cugraph.experimental import (  # noqa: F401
+from cugraph.experimental import (
     MotifData,
     default_motif_library,
     subgraph_isomorphism,
@@ -38,9 +38,7 @@ PATTERNS = {
 
 
 def build_cugraph_from_edges(edges):
-    df = cudf.DataFrame(
-        {"src": [u for u, v in edges], "dst": [v for u, v in edges]}
-    )
+    df = cudf.DataFrame({"src": [u for u, v in edges], "dst": [v for u, v in edges]})
     G = cugraph.Graph(directed=False)
     G.from_cudf_edgelist(df, source="src", destination="dst")
     return G
@@ -59,18 +57,13 @@ def result_to_set(result_df):
     tuples, independent of row order."""
     pattern_vertices = [int(c) for c in result_df.columns]
     rows = result_df.to_pandas().itertuples(index=False)
-    return {
-        tuple(sorted(zip(pattern_vertices, (int(v) for v in row))))
-        for row in rows
-    }
+    return {tuple(sorted(zip(pattern_vertices, (int(v) for v in row)))) for row in rows}
 
 
 def nx_monomorphisms_set(target_nx, pattern_nx):
     matcher = GraphMatcher(target_nx, pattern_nx)
     return {
-        tuple(
-            sorted((int(p), int(t)) for t, p in mapping.items())
-        )
+        tuple(sorted((int(p), int(t)) for t, p in mapping.items()))
         for mapping in matcher.subgraph_monomorphisms_iter()
     }
 
@@ -88,9 +81,7 @@ def test_matches_networkx_monomorphisms_on_karate(pattern_name):
 
     result_df = subgraph_isomorphism(G, pattern_G)
 
-    expected = nx_monomorphisms_set(
-        cugraph_to_nx(G), cugraph_to_nx(pattern_G)
-    )
+    expected = nx_monomorphisms_set(cugraph_to_nx(G), cugraph_to_nx(pattern_G))
     assert result_to_set(result_df) == expected
 
 
@@ -103,9 +94,7 @@ def test_matches_networkx_on_small_handbuilt_graph():
     for pattern_name, pattern_edges in PATTERNS.items():
         pattern_G = build_cugraph_from_edges(pattern_edges)
         result_df = subgraph_isomorphism(G, pattern_G)
-        expected = nx_monomorphisms_set(
-            cugraph_to_nx(G), cugraph_to_nx(pattern_G)
-        )
+        expected = nx_monomorphisms_set(cugraph_to_nx(G), cugraph_to_nx(pattern_G))
         assert result_to_set(result_df) == expected, pattern_name
 
 
@@ -151,9 +140,7 @@ def test_renumbering_with_noncontiguous_ids():
 
     result_df = subgraph_isomorphism(G, pattern_G)
 
-    expected = nx_monomorphisms_set(
-        cugraph_to_nx(G), cugraph_to_nx(pattern_G)
-    )
+    expected = nx_monomorphisms_set(cugraph_to_nx(G), cugraph_to_nx(pattern_G))
     assert result_to_set(result_df) == expected
     # output must contain the original (shifted) ids
     returned_ids = set()

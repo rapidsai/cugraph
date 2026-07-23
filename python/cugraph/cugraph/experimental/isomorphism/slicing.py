@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
@@ -76,17 +76,13 @@ def slice_pattern_graph_using_motifs(
             # Node-induced subgraph matches of the motif in the residual
             # pattern graph (same semantics as rustworkx vf2_mapping with
             # subgraph=True).
-            matcher = nx.algorithms.isomorphism.GraphMatcher(
-                graph, motif_data.graph
-            )
+            matcher = nx.algorithms.isomorphism.GraphMatcher(graph, motif_data.graph)
 
             for mapping in matcher.subgraph_isomorphisms_iter():
                 # mapping is {pattern_node: motif_node}; invert it so that
                 # slice_nodes[i] is the pattern vertex matched to motif
                 # vertex i. Dict iteration order carries no such guarantee.
-                inv = {
-                    motif_node: pat_node for pat_node, motif_node in mapping.items()
-                }
+                inv = {motif_node: pat_node for pat_node, motif_node in mapping.items()}
                 slice_nodes = [inv[i] for i in range(motif_data.size)]
                 slice_set = set(slice_nodes)
 
@@ -109,9 +105,7 @@ def slice_pattern_graph_using_motifs(
                 # potential infinite loop.
                 if not nodes_to_remove:
                     # If the slice fully covers existing slices, skip it
-                    if any(
-                        not (slice_set - set(slice_)) for slice_ in existing_slices
-                    ):
+                    if any(not (slice_set - set(slice_)) for slice_ in existing_slices):
                         continue
                 graph.remove_nodes_from(list(nodes_to_remove))
 

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
@@ -347,9 +347,7 @@ class _MotifSubgraphIsomorphismSolver:
         prev_cols = [
             col for col in merged_df.columns if not col.startswith(f"m{count}_")
         ]
-        new_cols = [
-            col for col in merged_df.columns if col.startswith(f"m{count}_")
-        ]
+        new_cols = [col for col in merged_df.columns if col.startswith(f"m{count}_")]
         match_counts = self._count_cross_matches(merged_df, prev_cols, new_cols)
         return merged_df[match_counts == num_overlapped_nodes]
 

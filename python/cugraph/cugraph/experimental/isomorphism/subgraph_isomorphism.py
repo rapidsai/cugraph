@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import cudf
@@ -35,9 +35,9 @@ def EXPERIMENTAL__subgraph_isomorphism(G, pattern_G, motifs=None):
     """
     Find all subgraph isomorphisms (monomorphisms) of a pattern graph in a
     target graph using GPU-accelerated motif-based decomposition. Algortithm
-    described in:    
-        Wang, Y., Ginez, E., Friel, J., Baum, Y., Kim, J. S., Shih, A, O. Green, 
-        “Δ-Motif: Parallel Subgraph Isomorphism via Tabular Operations for Scalable Layout Selection”, 
+    described in:
+        Wang, Y., Ginez, E., Friel, J., Baum, Y., Kim, J. S., Shih, A, O. Green,
+        “Δ-Motif: Parallel Subgraph Isomorphism via Tabular Operations for Scalable Layout Selection”,
         IEEE Quantum Week (QCE), 2026
 
     The pattern is decomposed into small motifs (CPU VF2 on the pattern
@@ -52,10 +52,10 @@ def EXPERIMENTAL__subgraph_isomorphism(G, pattern_G, motifs=None):
     ``cudf.set_option("spill", True)`` or
     ``rmm.reinitialize(managed_memory=True)``).
 
-    Note on semantics: the returned embeddings are *monomorphisms*, i.e., 
-    every pattern edge maps to a target edge and vertices map injectively, 
+    Note on semantics: the returned embeddings are *monomorphisms*, i.e.,
+    every pattern edge maps to a target edge and vertices map injectively,
     but non-adjacent pattern vertices are allowed to map to adjacent target
-    vertices. 
+    vertices.
     This matches NetworkX ``GraphMatcher.subgraph_monomorphisms_iter``,
     not the induced ``subgraph_isomorphisms_iter``.
 
