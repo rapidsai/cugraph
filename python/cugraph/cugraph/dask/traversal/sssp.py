@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -124,7 +124,7 @@ def sssp(input_graph, source, cutoff=None, check_source=True):
             workers=[w],
             allow_other_workers=False,
         )
-        for w in Comms.get_workers()
+        for w in input_graph._plc_graph
     ]
 
     wait(result)
