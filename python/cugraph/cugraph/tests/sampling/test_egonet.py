@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -83,3 +83,139 @@ def test_multi_column_ego_graph(graph_file, seed, radius):
         assert ego_cugraph_exp.has_edge(
             edgelist_df_res["0_src"].iloc[i], edgelist_df_res["0_dst"].iloc[i]
         )
+
+
+def _canonical_edges(df, weighted=False):
+    """Return orientation-independent edge tuples for test comparisons."""
+    pdf = df.to_pandas()
+    result = set()
+    for row in pdf.itertuples(index=False):
+        src = getattr(row, "src")
+        dst = getattr(row, "dst")
+        edge = (min(src, dst), max(src, dst))
+        if weighted:
+            edge = (*edge, getattr(row, "weight"))
+        result.add(edge)
+    return result
+
+
+@pytest.fixture
+def multi_seed_graph():
+    df = cudf.DataFrame(
+        {
+            "src": [0, 1, 1, 3, 10, 11],
+            "dst": [1, 2, 3, 4, 11, 12],
+        }
+    )
+    graph = cugraph.Graph()
+    graph.from_cudf_edgelist(df, source="src", destination="dst")
+    return graph
+
+
+@pytest.fixture
+def weighted_multi_seed_graph():
+    df = cudf.DataFrame(
+        {
+            "src": [0, 1, 1, 10, 11],
+            "dst": [1, 2, 3, 11, 12],
+            "weight": [0.5, 1.5, 2.5, 3.5, 4.5],
+        }
+    )
+    graph = cugraph.Graph()
+    graph.from_cudf_edgelist(df, source="src", destination="dst", edge_attr="weight")
+    return graph
+
+
+@pytest.mark.sg
+def test_multiple_seeds_require_offsets(multi_seed_graph):
+    with pytest.raises(ValueError, match="return_offsets=True"):
+        cugraph.ego_graph(multi_seed_graph, [0, 10], radius=1)
+
+
+@pytest.mark.sg
+def test_multiple_seed_offsets_partition_output(multi_seed_graph):
+    edges, offsets = cugraph.ego_graph(
+        multi_seed_graph, [0, 10], radius=1, return_offsets=True
+    )
+
+    assert len(offsets) == 3
+    assert offsets.iloc[0] == 0
+    assert offsets.iloc[-1] == len(edges)
+    assert offsets.is_monotonic_increasing
+
+    first = edges.iloc[offsets.iloc[0] : offsets.iloc[1]]
+    second = edges.iloc[offsets.iloc[1] : offsets.iloc[2]]
+
+    expected_first = cugraph.ego_graph(multi_seed_graph, 0, radius=1).view_edge_list()
+    expected_second = cugraph.ego_graph(multi_seed_graph, 10, radius=1).view_edge_list()
+
+    assert _canonical_edges(first) == _canonical_edges(expected_first)
+    assert _canonical_edges(second) == _canonical_edges(expected_second)
+
+
+@pytest.mark.sg
+def test_multiple_seed_offsets_preserve_weights(weighted_multi_seed_graph):
+    edges, offsets = cugraph.ego_graph(
+        weighted_multi_seed_graph, [0, 10], radius=1, return_offsets=True
+    )
+
+    assert "weight" in edges.columns
+    assert len(offsets) == 3
+    assert offsets.iloc[-1] == len(edges)
+
+    first = edges.iloc[offsets.iloc[0] : offsets.iloc[1]]
+    second = edges.iloc[offsets.iloc[1] : offsets.iloc[2]]
+
+    expected_first = cugraph.ego_graph(
+        weighted_multi_seed_graph, 0, radius=1
+    ).view_edge_list()
+    expected_second = cugraph.ego_graph(
+        weighted_multi_seed_graph, 10, radius=1
+    ).view_edge_list()
+
+    assert _canonical_edges(first, weighted=True) == _canonical_edges(
+        expected_first, weighted=True
+    )
+    assert _canonical_edges(second, weighted=True) == _canonical_edges(
+        expected_second, weighted=True
+    )
+
+
+@pytest.mark.sg
+def test_multiple_seed_offsets_use_external_vertex_ids():
+    df = cudf.DataFrame(
+        {
+            "src": [1001, 1002, 1002, 5001, 5002],
+            "dst": [1002, 1003, 1004, 5002, 5003],
+        }
+    )
+    graph = cugraph.Graph()
+    graph.from_cudf_edgelist(df, source="src", destination="dst", renumber=True)
+
+    edges, offsets = cugraph.ego_graph(
+        graph, [1001, 5001], radius=1, return_offsets=True
+    )
+
+    external_vertices = {1001, 1002, 1003, 1004, 5001, 5002, 5003}
+    assert set(edges["src"].to_pandas()).issubset(external_vertices)
+    assert set(edges["dst"].to_pandas()).issubset(external_vertices)
+
+    first = edges.iloc[offsets.iloc[0] : offsets.iloc[1]]
+    second = edges.iloc[offsets.iloc[1] : offsets.iloc[2]]
+    expected_first = cugraph.ego_graph(graph, 1001, radius=1).view_edge_list()
+    expected_second = cugraph.ego_graph(graph, 5001, radius=1).view_edge_list()
+
+    assert _canonical_edges(first) == _canonical_edges(expected_first)
+    assert _canonical_edges(second) == _canonical_edges(expected_second)
+
+
+@pytest.mark.sg
+def test_single_seed_default_still_returns_graph(multi_seed_graph):
+    result = cugraph.ego_graph(multi_seed_graph, 0, radius=1)
+    assert isinstance(result, cugraph.Graph)
+
+
+@pytest.mark.sg
+def test_empty_seed_list_rejected(multi_seed_graph):
+    with pytest.raises(ValueError, match="at least one seed"):
+        cugraph.ego_graph(multi_seed_graph, [], radius=1)

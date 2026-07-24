@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 
@@ -24,55 +24,61 @@ def _convert_df_series_to_output_type(df, offsets, input_type):
     return df, offsets
 
 
-# TODO: add support for a 'batch-mode' option.
-def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
-    """
-    Compute the induced subgraph of neighbors centered at node n,
-    within a given radius.
+def ego_graph(
+    G,
+    n,
+    radius=1,
+    center=True,
+    undirected=None,
+    distance=None,
+    *,
+    return_offsets=False,
+):
+    """Compute ego graph(s) centered at one or more seed vertices.
 
     Parameters
     ----------
     G : cugraph.Graph, CuPy or SciPy sparse matrix
-        Graph or matrix object, which should contain the connectivity
-        information. Edge weights, if present, should be single or double
-        precision floating point values.
+        Input graph.
+    n : integer, list, cudf.Series, or cudf.DataFrame
+        One seed vertex, or multiple seed vertices when ``return_offsets=True``.
+    radius : integer, optional
+        Include neighbors at distance less than or equal to ``radius``.
+    center : bool, optional
+        Defaults to True. False is not supported.
+    undirected : optional
+        Present for NetworkX compatibility and currently ignored.
+    distance : optional
+        Present for NetworkX compatibility and currently ignored.
+    return_offsets : bool, keyword-only, optional
+        When ``False`` (default), preserve the existing single-seed behavior and
+        return a ``cugraph.Graph``. Multiple seeds raise ``ValueError`` rather
+        than silently returning a composite graph.
 
-    n : integer or list, cudf.Series, cudf.DataFrame
-        A single node as integer or a cudf.DataFrame if nodes are
-        represented with multiple columns. If a cudf.DataFrame is provided,
-        only the first row is taken as the node input.
-
-    radius: integer, optional (default=1)
-        Include all neighbors of distance<=radius from n.
-
-    center: bool, optional
-        Defaults to True. False is not supported
-
-    distance: key, optional (default=None)
-        This parameter is here for NetworkX compatibility and is ignored
+        When ``True``, return ``(edge_dataframe, offsets)``. ``offsets[i]`` and
+        ``offsets[i + 1]`` delimit the rows belonging to seed ``i``. This keeps
+        the ordering and boundaries returned by pylibcugraph.
 
     Returns
     -------
-    G_ego : cuGraph.Graph
-        A graph descriptor with a minimum spanning tree or forest.
-
-    Examples
-    --------
-    >>> from cugraph.datasets import karate
-    >>> G = karate.get_graph(download=True)
-    >>> ego_graph = cugraph.ego_graph(G, 1, radius=2)
-
+    cugraph.Graph
+        The ego graph for a single seed when ``return_offsets=False``.
+    tuple
+        ``(edge_dataframe, offsets)`` when ``return_offsets=True``.
     """
     (G, input_type) = ensure_cugraph_obj(G)
 
-    result_graph = type(G)(directed=G.is_directed())
-
-    if isinstance(n, (int, list)):
+    if isinstance(n, int):
+        n = cudf.Series([n])
+    elif isinstance(n, list):
         n = cudf.Series(n)
+
     if isinstance(n, cudf.Series):
+        seed_count = len(n)
         if G.renumbered is True:
             n = G.lookup_internal_vertex_id(n)
     elif isinstance(n, cudf.DataFrame):
+        seed_count = len(n)
         if G.renumbered is True:
             n = G.lookup_internal_vertex_id(n, n.columns)
     else:
@@ -81,18 +87,24 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
             f" or a cudf.DataFrame, got: {type(n)}"
         )
 
-    # Match the seed to the vertex dtype
-    n_type = G.edgelist.edgelist_df["src"].dtype
-    # FIXME: 'n' should represent a single vertex, but is not being verified
-    n = n.astype(n_type)
-    do_expensive_check = False
+    if seed_count == 0:
+        raise ValueError("'n' must contain at least one seed vertex")
 
-    source, destination, weight, _ = pylibcugraph_ego_graph(
+    if seed_count > 1 and not return_offsets:
+        raise ValueError(
+            "Multiple seed vertices require return_offsets=True so that "
+            "individual ego-graph boundaries are preserved."
+        )
+
+    n_type = G.edgelist.edgelist_df["src"].dtype
+    n = n.astype(n_type)
+
+    source, destination, weight, offsets = pylibcugraph_ego_graph(
         resource_handle=ResourceHandle(),
         graph=G._plc_graph,
         source_vertices=n,
         radius=radius,
-        do_expensive_check=do_expensive_check,
+        do_expensive_check=False,
     )
 
     df = cudf.DataFrame()
@@ -105,10 +117,14 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
         df, src_names = G.unrenumber(df, "src", get_column_names=True)
         df, dst_names = G.unrenumber(df, "dst", get_column_names=True)
     else:
-        # FIXME: The original 'src' and 'dst' are not stored in 'simpleGraph'
         src_names = "src"
         dst_names = "dst"
 
+    if return_offsets:
+        offsets = cudf.Series(offsets)
+        return _convert_df_series_to_output_type(df, offsets, input_type)
+
+    result_graph = type(G)(directed=G.is_directed())
     if G.edgelist.weights:
         result_graph.from_cudf_edgelist(
             df, source=src_names, destination=dst_names, edge_attr="weight"
