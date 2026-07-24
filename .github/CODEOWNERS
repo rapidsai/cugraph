@@ -36,7 +36,7 @@ dependencies.yaml        @rapidsai/packaging-codeowners
 pyproject.toml           @rapidsai/packaging-codeowners
 
 # notebooks code owners
-*.ipynb @rapidsai/cugraph-notebook-codeowners
+*.ipynb @rapidsai/cugraph-python-codeowners
 
 # Ops code owners
 /SECURITY.md             @rapidsai/ops-codeowners
