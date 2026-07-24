@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 from pathlib import Path
@@ -313,10 +313,10 @@ def test_wcc(input_and_expected_output):
 @pytest.mark.parametrize(
     "api_name", ["weakly_connected_components", "strongly_connected_components"]
 )
-def test_non_CAI_input(api_name):
+def test_non_dlpack_input(api_name):
     """
     Ensures that the *_connected_components() APIs only accept objects that
-    have a __cuda_array_interface__ where required.
+    support DLPack where required.
     """
     import pylibcugraph
 
@@ -383,8 +383,8 @@ def test_bad_dtypes(api_name):
 
     cp_offsets = cp.asarray(scipy_csr.indptr)
     cp_indices = cp.asarray(scipy_csr.indices)
-    cp_labels = cp.zeros(num_verts, dtype=np.int64)  # unsupported
-    with pytest.raises(TypeError):
+    cp_labels = cp.zeros(num_verts, dtype=np.int64)
+    with pytest.raises(TypeError, match="got labels=int64, indices=int32"):
         api(
             None,
             None,
@@ -395,10 +395,10 @@ def test_bad_dtypes(api_name):
             False,
         )
 
-    cp_offsets = cp.asarray(scipy_csr.indptr, dtype=np.int64)  # unsupported
+    cp_offsets = cp.asarray(scipy_csr.indptr, dtype=np.int64)
     cp_indices = cp.asarray(scipy_csr.indices)
     cp_labels = cp.zeros(num_verts, dtype=np.int32)
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError, match="got offsets=int64, indices=int32"):
         api(
             None,
             None,
@@ -410,9 +410,9 @@ def test_bad_dtypes(api_name):
         )
 
     cp_offsets = cp.asarray(scipy_csr.indptr)
-    cp_indices = cp.asarray(scipy_csr.indices, dtype=np.float32)  # unsupported
+    cp_indices = cp.asarray(scipy_csr.indices, dtype=np.float32)
     cp_labels = cp.zeros(num_verts, dtype=np.int32)
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError, match="got offsets=int32, indices=float32"):
         api(
             None,
             None,
@@ -441,11 +441,11 @@ def test_invalid_input_wcc():
     rows, cols = scipy_csr.nonzero()
     scipy_csr[cols, rows] = scipy_csr[rows, cols]
 
-    sp_offsets = scipy_csr.indptr  # host numpy, no CAI on device expectation
+    sp_offsets = scipy_csr.indptr  # host-only DLPack array
     sp_indices = scipy_csr.indices
 
     resource_handle = ResourceHandle()
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError, match="accessible from a CUDA device"):
         pylibcugraph.weakly_connected_components(
             resource_handle, None, sp_offsets, sp_indices, None, None, False
         )
@@ -488,11 +488,11 @@ def test_invalid_input_scc():
     ]
     scipy_csr = csr_matrix(graph)
 
-    sp_offsets = scipy_csr.indptr  # host numpy, no __cuda_array_interface__
+    sp_offsets = scipy_csr.indptr  # host-only DLPack array
     sp_indices = scipy_csr.indices
 
     resource_handle = ResourceHandle()
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError, match="accessible from a CUDA device"):
         pylibcugraph.strongly_connected_components(
             resource_handle, None, sp_offsets, sp_indices, None, None, False
         )

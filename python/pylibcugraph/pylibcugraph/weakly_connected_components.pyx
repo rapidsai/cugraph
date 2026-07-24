@@ -1,15 +1,14 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
-import numpy as np
-
 from pylibcugraph import GraphProperties, SGGraph
 
 from pylibcugraph._cugraph_c.types cimport (
     bool_t,
+    cugraph_data_type_id_t,
 )
 from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
@@ -40,7 +39,9 @@ from pylibcugraph.graphs cimport (
 )
 from pylibcugraph.utils cimport (
     assert_success,
-    assert_CAI_type,
+    assert_device_accessible,
+    get_c_type_from_py_obj,
+    get_dtype_name_from_c_type,
     copy_to_cupy_array,
     create_cugraph_type_erased_device_array_view_from_py_obj,
 )
@@ -48,6 +49,9 @@ from pylibcugraph.utils cimport (
 
 def _ensure_args(graph, offsets, indices, weights, labels):
     i = 0
+    cdef cugraph_data_type_id_t offsets_type
+    cdef cugraph_data_type_id_t indices_type
+    cdef cugraph_data_type_id_t labels_type
     if graph is not None:
         # ensure the remaining parametes are None
         invalid_input = [i for p in [offsets, indices, weights] if p is not None]
@@ -62,22 +66,27 @@ def _ensure_args(graph, offsets, indices, weights, labels):
                         "a combination of 'offsets', 'indices' and 'weights', not both")
     else:
         if input_type == "csr_arrays":
-            assert_CAI_type(offsets, "offsets")
-            assert_CAI_type(indices, "indices")
-            assert_CAI_type(weights, "weights", True)
+            assert_device_accessible(offsets, "offsets")
+            assert_device_accessible(indices, "indices")
+            assert_device_accessible(weights, "weights", True)
 
     if labels is not None:
-        assert_CAI_type(labels, "labels")
+        assert_device_accessible(labels, "labels")
         if input_type == "csr_arrays":
-            if np.dtype(offsets.dtype) != np.dtype(indices.dtype):
+            offsets_type = get_c_type_from_py_obj(offsets)
+            indices_type = get_c_type_from_py_obj(indices)
+            labels_type = get_c_type_from_py_obj(labels)
+            if offsets_type != indices_type:
                 raise TypeError(
                     "offsets dtype must match indices dtype "
-                    f"(got offsets.dtype={offsets.dtype!r}, indices.dtype={indices.dtype!r})"
+                    f"(got offsets={get_dtype_name_from_c_type(offsets_type)}, "
+                    f"indices={get_dtype_name_from_c_type(indices_type)})"
                 )
-            if np.dtype(labels.dtype) != np.dtype(indices.dtype):
+            if labels_type != indices_type:
                 raise TypeError(
                     "labels dtype must match indices dtype "
-                    f"(got labels.dtype={labels.dtype!r}, indices.dtype={indices.dtype!r})"
+                    f"(got labels={get_dtype_name_from_c_type(labels_type)}, "
+                    f"indices={get_dtype_name_from_c_type(indices_type)})"
                 )
 
     return input_type
@@ -104,19 +113,19 @@ def weakly_connected_components(ResourceHandle resource_handle,
     graph : SGGraph or MGGraph
         The input graph.
 
-    offsets : object supporting a __cuda_array_interface__ interface
+    offsets : device-accessible object supporting DLPack
         Array containing the offsets values of a Compressed Sparse Row matrix
         that represents the graph.
 
-    indices : object supporting a __cuda_array_interface__ interface
+    indices : device-accessible object supporting DLPack
         Array containing the indices values of a Compressed Sparse Row matrix
         that represents the graph.
 
-    weights : object supporting a __cuda_array_interface__ interface
+    weights : device-accessible object supporting DLPack
         Array containing the weights values of a Compressed Sparse Row matrix
         that represents the graph
 
-    labels : optional, object supporting __cuda_array_interface__
+    labels : optional, device-accessible object supporting DLPack
         If provided, component labels are copied into this array; otherwise
         labels are returned in the result tuple.
 

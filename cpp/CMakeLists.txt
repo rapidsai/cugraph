@@ -108,9 +108,10 @@ rapids_cpm_init()
 # lags behind.
 ###
 
-# Need CCCL, then rmm, then cuCollections, then RAFT.
+# Need CCCL, DLPack, then rmm, then cuCollections, then RAFT.
 # This ensures that libraries can be overridden for testing.
 include(cmake/thirdparty/get_cccl.cmake)
+include(cmake/thirdparty/get_dlpack.cmake)
 include(${rapids-cmake-dir}/cpm/rmm.cmake)
 rapids_cpm_rmm(BUILD_EXPORT_SET cugraph-exports)
 include(${rapids-cmake-dir}/cpm/cuco.cmake)
@@ -636,12 +637,6 @@ endforeach()
 target_link_libraries(cugraph PUBLIC cugraph_common)
 target_link_libraries(cugraph_mg PRIVATE cugraph_common)
 target_link_libraries(cugraph_mtmg PRIVATE cugraph_common)
-
-
-
-
-include(cmake/thirdparty/get_dlpack.cmake)
-
 ################################################################################
 # - C-API library --------------------------------------------------------------
 
@@ -747,12 +742,9 @@ target_include_directories(cugraph_c
 # - C-API link libraries -------------------------------------------------------
 target_link_libraries(cugraph_c PRIVATE cugraph::cugraph cugraph::cugraph_mg)
 
-# dlpack is a header-only dependency of the public cugraph_c/dlpack_interop.h
-# header. Expose its include directory to build-tree consumers (e.g. the C API
-# tests) only; installed consumers obtain dlpack.h from their own environment,
-# so it is intentionally not part of the install/export interface.
-target_include_directories(cugraph_c
-    PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>")
+# DLPack is an implementation detail used to interpret opaque managed tensor
+# pointers passed through the C API.
+target_include_directories(cugraph_c PRIVATE "${DLPACK_INCLUDE_DIR}")
 
 ################################################################################
 # - generate tests -------------------------------------------------------------

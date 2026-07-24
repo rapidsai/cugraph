@@ -1,10 +1,8 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
 # cython: language_level = 3
-
-from libc.stdint cimport uintptr_t
 
 from pylibcugraph.resource_handle cimport ResourceHandle
 
@@ -19,9 +17,7 @@ from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
     cugraph_type_erased_host_array_view_t,
     cugraph_type_erased_device_array_view_free,
-    cugraph_type_erased_device_array_view_create,
     cugraph_type_erased_host_array_view_free,
-    cugraph_type_erased_host_array_view_create,
 )
 
 from pylibcugraph._cugraph_c.graph_functions cimport (
@@ -30,9 +26,11 @@ from pylibcugraph._cugraph_c.graph_functions cimport (
 
 from pylibcugraph.utils cimport (
     assert_success,
-    assert_CAI_type,
-    assert_AI_type,
+    assert_device_accessible,
+    assert_host_accessible,
     get_c_type_from_numpy_type,
+    create_cugraph_type_erased_device_array_view_from_py_obj,
+    create_cugraph_type_erased_host_array_view_from_py_obj,
 )
 
 def renumber_arbitrary_edgelist(
@@ -61,37 +59,19 @@ def renumber_arbitrary_edgelist(
     Nothing.
     """
 
-    assert_CAI_type(srcs, "srcs")
-    assert_CAI_type(dsts, "dsts")
+    assert_device_accessible(srcs, "srcs")
+    assert_device_accessible(dsts, "dsts")
 
-    assert_AI_type(renumber_map, "renumber_map")
+    assert_host_accessible(renumber_map, "renumber_map")
 
-    cdef uintptr_t cai_renumber_map_ptr = \
-        renumber_map.__array_interface__['data'][0]
     cdef cugraph_type_erased_host_array_view_t* map_view = \
-        cugraph_type_erased_host_array_view_create(
-            <void*>cai_renumber_map_ptr,
-            len(renumber_map),
-            get_c_type_from_numpy_type(renumber_map.dtype)
-        )
+        create_cugraph_type_erased_host_array_view_from_py_obj(renumber_map)
 
-    cdef uintptr_t cai_srcs_ptr = \
-        srcs.__cuda_array_interface__['data'][0]
     cdef cugraph_type_erased_device_array_view_t* srcs_view = \
-        cugraph_type_erased_device_array_view_create(
-            <void*>cai_srcs_ptr,
-            len(srcs),
-            get_c_type_from_numpy_type(srcs.dtype)
-        )
+        create_cugraph_type_erased_device_array_view_from_py_obj(srcs)
 
-    cdef uintptr_t cai_dsts_ptr = \
-        dsts.__cuda_array_interface__['data'][0]
     cdef cugraph_type_erased_device_array_view_t* dsts_view = \
-        cugraph_type_erased_device_array_view_create(
-            <void*>cai_dsts_ptr,
-            len(dsts),
-            get_c_type_from_numpy_type(dsts.dtype)
-        )
+        create_cugraph_type_erased_device_array_view_from_py_obj(dsts)
 
     cdef cugraph_resource_handle_t* handle_cptr = handle.c_resource_handle_ptr
 

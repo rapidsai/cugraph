@@ -1,10 +1,8 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
 # cython: language_level = 3
-
-from libc.stdint cimport uintptr_t
 
 from pylibcugraph._cugraph_c.types cimport (
     bool_t,
@@ -18,10 +16,8 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
-    cugraph_type_erased_device_array_view_create,
     cugraph_type_erased_device_array_view_free,
     cugraph_type_erased_host_array_view_t,
-    cugraph_type_erased_host_array_view_create,
     cugraph_type_erased_host_array_view_free,
 )
 from pylibcugraph.resource_handle cimport (
@@ -44,7 +40,7 @@ from pylibcugraph.internal_types.coo cimport (
 )
 from pylibcugraph.utils cimport (
     assert_success,
-    assert_CAI_type,
+    assert_device_accessible,
     create_cugraph_type_erased_device_array_view_from_py_obj,
 )
 from pylibcugraph._cugraph_c.random cimport (
@@ -116,9 +112,9 @@ def negative_sampling(ResourceHandle resource_handle,
         Generated edges in COO format.
     """
 
-    assert_CAI_type(vertices, "vertices", True)
-    assert_CAI_type(src_bias, "src_bias", True)
-    assert_CAI_type(dst_bias, "dst_bias", True)
+    assert_device_accessible(vertices, "vertices", True)
+    assert_device_accessible(src_bias, "src_bias", True)
+    assert_device_accessible(dst_bias, "dst_bias", True)
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = (
         resource_handle.c_resource_handle_ptr

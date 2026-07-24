@@ -1,10 +1,8 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
 # cython: language_level = 3
-
-from libc.stdint cimport uintptr_t
 
 from pylibcugraph._cugraph_c.types cimport (
     bool_t,
@@ -18,7 +16,6 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
-    cugraph_type_erased_device_array_view_create,
     cugraph_type_erased_device_array_view_free,
 )
 from pylibcugraph._cugraph_c.graph cimport (
@@ -40,7 +37,7 @@ from pylibcugraph.graphs cimport (
 from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
-    assert_CAI_type,
+    assert_device_accessible,
     get_c_type_from_numpy_type,
 )
 

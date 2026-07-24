@@ -1,10 +1,8 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
 # cython: language_level = 3
-
-from libc.stdint cimport uintptr_t
 
 from pylibcugraph._cugraph_c.types cimport (
     bool_t,
@@ -18,7 +16,6 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
-    cugraph_type_erased_device_array_view_create,
     cugraph_type_erased_device_array_view_free,
 )
 from pylibcugraph._cugraph_c.graph cimport (
@@ -41,6 +38,7 @@ from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
     get_c_type_from_numpy_type,
+    create_cugraph_type_erased_device_array_view_from_py_obj,
 )
 
 
@@ -104,18 +102,9 @@ def katz_centrality(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    cdef uintptr_t cai_betas_ptr
     cdef cugraph_type_erased_device_array_view_t* betas_ptr
 
-    if betas is not None:
-        cai_betas_ptr = betas.__cuda_array_interface__["data"][0]
-        betas_ptr = \
-            cugraph_type_erased_device_array_view_create(
-                <void*>cai_betas_ptr,
-                len(betas),
-                get_c_type_from_numpy_type(betas.dtype))
-    else:
-        betas_ptr = NULL
+    betas_ptr = create_cugraph_type_erased_device_array_view_from_py_obj(betas)
 
     error_code = cugraph_katz_centrality(c_resource_handle_ptr,
                                          c_graph_ptr,

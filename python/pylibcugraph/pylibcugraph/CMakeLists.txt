@@ -82,8 +82,3 @@ rapids_cython_create_modules(
   LINKED_LIBRARIES ${linked_libraries}
   ASSOCIATED_TARGETS cugraph
 )
-
-# utils.pyx uses the DLPack interop API and includes dlpack/dlpack.h, which is
-# not provided by an installed libcugraph. Provide the downloaded/located dlpack
-# headers to that module.
-target_include_directories(utils PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>")
