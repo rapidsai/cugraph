@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -548,8 +548,13 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample
  * @param [in]  temporal_property_name Name associated with the edge property in the graph that
  * should be used as the time.  Currently unused.
  * @param [in]  start_vertices Device array of start vertices for the sampling
- * @param [in]  starting_vertex_times Optional device span of times associated with each starting
- * vertex for the sampling.
+ * @param [in]  starting_vertex_times Optional device span of start times defining the lower bound
+ * of the time window for each starting vertex. When specified with @p starting_vertex_end_times,
+ * must be less than or equal to the corresponding end time. For increasing walks the frontier
+ * begins at this time; for decreasing walks the frontier begins at @p starting_vertex_end_times.
+ * @param [in]  starting_vertex_end_times Optional device span of end times defining the upper bound
+ * of the time window for each starting vertex. Edge start times must fall within
+ * [@p starting_vertex_times, @p starting_vertex_end_times] when both bounds are specified.
  * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
  * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
@@ -570,6 +575,7 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbo
   const char* temporal_property_name,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* starting_vertex_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_end_times,
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* sampling_options,
@@ -603,8 +609,13 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbo
  * @param [in]  edge_biases  Device array of edge biases to use for sampling.  If NULL
  * use the edge weight as the bias. If set to NULL, edges will be sampled uniformly.
  * @param [in]  start_vertices Device array of start vertices for the sampling
- * @param [in]  starting_vertex_times Optional device span of times associated with each starting
- * vertex for the sampling.
+ * @param [in]  starting_vertex_times Optional device span of start times defining the lower bound
+ * of the time window for each starting vertex. When specified with @p starting_vertex_end_times,
+ * must be less than or equal to the corresponding end time. For increasing walks the frontier
+ * begins at this time; for decreasing walks the frontier begins at @p starting_vertex_end_times.
+ * @param [in]  starting_vertex_end_times Optional device span of end times defining the upper bound
+ * of the time window for each starting vertex. Edge start times must fall within
+ * [@p starting_vertex_times, @p starting_vertex_end_times] when both bounds are specified.
  * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
  * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
@@ -626,6 +637,7 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* starting_vertex_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_end_times,
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* sampling_options,
@@ -657,8 +669,13 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor
  * @param [in]  temporal_property_name Name associated with the edge property in the graph that
  * should be used as the time.  Currently unused.
  * @param [in]  start_vertices Device array of start vertices for the sampling
- * @param [in]  starting_vertex_times Optional device span of times associated with each starting
- * vertex for the sampling.
+ * @param [in]  starting_vertex_times Optional device span of start times defining the lower bound
+ * of the time window for each starting vertex. When specified with @p starting_vertex_end_times,
+ * must be less than or equal to the corresponding end time. For increasing walks the frontier
+ * begins at this time; for decreasing walks the frontier begins at @p starting_vertex_end_times.
+ * @param [in]  starting_vertex_end_times Optional device span of end times defining the upper bound
+ * of the time window for each starting vertex. Edge start times must fall within
+ * [@p starting_vertex_times, @p starting_vertex_end_times] when both bounds are specified.
  * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
  * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  vertex_type_offsets Device array of the offsets for each vertex type in the
@@ -683,6 +700,7 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neigh
   const char* temporal_property_name,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* starting_vertex_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_end_times,
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
@@ -718,8 +736,13 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neigh
  * @param [in]  edge_biases  Device array of edge biases to use for sampling.  If NULL
  * use the edge weight as the bias. If set to NULL, edges will be sampled uniformly.
  * @param [in]  start_vertices Device array of start vertices for the sampling
- * @param [in]  starting_vertex_times Optional device span of times associated with each starting
- * vertex for the sampling.
+ * @param [in]  starting_vertex_times Optional device span of start times defining the lower bound
+ * of the time window for each starting vertex. When specified with @p starting_vertex_end_times,
+ * must be less than or equal to the corresponding end time. For increasing walks the frontier
+ * begins at this time; for decreasing walks the frontier begins at @p starting_vertex_end_times.
+ * @param [in]  starting_vertex_end_times Optional device span of end times defining the upper bound
+ * of the time window for each starting vertex. Edge start times must fall within
+ * [@p starting_vertex_times, @p starting_vertex_end_times] when both bounds are specified.
  * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
  * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  vertex_type_offsets Device array of the offsets for each vertex type in the
@@ -745,6 +768,7 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_heterogeneous_biased_temporal_neighb
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
   const cugraph_type_erased_device_array_view_t* starting_vertex_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_end_times,
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
