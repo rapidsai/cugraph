@@ -21,7 +21,7 @@ rapids-pip-retry install \
     --prefer-binary \
     --constraint "${PIP_CONSTRAINT}" \
     "${LIBCUGRAPH_WHEELHOUSE}"/libcugraph*.whl
-python -c "import libcugraph; libcugraph.load_library()"
+python -c "import libcugraph; assert (libraries := libcugraph.load_library()) and all(libraries)"
 deactivate
 
 # notes:
