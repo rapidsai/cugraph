@@ -39,6 +39,7 @@
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/adjacent_difference.h>
+#include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -442,9 +443,7 @@ compute_unique_keys(raft::handle_t const& handle,
                            local_frontier_unique_key_offsets[i + 1]] __device__(key_t key) {
           return static_cast<size_t>(cuda::std::distance(
             unique_key_first,
-            thrust::find_if(thrust::seq, unique_key_first, unique_key_last, [key](auto unique_key) {
-              return unique_key == key;
-            })));
+            thrust::lower_bound(thrust::seq, unique_key_first, unique_key_last, key)));
         }));
   }
 
