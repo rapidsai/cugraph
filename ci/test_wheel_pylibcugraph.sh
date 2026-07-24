@@ -13,6 +13,17 @@ LIBCUGRAPH_WHEELHOUSE=$(rapids-download-from-github "$(rapids-artifact-name whee
 # generate constraints (possibly pinning to oldest support versions of dependencies)
 rapids-generate-pip-constraints test_python "${PIP_CONSTRAINT}"
 
+python -m venv libcugraph-env
+. libcugraph-env/bin/activate
+
+rapids-pip-retry install \
+    -v \
+    --prefer-binary \
+    --constraint "${PIP_CONSTRAINT}" \
+    "${LIBCUGRAPH_WHEELHOUSE}"/libcugraph*.whl
+python -c "import libcugraph; libcugraph.load_library()"
+deactivate
+
 # notes:
 #
 #   * echo to expand wildcard before adding `[test]` requires for pip
