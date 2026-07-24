@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "sample_edges_one_property.hpp"
+#include "sample_outgoing_edges.hpp"
 #include "sampling_utils.hpp"
 
 #include <cugraph/detail/device_comm_wrapper.hpp>
@@ -72,16 +72,16 @@ sample_edges(raft::handle_t const& handle,
     handle, raft::device_span<vertex_t const>(bucket0.begin(), bucket0.size()));
 
   std::tie(majors, minors, tmp_edge_indices, sample_labels) =
-    sample_with_one_property(handle,
-                             rng_state,
-                             graph_view,
-                             number_of_edge_properties > 0,
-                             edge_type_view,
-                             edge_bias_view,
-                             active_bucket_view,
-                             Ks,
-                             active_major_labels,
-                             with_replacement);
+    sample_outgoing_edges(handle,
+                          rng_state,
+                          graph_view,
+                          number_of_edge_properties > 0,
+                          edge_type_view,
+                          edge_bias_view,
+                          active_bucket_view,
+                          Ks,
+                          active_major_labels,
+                          with_replacement);
 
   labels = std::move(sample_labels);
 
@@ -138,18 +138,18 @@ sample_edges_to_unvisited_neighbors(
       raft::device_span<tag_t const>(bucket0.tag_begin(), bucket0.size()));
 
     std::tie(majors, minors, tmp_edge_indices, labels, visited_minors, visited_minor_labels) =
-      sample_unvisited_with_one_property(handle,
-                                         rng_state,
-                                         graph_view,
-                                         number_of_edge_properties > 0,
-                                         edge_type_view,
-                                         edge_bias_view,
-                                         active_bucket_view,
-                                         std::move(visited_minors),
-                                         std::move(visited_minor_labels),
-                                         Ks,
-                                         active_major_labels,
-                                         with_replacement);
+      sample_unvisited_outgoing_edges(handle,
+                                      rng_state,
+                                      graph_view,
+                                      number_of_edge_properties > 0,
+                                      edge_type_view,
+                                      edge_bias_view,
+                                      active_bucket_view,
+                                      std::move(visited_minors),
+                                      std::move(visited_minor_labels),
+                                      Ks,
+                                      active_major_labels,
+                                      with_replacement);
 
   } else {
     using tag_t = void;  // no label
@@ -163,18 +163,18 @@ sample_edges_to_unvisited_neighbors(
       handle, raft::device_span<vertex_t const>(bucket0.begin(), bucket0.size()));
 
     std::tie(majors, minors, tmp_edge_indices, labels, visited_minors, visited_minor_labels) =
-      sample_unvisited_with_one_property(handle,
-                                         rng_state,
-                                         graph_view,
-                                         number_of_edge_properties > 0,
-                                         edge_type_view,
-                                         edge_bias_view,
-                                         active_bucket_view,
-                                         std::move(visited_minors),
-                                         std::move(visited_minor_labels),
-                                         Ks,
-                                         active_major_labels,
-                                         with_replacement);
+      sample_unvisited_outgoing_edges(handle,
+                                      rng_state,
+                                      graph_view,
+                                      number_of_edge_properties > 0,
+                                      edge_type_view,
+                                      edge_bias_view,
+                                      active_bucket_view,
+                                      std::move(visited_minors),
+                                      std::move(visited_minor_labels),
+                                      Ks,
+                                      active_major_labels,
+                                      with_replacement);
   }
 
   return std::make_tuple(std::move(majors),
@@ -344,7 +344,7 @@ void dedupe_sorted_temporal_mg_side_table(
 }  // namespace
 
 // Temporal sampling to unvisited neighbors.  Combines the per-source temporal window filter with
-// the disjoint (unvisited) constraint by reusing sample_unvisited_with_one_property's resample loop
+// the disjoint (unvisited) constraint by reusing sample_unvisited_outgoing_edges's resample loop
 // with a temporal-aware bias operator.  The per-source (time, window_end) values are looked up
 // inside the bias operator from side spans sorted by (major) when unlabeled and by (major, label)
 // when labeled; under always-disjoint sampling that key is unique.
@@ -512,19 +512,19 @@ temporal_sample_edges_to_unvisited_neighbors(
       raft::device_span<tag_t const>(bucket0.tag_begin(), bucket0.size()));
 
     std::tie(majors, minors, tmp_edge_indices, labels, visited_minors, visited_minor_labels) =
-      sample_unvisited_with_one_property(handle,
-                                         rng_state,
-                                         graph_view,
-                                         number_of_edge_properties > 0,
-                                         edge_type_view,
-                                         edge_bias_view,
-                                         active_bucket_view,
-                                         std::move(visited_minors),
-                                         std::move(visited_minor_labels),
-                                         Ks,
-                                         active_major_labels,
-                                         with_replacement,
-                                         temporal_params);
+      sample_unvisited_outgoing_edges(handle,
+                                      rng_state,
+                                      graph_view,
+                                      number_of_edge_properties > 0,
+                                      edge_type_view,
+                                      edge_bias_view,
+                                      active_bucket_view,
+                                      std::move(visited_minors),
+                                      std::move(visited_minor_labels),
+                                      Ks,
+                                      active_major_labels,
+                                      with_replacement,
+                                      temporal_params);
   } else {
     using tag_t = void;  // no label
 
@@ -537,19 +537,19 @@ temporal_sample_edges_to_unvisited_neighbors(
       handle, raft::device_span<vertex_t const>(bucket0.begin(), bucket0.size()));
 
     std::tie(majors, minors, tmp_edge_indices, labels, visited_minors, visited_minor_labels) =
-      sample_unvisited_with_one_property(handle,
-                                         rng_state,
-                                         graph_view,
-                                         number_of_edge_properties > 0,
-                                         edge_type_view,
-                                         edge_bias_view,
-                                         active_bucket_view,
-                                         std::move(visited_minors),
-                                         std::move(visited_minor_labels),
-                                         Ks,
-                                         active_major_labels,
-                                         with_replacement,
-                                         temporal_params);
+      sample_unvisited_outgoing_edges(handle,
+                                      rng_state,
+                                      graph_view,
+                                      number_of_edge_properties > 0,
+                                      edge_type_view,
+                                      edge_bias_view,
+                                      active_bucket_view,
+                                      std::move(visited_minors),
+                                      std::move(visited_minor_labels),
+                                      Ks,
+                                      active_major_labels,
+                                      with_replacement,
+                                      temporal_params);
   }
 
   return std::make_tuple(std::move(majors),

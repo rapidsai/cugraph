@@ -469,7 +469,7 @@ update_dst_visited_vertices_and_labels(
  * visited sets via update_dst_visited_vertices_and_labels.
  *
  * When edges are removed, the last four return values contain the discarded edges (majors, minors,
- * edge_property, labels in lockstep). Callers such as sample_unvisited_with_one_property use
+ * edge_property, labels in lockstep). Callers such as sample_unvisited_outgoing_edges use
  * those to build the resample frontier. When there are no duplicates, discarded bundles are empty
  * (length zero / monostate / nullopt).
  *

@@ -179,8 +179,8 @@ set(CUGRAPH_COMMON_DISTRIBUTED_SOURCES
 )
 
 set(CUGRAPH_COMMON_SAMPLING_SOURCES
-    src/sampling/detail/sample_edges_one_property_common_v64_e64.cu
-    src/sampling/detail/sample_edges_one_property_common_v32_e32.cu
+    src/sampling/detail/sample_outgoing_edges_common_v64_e64.cu
+    src/sampling/detail/sample_outgoing_edges_common_v32_e32.cu
     src/sampling/detail/update_visited_utils_common_v32_e32.cu
     src/sampling/detail/update_visited_utils_common_v64_e64.cu
     src/sampling/detail/deduplicate_edges_by_minor_common_v32_e32.cu

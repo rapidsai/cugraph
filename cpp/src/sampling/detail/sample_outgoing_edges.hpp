@@ -28,10 +28,10 @@ class key_bucket_view_t;
 
 namespace detail {
 
-// Tag used to disable the optional temporal filter in sample_unvisited_with_one_property.
+// Tag used to disable the optional temporal filter in sample_unvisited_outgoing_edges.
 struct no_temporal_params_t {};
 
-// Optional temporal configuration for sample_unvisited_with_one_property.  When supplied, the
+// Optional temporal configuration for sample_unvisited_outgoing_edges.  When supplied, the
 // selection additionally filters edges by the temporal window.  The side spans must be sorted by
 // (major) when unlabeled and by (major, label) when labeled so the per-source time / window end can
 // be recovered inside the bias operator.
@@ -64,7 +64,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            arithmetic_device_uvector_t,
            std::optional<rmm::device_uvector<int32_t>>>
-sample_with_one_property(
+sample_outgoing_edges(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
@@ -99,7 +99,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<int32_t>>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<int32_t>>>
-sample_unvisited_with_one_property(
+sample_unvisited_outgoing_edges(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,

@@ -6,7 +6,7 @@
 #pragma once
 
 #include "gather_sampled_properties.cuh"
-#include "sample_edges_one_property.hpp"
+#include "sample_outgoing_edges.hpp"
 #include "sampling_utils.hpp"
 #include "temporal_sampling_utils.cuh"
 
@@ -288,11 +288,11 @@ struct segmented_fill_t {
  * Helper function for random sampling of outgoing edges with a custom bias operator, used in
  * homogeneous and heterogeneous sampling functions.
  *
- * 1. Standard biased sampling (sample_with_one_property): biases_op is sample_edge_biases_op_t;
+ * 1. Standard biased sampling (sample_outgoing_edges): biases_op is sample_edge_biases_op_t;
  *    edge_biases_view holds float or double weights. Optional edge_type_view for heterogeneous
  *    type filtering. Used when sampling neighbors without an "unvisited" constraint.
  *
- * 2. Unvisited-neighbor biased sampling (sample_unvisited_with_one_property): biases_op is
+ * 2. Unvisited-neighbor biased sampling (sample_unvisited_outgoing_edges): biases_op is
  *    sample_unvisited_edge_biases_op_t or, when temporal_unvisited_params_t is supplied,
  *    sample_unvisited_temporal_edge_biases_op_t.  The latter down-weights or excludes
  *    already-visited minors and edges outside the temporal window.
@@ -554,7 +554,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            arithmetic_device_uvector_t,
            std::optional<rmm::device_uvector<int32_t>>>
-sample_with_one_property(
+sample_outgoing_edges(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
@@ -684,7 +684,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<int32_t>>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<int32_t>>>
-sample_unvisited_with_one_property(
+sample_unvisited_outgoing_edges(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
