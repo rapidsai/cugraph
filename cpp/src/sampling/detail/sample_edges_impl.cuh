@@ -71,49 +71,17 @@ sample_edges(raft::handle_t const& handle,
   auto active_bucket_view = cugraph::key_bucket_view_t<vertex_t, void, multi_gpu, false>(
     handle, raft::device_span<vertex_t const>(bucket0.begin(), bucket0.size()));
 
-  if (number_of_edge_properties == 0) {
-    std::tie(majors, minors, std::ignore, sample_labels) =
-      sample_with_one_property(handle,
-                               rng_state,
-                               graph_view,
-                               cugraph::edge_dummy_property_view_t{},
-                               edge_type_view,
-                               edge_bias_view,
-                               active_bucket_view,
-                               Ks,
-                               active_major_labels,
-                               with_replacement);
-  } else {
-    if (graph_view.is_multigraph()) {
-      cugraph::edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle,
-                                                                                  graph_view);
-
-      std::tie(majors, minors, tmp_edge_indices, sample_labels) =
-        sample_with_one_property(handle,
-                                 rng_state,
-                                 graph_view,
-                                 multi_index_property.view(),
-                                 edge_type_view,
-                                 edge_bias_view,
-                                 active_bucket_view,
-                                 Ks,
-                                 active_major_labels,
-                                 with_replacement);
-
-    } else {
-      std::tie(majors, minors, std::ignore, sample_labels) =
-        sample_with_one_property(handle,
-                                 rng_state,
-                                 graph_view,
-                                 cugraph::edge_dummy_property_view_t{},
-                                 edge_type_view,
-                                 edge_bias_view,
-                                 active_bucket_view,
-                                 Ks,
-                                 active_major_labels,
-                                 with_replacement);
-    }
-  }
+  std::tie(majors, minors, tmp_edge_indices, sample_labels) =
+    sample_with_one_property(handle,
+                             rng_state,
+                             graph_view,
+                             number_of_edge_properties > 0,
+                             edge_type_view,
+                             edge_bias_view,
+                             active_bucket_view,
+                             Ks,
+                             active_major_labels,
+                             with_replacement);
 
   labels = std::move(sample_labels);
 
@@ -169,54 +137,19 @@ sample_edges_to_unvisited_neighbors(
       raft::device_span<vertex_t const>(bucket0.vertex_begin(), bucket0.size()),
       raft::device_span<tag_t const>(bucket0.tag_begin(), bucket0.size()));
 
-    if (number_of_edge_properties == 0) {
-      std::tie(majors, minors, std::ignore, labels, visited_minors, visited_minor_labels) =
-        sample_unvisited_with_one_property(handle,
-                                           rng_state,
-                                           graph_view,
-                                           cugraph::edge_dummy_property_view_t{},
-                                           edge_type_view,
-                                           edge_bias_view,
-                                           active_bucket_view,
-                                           std::move(visited_minors),
-                                           std::move(visited_minor_labels),
-                                           Ks,
-                                           active_major_labels,
-                                           with_replacement);
-    } else {
-      if (graph_view.is_multigraph()) {
-        cugraph::edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle,
-                                                                                    graph_view);
-
-        std::tie(majors, minors, tmp_edge_indices, labels, visited_minors, visited_minor_labels) =
-          sample_unvisited_with_one_property(handle,
-                                             rng_state,
-                                             graph_view,
-                                             multi_index_property.view(),
-                                             edge_type_view,
-                                             edge_bias_view,
-                                             active_bucket_view,
-                                             std::move(visited_minors),
-                                             std::move(visited_minor_labels),
-                                             Ks,
-                                             active_major_labels,
-                                             with_replacement);
-      } else {
-        std::tie(majors, minors, std::ignore, labels, visited_minors, visited_minor_labels) =
-          sample_unvisited_with_one_property(handle,
-                                             rng_state,
-                                             graph_view,
-                                             cugraph::edge_dummy_property_view_t{},
-                                             edge_type_view,
-                                             edge_bias_view,
-                                             active_bucket_view,
-                                             std::move(visited_minors),
-                                             std::move(visited_minor_labels),
-                                             Ks,
-                                             active_major_labels,
-                                             with_replacement);
-      }
-    }
+    std::tie(majors, minors, tmp_edge_indices, labels, visited_minors, visited_minor_labels) =
+      sample_unvisited_with_one_property(handle,
+                                         rng_state,
+                                         graph_view,
+                                         number_of_edge_properties > 0,
+                                         edge_type_view,
+                                         edge_bias_view,
+                                         active_bucket_view,
+                                         std::move(visited_minors),
+                                         std::move(visited_minor_labels),
+                                         Ks,
+                                         active_major_labels,
+                                         with_replacement);
 
   } else {
     using tag_t = void;  // no label
@@ -229,53 +162,19 @@ sample_edges_to_unvisited_neighbors(
     auto active_bucket_view = cugraph::key_bucket_view_t<vertex_t, void, multi_gpu, false>(
       handle, raft::device_span<vertex_t const>(bucket0.begin(), bucket0.size()));
 
-    if (number_of_edge_properties == 0) {
-      std::tie(majors, minors, std::ignore, labels, visited_minors, visited_minor_labels) =
-        sample_unvisited_with_one_property(handle,
-                                           rng_state,
-                                           graph_view,
-                                           cugraph::edge_dummy_property_view_t{},
-                                           edge_type_view,
-                                           edge_bias_view,
-                                           active_bucket_view,
-                                           std::move(visited_minors),
-                                           std::move(visited_minor_labels),
-                                           Ks,
-                                           active_major_labels,
-                                           with_replacement);
-    } else {
-      if (graph_view.is_multigraph()) {
-        cugraph::edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle,
-                                                                                    graph_view);
-        std::tie(majors, minors, tmp_edge_indices, labels, visited_minors, visited_minor_labels) =
-          sample_unvisited_with_one_property(handle,
-                                             rng_state,
-                                             graph_view,
-                                             multi_index_property.view(),
-                                             edge_type_view,
-                                             edge_bias_view,
-                                             active_bucket_view,
-                                             std::move(visited_minors),
-                                             std::move(visited_minor_labels),
-                                             Ks,
-                                             active_major_labels,
-                                             with_replacement);
-      } else {
-        std::tie(majors, minors, std::ignore, labels, visited_minors, visited_minor_labels) =
-          sample_unvisited_with_one_property(handle,
-                                             rng_state,
-                                             graph_view,
-                                             cugraph::edge_dummy_property_view_t{},
-                                             edge_type_view,
-                                             edge_bias_view,
-                                             active_bucket_view,
-                                             std::move(visited_minors),
-                                             std::move(visited_minor_labels),
-                                             Ks,
-                                             active_major_labels,
-                                             with_replacement);
-      }
-    }
+    std::tie(majors, minors, tmp_edge_indices, labels, visited_minors, visited_minor_labels) =
+      sample_unvisited_with_one_property(handle,
+                                         rng_state,
+                                         graph_view,
+                                         number_of_edge_properties > 0,
+                                         edge_type_view,
+                                         edge_bias_view,
+                                         active_bucket_view,
+                                         std::move(visited_minors),
+                                         std::move(visited_minor_labels),
+                                         Ks,
+                                         active_major_labels,
+                                         with_replacement);
   }
 
   return std::make_tuple(std::move(majors),
@@ -612,40 +511,20 @@ temporal_sample_edges_to_unvisited_neighbors(
       raft::device_span<vertex_t const>(bucket0.vertex_begin(), bucket0.size()),
       raft::device_span<tag_t const>(bucket0.tag_begin(), bucket0.size()));
 
-    if (graph_view.is_multigraph()) {
-      cugraph::edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle,
-                                                                                  graph_view);
-
-      std::tie(majors, minors, tmp_edge_indices, labels, visited_minors, visited_minor_labels) =
-        sample_unvisited_with_one_property(handle,
-                                           rng_state,
-                                           graph_view,
-                                           multi_index_property.view(),
-                                           edge_type_view,
-                                           edge_bias_view,
-                                           active_bucket_view,
-                                           std::move(visited_minors),
-                                           std::move(visited_minor_labels),
-                                           Ks,
-                                           active_major_labels,
-                                           with_replacement,
-                                           temporal_params);
-    } else {
-      std::tie(majors, minors, std::ignore, labels, visited_minors, visited_minor_labels) =
-        sample_unvisited_with_one_property(handle,
-                                           rng_state,
-                                           graph_view,
-                                           cugraph::edge_dummy_property_view_t{},
-                                           edge_type_view,
-                                           edge_bias_view,
-                                           active_bucket_view,
-                                           std::move(visited_minors),
-                                           std::move(visited_minor_labels),
-                                           Ks,
-                                           active_major_labels,
-                                           with_replacement,
-                                           temporal_params);
-    }
+    std::tie(majors, minors, tmp_edge_indices, labels, visited_minors, visited_minor_labels) =
+      sample_unvisited_with_one_property(handle,
+                                         rng_state,
+                                         graph_view,
+                                         number_of_edge_properties > 0,
+                                         edge_type_view,
+                                         edge_bias_view,
+                                         active_bucket_view,
+                                         std::move(visited_minors),
+                                         std::move(visited_minor_labels),
+                                         Ks,
+                                         active_major_labels,
+                                         with_replacement,
+                                         temporal_params);
   } else {
     using tag_t = void;  // no label
 
@@ -657,40 +536,20 @@ temporal_sample_edges_to_unvisited_neighbors(
     auto active_bucket_view = cugraph::key_bucket_view_t<vertex_t, void, multi_gpu, false>(
       handle, raft::device_span<vertex_t const>(bucket0.begin(), bucket0.size()));
 
-    if (graph_view.is_multigraph()) {
-      cugraph::edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle,
-                                                                                  graph_view);
-
-      std::tie(majors, minors, tmp_edge_indices, labels, visited_minors, visited_minor_labels) =
-        sample_unvisited_with_one_property(handle,
-                                           rng_state,
-                                           graph_view,
-                                           multi_index_property.view(),
-                                           edge_type_view,
-                                           edge_bias_view,
-                                           active_bucket_view,
-                                           std::move(visited_minors),
-                                           std::move(visited_minor_labels),
-                                           Ks,
-                                           active_major_labels,
-                                           with_replacement,
-                                           temporal_params);
-    } else {
-      std::tie(majors, minors, std::ignore, labels, visited_minors, visited_minor_labels) =
-        sample_unvisited_with_one_property(handle,
-                                           rng_state,
-                                           graph_view,
-                                           cugraph::edge_dummy_property_view_t{},
-                                           edge_type_view,
-                                           edge_bias_view,
-                                           active_bucket_view,
-                                           std::move(visited_minors),
-                                           std::move(visited_minor_labels),
-                                           Ks,
-                                           active_major_labels,
-                                           with_replacement,
-                                           temporal_params);
-    }
+    std::tie(majors, minors, tmp_edge_indices, labels, visited_minors, visited_minor_labels) =
+      sample_unvisited_with_one_property(handle,
+                                         rng_state,
+                                         graph_view,
+                                         number_of_edge_properties > 0,
+                                         edge_type_view,
+                                         edge_bias_view,
+                                         active_bucket_view,
+                                         std::move(visited_minors),
+                                         std::move(visited_minor_labels),
+                                         Ks,
+                                         active_major_labels,
+                                         with_replacement,
+                                         temporal_params);
   }
 
   return std::make_tuple(std::move(majors),

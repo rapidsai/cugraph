@@ -286,8 +286,7 @@ struct segmented_fill_t {
 
 /**
  * Helper function for random sampling of outgoing edges with a custom bias operator, used in
- * homogeneous and heterogeneous sampling functions.  It can be called with different combinations
- * of edge_property_view for different purposes as described below.
+ * homogeneous and heterogeneous sampling functions.
  *
  * 1. Standard biased sampling (sample_with_one_property): biases_op is sample_edge_biases_op_t;
  *    edge_biases_view holds float or double weights. Optional edge_type_view for heterogeneous
@@ -297,12 +296,15 @@ struct segmented_fill_t {
  *    sample_unvisited_edge_biases_op_t or, when temporal_unvisited_params_t is supplied,
  *    sample_unvisited_temporal_edge_biases_op_t.  The latter down-weights or excludes
  *    already-visited minors and edges outside the temporal window.
+ *
+ * When @p has_output_edge_properties is true and @p graph_view is a multigraph, multi-edge indices
+ * are sampled so gather_sampled_properties can identify parallel edges. Otherwise the transform
+ * property is a dummy view and the returned property column is monostate.
  */
 template <typename vertex_t,
           typename edge_t,
           typename tag_t,
           typename biases_view_t,
-          typename property_view_t,
           typename edge_type_t,
           typename biases_op_t,
           bool multi_gpu>
@@ -315,7 +317,7 @@ call_biased_per_v_random_select_transform_outgoing_e(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false> const& key_bucket_view,
   biases_view_t edge_biases_view,
-  property_view_t edge_property_view,
+  bool has_output_edge_properties,
   biases_op_t biases_op,
   std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
   raft::random::RngState& rng_state,
@@ -329,12 +331,53 @@ call_biased_per_v_random_select_transform_outgoing_e(
   rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
   arithmetic_device_uvector_t sampled_properties{std::monostate{}};
 
-  using T          = typename decltype(edge_property_view)::value_type;
-  using edges_op_t = sample_edges_op_t<vertex_t, T>;
-  edges_op_t edges_op{};
-  using return_type = typename edges_op_t::return_type;
+  if (has_output_edge_properties && graph_view.is_multigraph()) {
+    edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle, graph_view);
+    using edges_op_t = sample_edges_op_t<vertex_t, edge_t>;
+    edges_op_t edges_op{};
+    using return_type = typename edges_op_t::return_type;
 
-  if constexpr (std::is_same_v<T, cuda::std::nullopt_t>) {
+    std::forward_as_tuple(offsets, std::tie(majors, minors, sampled_properties)) =
+      (Ks.size() == 1) ? cugraph::per_v_random_select_transform_outgoing_e(
+                           handle,
+                           graph_view,
+                           key_bucket_view,
+                           edge_src_dummy_property_t{}.view(),
+                           edge_dst_dummy_property_t{}.view(),
+                           edge_biases_view,
+                           biases_op,
+                           edge_src_dummy_property_t{}.view(),
+                           edge_dst_dummy_property_t{}.view(),
+                           multi_index_property.view(),
+                           edges_op,
+                           rng_state,
+                           Ks[0],
+                           with_replacement,
+                           std::optional<return_type>{std::nullopt},
+                           false)
+                       : cugraph::per_v_random_select_transform_outgoing_e(
+                           handle,
+                           graph_view,
+                           key_bucket_view,
+                           edge_src_dummy_property_t{}.view(),
+                           edge_dst_dummy_property_t{}.view(),
+                           edge_biases_view,
+                           biases_op,
+                           edge_src_dummy_property_t{}.view(),
+                           edge_dst_dummy_property_t{}.view(),
+                           multi_index_property.view(),
+                           edges_op,
+                           *edge_type_view,
+                           rng_state,
+                           Ks,
+                           with_replacement,
+                           std::optional<return_type>{std::nullopt},
+                           false);
+  } else {
+    using edges_op_t = sample_edges_op_t<vertex_t, cuda::std::nullopt_t>;
+    edges_op_t edges_op{};
+    using return_type = typename edges_op_t::return_type;
+
     std::forward_as_tuple(offsets, std::tie(majors, minors)) =
       (Ks.size() == 1) ? cugraph::per_v_random_select_transform_outgoing_e(
                            handle,
@@ -364,43 +407,6 @@ call_biased_per_v_random_select_transform_outgoing_e(
                            edge_src_dummy_property_t{}.view(),
                            edge_dst_dummy_property_t{}.view(),
                            cugraph::edge_dummy_property_view_t{},
-                           edges_op,
-                           *edge_type_view,
-                           rng_state,
-                           Ks,
-                           with_replacement,
-                           std::optional<return_type>{std::nullopt},
-                           false);
-  } else {
-    std::forward_as_tuple(offsets, std::tie(majors, minors, sampled_properties)) =
-      (Ks.size() == 1) ? cugraph::per_v_random_select_transform_outgoing_e(
-                           handle,
-                           graph_view,
-                           key_bucket_view,
-                           edge_src_dummy_property_t{}.view(),
-                           edge_dst_dummy_property_t{}.view(),
-                           edge_biases_view,
-                           biases_op,
-                           edge_src_dummy_property_t{}.view(),
-                           edge_dst_dummy_property_t{}.view(),
-                           edge_property_view,
-                           edges_op,
-                           rng_state,
-                           Ks[0],
-                           with_replacement,
-                           std::optional<return_type>{std::nullopt},
-                           false)
-                       : cugraph::per_v_random_select_transform_outgoing_e(
-                           handle,
-                           graph_view,
-                           key_bucket_view,
-                           edge_src_dummy_property_t{}.view(),
-                           edge_dst_dummy_property_t{}.view(),
-                           edge_biases_view,
-                           biases_op,
-                           edge_src_dummy_property_t{}.view(),
-                           edge_dst_dummy_property_t{}.view(),
-                           edge_property_view,
                            edges_op,
                            *edge_type_view,
                            rng_state,
@@ -430,12 +436,12 @@ call_biased_per_v_random_select_transform_outgoing_e(
 /**
  * Helper function for random sampling of outgoing edges without a bias operator, used in
  * homogeneous and heterogeneous sampling functions.
+ *
+ * When @p has_output_edge_properties is true and @p graph_view is a multigraph, multi-edge indices
+ * are sampled so gather_sampled_properties can identify parallel edges. Otherwise the transform
+ * property is a dummy view and the returned property column is monostate.
  */
-template <typename vertex_t,
-          typename edge_t,
-          typename property_view_t,
-          typename edge_type_t,
-          bool multi_gpu>
+template <typename vertex_t, typename edge_t, typename edge_type_t, bool multi_gpu>
 std::tuple<std::optional<rmm::device_uvector<int32_t>>,
            rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
@@ -444,33 +450,33 @@ call_unbiased_per_v_random_select_transform_outgoing_e(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   cugraph::key_bucket_view_t<vertex_t, void, multi_gpu, false> const& key_bucket_view,
-  property_view_t edge_property_view,
+  bool has_output_edge_properties,
   std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
   raft::random::RngState& rng_state,
   raft::host_span<size_t const> Ks,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   bool with_replacement)
 {
-  using T          = typename decltype(edge_property_view)::value_type;
-  using edges_op_t = sample_edges_op_t<vertex_t, T>;
-  edges_op_t edges_op{};
-  using return_type = typename edges_op_t::return_type;
-
   rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
   rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
   arithmetic_device_uvector_t sampled_properties{std::monostate{}};
   std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
   std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
 
-  if constexpr (std::is_same_v<T, cuda::std::nullopt_t>) {
-    std::forward_as_tuple(offsets, std::tie(majors, minors)) =
+  if (has_output_edge_properties && graph_view.is_multigraph()) {
+    edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle, graph_view);
+    using edges_op_t = sample_edges_op_t<vertex_t, edge_t>;
+    edges_op_t edges_op{};
+    using return_type = typename edges_op_t::return_type;
+
+    std::forward_as_tuple(offsets, std::tie(majors, minors, sampled_properties)) =
       (Ks.size() == 1) ? cugraph::per_v_random_select_transform_outgoing_e(
                            handle,
                            graph_view,
                            key_bucket_view,
                            edge_src_dummy_property_t{}.view(),
                            edge_dst_dummy_property_t{}.view(),
-                           edge_property_view,
+                           multi_index_property.view(),
                            edges_op,
                            rng_state,
                            Ks[0],
@@ -483,7 +489,7 @@ call_unbiased_per_v_random_select_transform_outgoing_e(
                            key_bucket_view,
                            edge_src_dummy_property_t{}.view(),
                            edge_dst_dummy_property_t{}.view(),
-                           edge_property_view,
+                           multi_index_property.view(),
                            edges_op,
                            *edge_type_view,
                            rng_state,
@@ -492,14 +498,18 @@ call_unbiased_per_v_random_select_transform_outgoing_e(
                            std::optional<return_type>{std::nullopt},
                            false);
   } else {
-    std::forward_as_tuple(offsets, std::tie(majors, minors, sampled_properties)) =
+    using edges_op_t = sample_edges_op_t<vertex_t, cuda::std::nullopt_t>;
+    edges_op_t edges_op{};
+    using return_type = typename edges_op_t::return_type;
+
+    std::forward_as_tuple(offsets, std::tie(majors, minors)) =
       (Ks.size() == 1) ? cugraph::per_v_random_select_transform_outgoing_e(
                            handle,
                            graph_view,
                            key_bucket_view,
                            edge_src_dummy_property_t{}.view(),
                            edge_dst_dummy_property_t{}.view(),
-                           edge_property_view,
+                           cugraph::edge_dummy_property_view_t{},
                            edges_op,
                            rng_state,
                            Ks[0],
@@ -512,7 +522,7 @@ call_unbiased_per_v_random_select_transform_outgoing_e(
                            key_bucket_view,
                            edge_src_dummy_property_t{}.view(),
                            edge_dst_dummy_property_t{}.view(),
-                           edge_property_view,
+                           cugraph::edge_dummy_property_view_t{},
                            edges_op,
                            *edge_type_view,
                            rng_state,
@@ -539,24 +549,7 @@ call_unbiased_per_v_random_select_transform_outgoing_e(
     std::move(labels), std::move(majors), std::move(minors), std::move(sampled_properties));
 }
 
-/**
- * Values passed as edge_property_view to sample_with_one_property and
- * sample_unvisited_with_one_property (and thus to call_biased_* / call_unbiased_*):
- *
- * - edge_dummy_property_view_t{}: When edge_property_views.size() == 0 (no properties to return),
- * or when edge_property_views.size() > 1 and the graph is not a multigraph (we only need topology;
- *   gather_sampled_properties fetches all properties afterward using multi_index from the single
- *   call that used a dummy view).
- *
- * - The single element of edge_property_views[0] (via variant_type_dispatch): When
- *   edge_property_views.size() == 1. Type is one of edge_property_view_t<edge_t, T const*> for
- *   T in {float, double, int32_t, int64_t, size_t}.
- *
- * - multi_index_property.view(): When edge_property_views.size() > 1 and
- * graph_view.is_multigraph(). Used to sample multi-edge indices so that gather_sampled_properties
- * can then gather all requested edge properties.
- */
-template <typename vertex_t, typename edge_t, typename property_view_t, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            arithmetic_device_uvector_t,
@@ -565,7 +558,7 @@ sample_with_one_property(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  property_view_t edge_property_view,
+  bool has_output_edge_properties,
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
   cugraph::key_bucket_view_t<vertex_t, void, multi_gpu, false> const& key_bucket_view,
@@ -574,7 +567,6 @@ sample_with_one_property(
   bool with_replacement)
 {
   using edge_type_t = int32_t;
-  using T           = typename decltype(edge_property_view)::value_type;
 
   std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
   rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
@@ -592,7 +584,7 @@ sample_with_one_property(
           graph_view,
           key_bucket_view,
           std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
-          edge_property_view,
+          has_output_edge_properties,
           sample_edge_biases_op_t<vertex_t, bias_t>{},
           edge_type_view ? std::make_optional(
                              std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
@@ -612,7 +604,7 @@ sample_with_one_property(
           graph_view,
           key_bucket_view,
           std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
-          edge_property_view,
+          has_output_edge_properties,
           sample_edge_biases_op_t<vertex_t, bias_t>{},
           edge_type_view ? std::make_optional(
                              std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
@@ -629,7 +621,7 @@ sample_with_one_property(
         handle,
         graph_view,
         key_bucket_view,
-        edge_property_view,
+        has_output_edge_properties,
         edge_type_view
           ? std::make_optional(
               std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(*edge_type_view))
@@ -684,7 +676,6 @@ rmm::device_uvector<int32_t> gather_edge_types_for_sampled_edgelist(
 template <typename vertex_t,
           typename edge_t,
           typename tag_t,
-          typename property_view_t,
           bool multi_gpu,
           typename temporal_params_t>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -697,7 +688,7 @@ sample_unvisited_with_one_property(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  property_view_t edge_property_view,
+  bool has_output_edge_properties,
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
   cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false> const& key_bucket_view,
@@ -709,7 +700,6 @@ sample_unvisited_with_one_property(
   temporal_params_t temporal_params)
 {
   using edge_type_t = int32_t;
-  using T           = typename decltype(edge_property_view)::value_type;
 
   constexpr bool is_temporal = !std::is_same_v<temporal_params_t, no_temporal_params_t>;
 
@@ -770,7 +760,7 @@ sample_unvisited_with_one_property(
               graph_view,
               active_bucket_view,
               view_concat(bview, temporal_params.edge_time_view),
-              edge_property_view,
+              has_output_edge_properties,
               sample_unvisited_temporal_edge_biases_op_t<vertex_t, bias_t, time_stamp_t>{
                 temporal_params.temporal_sampling_comparison,
                 temporal_params.active_majors,
@@ -791,7 +781,7 @@ sample_unvisited_with_one_property(
               graph_view,
               active_bucket_view,
               bview,
-              edge_property_view,
+              has_output_edge_properties,
               sample_unvisited_edge_biases_op_t<vertex_t, bias_t>{visited_minors_span,
                                                                   visited_minor_labels_span},
               edge_type_filter,
@@ -813,7 +803,7 @@ sample_unvisited_with_one_property(
               graph_view,
               active_bucket_view,
               view_concat(bview, temporal_params.edge_time_view),
-              edge_property_view,
+              has_output_edge_properties,
               sample_unvisited_temporal_edge_biases_op_t<vertex_t, bias_t, time_stamp_t>{
                 temporal_params.temporal_sampling_comparison,
                 temporal_params.active_majors,
@@ -834,7 +824,7 @@ sample_unvisited_with_one_property(
               graph_view,
               active_bucket_view,
               bview,
-              edge_property_view,
+              has_output_edge_properties,
               sample_unvisited_edge_biases_op_t<vertex_t, bias_t>{visited_minors_span,
                                                                   visited_minor_labels_span},
               edge_type_filter,
@@ -854,7 +844,7 @@ sample_unvisited_with_one_property(
             graph_view,
             active_bucket_view,
             temporal_params.edge_time_view,
-            edge_property_view,
+            has_output_edge_properties,
             sample_unvisited_temporal_edge_biases_op_t<vertex_t, bias_t, time_stamp_t>{
               temporal_params.temporal_sampling_comparison,
               temporal_params.active_majors,
@@ -875,7 +865,7 @@ sample_unvisited_with_one_property(
             graph_view,
             active_bucket_view,
             cugraph::edge_dummy_property_view_t{},
-            edge_property_view,
+            has_output_edge_properties,
             sample_unvisited_edge_biases_op_t<vertex_t, bias_t>{visited_minors_span,
                                                                 visited_minor_labels_span},
             edge_type_filter,
@@ -1309,12 +1299,13 @@ sample_unvisited_with_one_property(
                sampled_minors.size(),
                handle.get_stream());
 
-    if constexpr (!std::is_same_v<T, cuda::std::nullopt_t>) {
+    // When sampling multi-edge indices, sampled_property holds edge_t; otherwise monostate.
+    if (!std::holds_alternative<std::monostate>(sampled_property)) {
       if (std::holds_alternative<std::monostate>(result_properties)) {
         result_properties = std::move(sampled_property);
       } else {
-        auto& result_properties_ref = std::get<rmm::device_uvector<T>>(result_properties);
-        auto& sampled_property_ref  = std::get<rmm::device_uvector<T>>(sampled_property);
+        auto& result_properties_ref = std::get<rmm::device_uvector<edge_t>>(result_properties);
+        auto& sampled_property_ref  = std::get<rmm::device_uvector<edge_t>>(sampled_property);
         result_properties_ref.resize(result_properties_ref.size() + sampled_property_ref.size(),
                                      handle.get_stream());
         raft::copy(result_properties_ref.data() + original_result_majors_size,

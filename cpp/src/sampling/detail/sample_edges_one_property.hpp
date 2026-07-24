@@ -49,14 +49,17 @@ struct temporal_unvisited_params_t {
 };
 
 /**
- * @brief Randomly sample outgoing edges with a single edge property view.
+ * @brief Randomly sample outgoing edges.
+ *
+ * When @p has_output_edge_properties is true and @p graph_view is a multigraph, returns
+ * multi-edge indices so later gather_sampled_properties can identify parallel edges. Otherwise
+ * returns monostate (endpoints uniquely identify edges, or no output properties are needed).
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam property_view_t Type of the edge property view passed to the sampling primitive.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  */
-template <typename vertex_t, typename edge_t, typename property_view_t, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            arithmetic_device_uvector_t,
@@ -65,7 +68,7 @@ sample_with_one_property(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  property_view_t edge_property_view,
+  bool has_output_edge_properties,
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
   cugraph::key_bucket_view_t<vertex_t, void, multi_gpu, false> const& key_bucket_view,
@@ -74,18 +77,20 @@ sample_with_one_property(
   bool with_replacement);
 
 /**
- * @brief Randomly sample unvisited outgoing edges with a single edge property view.
+ * @brief Randomly sample unvisited outgoing edges.
+ *
+ * When @p has_output_edge_properties is true and @p graph_view is a multigraph, returns
+ * multi-edge indices so later gather_sampled_properties can identify parallel edges. Otherwise
+ * returns monostate.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam tag_t Type of the key bucket tag.
- * @tparam property_view_t Type of the edge property view passed to the sampling primitive.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  */
 template <typename vertex_t,
           typename edge_t,
           typename tag_t,
-          typename property_view_t,
           bool multi_gpu,
           typename temporal_params_t = no_temporal_params_t>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -98,7 +103,7 @@ sample_unvisited_with_one_property(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  property_view_t edge_property_view,
+  bool has_output_edge_properties,
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
   cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false> const& key_bucket_view,
