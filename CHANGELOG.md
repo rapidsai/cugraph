@@ -464,7 +464,7 @@
 - Use CuPy for arrays &amp; CUDA Python for low-level CUDA functions ([#4958](https://github.com/rapidsai/cugraph/pull/4958)) [@jakirkham](https://github.com/jakirkham)
 - Reduce downloaded test data in CI ([#4951](https://github.com/rapidsai/cugraph/pull/4951)) [@ChuckHastings](https://github.com/ChuckHastings)
 - Use conda-build instead of conda-mambabuild ([#4950](https://github.com/rapidsai/cugraph/pull/4950)) [@bdice](https://github.com/bdice)
-- add cugraph-notebook-codeowners to CODEOWNERS ([#4949](https://github.com/rapidsai/cugraph/pull/4949)) [@AyodeAwe](https://github.com/AyodeAwe)
+- add notebook ownership to CODEOWNERS ([#4949](https://github.com/rapidsai/cugraph/pull/4949)) [@AyodeAwe](https://github.com/AyodeAwe)
 - Replace `cub::Min` with `cuda::minimum` ([#4948](https://github.com/rapidsai/cugraph/pull/4948)) [@miscco](https://github.com/miscco)
 - update handling of GNN dependencies ([#4947](https://github.com/rapidsai/cugraph/pull/4947)) [@jameslamb](https://github.com/jameslamb)
 - Update primitives to better follow STL/thrust conventions in supporting predicate operations ([#4946](https://github.com/rapidsai/cugraph/pull/4946)) [@seunghwak](https://github.com/seunghwak)
