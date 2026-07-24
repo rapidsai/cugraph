@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -96,7 +96,7 @@ def _mg_call_plc_betweenness_centrality(
             allow_other_workers=False,
             pure=False,
         )
-        for i, w in enumerate(Comms.get_workers())
+        for i, w in enumerate(input_graph._plc_graph)
     ]
 
     wait(result)
@@ -220,8 +220,8 @@ def betweenness_centrality(
                 k = cudf.Series(k, dtype=k_dtype)
 
         if isinstance(k, (cudf.Series, cudf.DataFrame)):
-            splits = cp.array_split(cp.arange(len(k)), len(Comms.get_workers()))
-            k = {w: [k.iloc[splits[i]]] for i, w in enumerate(Comms.get_workers())}
+            splits = cp.array_split(cp.arange(len(k)), len(input_graph._plc_graph))
+            k = {w: [k.iloc[splits[i]]] for i, w in enumerate(input_graph._plc_graph)}
 
     else:
         if k is not None:
@@ -378,8 +378,8 @@ def edge_betweenness_centrality(
                 k = cudf.Series(k, dtype=k_dtype)
 
         if isinstance(k, (cudf.Series, cudf.DataFrame)):
-            splits = cp.array_split(cp.arange(len(k)), len(Comms.get_workers()))
-            k = {w: [k.iloc[splits[i]]] for i, w in enumerate(Comms.get_workers())}
+            splits = cp.array_split(cp.arange(len(k)), len(input_graph._plc_graph))
+            k = {w: [k.iloc[splits[i]]] for i, w in enumerate(input_graph._plc_graph)}
 
     else:
         if k is not None:
