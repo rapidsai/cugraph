@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2018-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2018-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # This file contains various functions required for managing NCCL comms
@@ -262,7 +262,13 @@ def rank_to_worker(client):
     """
     Return a mapping of ranks to dask workers.
     """
-    workers = client.scheduler_info(n_workers=-1)["workers"].keys()
+    # Use the raft comms worker snapshot rather than
+    # client.scheduler_info(n_workers=-1)["workers"], whose "workers" dict is
+    # periodically overwritten with an empty dict by dask's scheduler-info poll
+    # (n_workers=0). Reading it during that window yields an empty mapping and
+    # builds an empty _plc_graph, later raising "Must supply at least one
+    # delayed object" in dask_cudf.from_delayed.
+    workers = get_workers()
     worker_info = __instance.worker_info(workers)
     rank_to_worker = {}
     for w in worker_info:
