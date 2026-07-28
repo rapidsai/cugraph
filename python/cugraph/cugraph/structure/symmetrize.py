@@ -160,9 +160,7 @@ def symmetrize_ddf(
         return result
     else:
         vertex_col_name = src_name + dst_name
-        result = _memory_efficient_drop_duplicates(
-            result, vertex_col_name, num_workers
-        )
+        result = _memory_efficient_drop_duplicates(result, vertex_col_name, num_workers)
         return result
 
 
