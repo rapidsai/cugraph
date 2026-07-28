@@ -136,11 +136,10 @@ def symmetrize_ddf(
 
     """
     # FIXME: Uncomment out the above (broken) example
-    # Size partitioning from the race-free worker count (scheduler_info()
-    # ["n_workers"]) rather than len(scheduler_info()["workers"]): the latter
-    # dict is periodically emptied by dask's scheduler-info poll (n_workers=0),
-    # which can make npartitions=0 and raise ZeroDivisionError in dask's
-    # repartition.
+    # Size from get_n_workers() (scheduler_info()["n_workers"]) rather
+    # than len(scheduler_info()["workers"]): the latter is periodically
+    # overwritten with an empty dict by dask's scheduler-info poll, which can
+    # make npartitions=0 and raise ZeroDivisionError in dask's repartition.
     from cugraph.dask.common.read_utils import get_n_workers
 
     num_workers = get_n_workers()
