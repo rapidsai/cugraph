@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "sampling/detail/sampling_result_utils.hpp"
-
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/export.hpp>
 
@@ -21,7 +19,6 @@
 #include <vector>
 
 namespace cugraph {
-namespace detail {
 
 CUGRAPH_EXPORT arithmetic_device_uvector_t
 concatenate_spans(raft::handle_t const& handle,
@@ -50,5 +47,4 @@ concatenate_spans(raft::handle_t const& handle,
   return result;
 }
 
-}  // namespace detail
 }  // namespace cugraph

@@ -364,7 +364,7 @@ temporal_sample_edges_to_unvisited_neighbors(
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
   raft::device_span<vertex_t const> active_majors,
-  raft::device_span<time_stamp_t const> active_major_times,
+  std::optional<raft::device_span<time_stamp_t const>> active_major_window_starts,
   std::optional<raft::device_span<time_stamp_t const>> active_major_window_ends,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   raft::host_span<size_t const> Ks,
@@ -387,13 +387,17 @@ temporal_sample_edges_to_unvisited_neighbors(
   // minor_comm before invoking the bias op, so these side tables must contain every key that
   // minor_comm may present — not only this rank's local frontier.
   rmm::device_uvector<vertex_t> sorted_majors(active_majors.size(), handle.get_stream());
-  rmm::device_uvector<time_stamp_t> sorted_times(active_major_times.size(), handle.get_stream());
+  std::optional<rmm::device_uvector<time_stamp_t>> sorted_times{std::nullopt};
   thrust::copy(
     handle.get_thrust_policy(), active_majors.begin(), active_majors.end(), sorted_majors.begin());
-  thrust::copy(handle.get_thrust_policy(),
-               active_major_times.begin(),
-               active_major_times.end(),
-               sorted_times.begin());
+  if (active_major_window_starts) {
+    sorted_times =
+      rmm::device_uvector<time_stamp_t>(active_major_window_starts->size(), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 active_major_window_starts->begin(),
+                 active_major_window_starts->end(),
+                 sorted_times->begin());
+  }
 
   std::optional<rmm::device_uvector<time_stamp_t>> sorted_window_ends{std::nullopt};
   if (active_major_window_ends) {
@@ -421,10 +425,12 @@ temporal_sample_edges_to_unvisited_neighbors(
         handle,
         minor_comm,
         raft::device_span<vertex_t const>{sorted_majors.data(), sorted_majors.size()});
-      sorted_times = device_allgatherv(
-        handle,
-        minor_comm,
-        raft::device_span<time_stamp_t const>{sorted_times.data(), sorted_times.size()});
+      if (sorted_times) {
+        sorted_times = device_allgatherv(
+          handle,
+          minor_comm,
+          raft::device_span<time_stamp_t const>{sorted_times->data(), sorted_times->size()});
+      }
       if (sorted_window_ends) {
         sorted_window_ends =
           device_allgatherv(handle,
@@ -442,48 +448,71 @@ temporal_sample_edges_to_unvisited_neighbors(
   }
 
   if (sorted_labels) {
-    if (sorted_window_ends) {
+    if (sorted_times && sorted_window_ends) {
       cugraph::sort(handle.get_thrust_policy(),
                     thrust::make_zip_iterator(sorted_majors.begin(),
                                               sorted_labels->begin(),
-                                              sorted_times.begin(),
+                                              sorted_times->begin(),
                                               sorted_window_ends->begin()),
                     thrust::make_zip_iterator(sorted_majors.end(),
                                               sorted_labels->end(),
-                                              sorted_times.end(),
+                                              sorted_times->end(),
                                               sorted_window_ends->end()));
-    } else {
+    } else if (sorted_times) {
       cugraph::sort(
         handle.get_thrust_policy(),
         thrust::make_zip_iterator(
-          sorted_majors.begin(), sorted_labels->begin(), sorted_times.begin()),
-        thrust::make_zip_iterator(sorted_majors.end(), sorted_labels->end(), sorted_times.end()));
+          sorted_majors.begin(), sorted_labels->begin(), sorted_times->begin()),
+        thrust::make_zip_iterator(sorted_majors.end(), sorted_labels->end(), sorted_times->end()));
+    } else if (sorted_window_ends) {
+      cugraph::sort(handle.get_thrust_policy(),
+                    thrust::make_zip_iterator(
+                      sorted_majors.begin(), sorted_labels->begin(), sorted_window_ends->begin()),
+                    thrust::make_zip_iterator(
+                      sorted_majors.end(), sorted_labels->end(), sorted_window_ends->end()));
+    } else {
+      cugraph::sort(handle.get_thrust_policy(),
+                    thrust::make_zip_iterator(sorted_majors.begin(), sorted_labels->begin()),
+                    thrust::make_zip_iterator(sorted_majors.end(), sorted_labels->end()));
     }
+  } else if (sorted_times && sorted_window_ends) {
+    cugraph::sort(handle.get_thrust_policy(),
+                  thrust::make_zip_iterator(
+                    sorted_majors.begin(), sorted_times->begin(), sorted_window_ends->begin()),
+                  thrust::make_zip_iterator(
+                    sorted_majors.end(), sorted_times->end(), sorted_window_ends->end()));
+  } else if (sorted_times) {
+    cugraph::sort(handle.get_thrust_policy(),
+                  thrust::make_zip_iterator(sorted_majors.begin(), sorted_times->begin()),
+                  thrust::make_zip_iterator(sorted_majors.end(), sorted_times->end()));
   } else if (sorted_window_ends) {
     cugraph::sort(handle.get_thrust_policy(),
-                  thrust::make_zip_iterator(
-                    sorted_majors.begin(), sorted_times.begin(), sorted_window_ends->begin()),
-                  thrust::make_zip_iterator(
-                    sorted_majors.end(), sorted_times.end(), sorted_window_ends->end()));
+                  thrust::make_zip_iterator(sorted_majors.begin(), sorted_window_ends->begin()),
+                  thrust::make_zip_iterator(sorted_majors.end(), sorted_window_ends->end()));
   } else {
-    cugraph::sort(handle.get_thrust_policy(),
-                  thrust::make_zip_iterator(sorted_majors.begin(), sorted_times.begin()),
-                  thrust::make_zip_iterator(sorted_majors.end(), sorted_times.end()));
+    cugraph::sort(handle.get_thrust_policy(), sorted_majors.begin(), sorted_majors.end());
   }
 
   if constexpr (multi_gpu) {
-    dedupe_sorted_temporal_mg_side_table<vertex_t, time_stamp_t>(handle,
-                                                                 sorted_majors,
-                                                                 sorted_times,
-                                                                 sorted_window_ends,
-                                                                 sorted_labels,
-                                                                 temporal_sampling_comparison);
+    // A missing start bound only occurs for the initial frontier, whose keys are globally unique.
+    // Subsequent frontiers carry edge-derived starts and require extremum reduction after
+    // allgather.
+    if (sorted_times) {
+      dedupe_sorted_temporal_mg_side_table<vertex_t, time_stamp_t>(handle,
+                                                                   sorted_majors,
+                                                                   *sorted_times,
+                                                                   sorted_window_ends,
+                                                                   sorted_labels,
+                                                                   temporal_sampling_comparison);
+    }
   }
 
   temporal_unvisited_params_t<vertex_t, edge_t, time_stamp_t> temporal_params{
     edge_time_view,
     raft::device_span<vertex_t const>{sorted_majors.data(), sorted_majors.size()},
-    raft::device_span<time_stamp_t const>{sorted_times.data(), sorted_times.size()},
+    sorted_times ? cuda::std::make_optional(raft::device_span<time_stamp_t const>{
+                     sorted_times->data(), sorted_times->size()})
+                 : cuda::std::nullopt,
     sorted_window_ends ? cuda::std::make_optional(raft::device_span<time_stamp_t const>{
                            sorted_window_ends->data(), sorted_window_ends->size()})
                        : cuda::std::nullopt,

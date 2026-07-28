@@ -46,11 +46,12 @@ prepare_next_frontier(
   raft::handle_t const& handle,
   raft::device_span<vertex_t const> sampled_src_vertices,
   std::optional<raft::device_span<label_t const>> sampled_src_vertex_labels,
-  std::optional<raft::device_span<time_stamp_t const>> sampled_src_vertex_times,
+  std::optional<raft::device_span<time_stamp_t const>> sampled_src_vertex_window_starts,
   std::optional<raft::device_span<time_stamp_t const>> sampled_src_vertex_window_ends,
   raft::host_span<raft::device_span<vertex_t const>> sampled_dst_vertices,
   std::optional<raft::host_span<raft::device_span<label_t const>>> sampled_dst_vertex_labels,
-  std::optional<raft::host_span<raft::device_span<time_stamp_t const>>> sampled_dst_vertex_times,
+  std::optional<raft::host_span<raft::device_span<time_stamp_t const>>>
+    sampled_dst_vertex_window_start_spans,
   std::optional<raft::host_span<raft::device_span<time_stamp_t const>>>
     sampled_dst_vertex_window_end_spans,
   std::optional<std::tuple<rmm::device_uvector<vertex_t>,
@@ -73,17 +74,33 @@ prepare_next_frontier(
     frontier_size += sampled_src_vertices.size();
   }
 
+  auto const has_sampled_dst_window_starts =
+    sampled_dst_vertex_window_start_spans &&
+    std::any_of(sampled_dst_vertex_window_start_spans->begin(),
+                sampled_dst_vertex_window_start_spans->end(),
+                [](auto span) { return span.size() > 0; });
+  auto const has_sampled_dst_window_ends =
+    sampled_dst_vertex_window_end_spans && std::any_of(sampled_dst_vertex_window_end_spans->begin(),
+                                                       sampled_dst_vertex_window_end_spans->end(),
+                                                       [](auto span) { return span.size() > 0; });
+  auto const carry_over = prior_sources_behavior == prior_sources_behavior_t::CARRY_OVER;
+
+  CUGRAPH_EXPECTS(!carry_over || !has_sampled_dst_window_starts || sampled_src_vertex_window_starts,
+                  "CARRY_OVER requires source window starts when sampled destinations have them.");
+  CUGRAPH_EXPECTS(!carry_over || !has_sampled_dst_window_ends || sampled_src_vertex_window_ends,
+                  "CARRY_OVER requires source window ends when sampled destinations have them.");
+
   rmm::device_uvector<vertex_t> frontier_vertices(frontier_size, handle.get_stream());
   auto frontier_vertex_labels =
     sampled_dst_vertex_labels
       ? std::make_optional<rmm::device_uvector<label_t>>(frontier_size, handle.get_stream())
       : std::nullopt;
   auto frontier_vertex_times =
-    sampled_dst_vertex_times
+    (has_sampled_dst_window_starts || (carry_over && sampled_src_vertex_window_starts))
       ? std::make_optional<rmm::device_uvector<time_stamp_t>>(frontier_size, handle.get_stream())
       : std::nullopt;
   auto frontier_vertex_window_ends =
-    sampled_dst_vertex_window_end_spans
+    (has_sampled_dst_window_ends || (carry_over && sampled_src_vertex_window_ends))
       ? std::make_optional<rmm::device_uvector<time_stamp_t>>(frontier_size, handle.get_stream())
       : std::nullopt;
 
@@ -133,22 +150,24 @@ prepare_next_frontier(
     current_pos = 0;
     if (prior_sources_behavior == prior_sources_behavior_t::CARRY_OVER) {
       thrust::copy(handle.get_thrust_policy(),
-                   sampled_src_vertex_times->begin(),
-                   sampled_src_vertex_times->end(),
+                   sampled_src_vertex_window_starts->begin(),
+                   sampled_src_vertex_window_starts->end(),
                    frontier_vertex_times->begin());
-      current_pos = sampled_src_vertex_times->size();
+      current_pos = sampled_src_vertex_window_starts->size();
     }
 
-    std::for_each(sampled_dst_vertex_times->begin(),
-                  sampled_dst_vertex_times->end(),
-                  [&handle, &frontier_vertex_times, &current_pos](auto& list) {
-                    if (list.size() > 0)
-                      thrust::copy(handle.get_thrust_policy(),
-                                   list.begin(),
-                                   list.end(),
-                                   frontier_vertex_times->begin() + current_pos);
-                    current_pos += list.size();
-                  });
+    if (sampled_dst_vertex_window_start_spans) {
+      std::for_each(sampled_dst_vertex_window_start_spans->begin(),
+                    sampled_dst_vertex_window_start_spans->end(),
+                    [&handle, &frontier_vertex_times, &current_pos](auto& list) {
+                      if (list.size() > 0)
+                        thrust::copy(handle.get_thrust_policy(),
+                                     list.begin(),
+                                     list.end(),
+                                     frontier_vertex_times->begin() + current_pos);
+                      current_pos += list.size();
+                    });
+    }
   }
 
   if (frontier_vertex_window_ends) {
@@ -161,16 +180,18 @@ prepare_next_frontier(
       current_pos = sampled_src_vertex_window_ends->size();
     }
 
-    std::for_each(sampled_dst_vertex_window_end_spans->begin(),
-                  sampled_dst_vertex_window_end_spans->end(),
-                  [&handle, &frontier_vertex_window_ends, &current_pos](auto& list) {
-                    if (list.size() > 0)
-                      thrust::copy(handle.get_thrust_policy(),
-                                   list.begin(),
-                                   list.end(),
-                                   frontier_vertex_window_ends->begin() + current_pos);
-                    current_pos += list.size();
-                  });
+    if (sampled_dst_vertex_window_end_spans) {
+      std::for_each(sampled_dst_vertex_window_end_spans->begin(),
+                    sampled_dst_vertex_window_end_spans->end(),
+                    [&handle, &frontier_vertex_window_ends, &current_pos](auto& list) {
+                      if (list.size() > 0)
+                        thrust::copy(handle.get_thrust_policy(),
+                                     list.begin(),
+                                     list.end(),
+                                     frontier_vertex_window_ends->begin() + current_pos);
+                      current_pos += list.size();
+                    });
+    }
   }
 
   if (multi_gpu) {
@@ -278,17 +299,17 @@ prepare_next_frontier(
                    labels->begin() + current_verts_size);
     }
 
-    if (sampled_src_vertex_times) {
+    if (sampled_src_vertex_window_starts) {
       times->resize(new_verts_size, handle.get_stream());
 
       thrust::copy(handle.get_thrust_policy(),
-                   sampled_src_vertex_times->begin(),
-                   sampled_src_vertex_times->end(),
+                   sampled_src_vertex_window_starts->begin(),
+                   sampled_src_vertex_window_starts->end(),
                    times->begin() + current_verts_size);
     }
 
     if (sampled_src_vertex_labels) {
-      if (sampled_src_vertex_times) {
+      if (sampled_src_vertex_window_starts) {
         auto begin_iter = thrust::make_zip_iterator(verts.begin(), labels->begin(), times->begin());
 
         cugraph::sort(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
@@ -311,7 +332,7 @@ prepare_next_frontier(
         labels->resize(cuda::std::distance(begin_iter, end_iter), handle.get_stream());
       }
     } else {
-      if (sampled_src_vertex_times) {
+      if (sampled_src_vertex_window_starts) {
         auto begin_iter = thrust::make_zip_iterator(verts.begin(), times->begin());
 
         cugraph::sort(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);

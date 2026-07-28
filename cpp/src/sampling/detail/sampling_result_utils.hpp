@@ -6,7 +6,6 @@
 #pragma once
 
 #include <cugraph/arithmetic_variant_types.hpp>
-#include <cugraph/export.hpp>
 #include <cugraph/utilities/thrust_wrappers/fill.hpp>
 
 #include <raft/core/device_span.hpp>
@@ -20,18 +19,6 @@
 
 namespace cugraph {
 namespace detail {
-
-// Concatenate a set of same-typed device spans (carried as an arithmetic variant) into a single
-// contiguous device vector, in the order given.  The element type is inferred from the first span;
-// every span in @p spans must hold that same alternative.  @p result_size is the total element
-// count across all spans.  Returns a monostate variant when @p spans is empty.
-//
-// Declared here and defined in sampling_result_utils.cpp (compiled once into cugraph_common) so the
-// non-template body is not emitted inline in every translation unit that includes this header.
-CUGRAPH_EXPORT arithmetic_device_uvector_t
-concatenate_spans(raft::handle_t const& handle,
-                  std::vector<arithmetic_device_span_t> const& spans,
-                  size_t result_size);
 
 // Assemble the final sampling output from the per-hop edge lists produced during sampling.  Each
 // entry of @p produced_edge_lists owns (source vertices, destination vertices, edge-property

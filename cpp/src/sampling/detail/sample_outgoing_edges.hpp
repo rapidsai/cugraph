@@ -39,8 +39,9 @@ template <typename vertex_t, typename edge_t, typename time_stamp_t>
 struct temporal_unvisited_params_t {
   using time_type = time_stamp_t;
   edge_property_view_t<edge_t, time_stamp_t const*> edge_time_view;
-  raft::device_span<vertex_t const> active_majors;           // sorted by (major[, label])
-  raft::device_span<time_stamp_t const> active_major_times;  // parallel to active_majors
+  raft::device_span<vertex_t const> active_majors;  // sorted by (major[, label])
+  // Parallel to active_majors when present. nullopt => unbounded window start.
+  cuda::std::optional<raft::device_span<time_stamp_t const>> active_major_window_starts;
   // Parallel to active_majors when present.  nullopt => unbounded window (max for increasing,
   // lowest for decreasing).
   cuda::std::optional<raft::device_span<time_stamp_t const>> active_major_window_ends;

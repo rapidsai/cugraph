@@ -126,9 +126,11 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
  * this view will be used for heterogeneous type filtering.
  * @param active_majors Device vector containing all the vertex id that are processed by
  * gpus in the column communicator
- * @param active_major_times Device vector containing timestamp associated with each active major.
- * Gathered edges will include only those edges that occurred after this timestamp for the specified
- * vertex.
+ * @param active_major_window_starts Optional device vector containing the window-start timestamp
+ * for each active major. When omitted, the window start is unbounded. Together with
+ * @p active_major_window_ends this defines the temporal window used to filter gathered edges.
+ * @param active_major_window_ends Optional device vector containing the window-end timestamp for
+ * each active major. When omitted, the window end is unbounded.
  * @param active_major_labels Optional device vector containing labels for each device vector
  * @param gather_flags Optional device span indicating whether to gather edge or not for each edge
  * type. @p gather_flags.has_value() should coincide with @p edge_type_view.has_value().
@@ -147,7 +149,7 @@ temporal_gather_one_hop_edgelist(
   edge_property_view_t<edge_t, time_stamp_t const*> edge_time_view,
   std::optional<edge_property_view_t<edge_t, int32_t const*>> edge_type_view,
   raft::device_span<vertex_t const> active_majors,
-  raft::device_span<time_stamp_t const> active_major_times,
+  std::optional<raft::device_span<time_stamp_t const>> active_major_window_starts,
   std::optional<raft::device_span<time_stamp_t const>> active_major_window_ends,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::device_span<bool const>> gather_flags,
@@ -176,7 +178,7 @@ temporal_gather_one_hop_edgelist_to_unvisited_neighbors(
   edge_property_view_t<edge_t, time_stamp_t const*> edge_time_view,
   std::optional<edge_property_view_t<edge_t, int32_t const*>> edge_type_view,
   raft::device_span<vertex_t const> active_majors,
-  raft::device_span<time_stamp_t const> active_major_times,
+  std::optional<raft::device_span<time_stamp_t const>> active_major_window_starts,
   std::optional<raft::device_span<time_stamp_t const>> active_major_window_ends,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::device_span<bool const>> gather_flags,
@@ -267,7 +269,7 @@ temporal_sample_edges_to_unvisited_neighbors(
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
   raft::device_span<vertex_t const> active_majors,
-  raft::device_span<time_stamp_t const> active_major_times,
+  std::optional<raft::device_span<time_stamp_t const>> active_major_window_starts,
   std::optional<raft::device_span<time_stamp_t const>> active_major_window_ends,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   raft::host_span<size_t const> Ks,
@@ -289,16 +291,16 @@ temporal_sample_edges_to_unvisited_neighbors(
  * handles to various CUDA libraries) to run graph algorithms.
  * @param sampled_src_vertices The source vertices for the current frontier
  * @param sampled_src_vertex_labels Optional labels for the vertices for the current frontier
- * @param sampled_src_vertex_times Optional times for the vertices for the current frontier
+ * @param sampled_src_vertex_window_starts Optional window start times for the current frontier
  * @param sampled_src_vertex_window_ends Optional window end times for the current frontier
  * @param sampled_dst_vertices Vertices for the next frontier
  * @param sampled_dst_vertex_labels Optional labels for the next frontier
- * @param sampled_dst_vertex_times Optional times for the next frontier
+ * @param sampled_dst_vertex_window_start_spans Optional window start times for the next frontier
  * @param sampled_dst_vertex_window_end_spans Optional window end times for the next frontier
  * @param vertex_used_as_source Optional. If specified then we want to exclude vertices that
  * were previously used as sources.  These vertices (and optional labels and times) will be
  * updated based on the contents of sampled_src_vertices / sampled_src_vertex_labels /
- * sampled_src_vertex_times and the update will be part of the return value.
+ * sampled_src_vertex_window_starts and the update will be part of the return value.
  * @param vertex_partition_range_lasts End of range information from graph view
  * @param prior_sources_behavior Identifies how to treat sources in each hop
  * @param dedupe_sources boolean flag, if true then if a vertex v appears as a destination in hop
@@ -323,11 +325,12 @@ prepare_next_frontier(
   raft::handle_t const& handle,
   raft::device_span<vertex_t const> sampled_src_vertices,
   std::optional<raft::device_span<label_t const>> sampled_src_vertex_labels,
-  std::optional<raft::device_span<time_stamp_t const>> sampled_src_vertex_times,
+  std::optional<raft::device_span<time_stamp_t const>> sampled_src_vertex_window_starts,
   std::optional<raft::device_span<time_stamp_t const>> sampled_src_vertex_window_ends,
   raft::host_span<raft::device_span<vertex_t const>> sampled_dst_vertices,
   std::optional<raft::host_span<raft::device_span<label_t const>>> sampled_dst_vertex_labels,
-  std::optional<raft::host_span<raft::device_span<time_stamp_t const>>> sampled_dst_vertex_times,
+  std::optional<raft::host_span<raft::device_span<time_stamp_t const>>>
+    sampled_dst_vertex_window_start_spans,
   std::optional<raft::host_span<raft::device_span<time_stamp_t const>>>
     sampled_dst_vertex_window_end_spans,
   std::optional<std::tuple<rmm::device_uvector<vertex_t>,

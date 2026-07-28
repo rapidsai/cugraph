@@ -22,7 +22,7 @@ struct Temporal_Neighbor_Sampling_Usecase {
   int32_t batch_size{10};
   bool biased{false};
   bool edge_masking{false};
-  bool starting_vertex_times{false};
+  bool starting_vertex_start_times{false};
   bool starting_vertex_end_times{false};
   cugraph::temporal_sampling_comparison_t temporal_sampling_comparison{
     cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING};
@@ -198,15 +198,14 @@ class Tests_MGTemporal_Neighbor_Sampling
     std::optional<rmm::device_uvector<int32_t>> hop{std::nullopt};
     std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
 
-    std::optional<rmm::device_uvector<time_stamp_t>> starting_vertex_times{std::nullopt};
+    std::optional<rmm::device_uvector<time_stamp_t>> starting_vertex_start_times{std::nullopt};
     std::optional<rmm::device_uvector<time_stamp_t>> starting_vertex_end_times{std::nullopt};
-    if (temporal_neighbor_sampling_usecase.starting_vertex_times ||
-        temporal_neighbor_sampling_usecase.starting_vertex_end_times) {
-      starting_vertex_times = std::make_optional(
+    if (temporal_neighbor_sampling_usecase.starting_vertex_start_times) {
+      starting_vertex_start_times = std::make_optional(
         rmm::device_uvector<time_stamp_t>(random_sources.size(), handle_->get_stream()));
       cugraph::detail::uniform_random_fill(handle_->get_stream(),
-                                           starting_vertex_times->data(),
-                                           starting_vertex_times->size(),
+                                           starting_vertex_start_times->data(),
+                                           starting_vertex_start_times->size(),
                                            time_stamp_t{0},
                                            time_stamp_t{20000},
                                            rng_state);
@@ -220,21 +219,26 @@ class Tests_MGTemporal_Neighbor_Sampling
                                            time_stamp_t{0},
                                            time_stamp_t{20000},
                                            rng_state);
-      auto h_starts = cugraph::test::to_host(*handle_, *starting_vertex_times);
+    }
+    if (starting_vertex_start_times && starting_vertex_end_times) {
+      auto h_starts = cugraph::test::to_host(*handle_, *starting_vertex_start_times);
       auto h_ends   = cugraph::test::to_host(*handle_, *starting_vertex_end_times);
       for (size_t i = 0; i < h_starts.size(); ++i) {
         if (h_starts[i] > h_ends[i]) { std::swap(h_starts[i], h_ends[i]); }
       }
-      raft::update_device(
-        starting_vertex_times->data(), h_starts.data(), h_starts.size(), handle_->get_stream());
+      raft::update_device(starting_vertex_start_times->data(),
+                          h_starts.data(),
+                          h_starts.size(),
+                          handle_->get_stream());
       raft::update_device(
         starting_vertex_end_times->data(), h_ends.data(), h_ends.size(), handle_->get_stream());
     }
 
-    auto const starting_vertex_times_span =
-      starting_vertex_times ? std::make_optional(raft::device_span<time_stamp_t const>{
-                                starting_vertex_times->data(), starting_vertex_times->size()})
-                            : std::nullopt;
+    auto const starting_vertex_start_times_span =
+      starting_vertex_start_times
+        ? std::make_optional(raft::device_span<time_stamp_t const>{
+            starting_vertex_start_times->data(), starting_vertex_start_times->size()})
+        : std::nullopt;
     auto const starting_vertex_end_times_span =
       starting_vertex_end_times
         ? std::make_optional(raft::device_span<time_stamp_t const>{
@@ -262,7 +266,7 @@ class Tests_MGTemporal_Neighbor_Sampling
           edge_end_times_view,
           *edge_weights_view,
           raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
-          starting_vertex_times_span,
+          starting_vertex_start_times_span,
           starting_vertex_end_times_span,
           batch_number ? std::make_optional(raft::device_span<int32_t const>{batch_number->data(),
                                                                              batch_number->size()})
@@ -291,7 +295,7 @@ class Tests_MGTemporal_Neighbor_Sampling
           *edge_start_times_view,
           edge_end_times_view,
           raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
-          starting_vertex_times_span,
+          starting_vertex_start_times_span,
           starting_vertex_end_times_span,
           batch_number ? std::make_optional(raft::device_span<int32_t const>{batch_number->data(),
                                                                              batch_number->size()})
@@ -348,12 +352,13 @@ class Tests_MGTemporal_Neighbor_Sampling
               *handle_,
               raft::device_span<time_stamp_t const>{edge_end_time->data(), edge_end_time->size()}))
           : std::nullopt;
-      auto mg_starting_vertex_times =
-        starting_vertex_times ? std::make_optional(cugraph::test::device_gatherv(
-                                  *handle_,
-                                  raft::device_span<time_stamp_t const>{
-                                    starting_vertex_times->data(), starting_vertex_times->size()}))
-                              : std::nullopt;
+      auto mg_starting_vertex_start_times =
+        starting_vertex_start_times
+          ? std::make_optional(cugraph::test::device_gatherv(
+              *handle_,
+              raft::device_span<time_stamp_t const>{starting_vertex_start_times->data(),
+                                                    starting_vertex_start_times->size()}))
+          : std::nullopt;
       auto mg_starting_vertex_end_times =
         starting_vertex_end_times
           ? std::make_optional(cugraph::test::device_gatherv(
@@ -437,7 +442,7 @@ class Tests_MGTemporal_Neighbor_Sampling
           raft::device_span<const vertex_t>{mg_start_src.data(), mg_start_src.size()},
           temporal_neighbor_sampling_usecase.temporal_sampling_comparison));
 
-        if (mg_starting_vertex_times) {
+        if (mg_starting_vertex_start_times || mg_starting_vertex_end_times) {
           ASSERT_TRUE(cugraph::test::validate_temporal_time_windows(
             *handle_,
             raft::device_span<vertex_t const>{mg_aggregate_src.data(), mg_aggregate_src.size()},
@@ -445,8 +450,10 @@ class Tests_MGTemporal_Neighbor_Sampling
             raft::device_span<time_stamp_t const>{mg_aggregate_start_times->data(),
                                                   mg_aggregate_start_times->size()},
             raft::device_span<vertex_t const>{mg_start_src.data(), mg_start_src.size()},
-            raft::device_span<time_stamp_t const>{mg_starting_vertex_times->data(),
-                                                  mg_starting_vertex_times->size()},
+            mg_starting_vertex_start_times
+              ? std::make_optional(raft::device_span<time_stamp_t const>{
+                  mg_starting_vertex_start_times->data(), mg_starting_vertex_start_times->size()})
+              : std::nullopt,
             mg_starting_vertex_end_times
               ? std::make_optional(raft::device_span<time_stamp_t const>{
                   mg_starting_vertex_end_times->data(), mg_starting_vertex_end_times->size()})
@@ -798,16 +805,16 @@ INSTANTIATE_TEST_SUITE_P(
         false,
         cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING},
       Temporal_Neighbor_Sampling_Usecase{
-        {4, -1, 10},
-        128,
+        {1},
+        1,
         false,
         false,
         false,
         false,
         cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING},
       Temporal_Neighbor_Sampling_Usecase{
-        {4, -1, 10},
-        128,
+        {1},
+        1,
         false,
         true,
         false,

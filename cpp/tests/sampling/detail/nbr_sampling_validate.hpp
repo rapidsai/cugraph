@@ -48,10 +48,8 @@ bool validate_temporal_integrity(
 /**
  * @brief Validate sampled edge times against each starting vertex's time window.
  *
- * When @p starting_vertex_end_times is specified, every sampled edge must be within the inclusive
- * window [starting_vertex_times, starting_vertex_end_times] of the seed from which it descends.
- * Without end times, starting_vertex_times is the lower bound for increasing walks and the upper
- * bound for decreasing walks.
+ * Every sampled edge must be within the bounds supplied for the seed from which it descends.
+ * Either bound may be omitted, in which case that side of the window is unbounded.
  */
 template <typename vertex_t, typename time_stamp_t>
 bool validate_temporal_time_windows(
@@ -60,7 +58,7 @@ bool validate_temporal_time_windows(
   raft::device_span<vertex_t const> dsts,
   raft::device_span<time_stamp_t const> edge_times,
   raft::device_span<vertex_t const> starting_vertices,
-  raft::device_span<time_stamp_t const> starting_vertex_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_start_times,
   std::optional<raft::device_span<time_stamp_t const>> starting_vertex_end_times,
   std::optional<raft::device_span<size_t const>> label_offsets,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,

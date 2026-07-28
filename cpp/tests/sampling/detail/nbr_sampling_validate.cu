@@ -435,7 +435,7 @@ bool validate_temporal_time_windows(
   raft::device_span<vertex_t const> dsts,
   raft::device_span<time_stamp_t const> edge_times,
   raft::device_span<vertex_t const> starting_vertices,
-  raft::device_span<time_stamp_t const> starting_vertex_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_start_times,
   std::optional<raft::device_span<time_stamp_t const>> starting_vertex_end_times,
   std::optional<raft::device_span<size_t const>> label_offsets,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
@@ -443,7 +443,8 @@ bool validate_temporal_time_windows(
   cugraph::temporal_sampling_comparison_t temporal_sampling_comparison)
 {
   if ((srcs.size() != dsts.size()) || (srcs.size() != edge_times.size()) ||
-      (starting_vertices.size() != starting_vertex_times.size()) ||
+      (starting_vertex_start_times &&
+       (starting_vertices.size() != starting_vertex_start_times->size())) ||
       (starting_vertex_end_times &&
        (starting_vertex_end_times->size() != starting_vertices.size())) ||
       ((label_offsets.has_value() || edge_labels.has_value()) !=
@@ -454,11 +455,14 @@ bool validate_temporal_time_windows(
     return false;
   }
 
-  auto h_srcs                  = cugraph::test::to_host(handle, srcs);
-  auto h_dsts                  = cugraph::test::to_host(handle, dsts);
-  auto h_edge_times            = cugraph::test::to_host(handle, edge_times);
-  auto h_starting_vertices     = cugraph::test::to_host(handle, starting_vertices);
-  auto h_starting_vertex_times = cugraph::test::to_host(handle, starting_vertex_times);
+  auto h_srcs              = cugraph::test::to_host(handle, srcs);
+  auto h_dsts              = cugraph::test::to_host(handle, dsts);
+  auto h_edge_times        = cugraph::test::to_host(handle, edge_times);
+  auto h_starting_vertices = cugraph::test::to_host(handle, starting_vertices);
+  auto h_starting_vertex_start_times =
+    starting_vertex_start_times
+      ? std::make_optional(cugraph::test::to_host(handle, *starting_vertex_start_times))
+      : std::nullopt;
   auto h_starting_vertex_end_times =
     starting_vertex_end_times
       ? std::make_optional(cugraph::test::to_host(handle, *starting_vertex_end_times))
@@ -513,10 +517,6 @@ bool validate_temporal_time_windows(
     return false;
   }
 
-  bool const increasing =
-    (temporal_sampling_comparison ==
-     cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING) ||
-    (temporal_sampling_comparison == cugraph::temporal_sampling_comparison_t::STRICTLY_INCREASING);
   bool const strictly_increasing =
     temporal_sampling_comparison == cugraph::temporal_sampling_comparison_t::STRICTLY_INCREASING;
   bool const strictly_decreasing =
@@ -537,14 +537,15 @@ bool validate_temporal_time_windows(
       }
 
       time_window_t window{};
-      if (h_starting_vertex_end_times) {
-        if (h_starting_vertex_times[i] > (*h_starting_vertex_end_times)[i]) { return false; }
-        window.lower = h_starting_vertex_times[i];
+      if (h_starting_vertex_start_times && h_starting_vertex_end_times) {
+        if ((*h_starting_vertex_start_times)[i] > (*h_starting_vertex_end_times)[i]) {
+          return false;
+        }
+        window.lower = (*h_starting_vertex_start_times)[i];
         window.upper = (*h_starting_vertex_end_times)[i];
-      } else if (increasing) {
-        window.lower = h_starting_vertex_times[i];
       } else {
-        window.upper = h_starting_vertex_times[i];
+        if (h_starting_vertex_start_times) { window.lower = (*h_starting_vertex_start_times)[i]; }
+        if (h_starting_vertex_end_times) { window.upper = (*h_starting_vertex_end_times)[i]; }
       }
       if (!vertex_windows.emplace(h_starting_vertices[i], window).second) { return false; }
     }
@@ -575,7 +576,11 @@ bool validate_temporal_time_windows(
           ((strictly_decreasing && (time >= *window.upper)) || (time > *window.upper));
         if (below_lower || above_upper) { return false; }
 
-        if (!vertex_windows.emplace(h_dsts[i], window).second) { return false; }
+        auto [dst_window_it, inserted] = vertex_windows.emplace(h_dsts[i], window);
+        if (!inserted && ((dst_window_it->second.lower != window.lower) ||
+                          (dst_window_it->second.upper != window.upper))) {
+          return false;
+        }
 
         validated[j] = true;
         ++num_validated;
@@ -593,7 +598,7 @@ template bool validate_temporal_time_windows(raft::handle_t const&,
                                              raft::device_span<int32_t const>,
                                              raft::device_span<int32_t const>,
                                              raft::device_span<int32_t const>,
-                                             raft::device_span<int32_t const>,
+                                             std::optional<raft::device_span<int32_t const>>,
                                              std::optional<raft::device_span<int32_t const>>,
                                              std::optional<raft::device_span<size_t const>>,
                                              std::optional<raft::device_span<int32_t const>>,
@@ -605,7 +610,7 @@ template bool validate_temporal_time_windows(raft::handle_t const&,
                                              raft::device_span<int64_t const>,
                                              raft::device_span<int32_t const>,
                                              raft::device_span<int64_t const>,
-                                             raft::device_span<int32_t const>,
+                                             std::optional<raft::device_span<int32_t const>>,
                                              std::optional<raft::device_span<int32_t const>>,
                                              std::optional<raft::device_span<size_t const>>,
                                              std::optional<raft::device_span<int32_t const>>,

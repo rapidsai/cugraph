@@ -156,6 +156,7 @@ set(CUGRAPH_COMMON_UTILITY_SOURCES
     src/detail/utility_wrappers_64_common.cu
     src/detail/permute_range_common_v32.cu
     src/detail/permute_range_common_v64.cu
+    src/utilities/arithmetic_variant_types.cpp
     src/utilities/mask_utils.cu
     src/utilities/partition_scatter_map_wrappers.cu
     src/utilities/permute_wrappers.cu
@@ -188,7 +189,6 @@ set(CUGRAPH_COMMON_SAMPLING_SOURCES
     src/sampling/detail/shuffle_and_organize_output_common.cu
     src/sampling/detail/remove_visited_vertices_from_frontier_common_v32_e32.cu
     src/sampling/detail/remove_visited_vertices_from_frontier_common_v64_e64.cu
-    src/sampling/detail/sampling_result_utils.cpp
 )
 
 set(CUGRAPH_COMMON_STRUCTURE_SOURCES

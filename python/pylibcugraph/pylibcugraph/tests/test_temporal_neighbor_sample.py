@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -238,7 +238,7 @@ def test_heterogeneous_biased_temporal_with_times(temporal_sampling_comparison):
     )
 
 
-def test_starting_vertex_times_length_mismatch_raises():
+def test_starting_vertex_start_times_length_mismatch_raises():
     rh = ResourceHandle()
     G = _build_temporal_sg(rh)
     starts = cp.asarray([1, 2], dtype=np.int32)

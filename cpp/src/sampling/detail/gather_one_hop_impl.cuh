@@ -289,7 +289,7 @@ gather_one_hop_edgelist(raft::handle_t const& handle,
 {
   rmm::device_uvector<vertex_t> result_majors(0, handle.get_stream());
   rmm::device_uvector<vertex_t> result_minors(0, handle.get_stream());
-  arithmetic_device_uvector_t tmp_edge_indices{std::monostate{}};
+  arithmetic_device_uvector_t tmp_multi_edge_indices{std::monostate{}};
   std::optional<rmm::device_uvector<int32_t>> result_labels{std::nullopt};
 
   if (number_of_edge_properties == 0) {
@@ -305,7 +305,7 @@ gather_one_hop_edgelist(raft::handle_t const& handle,
       cugraph::edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle,
                                                                                   graph_view);
 
-      std::tie(result_majors, result_minors, tmp_edge_indices, result_labels) =
+      std::tie(result_majors, result_minors, tmp_multi_edge_indices, result_labels) =
         simple_gather_one_hop_with_multi_edge_indices(handle,
                                                       graph_view,
                                                       multi_index_property.view(),
@@ -319,13 +319,13 @@ gather_one_hop_edgelist(raft::handle_t const& handle,
     }
 
     if (edge_type_view) {
-      std::tie(result_majors, result_minors, tmp_edge_indices, result_labels) =
+      std::tie(result_majors, result_minors, tmp_multi_edge_indices, result_labels) =
         filter_edge_by_type(handle,
                             graph_view,
                             *edge_type_view,
                             std::move(result_majors),
                             std::move(result_minors),
-                            std::move(tmp_edge_indices),
+                            std::move(tmp_multi_edge_indices),
                             std::move(result_labels),
                             *gather_flags);
     }
@@ -333,7 +333,7 @@ gather_one_hop_edgelist(raft::handle_t const& handle,
 
   return std::make_tuple(std::move(result_majors),
                          std::move(result_minors),
-                         std::move(tmp_edge_indices),
+                         std::move(tmp_multi_edge_indices),
                          std::move(result_labels));
 }
 
@@ -356,7 +356,7 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
   std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
   bool do_expensive_check)
 {
-  auto [result_majors, result_minors, tmp_edge_indices, result_labels] =
+  auto [result_majors, result_minors, tmp_multi_edge_indices, result_labels] =
     gather_one_hop_edgelist<vertex_t, edge_t, multi_gpu>(handle,
                                                          graph_view,
                                                          number_of_edge_properties,
@@ -404,18 +404,18 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
       *result_labels =
         keep_marked_entries(handle, std::move(*result_labels), marked_entry_span, keep_count);
     }
-    if (std::holds_alternative<rmm::device_uvector<edge_t>>(tmp_edge_indices)) {
-      tmp_edge_indices =
-        keep_marked_entries(handle,
-                            std::move(std::get<rmm::device_uvector<edge_t>>(tmp_edge_indices)),
-                            marked_entry_span,
-                            keep_count);
+    if (std::holds_alternative<rmm::device_uvector<edge_t>>(tmp_multi_edge_indices)) {
+      tmp_multi_edge_indices = keep_marked_entries(
+        handle,
+        std::move(std::get<rmm::device_uvector<edge_t>>(tmp_multi_edge_indices)),
+        marked_entry_span,
+        keep_count);
     }
   }
 
   std::tie(result_majors,
            result_minors,
-           tmp_edge_indices,
+           tmp_multi_edge_indices,
            result_labels,
            std::ignore,
            std::ignore,
@@ -425,7 +425,7 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
                                                      graph_view,
                                                      std::move(result_majors),
                                                      std::move(result_minors),
-                                                     std::move(tmp_edge_indices),
+                                                     std::move(tmp_multi_edge_indices),
                                                      arithmetic_device_uvector_t{std::monostate{}},
                                                      std::move(result_labels));
 
@@ -442,7 +442,7 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
 
   return std::make_tuple(std::move(result_majors),
                          std::move(result_minors),
-                         std::move(tmp_edge_indices),
+                         std::move(tmp_multi_edge_indices),
                          std::move(result_labels),
                          std::move(visited_minors),
                          std::move(visited_minor_labels));
@@ -459,7 +459,7 @@ temporal_gather_one_hop_edgelist(
   edge_property_view_t<edge_t, time_stamp_t const*> edge_time_view,
   std::optional<edge_property_view_t<edge_t, int32_t const*>> edge_type_view,
   raft::device_span<vertex_t const> active_majors,
-  raft::device_span<time_stamp_t const> active_major_times,
+  std::optional<raft::device_span<time_stamp_t const>> active_major_window_starts,
   std::optional<raft::device_span<time_stamp_t const>> active_major_window_ends,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::device_span<bool const>> gather_flags,
@@ -474,133 +474,153 @@ temporal_gather_one_hop_edgelist(
 
   using label_t = int32_t;
 
-  // Sorted per-source side tables keyed by (major, label).  Used when labels are present.
-  std::optional<rmm::device_uvector<vertex_t>> labeled_side_majors{std::nullopt};
-  std::optional<rmm::device_uvector<label_t>> labeled_side_labels{std::nullopt};
-  std::optional<rmm::device_uvector<time_stamp_t>> labeled_side_times{std::nullopt};
-  std::optional<rmm::device_uvector<time_stamp_t>> labeled_side_window_ends{std::nullopt};
+  // Sorted per-source temporal-window lookup keyed by (major, label). Used when labels are present.
+  std::optional<rmm::device_uvector<vertex_t>> kv_majors{std::nullopt};
+  std::optional<rmm::device_uvector<label_t>> kv_labels{std::nullopt};
+  std::optional<rmm::device_uvector<time_stamp_t>> kv_window_starts{std::nullopt};
+  std::optional<rmm::device_uvector<time_stamp_t>> kv_window_ends{std::nullopt};
   std::optional<rmm::device_uvector<label_t>> edge_src_labels{std::nullopt};
 
   // Only used if active_major_labels is not set
-  std::optional<rmm::device_uvector<time_stamp_t>> tmp_times{std::nullopt};
+  std::optional<rmm::device_uvector<time_stamp_t>> tmp_window_starts{std::nullopt};
   std::optional<rmm::device_uvector<time_stamp_t>> tmp_window_ends{std::nullopt};
 
   // Only used if graph_view is a multi_graph
-  arithmetic_device_uvector_t tmp_edge_indices{std::monostate{}};
+  arithmetic_device_uvector_t tmp_multi_edge_indices{std::monostate{}};
 
   if (active_major_labels) {
-    // Key the per-source (time, window_end) by (major, label).  Under disjoint sampling that key is
-    // unique in the frontier; on MG, allgather across minor_comm and keep the time extremum
-    // required by the temporal mode so gather filtering matches the sample path.
-    rmm::device_uvector<vertex_t> kv_majors(active_majors.size(), handle.get_stream());
-    rmm::device_uvector<label_t> kv_labels(active_major_labels->size(), handle.get_stream());
-    rmm::device_uvector<time_stamp_t> kv_times(active_major_times.size(), handle.get_stream());
-    rmm::device_uvector<time_stamp_t> kv_window_ends(active_majors.size(), handle.get_stream());
+    // Key the per-source (window_start, window_end) by (major, label).  Under disjoint sampling
+    // that key is unique in the frontier; on MG, allgather across minor_comm and keep the time
+    // extremum required by the temporal mode so gather filtering matches the sample path.
+    kv_majors      = rmm::device_uvector<vertex_t>(active_majors.size(), handle.get_stream());
+    kv_labels      = rmm::device_uvector<label_t>(active_major_labels->size(), handle.get_stream());
+    kv_window_ends = rmm::device_uvector<time_stamp_t>(active_majors.size(), handle.get_stream());
+    if (active_major_window_starts) {
+      kv_window_starts =
+        rmm::device_uvector<time_stamp_t>(active_major_window_starts->size(), handle.get_stream());
+    }
 
-    raft::copy(kv_majors.data(), active_majors.data(), active_majors.size(), handle.get_stream());
-    raft::copy(kv_labels.data(),
+    raft::copy(kv_majors->data(), active_majors.data(), active_majors.size(), handle.get_stream());
+    raft::copy(kv_labels->data(),
                active_major_labels->data(),
                active_major_labels->size(),
                handle.get_stream());
-    raft::copy(
-      kv_times.data(), active_major_times.data(), active_major_times.size(), handle.get_stream());
+    if (active_major_window_starts) {
+      raft::copy(kv_window_starts->data(),
+                 active_major_window_starts->data(),
+                 active_major_window_starts->size(),
+                 handle.get_stream());
+    }
     if (active_major_window_ends) {
-      raft::copy(kv_window_ends.data(),
+      raft::copy(kv_window_ends->data(),
                  active_major_window_ends->data(),
                  active_major_window_ends->size(),
                  handle.get_stream());
     } else {
       cugraph::fill(handle.get_thrust_policy(),
-                    kv_window_ends.begin(),
-                    kv_window_ends.end(),
+                    kv_window_ends->begin(),
+                    kv_window_ends->end(),
                     unbounded_temporal_window_end<time_stamp_t>(temporal_sampling_comparison));
     }
 
     if constexpr (multi_gpu) {
       auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-      kv_majors        = device_allgatherv(
-        handle, minor_comm, raft::device_span<vertex_t const>{kv_majors.data(), kv_majors.size()});
-      kv_labels = device_allgatherv(
-        handle, minor_comm, raft::device_span<label_t const>{kv_labels.data(), kv_labels.size()});
-      kv_times =
+      kv_majors =
         device_allgatherv(handle,
                           minor_comm,
-                          raft::device_span<time_stamp_t const>{kv_times.data(), kv_times.size()});
+                          raft::device_span<vertex_t const>{kv_majors->data(), kv_majors->size()});
+      kv_labels = device_allgatherv(
+        handle, minor_comm, raft::device_span<label_t const>{kv_labels->data(), kv_labels->size()});
+      if (kv_window_starts) {
+        kv_window_starts = device_allgatherv(handle,
+                                             minor_comm,
+                                             raft::device_span<time_stamp_t const>{
+                                               kv_window_starts->data(), kv_window_starts->size()});
+      }
       kv_window_ends = device_allgatherv(
         handle,
         minor_comm,
-        raft::device_span<time_stamp_t const>{kv_window_ends.data(), kv_window_ends.size()});
+        raft::device_span<time_stamp_t const>{kv_window_ends->data(), kv_window_ends->size()});
     }
 
-    cugraph::sort(handle.get_thrust_policy(),
-                  thrust::make_zip_iterator(
-                    kv_majors.begin(), kv_labels.begin(), kv_times.begin(), kv_window_ends.begin()),
-                  thrust::make_zip_iterator(
-                    kv_majors.end(), kv_labels.end(), kv_times.end(), kv_window_ends.end()));
+    if (kv_window_starts) {
+      cugraph::sort(
+        handle.get_thrust_policy(),
+        thrust::make_zip_iterator(kv_majors->begin(),
+                                  kv_labels->begin(),
+                                  kv_window_starts->begin(),
+                                  kv_window_ends->begin()),
+        thrust::make_zip_iterator(
+          kv_majors->end(), kv_labels->end(), kv_window_starts->end(), kv_window_ends->end()));
+    } else {
+      cugraph::sort(
+        handle.get_thrust_policy(),
+        thrust::make_zip_iterator(kv_majors->begin(), kv_labels->begin(), kv_window_ends->begin()),
+        thrust::make_zip_iterator(kv_majors->end(), kv_labels->end(), kv_window_ends->end()));
+    }
 
     if constexpr (multi_gpu) {
-      bool const increasing =
-        temporal_sampling_comparison == temporal_sampling_comparison_t::MONOTONICALLY_INCREASING ||
-        temporal_sampling_comparison == temporal_sampling_comparison_t::STRICTLY_INCREASING;
-      auto const n = kv_majors.size();
-      rmm::device_uvector<vertex_t> out_majors(n, handle.get_stream());
-      rmm::device_uvector<label_t> out_labels(n, handle.get_stream());
-      rmm::device_uvector<time_stamp_t> out_times(n, handle.get_stream());
-      rmm::device_uvector<time_stamp_t> out_window_ends(n, handle.get_stream());
+      // A missing start bound only occurs for the initial frontier, whose keys are globally unique.
+      if (kv_window_starts) {
+        bool const increasing =
+          temporal_sampling_comparison ==
+            temporal_sampling_comparison_t::MONOTONICALLY_INCREASING ||
+          temporal_sampling_comparison == temporal_sampling_comparison_t::STRICTLY_INCREASING;
+        auto const n = kv_majors->size();
+        rmm::device_uvector<vertex_t> out_majors(n, handle.get_stream());
+        rmm::device_uvector<label_t> out_labels(n, handle.get_stream());
+        rmm::device_uvector<time_stamp_t> out_window_starts(n, handle.get_stream());
+        rmm::device_uvector<time_stamp_t> out_window_ends(n, handle.get_stream());
 
-      size_t new_size{};
-      if (increasing) {
-        auto ends = thrust::reduce_by_key(
-          handle.get_thrust_policy(),
-          thrust::make_zip_iterator(kv_majors.begin(), kv_labels.begin()),
-          thrust::make_zip_iterator(kv_majors.end(), kv_labels.end()),
-          thrust::make_zip_iterator(kv_times.begin(), kv_window_ends.begin()),
-          thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()),
-          thrust::make_zip_iterator(out_times.begin(), out_window_ends.begin()),
-          thrust::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
-          [] __device__(cuda::std::tuple<time_stamp_t, time_stamp_t> a,
-                        cuda::std::tuple<time_stamp_t, time_stamp_t> b) {
-            return cuda::std::get<0>(a) >= cuda::std::get<0>(b) ? a : b;
-          });
-        new_size = static_cast<size_t>(cuda::std::distance(
-          thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()), ends.first));
-      } else {
-        auto ends = thrust::reduce_by_key(
-          handle.get_thrust_policy(),
-          thrust::make_zip_iterator(kv_majors.begin(), kv_labels.begin()),
-          thrust::make_zip_iterator(kv_majors.end(), kv_labels.end()),
-          thrust::make_zip_iterator(kv_times.begin(), kv_window_ends.begin()),
-          thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()),
-          thrust::make_zip_iterator(out_times.begin(), out_window_ends.begin()),
-          thrust::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
-          [] __device__(cuda::std::tuple<time_stamp_t, time_stamp_t> a,
-                        cuda::std::tuple<time_stamp_t, time_stamp_t> b) {
-            return cuda::std::get<0>(a) <= cuda::std::get<0>(b) ? a : b;
-          });
-        new_size = static_cast<size_t>(cuda::std::distance(
-          thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()), ends.first));
+        size_t new_size{};
+        if (increasing) {
+          auto ends = thrust::reduce_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(kv_majors->begin(), kv_labels->begin()),
+            thrust::make_zip_iterator(kv_majors->end(), kv_labels->end()),
+            thrust::make_zip_iterator(kv_window_starts->begin(), kv_window_ends->begin()),
+            thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()),
+            thrust::make_zip_iterator(out_window_starts.begin(), out_window_ends.begin()),
+            thrust::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
+            [] __device__(cuda::std::tuple<time_stamp_t, time_stamp_t> a,
+                          cuda::std::tuple<time_stamp_t, time_stamp_t> b) {
+              return cuda::std::get<0>(a) >= cuda::std::get<0>(b) ? a : b;
+            });
+          new_size = static_cast<size_t>(cuda::std::distance(
+            thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()), ends.first));
+        } else {
+          auto ends = thrust::reduce_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(kv_majors->begin(), kv_labels->begin()),
+            thrust::make_zip_iterator(kv_majors->end(), kv_labels->end()),
+            thrust::make_zip_iterator(kv_window_starts->begin(), kv_window_ends->begin()),
+            thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()),
+            thrust::make_zip_iterator(out_window_starts.begin(), out_window_ends.begin()),
+            thrust::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
+            [] __device__(cuda::std::tuple<time_stamp_t, time_stamp_t> a,
+                          cuda::std::tuple<time_stamp_t, time_stamp_t> b) {
+              return cuda::std::get<0>(a) <= cuda::std::get<0>(b) ? a : b;
+            });
+          new_size = static_cast<size_t>(cuda::std::distance(
+            thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()), ends.first));
+        }
+
+        kv_majors        = std::move(out_majors);
+        kv_labels        = std::move(out_labels);
+        kv_window_starts = std::move(out_window_starts);
+        kv_window_ends   = std::move(out_window_ends);
+        kv_majors->resize(new_size, handle.get_stream());
+        kv_labels->resize(new_size, handle.get_stream());
+        kv_window_starts->resize(new_size, handle.get_stream());
+        kv_window_ends->resize(new_size, handle.get_stream());
       }
-
-      kv_majors      = std::move(out_majors);
-      kv_labels      = std::move(out_labels);
-      kv_times       = std::move(out_times);
-      kv_window_ends = std::move(out_window_ends);
-      kv_majors.resize(new_size, handle.get_stream());
-      kv_labels.resize(new_size, handle.get_stream());
-      kv_times.resize(new_size, handle.get_stream());
-      kv_window_ends.resize(new_size, handle.get_stream());
     }
-
-    labeled_side_majors      = std::move(kv_majors);
-    labeled_side_labels      = std::move(kv_labels);
-    labeled_side_times       = std::move(kv_times);
-    labeled_side_window_ends = std::move(kv_window_ends);
 
     if (graph_view.is_multigraph()) {
       cugraph::edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle,
                                                                                   graph_view);
 
-      std::tie(result_majors, result_minors, tmp_edge_indices, edge_src_labels) =
+      std::tie(result_majors, result_minors, tmp_multi_edge_indices, edge_src_labels) =
         simple_gather_one_hop_with_multi_edge_indices(
           handle,
           graph_view,
@@ -632,12 +652,12 @@ temporal_gather_one_hop_edgelist(
       //. Note that this is irrelevant to gather_one_hop_edgelist and only relevant to
       //. temporal_gather_one_hop_edgelist
       //
-      std::tie(result_majors, result_minors, tmp_edge_indices, tmp_times) =
+      std::tie(result_majors, result_minors, tmp_multi_edge_indices, tmp_window_starts) =
         simple_gather_one_hop_with_multi_edge_indices(handle,
                                                       graph_view,
                                                       multi_index_property.view(),
                                                       active_majors,
-                                                      std::make_optional(active_major_times),
+                                                      active_major_window_starts,
                                                       do_expensive_check);
       if (active_major_window_ends) {
         rmm::device_uvector<vertex_t> unused_majors(0, handle.get_stream());
@@ -652,12 +672,9 @@ temporal_gather_one_hop_edgelist(
                                                         do_expensive_check);
       }
     } else {
-      std::tie(result_majors, result_minors, tmp_times) =
-        simple_gather_one_hop_without_multi_edge_indices(handle,
-                                                         graph_view,
-                                                         active_majors,
-                                                         std::make_optional(active_major_times),
-                                                         do_expensive_check);
+      std::tie(result_majors, result_minors, tmp_window_starts) =
+        simple_gather_one_hop_without_multi_edge_indices(
+          handle, graph_view, active_majors, active_major_window_starts, do_expensive_check);
       if (active_major_window_ends) {
         rmm::device_uvector<vertex_t> unused_majors(0, handle.get_stream());
         rmm::device_uvector<vertex_t> unused_minors(0, handle.get_stream());
@@ -669,13 +686,13 @@ temporal_gather_one_hop_edgelist(
   }
 
   if (edge_type_view) {
-    std::tie(result_majors, result_minors, tmp_edge_indices, result_labels) =
+    std::tie(result_majors, result_minors, tmp_multi_edge_indices, result_labels) =
       filter_edge_by_type(handle,
                           graph_view,
                           *edge_type_view,
                           std::move(result_majors),
                           std::move(result_minors),
-                          std::move(tmp_edge_indices),
+                          std::move(tmp_multi_edge_indices),
                           std::move(result_labels),
                           *gather_flags);
   }
@@ -691,8 +708,8 @@ temporal_gather_one_hop_edgelist(
       result_majors.begin(),
       result_majors.end(),
       result_minors.begin(),
-      std::holds_alternative<rmm::device_uvector<edge_t>>(tmp_edge_indices)
-        ? std::make_optional(std::get<rmm::device_uvector<edge_t>>(tmp_edge_indices).begin())
+      std::holds_alternative<rmm::device_uvector<edge_t>>(tmp_multi_edge_indices)
+        ? std::make_optional(std::get<rmm::device_uvector<edge_t>>(tmp_multi_edge_indices).begin())
         : std::nullopt);
 
     cugraph::transform_gather_e(handle,
@@ -709,36 +726,44 @@ temporal_gather_one_hop_edgelist(
         ? mark_entries(
             edge_times.size(),
             [temporal_sampling_comparison,
-             d_tmp            = edge_times.data(),
-             d_srcs           = result_majors.data(),
-             d_src_labels     = edge_src_labels->data(),
-             side_majors      = raft::device_span<vertex_t const>{labeled_side_majors->data(),
-                                                                  labeled_side_majors->size()},
-             side_labels      = raft::device_span<label_t const>{labeled_side_labels->data(),
-                                                                 labeled_side_labels->size()},
-             side_times       = labeled_side_times->data(),
-             side_window_ends = labeled_side_window_ends->data()] __device__(auto index) {
+             d_tmp        = edge_times.data(),
+             d_srcs       = result_majors.data(),
+             d_src_labels = edge_src_labels->data(),
+             window_majors =
+               raft::device_span<vertex_t const>{kv_majors->data(), kv_majors->size()},
+             window_labels = raft::device_span<label_t const>{kv_labels->data(), kv_labels->size()},
+             window_starts = kv_window_starts
+                               ? cuda::std::make_optional(raft::device_span<time_stamp_t const>{
+                                   kv_window_starts->data(), kv_window_starts->size()})
+                               : cuda::std::nullopt,
+             window_ends   = kv_window_ends->data()] __device__(auto index) {
               auto const edge_time = d_tmp[index];
-              size_t side_idx{};
+              size_t window_idx{};
               if (!try_find_temporal_key_index(
-                    side_majors, side_labels, d_srcs[index], d_src_labels[index], side_idx)) {
+                    window_majors, window_labels, d_srcs[index], d_src_labels[index], window_idx)) {
                 return false;
               }
-              return passes_temporal_filter(temporal_sampling_comparison,
-                                            side_times[side_idx],
-                                            side_window_ends[side_idx],
-                                            edge_time);
+              return passes_temporal_filter(
+                temporal_sampling_comparison,
+                window_starts
+                  ? (*window_starts)[window_idx]
+                  : unbounded_temporal_window_start<time_stamp_t>(temporal_sampling_comparison),
+                window_ends[window_idx],
+                edge_time);
             },
             handle.get_stream())
         : mark_entries(
             edge_times.size(),
             [temporal_sampling_comparison,
-             d_tmp      = edge_times.data(),
-             d_tmp_time = tmp_times->data(),
+             d_tmp              = edge_times.data(),
+             d_tmp_window_start = tmp_window_starts ? tmp_window_starts->data() : nullptr,
              d_tmp_window_end =
                tmp_window_ends ? tmp_window_ends->data() : nullptr] __device__(auto index) {
               auto const edge_time = d_tmp[index];
-              auto const key_time  = d_tmp_time[index];
+              auto const key_time =
+                d_tmp_window_start
+                  ? d_tmp_window_start[index]
+                  : unbounded_temporal_window_start<time_stamp_t>(temporal_sampling_comparison);
               auto const window_end =
                 d_tmp_window_end
                   ? d_tmp_window_end[index]
@@ -755,16 +780,16 @@ temporal_gather_one_hop_edgelist(
       keep_marked_entries(handle, std::move(result_majors), marked_entry_span, keep_count);
     result_minors =
       keep_marked_entries(handle, std::move(result_minors), marked_entry_span, keep_count);
-    if (std::holds_alternative<rmm::device_uvector<edge_t>>(tmp_edge_indices)) {
-      tmp_edge_indices =
-        keep_marked_entries(handle,
-                            std::move(std::get<rmm::device_uvector<edge_t>>(tmp_edge_indices)),
-                            marked_entry_span,
-                            keep_count);
+    if (std::holds_alternative<rmm::device_uvector<edge_t>>(tmp_multi_edge_indices)) {
+      tmp_multi_edge_indices = keep_marked_entries(
+        handle,
+        std::move(std::get<rmm::device_uvector<edge_t>>(tmp_multi_edge_indices)),
+        marked_entry_span,
+        keep_count);
     }
-    if (tmp_times) {
-      *tmp_times =
-        keep_marked_entries(handle, std::move(*tmp_times), marked_entry_span, keep_count);
+    if (tmp_window_starts) {
+      *tmp_window_starts =
+        keep_marked_entries(handle, std::move(*tmp_window_starts), marked_entry_span, keep_count);
     }
     if (edge_src_labels) {
       *edge_src_labels =
@@ -783,7 +808,7 @@ temporal_gather_one_hop_edgelist(
   // than rank-local property-row numbers.
   return std::make_tuple(std::move(result_majors),
                          std::move(result_minors),
-                         std::move(tmp_edge_indices),
+                         std::move(tmp_multi_edge_indices),
                          std::move(result_labels));
 }
 
@@ -806,7 +831,7 @@ temporal_gather_one_hop_edgelist_to_unvisited_neighbors(
   edge_property_view_t<edge_t, time_stamp_t const*> edge_time_view,
   std::optional<edge_property_view_t<edge_t, int32_t const*>> edge_type_view,
   raft::device_span<vertex_t const> active_majors,
-  raft::device_span<time_stamp_t const> active_major_times,
+  std::optional<raft::device_span<time_stamp_t const>> active_major_window_starts,
   std::optional<raft::device_span<time_stamp_t const>> active_major_window_ends,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::device_span<bool const>> gather_flags,
@@ -821,14 +846,14 @@ temporal_gather_one_hop_edgelist_to_unvisited_neighbors(
   CUGRAPH_EXPECTS(edge_property_views.size() > 0,
                   "Temporal requires at least one edge property - the time");
 
-  auto [result_majors, result_minors, tmp_edge_indices, result_labels] =
+  auto [result_majors, result_minors, tmp_multi_edge_indices, result_labels] =
     temporal_gather_one_hop_edgelist<vertex_t, edge_t, time_stamp_t, multi_gpu>(
       handle,
       graph_view,
       edge_time_view,
       edge_type_view,
       active_majors,
-      active_major_times,
+      active_major_window_starts,
       active_major_window_ends,
       active_major_labels,
       gather_flags,
@@ -874,12 +899,12 @@ temporal_gather_one_hop_edgelist_to_unvisited_neighbors(
       *result_labels =
         keep_marked_entries(handle, std::move(*result_labels), marked_entry_span, keep_count);
     }
-    if (std::holds_alternative<rmm::device_uvector<edge_t>>(tmp_edge_indices)) {
-      tmp_edge_indices =
-        keep_marked_entries(handle,
-                            std::move(std::get<rmm::device_uvector<edge_t>>(tmp_edge_indices)),
-                            marked_entry_span,
-                            keep_count);
+    if (std::holds_alternative<rmm::device_uvector<edge_t>>(tmp_multi_edge_indices)) {
+      tmp_multi_edge_indices = keep_marked_entries(
+        handle,
+        std::move(std::get<rmm::device_uvector<edge_t>>(tmp_multi_edge_indices)),
+        marked_entry_span,
+        keep_count);
     }
   }
 
@@ -888,7 +913,7 @@ temporal_gather_one_hop_edgelist_to_unvisited_neighbors(
   // not meaningful after edges move between GPUs.
   std::tie(result_majors,
            result_minors,
-           tmp_edge_indices,
+           tmp_multi_edge_indices,
            result_labels,
            std::ignore,
            std::ignore,
@@ -898,7 +923,7 @@ temporal_gather_one_hop_edgelist_to_unvisited_neighbors(
                                                      graph_view,
                                                      std::move(result_majors),
                                                      std::move(result_minors),
-                                                     std::move(tmp_edge_indices),
+                                                     std::move(tmp_multi_edge_indices),
                                                      arithmetic_device_uvector_t{std::monostate{}},
                                                      std::move(result_labels));
 
@@ -908,7 +933,7 @@ temporal_gather_one_hop_edgelist_to_unvisited_neighbors(
                               graph_view,
                               std::move(result_majors),
                               std::move(result_minors),
-                              std::move(tmp_edge_indices),
+                              std::move(tmp_multi_edge_indices),
                               raft::host_span<edge_arithmetic_property_view_t<edge_t>>{
                                 edge_property_views.data(), edge_property_views.size()});
 

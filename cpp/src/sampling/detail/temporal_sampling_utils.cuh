@@ -26,6 +26,18 @@ __host__ __device__ inline bool is_temporal_decreasing(
          temporal_sampling_comparison == temporal_sampling_comparison_t::MONOTONICALLY_DECREASING;
 }
 
+// Sentinel for an absent / unbounded frontier time.
+// Increasing walks treat window_start as a lower bound (window_start <= edge_time) => lowest().
+// Decreasing walks treat window_start as an upper bound (window_start >= edge_time) => max().
+template <typename time_stamp_t>
+__host__ __device__ inline time_stamp_t unbounded_temporal_window_start(
+  temporal_sampling_comparison_t temporal_sampling_comparison)
+{
+  return is_temporal_decreasing(temporal_sampling_comparison)
+           ? std::numeric_limits<time_stamp_t>::max()
+           : std::numeric_limits<time_stamp_t>::lowest();
+}
+
 // Sentinel for an absent / unbounded second time bound.
 // Increasing walks treat window_end as an upper bound (edge_time <= window_end) => max().
 // Decreasing walks treat window_end as a lower bound (edge_time >= window_end) => lowest().

@@ -147,15 +147,17 @@ struct sample_unvisited_edge_biases_op_t {
 // when the destination minor has already been visited (per-label when labels are used) OR when the
 // edge fails the temporal window filter; otherwise returns the edge bias (1 when unbiased).
 //
-// The per-source time and window end are looked up from side spans keyed on the frontier entry.
+// The per-source window bounds are looked up from spans keyed on the frontier entry.
 // Under always-disjoint sampling each vertex appears at most once per label in the frontier, so the
 // key is (major) when unlabeled and (major, label) when labeled; both are unique.  The side spans
 // must be sorted by that same key.
 template <typename vertex_t, typename bias_t, typename time_stamp_t>
 struct sample_unvisited_temporal_edge_biases_op_t {
   temporal_sampling_comparison_t temporal_sampling_comparison{};
-  raft::device_span<vertex_t const> active_majors{};           // sorted by (major[, label])
-  raft::device_span<time_stamp_t const> active_major_times{};  // parallel to active_majors
+  raft::device_span<vertex_t const> active_majors{};  // sorted by (major[, label])
+  // Parallel to active_majors when present. nullopt => unbounded via
+  // unbounded_temporal_window_start (lowest for increasing, max for decreasing).
+  cuda::std::optional<raft::device_span<time_stamp_t const>> active_major_window_starts{};
   // Parallel to active_majors when present.  nullopt => unbounded via
   // unbounded_temporal_window_end (max for increasing, lowest for decreasing).
   cuda::std::optional<raft::device_span<time_stamp_t const>> active_major_window_ends{};
@@ -213,6 +215,12 @@ struct sample_unvisited_temporal_edge_biases_op_t {
     return unbounded_temporal_window_end<time_stamp_t>(temporal_sampling_comparison);
   }
 
+  __device__ time_stamp_t window_start_at(size_t idx) const
+  {
+    if (active_major_window_starts) { return (*active_major_window_starts)[idx]; }
+    return unbounded_temporal_window_start<time_stamp_t>(temporal_sampling_comparison);
+  }
+
   __device__ bool is_visited(vertex_t minor) const
   {
     return thrust::binary_search(thrust::seq, visited_minors.begin(), visited_minors.end(), minor);
@@ -238,7 +246,7 @@ struct sample_unvisited_temporal_edge_biases_op_t {
     if (is_visited(minor)) { return bias_t{0}; }
     size_t idx{};
     if (!try_find_temporal_key_index(active_majors, major, idx)) { return bias_t{0}; }
-    auto const major_time = active_major_times[idx];
+    auto const major_time = window_start_at(idx);
     auto const window_end = window_end_at(idx);
     auto const edge_time  = extract_edge_time(edge_property);
     auto const passes =
@@ -261,7 +269,7 @@ struct sample_unvisited_temporal_edge_biases_op_t {
     if (!try_find_temporal_key_index(active_majors, *active_major_labels, major, label, idx)) {
       return bias_t{0};
     }
-    auto const major_time = active_major_times[idx];
+    auto const major_time = window_start_at(idx);
     auto const window_end = window_end_at(idx);
     auto const edge_time  = extract_edge_time(edge_property);
     auto const passes =
@@ -764,7 +772,7 @@ sample_unvisited_outgoing_edges(
               sample_unvisited_temporal_edge_biases_op_t<vertex_t, bias_t, time_stamp_t>{
                 temporal_params.temporal_sampling_comparison,
                 temporal_params.active_majors,
-                temporal_params.active_major_times,
+                temporal_params.active_major_window_starts,
                 temporal_params.active_major_window_ends,
                 temporal_params.active_major_labels,
                 visited_minors_span,
@@ -807,7 +815,7 @@ sample_unvisited_outgoing_edges(
               sample_unvisited_temporal_edge_biases_op_t<vertex_t, bias_t, time_stamp_t>{
                 temporal_params.temporal_sampling_comparison,
                 temporal_params.active_majors,
-                temporal_params.active_major_times,
+                temporal_params.active_major_window_starts,
                 temporal_params.active_major_window_ends,
                 temporal_params.active_major_labels,
                 visited_minors_span,
@@ -848,7 +856,7 @@ sample_unvisited_outgoing_edges(
             sample_unvisited_temporal_edge_biases_op_t<vertex_t, bias_t, time_stamp_t>{
               temporal_params.temporal_sampling_comparison,
               temporal_params.active_majors,
-              temporal_params.active_major_times,
+              temporal_params.active_major_window_starts,
               temporal_params.active_major_window_ends,
               temporal_params.active_major_labels,
               visited_minors_span,

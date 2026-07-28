@@ -22,11 +22,12 @@ template CUGRAPH_EXPORT
     raft::handle_t const& handle,
     raft::device_span<int32_t const> sampled_src_vertices,
     std::optional<raft::device_span<int32_t const>> sampled_src_vertex_labels,
-    std::optional<raft::device_span<int32_t const>> sampled_src_vertex_times,
+    std::optional<raft::device_span<int32_t const>> sampled_src_vertex_window_starts,
     std::optional<raft::device_span<int32_t const>> sampled_src_vertex_window_ends,
     raft::host_span<raft::device_span<int32_t const>> sampled_dst_vertices,
     std::optional<raft::host_span<raft::device_span<int32_t const>>> sampled_dst_vertex_labels,
-    std::optional<raft::host_span<raft::device_span<int32_t const>>> sampled_dst_vertex_times,
+    std::optional<raft::host_span<raft::device_span<int32_t const>>>
+      sampled_dst_vertex_window_start_spans,
     std::optional<raft::host_span<raft::device_span<int32_t const>>>
       sampled_dst_vertex_window_end_spans,
     std::optional<std::tuple<rmm::device_uvector<int32_t>,
@@ -50,11 +51,12 @@ template CUGRAPH_EXPORT
     raft::handle_t const& handle,
     raft::device_span<int32_t const> sampled_src_vertices,
     std::optional<raft::device_span<int32_t const>> sampled_src_vertex_labels,
-    std::optional<raft::device_span<int64_t const>> sampled_src_vertex_times,
+    std::optional<raft::device_span<int64_t const>> sampled_src_vertex_window_starts,
     std::optional<raft::device_span<int64_t const>> sampled_src_vertex_window_ends,
     raft::host_span<raft::device_span<int32_t const>> sampled_dst_vertices,
     std::optional<raft::host_span<raft::device_span<int32_t const>>> sampled_dst_vertex_labels,
-    std::optional<raft::host_span<raft::device_span<int64_t const>>> sampled_dst_vertex_times,
+    std::optional<raft::host_span<raft::device_span<int64_t const>>>
+      sampled_dst_vertex_window_start_spans,
     std::optional<raft::host_span<raft::device_span<int64_t const>>>
       sampled_dst_vertex_window_end_spans,
     std::optional<std::tuple<rmm::device_uvector<int32_t>,
