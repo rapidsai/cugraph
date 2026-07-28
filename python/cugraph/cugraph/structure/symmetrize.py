@@ -1,10 +1,9 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 from cugraph.structure import graph_classes as csg
 import cudf
 import dask_cudf
-from dask.distributed import default_client
 
 
 def symmetrize_df(
@@ -137,8 +136,14 @@ def symmetrize_ddf(
 
     """
     # FIXME: Uncomment out the above (broken) example
-    _client = default_client()
-    workers = _client.scheduler_info(n_workers=-1)["workers"]
+    # Size partitioning from the race-free worker count (scheduler_info()
+    # ["n_workers"]) rather than len(scheduler_info()["workers"]): the latter
+    # dict is periodically emptied by dask's scheduler-info poll (n_workers=0),
+    # which can make npartitions=0 and raise ZeroDivisionError in dask's
+    # repartition.
+    from cugraph.dask.common.read_utils import get_n_workers
+
+    num_workers = get_n_workers()
 
     if not isinstance(src_name, list):
         src_name = [src_name]
@@ -152,12 +157,12 @@ def symmetrize_ddf(
     else:
         result = ddf
     if multi:
-        result = result.reset_index(drop=True).repartition(npartitions=len(workers) * 2)
+        result = result.reset_index(drop=True).repartition(npartitions=num_workers * 2)
         return result
     else:
         vertex_col_name = src_name + dst_name
         result = _memory_efficient_drop_duplicates(
-            result, vertex_col_name, len(workers)
+            result, vertex_col_name, num_workers
         )
         return result
 
