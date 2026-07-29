@@ -1,6 +1,6 @@
 name: soc-LiveJournal1
 file_type: .csv
-description:  A graph of the LiveJournal social network.
+description: A graph of the LiveJournal social network.
 author: L. Backstrom, D. Huttenlocher, J. Kleinberg, X. Lan
 refs:
   L. Backstrom, D. Huttenlocher, J. Kleinberg, X. Lan. Group Formation in
