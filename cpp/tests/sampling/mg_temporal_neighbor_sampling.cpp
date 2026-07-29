@@ -14,6 +14,7 @@
 
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <gtest/gtest.h>
 
@@ -313,6 +314,21 @@ class Tests_MGTemporal_Neighbor_Sampling
     }
 
     if (temporal_neighbor_sampling_usecase.check_correctness) {
+      //  Every check below only inspects the edges that came back, so they all pass trivially on an
+      //  empty result.  Check first that an empty result was actually justified.
+      auto num_sampled_edges = static_cast<size_t>(src_out.size());
+      num_sampled_edges      = cugraph::host_scalar_allreduce(
+        *handle_->get_comms(), num_sampled_edges, raft::comms::op_t::SUM, handle_->get_stream());
+      ASSERT_TRUE(cugraph::test::validate_sampling_empty_result(
+        *handle_,
+        graph_view,
+        *edge_start_times_view,
+        raft::device_span<vertex_t const>{random_sources.data(), random_sources.size()},
+        starting_vertex_start_times_span,
+        starting_vertex_end_times_span,
+        num_sampled_edges,
+        temporal_neighbor_sampling_usecase.temporal_sampling_comparison));
+
       ASSERT_TRUE(offsets.has_value());
       auto h_offsets = cugraph::test::to_host(*handle_, *offsets);
       std::vector<int32_t> h_edge_labels(src_out.size());

@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "nbr_sampling_validate_empty_result.cuh"
+
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph_functions.hpp>
@@ -616,6 +618,38 @@ template bool validate_temporal_time_windows(raft::handle_t const&,
                                              std::optional<raft::device_span<int32_t const>>,
                                              std::optional<raft::device_span<int32_t const>>,
                                              cugraph::temporal_sampling_comparison_t);
+
+template bool validate_sampling_empty_result(raft::handle_t const&,
+                                             cugraph::graph_view_t<int32_t, int32_t, false, false> const&,
+                                             raft::device_span<int32_t const>,
+                                             size_t,
+                                             bool);
+
+template bool validate_sampling_empty_result(raft::handle_t const&,
+                                             cugraph::graph_view_t<int64_t, int64_t, false, false> const&,
+                                             raft::device_span<int64_t const>,
+                                             size_t,
+                                             bool);
+
+template bool validate_sampling_empty_result(
+  raft::handle_t const&,
+  cugraph::graph_view_t<int32_t, int32_t, false, false> const&,
+  cugraph::edge_property_view_t<int32_t, int32_t const*>,
+  raft::device_span<int32_t const>,
+  std::optional<raft::device_span<int32_t const>>,
+  std::optional<raft::device_span<int32_t const>>,
+  size_t,
+  cugraph::temporal_sampling_comparison_t);
+
+template bool validate_sampling_empty_result(
+  raft::handle_t const&,
+  cugraph::graph_view_t<int64_t, int64_t, false, false> const&,
+  cugraph::edge_property_view_t<int64_t, int32_t const*>,
+  raft::device_span<int64_t const>,
+  std::optional<raft::device_span<int32_t const>>,
+  std::optional<raft::device_span<int32_t const>>,
+  size_t,
+  cugraph::temporal_sampling_comparison_t);
 
 template <typename vertex_t>
 bool validate_disjoint_sampling(

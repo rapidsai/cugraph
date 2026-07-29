@@ -13,6 +13,8 @@
 
 #include <gtest/gtest.h>
 
+#include <ostream>
+
 struct Temporal_Neighbor_Sampling_Usecase {
   std::vector<int32_t> fanout{{-1}};
   int32_t batch_size{10};
@@ -24,6 +26,36 @@ struct Temporal_Neighbor_Sampling_Usecase {
     cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING};
   bool check_correctness{true};
 };
+
+// Without this, gtest reports a failing parameterized case as an opaque byte dump, which makes it
+// impossible to tell from a log which flag combination broke.
+std::ostream& operator<<(std::ostream& os, Temporal_Neighbor_Sampling_Usecase const& usecase)
+{
+  os << "{fanout=[";
+  for (size_t i = 0; i < usecase.fanout.size(); ++i) {
+    os << (i == 0 ? "" : ",") << usecase.fanout[i];
+  }
+  os << "] batch_size=" << usecase.batch_size << " biased=" << usecase.biased
+     << " edge_masking=" << usecase.edge_masking
+     << " starting_vertex_start_times=" << usecase.starting_vertex_start_times
+     << " starting_vertex_end_times=" << usecase.starting_vertex_end_times << " comparison=";
+  switch (usecase.temporal_sampling_comparison) {
+    case cugraph::temporal_sampling_comparison_t::STRICTLY_INCREASING:
+      os << "STRICTLY_INCREASING";
+      break;
+    case cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING:
+      os << "MONOTONICALLY_INCREASING";
+      break;
+    case cugraph::temporal_sampling_comparison_t::STRICTLY_DECREASING:
+      os << "STRICTLY_DECREASING";
+      break;
+    case cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
+      os << "MONOTONICALLY_DECREASING";
+      break;
+    case cugraph::temporal_sampling_comparison_t::LAST: os << "LAST"; break;
+  }
+  return os << " check_correctness=" << usecase.check_correctness << "}";
+}
 
 template <typename input_usecase_t>
 class Tests_Temporal_Neighbor_Sampling
@@ -315,7 +347,19 @@ class Tests_Temporal_Neighbor_Sampling
     }
 
     if (temporal_neighbor_sampling_usecase.check_correctness) {
-      //  First validate that the extracted edges are actually a subset of the
+      //  Every check below only inspects the edges that came back, so they all pass trivially on an
+      //  empty result.  Check first that an empty result was actually justified.
+      ASSERT_TRUE(cugraph::test::validate_sampling_empty_result(
+        handle,
+        graph_view,
+        *edge_start_times_view,
+        raft::device_span<vertex_t const>{random_sources.data(), random_sources.size()},
+        starting_vertex_start_times_span,
+        starting_vertex_end_times_span,
+        src_out.size(),
+        temporal_neighbor_sampling_usecase.temporal_sampling_comparison));
+
+      //  Next validate that the extracted edges are actually a subset of the
       //  edges in the input graph
       rmm::device_uvector<vertex_t> vertices(2 * src_out.size(), handle.get_stream());
       raft::copy(vertices.data(), src_out.data(), src_out.size(), handle.get_stream());

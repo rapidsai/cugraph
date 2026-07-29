@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include <cugraph/edge_property.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/sampling_functions.hpp>
 
 #include <raft/core/device_span.hpp>
@@ -66,6 +68,64 @@ bool validate_temporal_time_windows(
   std::optional<raft::device_span<size_t const>> label_offsets,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> edge_labels,
+  cugraph::temporal_sampling_comparison_t temporal_sampling_comparison);
+
+/**
+ * @brief Validate that an empty sampling result was justified.
+ *
+ * Every other validator here checks that the edges which came back are legal, so all of them pass
+ * trivially when nothing came back.  This one checks the other direction: it counts the hop-0 edges
+ * that were eligible for selection and fails only when edges were eligible yet the result is empty.
+ *
+ * An edge (s, d) counts as eligible when s is a starting vertex.  When @p exclude_seed_destinations
+ * is true (disjoint sampling), d must not itself be a starting vertex, because disjoint sampling
+ * seeds the visited set with the starting vertices.  Excluding every starting vertex rather than
+ * only those sharing a label undercounts when a destination seeds a different label, which keeps
+ * the check one-sided: it can miss a bug but cannot report one that isn't there.
+ *
+ * Edge masks attached to @p graph_view are respected.  Edge-type restrictions used by heterogeneous
+ * sampling are not; that can overcount eligibility when a seed has out-edges of types outside the
+ * fanout, so a false failure is possible in that case.
+ *
+ * @param num_sampled_edges Number of edges in the sampling result.  In multi-GPU this must be the
+ * count aggregated over all ranks, since a rank can legitimately produce no edges on its own.
+ * @param exclude_seed_destinations When true, edges into starting vertices are not counted as
+ * eligible (disjoint sampling).
+ */
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+bool validate_sampling_empty_result(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  raft::device_span<vertex_t const> starting_vertices,
+  size_t num_sampled_edges,
+  bool exclude_seed_destinations);
+
+/**
+ * @brief Validate that an empty temporal sampling result was justified.
+ *
+ * Same contract as the non-temporal overload, with the additional requirement that each hop-0
+ * edge's start time must satisfy the seed's time window under @p temporal_sampling_comparison.
+ * Temporal sampling is always disjoint, so edges into starting vertices are never counted.
+ *
+ * The eligibility predicate is shared with the implementation, so this validates the machinery
+ * around the time filter (window derivation, seeding, offsets) rather than the filter itself.
+ *
+ * @param num_sampled_edges Number of edges in the sampling result.  In multi-GPU this must be the
+ * count aggregated over all ranks, since a rank can legitimately produce no edges on its own.
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename time_stamp_t,
+          bool store_transposed,
+          bool multi_gpu>
+bool validate_sampling_empty_result(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  cugraph::edge_property_view_t<edge_t, time_stamp_t const*> edge_start_time_view,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_start_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_end_times,
+  size_t num_sampled_edges,
   cugraph::temporal_sampling_comparison_t temporal_sampling_comparison);
 
 /**

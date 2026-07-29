@@ -6,6 +6,7 @@
 #pragma once
 
 #include "detail/gather_sampled_properties.cuh"
+#include "detail/output_labels.cuh"
 #include "detail/sampling_result_utils.hpp"
 #include "detail/sampling_utils.hpp"
 #include "detail/shuffle_wrappers.hpp"
@@ -18,7 +19,6 @@
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/thrust_wrappers/fill.hpp>
 #include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/vertex_partition_view.hpp>
@@ -39,6 +39,7 @@
 #include <thrust/reduce.h>
 #include <thrust/transform.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <limits>
 #include <memory>
@@ -916,6 +917,9 @@ temporal_neighbor_sample_impl(
 
   std::optional<rmm::device_uvector<size_t>> result_offsets{std::nullopt};
 
+  auto output_labels = compute_output_labels<label_t, multi_gpu>(
+    handle, starting_vertex_labels, label_to_output_comm_rank);
+
   std::tie(property_edges, result_labels, result_hops, result_offsets) =
     shuffle_and_organize_output(
       handle,
@@ -923,6 +927,9 @@ temporal_neighbor_sample_impl(
       std::move(result_labels),
       std::move(result_hops),
       sampling_flags.return_hops ? std::make_optional<int32_t>(num_hops) : std::nullopt,
+      output_labels ? std::make_optional(raft::device_span<label_t const>{output_labels->data(),
+                                                                         output_labels->size()})
+                    : std::nullopt,
       label_to_output_comm_rank);
 
   result_srcs = std::move(std::get<rmm::device_uvector<vertex_t>>(property_edges[0]));

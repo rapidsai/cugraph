@@ -24,8 +24,6 @@
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/thrust_wrappers/fill.hpp>
 #include <cugraph/utilities/thrust_wrappers/sequence.hpp>
-#include <cugraph/utilities/thrust_wrappers/sort.hpp>
-#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -205,37 +203,29 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
         if constexpr (multi_gpu) {
           auto num_local_labels = starting_vertex_label_offsets_->size_ - 1;
 
-          auto global_labels = cugraph::host_scalar_allgather(
+          // Each GPU owns a contiguous range of the global label space sized by its local label
+          // count, so a rank's displacement into that space is both the offset to apply to its own
+          // labels and its displacement into the concatenated label to rank mapping below.
+          auto recvcounts = cugraph::host_scalar_allgather(
             handle_.get_comms(), num_local_labels, handle_.get_stream());
 
+          std::vector<size_t> displacements(recvcounts.size());
           std::exclusive_scan(
-            global_labels.begin(), global_labels.end(), global_labels.begin(), label_t{0});
+            recvcounts.begin(), recvcounts.end(), displacements.begin(), size_t{0});
 
           // Compute the global starting_vertex_label_offsets
 
           cugraph::detail::transform_increment_ints(
             raft::device_span<label_t>{(*start_vertex_labels).data(),
                                        (*start_vertex_labels).size()},
-            (label_t)global_labels[handle_.get_comms().get_rank()],
+            static_cast<label_t>(displacements[handle_.get_comms().get_rank()]),
             handle_.get_stream());
 
-          rmm::device_uvector<label_t> unique_labels((*start_vertex_labels).size(),
-                                                     handle_.get_stream());
-          raft::copy(unique_labels.data(),
-                     (*start_vertex_labels).data(),
-                     unique_labels.size(),
-                     handle_.get_stream());
-
-          // Get unique labels
-          // sort the start_vertex_labels
-          cugraph::sort(handle_.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
-
-          auto num_unique_labels = static_cast<size_t>(cuda::std::distance(
-            unique_labels.begin(),
-            cugraph::unique(
-              handle_.get_thrust_policy(), unique_labels.begin(), unique_labels.end())));
-
-          rmm::device_uvector<label_t> local_label_to_comm_rank(num_unique_labels,
+          // Map this GPU's entire label range to this rank, including any label whose seed range is
+          // empty.  Deriving this from the labels present in the seeds instead would leave the
+          // mapping shorter than the global label space and shift it out of alignment with the
+          // label numbering computed above.
+          rmm::device_uvector<label_t> local_label_to_comm_rank(num_local_labels,
                                                                 handle_.get_stream());
 
           cugraph::fill(rmm::exec_policy(handle_.get_stream()),
@@ -244,13 +234,6 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
                         label_t{handle_.get_comms().get_rank()});  // This should be rename to rank
 
           // Perform allgather to get global_label_to_comm_rank_d_vector
-          auto recvcounts = cugraph::host_scalar_allgather(
-            handle_.get_comms(), num_unique_labels, handle_.get_stream());
-
-          std::vector<size_t> displacements(recvcounts.size());
-          std::exclusive_scan(
-            recvcounts.begin(), recvcounts.end(), displacements.begin(), size_t{0});
-
           label_to_comm_rank = rmm::device_uvector<label_t>(
             displacements.back() + recvcounts.back(), handle_.get_stream());
 

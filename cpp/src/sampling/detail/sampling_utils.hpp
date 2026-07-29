@@ -388,6 +388,10 @@ remove_visited_vertices_from_frontier(
  * sampled edge and optionally the hop where the edge was sampled
  * @param hops Optional hops associated with each edge.  If hops are specified the result is sorted
  * by label and hop
+ * @param output_labels Sorted labels this GPU is responsible for reporting (see @ref
+ * compute_output_labels).  The returned offsets array holds one range per entry plus a trailing
+ * total, so a label that sampled no edges gets an empty range rather than being dropped.  Required
+ * whenever @p labels is specified
  * @param label_to_output_comm_rank Optional map associating each label to a comm rank.  If
  * specified this will result in shuffling the data, if not specified this will skip the shuffling
  * step and only consider sorting the results
@@ -402,6 +406,7 @@ shuffle_and_organize_output(
   std::optional<rmm::device_uvector<int32_t>>&& labels,
   std::optional<rmm::device_uvector<int32_t>>&& hops,
   std::optional<int32_t> input_hops,
+  std::optional<raft::device_span<int32_t const>> output_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank);
 
 /**
