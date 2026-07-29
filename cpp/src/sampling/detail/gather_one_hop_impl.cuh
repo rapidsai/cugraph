@@ -860,8 +860,9 @@ temporal_gather_one_hop_edgelist_to_unvisited_neighbors(
       temporal_sampling_comparison,
       do_expensive_check);
 
-  // Drop edges whose destination has already been visited.  Keep graph edge indices aligned so
-  // subsequent MG deduplication and property gather remain valid.
+  // Drop edges whose destination has already been visited. Keep multi-edge indices
+  // aligned with the remaining endpoints so the (SG/MG) minor deduplication below,
+  // and the subsequent property gather, can still use them.
   {
     auto [keep_count, marked_entries] =
       visited_minor_labels
@@ -908,9 +909,9 @@ temporal_gather_one_hop_edgelist_to_unvisited_neighbors(
     }
   }
 
-  // Deduplicate by (minor[, label]) while shuffling the real graph edge indices with the endpoints.
-  // Gathering properties before this step is incorrect on MG: rank-local property-row numbers are
-  // not meaningful after edges move between GPUs.
+  // Deduplicate by (minor[, label]) for both SG and MG, keeping multi-edge indices
+  // with the endpoints. Gather properties only after this: on MG, rank-local
+  // property-row numbers are invalid once edges have moved between GPUs.
   std::tie(result_majors,
            result_minors,
            tmp_multi_edge_indices,
