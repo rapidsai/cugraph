@@ -285,6 +285,7 @@ static int run_temporal_sampling_benchmark(const cugraph_resource_handle_t* hand
                                                                     "edge_start_time",
                                                                     context->starts_view,
                                                                     context->start_times_view,
+                                                                    NULL,
                                                                     context->label_offsets_view,
                                                                     fan_out_view,
                                                                     options,
