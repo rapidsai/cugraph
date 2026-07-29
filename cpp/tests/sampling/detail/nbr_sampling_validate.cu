@@ -619,17 +619,19 @@ template bool validate_temporal_time_windows(raft::handle_t const&,
                                              std::optional<raft::device_span<int32_t const>>,
                                              cugraph::temporal_sampling_comparison_t);
 
-template bool validate_sampling_empty_result(raft::handle_t const&,
-                                             cugraph::graph_view_t<int32_t, int32_t, false, false> const&,
-                                             raft::device_span<int32_t const>,
-                                             size_t,
-                                             bool);
+template bool validate_sampling_empty_result(
+  raft::handle_t const&,
+  cugraph::graph_view_t<int32_t, int32_t, false, false> const&,
+  raft::device_span<int32_t const>,
+  size_t,
+  bool);
 
-template bool validate_sampling_empty_result(raft::handle_t const&,
-                                             cugraph::graph_view_t<int64_t, int64_t, false, false> const&,
-                                             raft::device_span<int64_t const>,
-                                             size_t,
-                                             bool);
+template bool validate_sampling_empty_result(
+  raft::handle_t const&,
+  cugraph::graph_view_t<int64_t, int64_t, false, false> const&,
+  raft::device_span<int64_t const>,
+  size_t,
+  bool);
 
 template bool validate_sampling_empty_result(
   raft::handle_t const&,

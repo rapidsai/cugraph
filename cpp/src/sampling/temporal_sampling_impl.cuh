@@ -928,7 +928,7 @@ temporal_neighbor_sample_impl(
       std::move(result_hops),
       sampling_flags.return_hops ? std::make_optional<int32_t>(num_hops) : std::nullopt,
       output_labels ? std::make_optional(raft::device_span<label_t const>{output_labels->data(),
-                                                                         output_labels->size()})
+                                                                          output_labels->size()})
                     : std::nullopt,
       label_to_output_comm_rank);
 

@@ -48,8 +48,7 @@ rmm::device_uvector<bool> mark_local_seeds(raft::handle_t const& handle,
     [starting_vertices,
      range_first = graph_view.local_vertex_partition_range_first(),
      range_last  = graph_view.local_vertex_partition_range_last(),
-     is_seed =
-       raft::device_span<bool>{is_seed.data(), is_seed.size()}] __device__(size_t i) {
+     is_seed     = raft::device_span<bool>{is_seed.data(), is_seed.size()}] __device__(size_t i) {
       auto v = starting_vertices[i];
       if ((v < range_first) || (v >= range_last)) { return; }
       is_seed[static_cast<size_t>(v - range_first)] = true;
@@ -84,20 +83,21 @@ bool validate_sampling_empty_result(
     cugraph::update_edge_dst_property(
       handle, graph_view, is_seed.begin(), edge_dst_is_seed.mutable_view());
 
-    num_eligible = static_cast<size_t>(cugraph::count_if_e(
-      handle,
-      graph_view,
-      edge_src_is_seed.view(),
-      edge_dst_is_seed.view(),
-      cugraph::edge_dummy_property_t{}.view(),
-      cuda::proclaim_return_type<bool>(
-        [] __device__(auto, auto, bool src_is_seed, bool dst_is_seed, auto) {
-          // Disjoint sampling seeds the visited set with the starting vertices, so an edge into a
-          // starting vertex was never selectable at hop 0.  Excluding every starting vertex rather
-          // than only those sharing a label undercounts when a destination seeds a different label,
-          // which keeps the check one-sided.
-          return src_is_seed && !dst_is_seed;
-        })));
+    num_eligible = static_cast<size_t>(
+      cugraph::count_if_e(handle,
+                          graph_view,
+                          edge_src_is_seed.view(),
+                          edge_dst_is_seed.view(),
+                          cugraph::edge_dummy_property_t{}.view(),
+                          cuda::proclaim_return_type<bool>(
+                            [] __device__(auto, auto, bool src_is_seed, bool dst_is_seed, auto) {
+                              // Disjoint sampling seeds the visited set with the starting vertices,
+                              // so an edge into a starting vertex was never selectable at hop 0.
+                              // Excluding every starting vertex rather than only those sharing a
+                              // label undercounts when a destination seeds a different label, which
+                              // keeps the check one-sided.
+                              return src_is_seed && !dst_is_seed;
+                            })));
   } else {
     num_eligible = static_cast<size_t>(cugraph::count_if_e(
       handle,

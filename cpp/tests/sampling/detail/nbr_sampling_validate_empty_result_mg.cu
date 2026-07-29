@@ -11,17 +11,19 @@
 namespace cugraph {
 namespace test {
 
-template bool validate_sampling_empty_result(raft::handle_t const&,
-                                             cugraph::graph_view_t<int32_t, int32_t, false, true> const&,
-                                             raft::device_span<int32_t const>,
-                                             size_t,
-                                             bool);
+template bool validate_sampling_empty_result(
+  raft::handle_t const&,
+  cugraph::graph_view_t<int32_t, int32_t, false, true> const&,
+  raft::device_span<int32_t const>,
+  size_t,
+  bool);
 
-template bool validate_sampling_empty_result(raft::handle_t const&,
-                                             cugraph::graph_view_t<int64_t, int64_t, false, true> const&,
-                                             raft::device_span<int64_t const>,
-                                             size_t,
-                                             bool);
+template bool validate_sampling_empty_result(
+  raft::handle_t const&,
+  cugraph::graph_view_t<int64_t, int64_t, false, true> const&,
+  raft::device_span<int64_t const>,
+  size_t,
+  bool);
 
 template bool validate_sampling_empty_result(
   raft::handle_t const&,

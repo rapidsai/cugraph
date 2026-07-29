@@ -28,15 +28,15 @@ namespace detail {
  * @brief Determine which labels this GPU is responsible for reporting in the sampling output.
  *
  * The offsets array returned by @ref shuffle_and_organize_output delineates one range per label, so
- * it needs an entry for every label this GPU reports plus a trailing total.  The label set has to be
- * derived from the seeds rather than from the labels that survive sampling: a label can legitimately
- * sample no edges (for temporal sampling, when nothing incident on its seeds satisfies the time
- * window), and dropping it would shift every subsequent label's range.
+ * it needs an entry for every label this GPU reports plus a trailing total.  The label set has to
+ * be derived from the seeds rather than from the labels that survive sampling: a label can
+ * legitimately sample no edges (for temporal sampling, when nothing incident on its seeds satisfies
+ * the time window), and dropping it would shift every subsequent label's range.
  *
- * When @p label_to_output_comm_rank is specified the sampled edges are shuffled so that each label's
- * edges end up on the rank owning that label, so this GPU reports exactly the labels assigned to it.
- * Without that mapping no shuffling happens, so every GPU reports the entire label range while
- * holding only the edges it sampled locally.
+ * When @p label_to_output_comm_rank is specified the sampled edges are shuffled so that each
+ * label's edges end up on the rank owning that label, so this GPU reports exactly the labels
+ * assigned to it. Without that mapping no shuffling happens, so every GPU reports the entire label
+ * range while holding only the edges it sampled locally.
  *
  * Labels are expected to be dense in [0, n).
  *
@@ -69,8 +69,8 @@ std::optional<rmm::device_uvector<label_t>> compute_output_labels(
         [output_comm_rank = *label_to_output_comm_rank, my_rank] __device__(label_t label) {
           return output_comm_rank[label] == my_rank;
         });
-      output_labels.resize(
-        static_cast<size_t>(cuda::std::distance(output_labels.begin(), last)), handle.get_stream());
+      output_labels.resize(static_cast<size_t>(cuda::std::distance(output_labels.begin(), last)),
+                           handle.get_stream());
 
       return output_labels;
     }
