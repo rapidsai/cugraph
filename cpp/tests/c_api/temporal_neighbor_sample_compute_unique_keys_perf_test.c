@@ -264,6 +264,7 @@ static int run_temporal_sampling_benchmark(const cugraph_resource_handle_t* hand
   cugraph_sampling_set_prior_sources_behavior(options, DEFAULT);
   cugraph_sampling_set_dedupe_sources(options, FALSE);
   cugraph_sampling_set_renumber_results(options, FALSE);
+  cugraph_sampling_set_disjoint_sampling(options, TRUE);
   cugraph_sampling_set_temporal_sampling_comparison(options, MONOTONICALLY_INCREASING);
   fan_out_view = cugraph_type_erased_host_array_view_create(fan_out, fan_out_size, INT32);
 

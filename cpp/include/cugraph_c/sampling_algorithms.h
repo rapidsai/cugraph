@@ -530,9 +530,16 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample
  * Returns a sample of the neighborhood around specified start vertices and fan_out.
  * The neighborhood is sampled uniformly.
  *
- * Temporal sampling considers the time associated with the edges.  For example, if we start at
- * vertex v1 and sample an edge that takes us to vertex v2 at time t1, when we sample in the next
- * hop from vertex v2, we want to consider only edges that occur after time t1.
+ * Temporal sampling considers the time associated with the edges. For increasing walks, if we
+ * start at vertex v1 and sample an edge that takes us to vertex v2 at time t1, when we sample in
+ * the next hop from vertex v2 we consider only edges that occur after time t1; for decreasing
+ * walks the restriction is to edges that occur before time t1.
+ *
+ * Each seed may also supply an optional closed time window via @p starting_vertex_start_times and
+ * @p starting_vertex_end_times. Eligible edge times must lie in that window for the entire walk.
+ * The window bounds additionally determine the hop-0 frontier: increasing walks begin at the
+ * start bound (or -inf if omitted), while decreasing walks begin at the end bound (or +inf if
+ * omitted). See the parameter docs below for details.
  *
  * Optionally, each start vertex can be associated with a label, allowing the caller to specify
  * multiple batches of sampling requests in the same function call - which should improve GPU
@@ -548,14 +555,25 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample
  * @param [in]  temporal_property_name Name associated with the edge property in the graph that
  * should be used as the time.  Currently unused.
  * @param [in]  start_vertices Device array of start vertices for the sampling
- * @param [in]  starting_vertex_start_times Optional device span of start times defining the lower
- * bound of the time window for each starting vertex. When specified with @p
- * starting_vertex_end_times, must be less than or equal to the corresponding end time. For
- * increasing walks the frontier begins at this time; for decreasing walks the frontier begins at @p
- * starting_vertex_end_times.
- * @param [in]  starting_vertex_end_times Optional device span of end times defining the upper bound
- * of the time window for each starting vertex. Edge start times must fall within
- * [@p starting_vertex_start_times, @p starting_vertex_end_times] when both bounds are specified.
+ * @param [in]  starting_vertex_start_times Optional device array of per-seed lower bounds of the
+ * time window. Edge times must be >= this value when present. Either or both of
+ * @p starting_vertex_start_times and @p starting_vertex_end_times may be NULL (unbounded on that
+ * side). When both are provided, each start time must be <= the corresponding end time.
+ *
+ * For increasing walks (STRICTLY_INCREASING / MONOTONICALLY_INCREASING), the hop-0 frontier
+ * originates at this time (or is unbounded below if NULL), so this array is both the window's
+ * lower bound and the initial frontier time.
+ *
+ * For decreasing walks (STRICTLY_DECREASING / MONOTONICALLY_DECREASING), the hop-0 frontier
+ * originates at @p starting_vertex_end_times instead (or is unbounded above if that is NULL), and
+ * this array remains only the window's lower bound (a floor on eligible edge times). Providing
+ * only @p starting_vertex_start_times on a decreasing walk therefore yields a window [start, +inf)
+ * whose frontier begins at +inf.
+ * @param [in]  starting_vertex_end_times Optional device array of per-seed upper bounds of the
+ * time window. Edge times must be <= this value when present. See @p starting_vertex_start_times
+ * for optionality and the increasing/decreasing role reversal: for decreasing walks this array is
+ * both the window's upper bound and the hop-0 frontier time; for increasing walks it is only the
+ * upper bound (a ceiling).
  * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
  * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
@@ -590,9 +608,16 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbo
  * Returns a sample of the neighborhood around specified start vertices and fan_out.
  * The neighborhood is sampled uniformly.
  *
- * Temporal sampling considers the time associated with the edges.  For example, if we start at
- * vertex v1 and sample an edge that takes us to vertex v2 at time t1, when we sample in the next
- * hop from vertex v2, we want to consider only edges that occur after time t1.
+ * Temporal sampling considers the time associated with the edges. For increasing walks, if we
+ * start at vertex v1 and sample an edge that takes us to vertex v2 at time t1, when we sample in
+ * the next hop from vertex v2 we consider only edges that occur after time t1; for decreasing
+ * walks the restriction is to edges that occur before time t1.
+ *
+ * Each seed may also supply an optional closed time window via @p starting_vertex_start_times and
+ * @p starting_vertex_end_times. Eligible edge times must lie in that window for the entire walk.
+ * The window bounds additionally determine the hop-0 frontier: increasing walks begin at the
+ * start bound (or -inf if omitted), while decreasing walks begin at the end bound (or +inf if
+ * omitted). See the parameter docs below for details.
  *
  * Optionally, each start vertex can be associated with a label, allowing the caller to specify
  * multiple batches of sampling requests in the same function call - which should improve GPU
@@ -610,14 +635,25 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbo
  * @param [in]  edge_biases  Device array of edge biases to use for sampling.  If NULL
  * use the edge weight as the bias. If set to NULL, edges will be sampled uniformly.
  * @param [in]  start_vertices Device array of start vertices for the sampling
- * @param [in]  starting_vertex_start_times Optional device span of start times defining the lower
- * bound of the time window for each starting vertex. When specified with @p
- * starting_vertex_end_times, must be less than or equal to the corresponding end time. For
- * increasing walks the frontier begins at this time; for decreasing walks the frontier begins at @p
- * starting_vertex_end_times.
- * @param [in]  starting_vertex_end_times Optional device span of end times defining the upper bound
- * of the time window for each starting vertex. Edge start times must fall within
- * [@p starting_vertex_start_times, @p starting_vertex_end_times] when both bounds are specified.
+ * @param [in]  starting_vertex_start_times Optional device array of per-seed lower bounds of the
+ * time window. Edge times must be >= this value when present. Either or both of
+ * @p starting_vertex_start_times and @p starting_vertex_end_times may be NULL (unbounded on that
+ * side). When both are provided, each start time must be <= the corresponding end time.
+ *
+ * For increasing walks (STRICTLY_INCREASING / MONOTONICALLY_INCREASING), the hop-0 frontier
+ * originates at this time (or is unbounded below if NULL), so this array is both the window's
+ * lower bound and the initial frontier time.
+ *
+ * For decreasing walks (STRICTLY_DECREASING / MONOTONICALLY_DECREASING), the hop-0 frontier
+ * originates at @p starting_vertex_end_times instead (or is unbounded above if that is NULL), and
+ * this array remains only the window's lower bound (a floor on eligible edge times). Providing
+ * only @p starting_vertex_start_times on a decreasing walk therefore yields a window [start, +inf)
+ * whose frontier begins at +inf.
+ * @param [in]  starting_vertex_end_times Optional device array of per-seed upper bounds of the
+ * time window. Edge times must be <= this value when present. See @p starting_vertex_start_times
+ * for optionality and the increasing/decreasing role reversal: for decreasing walks this array is
+ * both the window's upper bound and the hop-0 frontier time; for increasing walks it is only the
+ * upper bound (a ceiling).
  * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
  * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
@@ -653,9 +689,16 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor
  * Returns a sample of the neighborhood around specified start vertices and fan_out.
  * The neighborhood is sampled uniformly.
  *
- * Temporal sampling considers the time associated with the edges.  For example, if we start at
- * vertex v1 and sample an edge that takes us to vertex v2 at time t1, when we sample in the next
- * hop from vertex v2, we want to consider only edges that occur after time t1.
+ * Temporal sampling considers the time associated with the edges. For increasing walks, if we
+ * start at vertex v1 and sample an edge that takes us to vertex v2 at time t1, when we sample in
+ * the next hop from vertex v2 we consider only edges that occur after time t1; for decreasing
+ * walks the restriction is to edges that occur before time t1.
+ *
+ * Each seed may also supply an optional closed time window via @p starting_vertex_start_times and
+ * @p starting_vertex_end_times. Eligible edge times must lie in that window for the entire walk.
+ * The window bounds additionally determine the hop-0 frontier: increasing walks begin at the
+ * start bound (or -inf if omitted), while decreasing walks begin at the end bound (or +inf if
+ * omitted). See the parameter docs below for details.
  *
  * Optionally, each start vertex can be associated with a label, allowing the caller to specify
  * multiple batches of sampling requests in the same function call - which should improve GPU
@@ -671,14 +714,25 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor
  * @param [in]  temporal_property_name Name associated with the edge property in the graph that
  * should be used as the time.  Currently unused.
  * @param [in]  start_vertices Device array of start vertices for the sampling
- * @param [in]  starting_vertex_start_times Optional device span of start times defining the lower
- * bound of the time window for each starting vertex. When specified with @p
- * starting_vertex_end_times, must be less than or equal to the corresponding end time. For
- * increasing walks the frontier begins at this time; for decreasing walks the frontier begins at @p
- * starting_vertex_end_times.
- * @param [in]  starting_vertex_end_times Optional device span of end times defining the upper bound
- * of the time window for each starting vertex. Edge start times must fall within
- * [@p starting_vertex_start_times, @p starting_vertex_end_times] when both bounds are specified.
+ * @param [in]  starting_vertex_start_times Optional device array of per-seed lower bounds of the
+ * time window. Edge times must be >= this value when present. Either or both of
+ * @p starting_vertex_start_times and @p starting_vertex_end_times may be NULL (unbounded on that
+ * side). When both are provided, each start time must be <= the corresponding end time.
+ *
+ * For increasing walks (STRICTLY_INCREASING / MONOTONICALLY_INCREASING), the hop-0 frontier
+ * originates at this time (or is unbounded below if NULL), so this array is both the window's
+ * lower bound and the initial frontier time.
+ *
+ * For decreasing walks (STRICTLY_DECREASING / MONOTONICALLY_DECREASING), the hop-0 frontier
+ * originates at @p starting_vertex_end_times instead (or is unbounded above if that is NULL), and
+ * this array remains only the window's lower bound (a floor on eligible edge times). Providing
+ * only @p starting_vertex_start_times on a decreasing walk therefore yields a window [start, +inf)
+ * whose frontier begins at +inf.
+ * @param [in]  starting_vertex_end_times Optional device array of per-seed upper bounds of the
+ * time window. Edge times must be <= this value when present. See @p starting_vertex_start_times
+ * for optionality and the increasing/decreasing role reversal: for decreasing walks this array is
+ * both the window's upper bound and the hop-0 frontier time; for increasing walks it is only the
+ * upper bound (a ceiling).
  * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
  * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  vertex_type_offsets Device array of the offsets for each vertex type in the
@@ -719,9 +773,16 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neigh
  * Returns a sample of the neighborhood around specified start vertices and fan_out.
  * The neighborhood is sampled uniformly.
  *
- * Temporal sampling considers the time associated with the edges.  For example, if we start at
- * vertex v1 and sample an edge that takes us to vertex v2 at time t1, when we sample in the next
- * hop from vertex v2, we want to consider only edges that occur after time t1.
+ * Temporal sampling considers the time associated with the edges. For increasing walks, if we
+ * start at vertex v1 and sample an edge that takes us to vertex v2 at time t1, when we sample in
+ * the next hop from vertex v2 we consider only edges that occur after time t1; for decreasing
+ * walks the restriction is to edges that occur before time t1.
+ *
+ * Each seed may also supply an optional closed time window via @p starting_vertex_start_times and
+ * @p starting_vertex_end_times. Eligible edge times must lie in that window for the entire walk.
+ * The window bounds additionally determine the hop-0 frontier: increasing walks begin at the
+ * start bound (or -inf if omitted), while decreasing walks begin at the end bound (or +inf if
+ * omitted). See the parameter docs below for details.
  *
  * Optionally, each start vertex can be associated with a label, allowing the caller to specify
  * multiple batches of sampling requests in the same function call - which should improve GPU
@@ -739,14 +800,25 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neigh
  * @param [in]  edge_biases  Device array of edge biases to use for sampling.  If NULL
  * use the edge weight as the bias. If set to NULL, edges will be sampled uniformly.
  * @param [in]  start_vertices Device array of start vertices for the sampling
- * @param [in]  starting_vertex_start_times Optional device span of start times defining the lower
- * bound of the time window for each starting vertex. When specified with @p
- * starting_vertex_end_times, must be less than or equal to the corresponding end time. For
- * increasing walks the frontier begins at this time; for decreasing walks the frontier begins at @p
- * starting_vertex_end_times.
- * @param [in]  starting_vertex_end_times Optional device span of end times defining the upper bound
- * of the time window for each starting vertex. Edge start times must fall within
- * [@p starting_vertex_start_times, @p starting_vertex_end_times] when both bounds are specified.
+ * @param [in]  starting_vertex_start_times Optional device array of per-seed lower bounds of the
+ * time window. Edge times must be >= this value when present. Either or both of
+ * @p starting_vertex_start_times and @p starting_vertex_end_times may be NULL (unbounded on that
+ * side). When both are provided, each start time must be <= the corresponding end time.
+ *
+ * For increasing walks (STRICTLY_INCREASING / MONOTONICALLY_INCREASING), the hop-0 frontier
+ * originates at this time (or is unbounded below if NULL), so this array is both the window's
+ * lower bound and the initial frontier time.
+ *
+ * For decreasing walks (STRICTLY_DECREASING / MONOTONICALLY_DECREASING), the hop-0 frontier
+ * originates at @p starting_vertex_end_times instead (or is unbounded above if that is NULL), and
+ * this array remains only the window's lower bound (a floor on eligible edge times). Providing
+ * only @p starting_vertex_start_times on a decreasing walk therefore yields a window [start, +inf)
+ * whose frontier begins at +inf.
+ * @param [in]  starting_vertex_end_times Optional device array of per-seed upper bounds of the
+ * time window. Edge times must be <= this value when present. See @p starting_vertex_start_times
+ * for optionality and the increasing/decreasing role reversal: for decreasing walks this array is
+ * both the window's upper bound and the hop-0 frontier time; for increasing walks it is only the
+ * upper bound (a ceiling).
  * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
  * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  vertex_type_offsets Device array of the offsets for each vertex type in the

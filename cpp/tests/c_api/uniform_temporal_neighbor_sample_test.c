@@ -1499,12 +1499,12 @@ int test_uniform_temporal_neighbor_sample_with_start_time_only_monotonically_dec
   bool_t renumber_results                                             = FALSE;
   cugraph_temporal_sampling_comparison_t temporal_sampling_comparison = MONOTONICALLY_DECREASING;
 
-  // With no explicit window lower bound, the decreasing walk beginning at time 5 is unbounded
-  // below. All three edges have start times <= 5 and are therefore eligible.
+  // With MONOTONICALLY_DECREASING the walk originates at the seed end time, which is unspecified
+  // here and therefore unbounded above.  The seed start time remains the window's lower bound, so
+  // the window is [5, inf) and only the neighbor at time 5 is in range; the neighbors at times 4
+  // and 1 fall below the window start.
   expected_temporal_sample_edge_t expected_edges[] = {
     {0, 1, 5, 0},
-    {0, 2, 4, 0},
-    {0, 3, 1, 0},
   };
 
   return generic_uniform_temporal_neighbor_sample_test(

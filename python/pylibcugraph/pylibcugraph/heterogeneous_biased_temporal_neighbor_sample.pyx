@@ -129,10 +129,15 @@ def heterogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle
         Device array containing the list of starting vertices for sampling.
 
     starting_vertex_start_times: device array type (Optional)
-        Optional array of times associated with each starting vertex. If provided,
-        this establishes the initial time at which sampling begins for each start
-        vertex. Must have length equal to len(start_vertex_list) and a dtype
-        compatible with the graph's temporal property.
+        Optional per-seed lower bound of the time window. Edge times must be >=
+        this value when provided. Must have length equal to len(start_vertex_list)
+        and a dtype compatible with the graph's temporal property.
+
+        For increasing walks this is also the hop-0 frontier time (sampling begins
+        here and walks forward). For decreasing walks the frontier originates at
+        the (currently unbound) upper end of the window instead, and this array
+        remains only a floor on eligible edge times, yielding a window
+        [start, +inf) whose frontier begins at +inf.
 
     starting_vertex_label_offsets: device array type (Optional)
         Offsets of each label within the start vertex list. Expanding

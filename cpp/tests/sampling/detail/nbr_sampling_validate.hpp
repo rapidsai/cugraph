@@ -49,7 +49,10 @@ bool validate_temporal_integrity(
  * @brief Validate sampled edge times against each starting vertex's time window.
  *
  * Every sampled edge must be within the bounds supplied for the seed from which it descends.
- * Either bound may be omitted, in which case that side of the window is unbounded.
+ * Either bound may be omitted, in which case that side of the window is unbounded. Note that for
+ * decreasing walks the hop-0 frontier originates at the end bound (or +inf if omitted), while the
+ * start bound remains a floor on eligible edge times; for increasing walks the frontier originates
+ * at the start bound.
  */
 template <typename vertex_t, typename time_stamp_t>
 bool validate_temporal_time_windows(
