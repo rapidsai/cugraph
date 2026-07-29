@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -13,7 +13,9 @@ from pylibcugraph._cugraph_c.resource_handle cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
+    cugraph_type_erased_host_array_view_t,
 )
+
 from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_code_t,
     cugraph_error_t,
@@ -24,11 +26,23 @@ cdef assert_success(cugraph_error_code_t code,
                     cugraph_error_t* err,
                     api_name)
 
-cdef assert_CAI_type(obj, var_name, allow_None=*)
+cpdef bint is_device_accessible(obj)
 
-cdef assert_AI_type(obj, var_name, allow_None=*)
+cpdef bint is_host_accessible(obj)
+
+cdef assert_device_accessible(obj, var_name, allow_None=*)
+
+cdef assert_host_accessible(obj, var_name, allow_None=*)
 
 cdef get_numpy_type_from_c_type(cugraph_data_type_id_t c_type)
+
+cpdef cugraph_data_type_id_t get_c_type_from_py_obj(object python_obj) except *
+
+cdef get_dtype_name_from_c_type(cugraph_data_type_id_t c_type)
+
+cdef size_t get_size_from_py_obj(object python_obj) except *
+
+cdef get_last_item_from_py_obj(object python_obj)
 
 cdef get_c_type_from_numpy_type(numpy_type)
 
@@ -46,6 +60,15 @@ cdef copy_to_cupy_array_ids(
 
 cdef cugraph_type_erased_device_array_view_t* \
     create_cugraph_type_erased_device_array_view_from_py_obj(python_obj)
+
+cdef cugraph_type_erased_device_array_view_t* \
+    create_cugraph_type_erased_device_array_view_from_py_obj_as_type(
+        python_obj,
+        cugraph_data_type_id_t dtype
+    )
+
+cdef cugraph_type_erased_host_array_view_t* \
+    create_cugraph_type_erased_host_array_view_from_py_obj(python_obj)
 
 cdef create_cupy_array_view_for_device_ptr(
     cugraph_type_erased_device_array_view_t* device_array_view_ptr,

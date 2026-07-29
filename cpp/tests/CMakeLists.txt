@@ -920,6 +920,7 @@ endif()
 # - C API tests -----------------------------------------------------------------------------------
 
 ConfigureCTest(CAPI_DLPACK_INTEROP_TEST c_api/dlpack_interop_test.c)
+target_include_directories(CAPI_DLPACK_INTEROP_TEST PRIVATE "${DLPACK_INCLUDE_DIR}")
 ConfigureCTest(CAPI_CREATE_GRAPH_TEST c_api/create_graph_test.c)
 ConfigureCTest(CAPI_GENERATE_RMAT_TEST c_api/generate_rmat_test.c)
 ConfigureCTest(CAPI_PAGERANK_TEST c_api/pagerank_test.c)

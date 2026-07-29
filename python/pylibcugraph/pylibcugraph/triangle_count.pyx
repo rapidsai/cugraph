@@ -1,10 +1,8 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
 # cython: language_level = 3
-
-from libc.stdint cimport uintptr_t
 
 from pylibcugraph._cugraph_c.types cimport (
     bool_t,
@@ -18,7 +16,6 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
-    cugraph_type_erased_device_array_view_create,
     cugraph_type_erased_device_array_view_free,
 )
 from pylibcugraph._cugraph_c.graph cimport (
@@ -40,8 +37,9 @@ from pylibcugraph.graphs cimport (
 from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
-    assert_CAI_type,
+    assert_device_accessible,
     get_c_type_from_numpy_type,
+    create_cugraph_type_erased_device_array_view_from_py_obj,
 )
 
 
@@ -85,24 +83,14 @@ def triangle_count(ResourceHandle resource_handle,
         resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
 
-    assert_CAI_type(start_list, "start_list", allow_None=True)
+    assert_device_accessible(start_list, "start_list", allow_None=True)
 
     cdef cugraph_triangle_count_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    cdef uintptr_t cai_start_ptr
-    cdef cugraph_type_erased_device_array_view_t* start_ptr
-
-    if start_list is not None:
-        cai_start_ptr = start_list.__cuda_array_interface__["data"][0]
-        start_ptr = \
-            cugraph_type_erased_device_array_view_create(
-                <void*>cai_start_ptr,
-                len(start_list),
-                get_c_type_from_numpy_type(start_list.dtype))
-    else:
-        start_ptr = NULL
+    cdef cugraph_type_erased_device_array_view_t* start_ptr = \
+        create_cugraph_type_erased_device_array_view_from_py_obj(start_list)
 
     error_code = cugraph_triangle_count(c_resource_handle_ptr,
                                         c_graph_ptr,
