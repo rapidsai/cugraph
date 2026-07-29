@@ -85,7 +85,7 @@ def homogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handle,
                                                  bool_t do_expensive_check,
                                                  prior_sources_behavior=None,
                                                  deduplicate_sources=False,
-                                                 disjoint_sampling=False,
+                                                 disjoint_sampling=True,
                                                  return_hops=False,
                                                  renumber=False,
                                                  retain_seeds=False,
@@ -181,8 +181,9 @@ def homogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handle,
         a batch.
 
     disjoint_sampling: bool (Optional)
-        If True, enables disjoint sampling between seeds per hop when supported.
-        Defaults to False.
+        If True, enables disjoint sampling between seeds per hop.
+        Defaults to True.  Temporal sampling requires disjoint sampling, so
+        passing False raises an error.
 
     random_state: int (Optional)
         Random state to use when generating samples.  Optional argument,
@@ -267,8 +268,6 @@ def homogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handle,
 
     # FIXME: refactor the way we are creating pointer. Can use a single helper function to create
 
-    print("start_vertex_list", start_vertex_list)
-    print("starting_vertex_start_times", starting_vertex_start_times)
     assert_CAI_type(start_vertex_list, "start_vertex_list")
     assert_CAI_type(starting_vertex_start_times, "starting_vertex_start_times", True)
     assert_CAI_type(starting_vertex_label_offsets, "starting_vertex_label_offsets", True)

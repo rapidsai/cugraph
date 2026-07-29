@@ -245,7 +245,9 @@ def test_starting_vertex_start_times_length_mismatch_raises():
     bad_times = cp.asarray([1], dtype=np.int32)
     fanout = np.asarray([1], dtype=np.int32)
 
-    with pytest.raises(Exception):
+    with pytest.raises(
+        Exception, match="starting_vertex_start_times should have the same size"
+    ):
         homogeneous_uniform_temporal_neighbor_sample(
             rh,
             G,
