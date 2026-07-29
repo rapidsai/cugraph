@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "neighbor_sampling_impl.hpp"
+#include "neighbor_sampling_impl.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/export.hpp>

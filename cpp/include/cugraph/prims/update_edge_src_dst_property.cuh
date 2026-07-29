@@ -18,6 +18,8 @@
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/scatter.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/core/handle.hpp>
@@ -36,7 +38,6 @@
 #include <thrust/gather.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/permutation_iterator.h>
-#include <thrust/scatter.h>
 
 #include <algorithm>
 #include <numeric>
@@ -190,14 +191,13 @@ void update_edge_major_property(raft::handle_t const& handle,
 
           auto v_offset_first = cuda::make_transform_iterator(
             (*edge_partition_keys)[i].begin(),
-            cuda::proclaim_return_type<vertex_t>(
-              [v_first = graph_view.vertex_partition_range_first(
-                 major_range_vertex_partition_id)] __device__(auto v) { return v - v_first; }));
-          thrust::gather(handle.get_thrust_policy(),
-                         v_offset_first,
-                         v_offset_first + (*edge_partition_keys)[i].size(),
-                         rx_value_first,
-                         edge_partition_value_firsts[i]);
+            detail::shift_left_t<vertex_t>{
+              graph_view.vertex_partition_range_first(major_range_vertex_partition_id)});
+          cugraph::gather(handle.get_thrust_policy(),
+                          v_offset_first,
+                          v_offset_first + (*edge_partition_keys)[i].size(),
+                          rx_value_first,
+                          edge_partition_value_firsts[i]);
         }
       }
     } else {
@@ -387,11 +387,11 @@ void update_edge_major_property(
             }));
           // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
           // directly scatters from the internal buffer)
-          thrust::scatter(handle.get_thrust_policy(),
-                          rx_value_first,
-                          rx_value_first + local_v_list_sizes[i],
-                          map_first,
-                          edge_partition_value_firsts[i]);
+          cugraph::scatter(handle.get_thrust_policy(),
+                           rx_value_first,
+                           rx_value_first + local_v_list_sizes[i],
+                           map_first,
+                           edge_partition_value_firsts[i]);
         }
       }
     }
@@ -413,12 +413,12 @@ void update_edge_major_property(
           packed_bool_atomic_set(output_value_first, v, val);
         });
     } else {
-      thrust::scatter(handle.get_thrust_policy(),
-                      sorted_unique_vertex_property_input_first,
-                      sorted_unique_vertex_property_input_first +
-                        cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
-                      sorted_unique_vertex_first,
-                      edge_partition_value_firsts[0]);
+      cugraph::scatter(handle.get_thrust_policy(),
+                       sorted_unique_vertex_property_input_first,
+                       sorted_unique_vertex_property_input_first +
+                         cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
+                       sorted_unique_vertex_first,
+                       edge_partition_value_firsts[0]);
     }
   }
 }
@@ -631,14 +631,13 @@ void update_edge_minor_property(raft::handle_t const& handle,
 
               auto v_offset_first = cuda::make_transform_iterator(
                 (*edge_partition_keys).begin() + key_offsets[j],
-                cuda::proclaim_return_type<vertex_t>(
-                  [v_first = graph_view.vertex_partition_range_first(
-                     minor_range_vertex_partition_id)] __device__(auto v) { return v - v_first; }));
-              thrust::gather(handle.get_thrust_policy(),
-                             v_offset_first,
-                             v_offset_first + (key_offsets[j + 1] - key_offsets[j]),
-                             rx_value_first,
-                             edge_partition_value_first + key_offsets[j]);
+                detail::shift_left_t<vertex_t>{
+                  graph_view.vertex_partition_range_first(minor_range_vertex_partition_id)});
+              cugraph::gather(handle.get_thrust_policy(),
+                              v_offset_first,
+                              v_offset_first + (key_offsets[j + 1] - key_offsets[j]),
+                              rx_value_first,
+                              edge_partition_value_first + key_offsets[j]);
             }
           }
         }
@@ -856,11 +855,11 @@ void update_edge_minor_property(
             }));
           // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
           // directly scatters from the internal buffer)
-          thrust::scatter(handle.get_thrust_policy(),
-                          rx_value_first,
-                          rx_value_first + local_v_list_sizes[i],
-                          map_first,
-                          edge_partition_value_first);
+          cugraph::scatter(handle.get_thrust_policy(),
+                           rx_value_first,
+                           rx_value_first + local_v_list_sizes[i],
+                           map_first,
+                           edge_partition_value_first);
         }
       }
     }
@@ -880,12 +879,12 @@ void update_edge_minor_property(
           packed_bool_atomic_set(output_value_first, v, val);
         });
     } else {
-      thrust::scatter(handle.get_thrust_policy(),
-                      sorted_unique_vertex_property_input_first,
-                      sorted_unique_vertex_property_input_first +
-                        cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
-                      sorted_unique_vertex_first,
-                      edge_partition_value_first);
+      cugraph::scatter(handle.get_thrust_policy(),
+                       sorted_unique_vertex_property_input_first,
+                       sorted_unique_vertex_property_input_first +
+                         cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
+                       sorted_unique_vertex_first,
+                       edge_partition_value_first);
     }
   }
 }

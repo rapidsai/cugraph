@@ -15,6 +15,7 @@
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/util/device_atomics.cuh>
@@ -158,10 +159,10 @@ update_local_sorted_unique_edge_majors_minors(
     auto minor_range_size = meta.partition.local_edge_partition_minor_range_size();
     rmm::device_uvector<uint32_t> minor_bitmaps(packed_bool_size(minor_range_size),
                                                 handle.get_stream());
-    thrust::fill(handle.get_thrust_policy(),
-                 minor_bitmaps.begin(),
-                 minor_bitmaps.end(),
-                 packed_bool_empty_mask());
+    cugraph::fill(handle.get_thrust_policy(),
+                  minor_bitmaps.begin(),
+                  minor_bitmaps.end(),
+                  packed_bool_empty_mask());
     for (size_t i = 0; i < edge_partition_indices.size(); ++i) {
       thrust::for_each(handle.get_thrust_policy(),
                        edge_partition_indices[i].begin(),
@@ -398,7 +399,7 @@ compute_edge_partition_dcs_nzd_range_bitmaps(
       packed_bool_size(segment_offsets[detail::num_sparse_segments_per_vertex_partition + 1] -
                        segment_offsets[detail::num_sparse_segments_per_vertex_partition]),
       handle.get_stream());
-    thrust::fill(
+    cugraph::fill(
       handle.get_thrust_policy(), bitmap.begin(), bitmap.end(), packed_bool_empty_mask());
     auto major_range_first = meta.partition.local_edge_partition_major_range_first(i);
     auto major_hypersparse_first =

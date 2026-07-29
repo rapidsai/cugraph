@@ -22,6 +22,9 @@
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
@@ -842,9 +845,9 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
                  frontier_key_first,
                  frontier_key_last,
                  get_dataframe_buffer_begin(frontier_keys));
-    thrust::sort(handle.get_thrust_policy(),
-                 get_dataframe_buffer_begin(frontier_keys),
-                 get_dataframe_buffer_end(frontier_keys));
+    cugraph::sort(handle.get_thrust_policy(),
+                  get_dataframe_buffer_begin(frontier_keys),
+                  get_dataframe_buffer_end(frontier_keys));
     frontier_key_first = get_dataframe_buffer_begin(frontier_keys);
     frontier_key_last  = get_dataframe_buffer_end(frontier_keys);
   }
@@ -899,7 +902,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
     size_t frontier_majors_size =
       static_cast<size_t>(cuda::std::distance(frontier_key_first, frontier_key_last));
 
-    if constexpr (std::is_pointer_v<std::decay<decltype(frontier_majors_first)>>) {
+    if constexpr (std::is_pointer_v<std::decay_t<decltype(frontier_majors_first)>>) {
       auto frontier_majors =
         raft::device_span<vertex_t const>(frontier_majors_first, frontier_majors_size);
       if (edge_partition_e_mask) {
@@ -974,7 +977,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
       if (key_list_size > 0) {
         auto h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer_view.data());
         assert(h_staging_buffer_view.size() >= size_t{2});
-        if constexpr (std::is_pointer_v<std::decay<decltype(frontier_key_first)>>) {
+        if constexpr (std::is_pointer_v<std::decay_t<decltype(frontier_key_first)>>) {
           raft::update_host(
             h_staging_buffer_ptr, frontier_key_first, size_t{1}, handle.get_stream());
           raft::update_host(h_staging_buffer_ptr + 1,
@@ -1444,25 +1447,23 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
             bool computed{false};
             if constexpr (try_bitmap) {
               if (keys.index() == 0) {
-                auto major_first = cuda::make_transform_iterator(
-                  std::get<0>(keys).begin(),
-                  detail::shift_right_t<vertex_t>{local_frontier_range_firsts[partition_idx]});
+                auto const& keys_uint32 = std::get<0>(keys);
+                auto local_majors_span =
+                  raft::device_span<uint32_t const>(keys_uint32.data(), keys_uint32.size());
+                auto majors = majors_from_offsets_t<uint32_t, vertex_t>{
+                  local_majors_span, local_frontier_range_firsts[partition_idx]};
                 if (edge_partition_e_mask) {
                   auto edge_partition_e_mask_span = raft::device_span<uint32_t const>(
                     edge_partition_e_mask->value_first(),
                     packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
                   edge_partition.compute_number_of_edges_with_mask_async(
                     edge_partition_e_mask_span,
-                    major_first,
-                    major_first + std::get<0>(keys).size(),
+                    majors,
                     raft::device_span<size_t>(counters.data() + j, size_t{1}),
                     loop_stream);
                 } else {
                   edge_partition.compute_number_of_edges_async(
-                    major_first,
-                    major_first + std::get<0>(keys).size(),
-                    raft::device_span<size_t>(counters.data() + j, size_t{1}),
-                    loop_stream);
+                    majors, raft::device_span<size_t>(counters.data() + j, size_t{1}), loop_stream);
                 }
                 computed = true;
               }
@@ -1573,10 +1574,10 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
                     auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
                     return static_cast<size_t>(edge_partition.local_degree(major_offset));
                   }));
-              thrust::inclusive_scan(rmm::exec_policy_nosync(loop_stream),
-                                     key_local_degree_first,
-                                     key_local_degree_first + key_segment_offsets[1],
-                                     high_segment_key_local_degree_offsets.begin() + 1);
+              cugraph::inclusive_scan(rmm::exec_policy_nosync(loop_stream),
+                                      key_local_degree_first,
+                                      key_local_degree_first + key_segment_offsets[1],
+                                      high_segment_key_local_degree_offsets.begin() + 1);
               computed = true;
             }
           }
@@ -1597,10 +1598,10 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
                 auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
                 return static_cast<size_t>(edge_partition.local_degree(major_offset));
               }));
-            thrust::inclusive_scan(rmm::exec_policy_nosync(loop_stream),
-                                   key_local_degree_first,
-                                   key_local_degree_first + key_segment_offsets[1],
-                                   high_segment_key_local_degree_offsets.begin() + 1);
+            cugraph::inclusive_scan(rmm::exec_policy_nosync(loop_stream),
+                                    key_local_degree_first,
+                                    key_local_degree_first + key_segment_offsets[1],
+                                    high_segment_key_local_degree_offsets.begin() + 1);
           }
           thrust::copy(rmm::exec_policy_nosync(loop_stream),
                        high_segment_key_local_degree_offsets.begin() + key_segment_offsets[1],
@@ -1627,7 +1628,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
       if (loop_stream_pool_indices) { RAFT_CUDA_TRY(cudaDeviceSynchronize()); }
     }
 
-    thrust::fill(
+    cugraph::fill(
       handle.get_thrust_policy(), counters.begin(), counters.begin() + loop_count, size_t{0});
     if (loop_stream_pool_indices) { handle.sync_stream(); }
 

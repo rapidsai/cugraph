@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -24,6 +24,9 @@
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/core/handle.hpp>
@@ -117,10 +120,10 @@ filter_buffer_elements(
 
   rmm::device_uvector<priority_t> priorities(allreduce_count_per_rank * major_comm_size,
                                              handle.get_stream());
-  thrust::fill(handle.get_thrust_policy(),
-               priorities.begin(),
-               priorities.end(),
-               std::numeric_limits<priority_t>::max());
+  cugraph::fill(handle.get_thrust_policy(),
+                priorities.begin(),
+                priorities.end(),
+                std::numeric_limits<priority_t>::max());
   thrust::for_each(
     handle.get_thrust_policy(),
     unique_v_buffer.begin(),
@@ -264,9 +267,9 @@ sort_and_reduce_buffer_elements(
                 if (invalid_key && key == *invalid_key) { return false; }
                 return key < threshold;
               }))));
-        thrust::sort(handle.get_thrust_policy(),
-                     get_dataframe_buffer_begin(key_buffer),
-                     get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements);
+        cugraph::sort(handle.get_thrust_policy(),
+                      get_dataframe_buffer_begin(key_buffer),
+                      get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements);
 
       } else {
         auto pair_first = thrust::make_zip_iterator(get_dataframe_buffer_begin(key_buffer),
@@ -297,11 +300,13 @@ sort_and_reduce_buffer_elements(
     size_t valid_size{0};
     if constexpr (std::is_same_v<payload_t, void>) {
       auto key_first      = get_dataframe_buffer_begin(key_buffer);
-      auto valid_key_last = thrust::remove(handle.get_thrust_policy(),
-                                           key_first + num_unique_prefix_elements,
-                                           key_first + size_dataframe_buffer(key_buffer),
-                                           *invalid_key);
-      valid_size          = static_cast<size_t>(cuda::std::distance(key_first, valid_key_last));
+      auto valid_key_last = thrust::remove_if(
+        handle.get_thrust_policy(),
+        key_first + num_unique_prefix_elements,
+        key_first + size_dataframe_buffer(key_buffer),
+        cuda::proclaim_return_type<bool>(
+          [invalid_key = *invalid_key] __device__(auto key) { return key == invalid_key; }));
+      valid_size = static_cast<size_t>(cuda::std::distance(key_first, valid_key_last));
     } else {
       auto pair_first      = thrust::make_zip_iterator(get_dataframe_buffer_begin(key_buffer),
                                                   get_dataframe_buffer_begin(payload_buffer));
@@ -335,7 +340,7 @@ sort_and_reduce_buffer_elements(
       rmm::device_uvector<uint32_t> keep_flags(
         packed_bool_size(size_dataframe_buffer(key_buffer) - num_unique_prefix_elements),
         handle.get_stream());
-      thrust::fill(
+      cugraph::fill(
         handle.get_thrust_policy(), bitmap.begin(), bitmap.end(), packed_bool_empty_mask());
       thrust::for_each(
         handle.get_thrust_policy(),
@@ -395,9 +400,9 @@ sort_and_reduce_buffer_elements(
                         get_dataframe_buffer_begin(tmp_key_buffer) + num_unique_prefix_elements,
                         is_equal_t<bool>{true});
         key_buffer = std::move(tmp_key_buffer);
-        thrust::sort(handle.get_thrust_policy(),
-                     get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
-                     get_dataframe_buffer_end(key_buffer));
+        cugraph::sort(handle.get_thrust_policy(),
+                      get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
+                      get_dataframe_buffer_end(key_buffer));
       } else {
         static_assert(std::is_same_v<ReduceOp, reduce_op::any<typename ReduceOp::value_type>>);
         auto tmp_key_buffer = allocate_dataframe_buffer<input_key_t>(
@@ -448,9 +453,9 @@ sort_and_reduce_buffer_elements(
   }
 
   if constexpr (std::is_same_v<payload_t, void>) {
-    thrust::sort(handle.get_thrust_policy(),
-                 get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
-                 get_dataframe_buffer_end(key_buffer));
+    cugraph::sort(handle.get_thrust_policy(),
+                  get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
+                  get_dataframe_buffer_end(key_buffer));
   } else {
     thrust::sort_by_key(handle.get_thrust_policy(),
                         get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
@@ -489,9 +494,9 @@ sort_and_reduce_buffer_elements(
         key_buffer,
         cuda::std::distance(
           get_dataframe_buffer_begin(key_buffer),
-          thrust::unique(handle.get_thrust_policy(),
-                         get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
-                         get_dataframe_buffer_end(key_buffer))),
+          cugraph::unique(handle.get_thrust_policy(),
+                          get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
+                          get_dataframe_buffer_end(key_buffer))),
         handle.get_stream());
       output_key_buffer = std::move(key_buffer);
     }

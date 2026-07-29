@@ -8,7 +8,6 @@
 #include <cugraph/export.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
-#include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>

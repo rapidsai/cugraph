@@ -15,6 +15,11 @@
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -69,10 +74,10 @@ normalize_biases(raft::handle_t const& handle,
                     normalized_biases->begin(),
                     divider_t<weight_t>{sum});
 
-  thrust::inclusive_scan(handle.get_thrust_policy(),
-                         normalized_biases->begin(),
-                         normalized_biases->end(),
-                         normalized_biases->begin());
+  cugraph::inclusive_scan(handle.get_thrust_policy(),
+                          normalized_biases->begin(),
+                          normalized_biases->end(),
+                          normalized_biases->begin());
 
   if constexpr (multi_gpu) {
     rmm::device_scalar<weight_t> d_sum(sum, handle.get_stream());
@@ -102,7 +107,7 @@ normalize_biases(raft::handle_t const& handle,
                       gpu_biases->begin(),
                       divider_t<weight_t>{aggregate_sum});
 
-    thrust::inclusive_scan(
+    cugraph::inclusive_scan(
       handle.get_thrust_policy(), gpu_biases->begin(), gpu_biases->end(), gpu_biases->begin());
 
     // FIXME: conclusion of above.  Using 1.1 since it is > 1.0 and easy to type
@@ -146,8 +151,8 @@ rmm::device_uvector<vertex_t> create_local_samples(
       rmm::device_uvector<size_t> gpu_counts(comm_size, handle.get_stream());
       position.resize(samples_in_this_batch, handle.get_stream());
 
-      thrust::fill(handle.get_thrust_policy(), gpu_counts.begin(), gpu_counts.end(), size_t{0});
-      thrust::sequence(handle.get_thrust_policy(), position.begin(), position.end());
+      cugraph::fill(handle.get_thrust_policy(), gpu_counts.begin(), gpu_counts.end(), size_t{0});
+      cugraph::sequence(handle.get_thrust_policy(), position.begin(), position.end());
 
       rmm::device_uvector<weight_t> random_values(samples_in_this_batch, handle.get_stream());
       detail::uniform_random_fill(handle.get_stream(),
@@ -157,9 +162,9 @@ rmm::device_uvector<vertex_t> create_local_samples(
                                   weight_t{1},
                                   rng_state);
 
-      thrust::sort(handle.get_thrust_policy(),
-                   thrust::make_zip_iterator(random_values.begin(), position.begin()),
-                   thrust::make_zip_iterator(random_values.end(), position.end()));
+      cugraph::sort(handle.get_thrust_policy(),
+                    thrust::make_zip_iterator(random_values.begin(), position.begin()),
+                    thrust::make_zip_iterator(random_values.end(), position.end()));
 
       thrust::upper_bound(handle.get_thrust_policy(),
                           random_values.begin(),
@@ -236,9 +241,9 @@ rmm::device_uvector<vertex_t> create_local_samples(
                                                      sample_count_from_each_gpu.size()),
                        handle.get_stream());
 
-      thrust::sort(handle.get_thrust_policy(),
-                   thrust::make_zip_iterator(position.begin(), samples.begin()),
-                   thrust::make_zip_iterator(position.end(), samples.begin()));
+      cugraph::sort(handle.get_thrust_policy(),
+                    thrust::make_zip_iterator(position.begin(), samples.begin()),
+                    thrust::make_zip_iterator(position.end(), samples.begin()));
     }
   } else {
     samples.resize(samples_in_this_batch, handle.get_stream());
@@ -352,14 +357,14 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
     }
 
     if (remove_duplicates) {
-      thrust::sort(handle.get_thrust_policy(),
-                   thrust::make_zip_iterator(batch_srcs.begin(), batch_dsts.begin()),
-                   thrust::make_zip_iterator(batch_srcs.end(), batch_dsts.end()));
+      cugraph::sort(handle.get_thrust_policy(),
+                    thrust::make_zip_iterator(batch_srcs.begin(), batch_dsts.begin()),
+                    thrust::make_zip_iterator(batch_srcs.end(), batch_dsts.end()));
 
       auto new_end =
-        thrust::unique(handle.get_thrust_policy(),
-                       thrust::make_zip_iterator(batch_srcs.begin(), batch_dsts.begin()),
-                       thrust::make_zip_iterator(batch_srcs.end(), batch_dsts.end()));
+        cugraph::unique(handle.get_thrust_policy(),
+                        thrust::make_zip_iterator(batch_srcs.begin(), batch_dsts.begin()),
+                        thrust::make_zip_iterator(batch_srcs.end(), batch_dsts.end()));
 
       size_t new_size = cuda::std::distance(
         thrust::make_zip_iterator(batch_srcs.begin(), batch_dsts.begin()), new_end);
@@ -375,9 +380,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
                       thrust::make_zip_iterator(srcs.end(), dsts.end()),
                       thrust::make_zip_iterator(new_src.begin(), new_dst.begin()));
 
-        new_end = thrust::unique(handle.get_thrust_policy(),
-                                 thrust::make_zip_iterator(new_src.begin(), new_dst.begin()),
-                                 thrust::make_zip_iterator(new_src.end(), new_dst.end()));
+        new_end = cugraph::unique(handle.get_thrust_policy(),
+                                  thrust::make_zip_iterator(new_src.begin(), new_dst.begin()),
+                                  thrust::make_zip_iterator(new_src.end(), new_dst.end()));
 
         new_size =
           cuda::std::distance(thrust::make_zip_iterator(new_src.begin(), new_dst.begin()), new_end);

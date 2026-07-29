@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -17,9 +17,16 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/iterator_utils.hpp>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/random/rng.cuh>
@@ -32,6 +39,7 @@
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/adjacent_difference.h>
+#include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -42,6 +50,7 @@
 
 #include <optional>
 #include <tuple>
+#include <type_traits>
 
 namespace CUGRAPH_EXPORT cugraph {
 
@@ -400,14 +409,14 @@ compute_unique_keys(raft::handle_t const& handle,
                  aggregate_local_frontier_key_first + local_frontier_offsets[i],
                  aggregate_local_frontier_key_first + local_frontier_offsets[i + 1],
                  get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i]);
-    thrust::sort(handle.get_thrust_policy(),
-                 get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
-                 get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i + 1]);
+    cugraph::sort(handle.get_thrust_policy(),
+                  get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
+                  get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i + 1]);
     local_frontier_unique_key_sizes[i] = cuda::std::distance(
       get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
-      thrust::unique(handle.get_thrust_policy(),
-                     get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
-                     get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i + 1]));
+      cugraph::unique(handle.get_thrust_policy(),
+                      get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
+                      get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i + 1]));
   }
   std::inclusive_scan(local_frontier_unique_key_sizes.begin(),
                       local_frontier_unique_key_sizes.end(),
@@ -422,19 +431,15 @@ compute_unique_keys(raft::handle_t const& handle,
                    local_frontier_unique_key_sizes[i],
                  get_dataframe_buffer_begin(aggregate_local_frontier_unique_keys) +
                    local_frontier_unique_key_offsets[i]);
-    thrust::transform(
+    thrust::lower_bound(
       handle.get_thrust_policy(),
+      get_dataframe_buffer_begin(aggregate_local_frontier_unique_keys) +
+        local_frontier_unique_key_offsets[i],
+      get_dataframe_buffer_begin(aggregate_local_frontier_unique_keys) +
+        local_frontier_unique_key_offsets[i + 1],
       aggregate_local_frontier_key_first + local_frontier_offsets[i],
       aggregate_local_frontier_key_first + local_frontier_offsets[i + 1],
-      aggregate_local_frontier_key_idx_to_unique_key_idx.begin() + local_frontier_offsets[i],
-      cuda::proclaim_return_type<size_t>(
-        [unique_key_first = get_dataframe_buffer_begin(aggregate_local_frontier_unique_keys) +
-                            local_frontier_unique_key_offsets[i],
-         unique_key_last = get_dataframe_buffer_begin(aggregate_local_frontier_unique_keys) +
-                           local_frontier_unique_key_offsets[i + 1]] __device__(key_t key) {
-          return static_cast<size_t>(cuda::std::distance(
-            unique_key_first, thrust::find(thrust::seq, unique_key_first, unique_key_last, key)));
-        }));
+      aggregate_local_frontier_key_idx_to_unique_key_idx.begin() + local_frontier_offsets[i]);
   }
 
   return std::make_tuple(std::move(aggregate_local_frontier_unique_keys),
@@ -521,10 +526,22 @@ compute_valid_local_nbr_count_inclusive_sums(raft::handle_t const& handle,
             *edge_mask_view, i)
         : cuda::std::nullopt;
 
-    auto edge_partition_local_degrees = edge_partition.compute_local_degrees(
-      aggregate_local_frontier_major_first + local_frontier_offsets[i],
-      aggregate_local_frontier_major_first + local_frontier_offsets[i + 1],
-      handle.get_stream());
+    auto const frontier_partition_size = local_frontier_offsets[i + 1] - local_frontier_offsets[i];
+    auto edge_partition_major_first =
+      aggregate_local_frontier_major_first + local_frontier_offsets[i];
+
+    auto edge_partition_local_degrees = [&]() {
+      if constexpr (is_arithmetic_pointer_v<std::decay_t<decltype(edge_partition_major_first)>>) {
+        auto const majors_span = raft::device_span<vertex_t const>(
+          edge_partition_major_first, static_cast<size_t>(frontier_partition_size));
+        return edge_partition.compute_local_degrees(majors_span, handle.get_stream());
+      } else {
+        return edge_partition.compute_local_degrees(
+          edge_partition_major_first,
+          edge_partition_major_first + frontier_partition_size,
+          handle.get_stream());
+      }
+    }();
     auto inclusive_sum_offsets = rmm::device_uvector<size_t>(
       (local_frontier_offsets[i + 1] - local_frontier_offsets[i]) + 1, handle.get_stream());
     inclusive_sum_offsets.set_element_to_zero_async(0, handle.get_stream());
@@ -534,10 +551,10 @@ compute_valid_local_nbr_count_inclusive_sums(raft::handle_t const& handle,
         return static_cast<size_t>((local_degree + packed_bools_per_word() - 1) /
                                    packed_bools_per_word());
       }));
-    thrust::inclusive_scan(handle.get_thrust_policy(),
-                           size_first,
-                           size_first + edge_partition_local_degrees.size(),
-                           inclusive_sum_offsets.begin() + 1);
+    cugraph::inclusive_scan(handle.get_thrust_policy(),
+                            size_first,
+                            size_first + edge_partition_local_degrees.size(),
+                            inclusive_sum_offsets.begin() + 1);
 
     auto [edge_partition_frontier_indices, frontier_partition_offsets] = partition_v_frontier(
       handle,
@@ -696,7 +713,7 @@ void sample_nbr_index_with_replacement(
       std::get<1>(*frontier_index_type_pairs).begin(),
       cuda::proclaim_return_type<size_t>(
         [K_offsets] __device__(auto type) { return K_offsets[type + 1] - K_offsets[type]; }));
-    thrust::inclusive_scan(
+    cugraph::inclusive_scan(
       handle.get_thrust_policy(), k_first, k_first + num_keys, (*input_r_offsets).begin() + 1);
   }
 
@@ -821,10 +838,10 @@ void sample_nbr_index_without_replacement(
           auto d = static_cast<size_t>(frontier_degrees[i]);
           return d > K ? (d - K) : size_t{0};
         }));
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             count_first,
-                             count_first + num_keys,
-                             input_r_offsets.begin() + 1);
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              count_first,
+                              count_first + num_keys,
+                              input_r_offsets.begin() + 1);
 
     } else {
       auto count_first = cuda::make_transform_iterator(
@@ -832,10 +849,10 @@ void sample_nbr_index_without_replacement(
           auto d = static_cast<size_t>(degree);
           return d > K ? (d - K) : size_t{0};
         }));
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             count_first,
-                             count_first + num_keys,
-                             input_r_offsets.begin() + 1);
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              count_first,
+                              count_first + num_keys,
+                              input_r_offsets.begin() + 1);
     }
 
     rmm::device_uvector<bias_t> sample_random_numbers(
@@ -906,7 +923,7 @@ void sample_nbr_index_without_replacement(
       std::get<1>(*frontier_index_type_pairs).begin(),
       cuda::proclaim_return_type<size_t>(
         [K_offsets] __device__(auto type) { return K_offsets[type + 1] - K_offsets[type]; }));
-    thrust::inclusive_scan(
+    cugraph::inclusive_scan(
       handle.get_thrust_policy(), k_first, k_first + num_keys, sample_size_offsets.begin() + 1);
 
     thrust::for_each(
@@ -973,10 +990,10 @@ void sample_nbr_index_without_replacement(
             auto K = K_offsets[type + 1] - K_offsets[type];
             return d > K ? (d - K) : size_t{0};
           }));
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             count_first,
-                             count_first + num_keys,
-                             input_r_offsets.begin() + 1);
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              count_first,
+                              count_first + num_keys,
+                              input_r_offsets.begin() + 1);
     } else {
       auto count_first = cuda::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
@@ -988,10 +1005,10 @@ void sample_nbr_index_without_replacement(
             auto K              = K_offsets[type + 1] - K_offsets[type];
             return d > K ? (d - K) : size_t{0};
           }));
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             count_first,
-                             count_first + num_keys,
-                             input_r_offsets.begin() + 1);
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              count_first,
+                              count_first + num_keys,
+                              input_r_offsets.begin() + 1);
     }
 
     rmm::device_uvector<bias_t> sample_random_numbers(
@@ -1146,11 +1163,11 @@ rmm::device_uvector<edge_t> compute_homogeneous_uniform_sampling_index_without_r
         if (retry_segment_indices) {
           rmm::device_uvector<edge_t> tmp_degrees((*retry_segment_indices).size(),
                                                   handle.get_stream());
-          thrust::gather(handle.get_thrust_policy(),
-                         (*retry_segment_indices).begin(),
-                         (*retry_segment_indices).end(),
-                         segment_frontier_degree_first,
-                         tmp_degrees.begin());
+          cugraph::gather(handle.get_thrust_policy(),
+                          (*retry_segment_indices).begin(),
+                          (*retry_segment_indices).end(),
+                          segment_frontier_degree_first,
+                          tmp_degrees.begin());
           sample_nbr_index_with_replacement<edge_t, bias_t>(
             handle,
             raft::device_span<edge_t const>(tmp_degrees.data(), tmp_degrees.size()),
@@ -1563,11 +1580,11 @@ rmm::device_uvector<edge_t> compute_heterogeneous_uniform_sampling_index_without
         if (retry_segment_indices) {
           rmm::device_uvector<edge_t> tmp_per_type_degrees((*retry_segment_indices).size(),
                                                            handle.get_stream());
-          thrust::gather(handle.get_thrust_policy(),
-                         (*retry_segment_indices).begin(),
-                         (*retry_segment_indices).end(),
-                         segment_frontier_per_type_degree_first,
-                         tmp_per_type_degrees.begin());
+          cugraph::gather(handle.get_thrust_policy(),
+                          (*retry_segment_indices).begin(),
+                          (*retry_segment_indices).end(),
+                          segment_frontier_per_type_degree_first,
+                          tmp_per_type_degrees.begin());
           sample_nbr_index_with_replacement<edge_t, bias_t>(
             handle,
             raft::device_span<edge_t const>(tmp_per_type_degrees.data(),
@@ -1854,10 +1871,10 @@ rmm::device_uvector<edge_t> compute_heterogeneous_uniform_sampling_index_without
         segment_frontier_type_first,
         cuda::proclaim_return_type<size_t>(
           [K_offsets] __device__(auto type) { return K_offsets[type + 1] - K_offsets[type]; }));
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             k_first,
-                             k_first + num_segments,
-                             output_count_offsets.begin() + 1);
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              k_first,
+                              k_first + num_segments,
+                              output_count_offsets.begin() + 1);
       thrust::for_each(
         handle.get_thrust_policy(),
         thrust::make_counting_iterator(size_t{0}),
@@ -1922,10 +1939,10 @@ void compute_homogeneous_biased_sampling_index_without_replacement(
         cuda::proclaim_return_type<size_t>([input_degree_offsets] __device__(size_t i) {
           return input_degree_offsets[i + 1] - input_degree_offsets[i];
         }));
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             degree_first,
-                             degree_first + (*input_frontier_indices).size(),
-                             (*packed_input_degree_offsets).begin() + 1);
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              degree_first,
+                              degree_first + (*input_frontier_indices).size(),
+                              (*packed_input_degree_offsets).begin() + 1);
     }
 
     // generate (key, nbr_index) pairs
@@ -2183,10 +2200,10 @@ void compute_heterogeneous_biased_sampling_index_without_replacement(
             return input_per_type_degree_offsets[idx * num_edge_types + type + 1] -
                    input_per_type_degree_offsets[idx * num_edge_types + type];
           }));
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             per_type_degree_first,
-                             per_type_degree_first + (*input_frontier_indices).size(),
-                             (*packed_input_per_type_degree_offsets).begin() + 1);
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              per_type_degree_first,
+                              per_type_degree_first + (*input_frontier_indices).size(),
+                              (*packed_input_per_type_degree_offsets).begin() + 1);
     }
 
     // generate (key, nbr_index) pairs
@@ -2409,19 +2426,37 @@ compute_aggregate_local_frontier_local_degrees(raft::handle_t const& handle,
             *edge_mask_view, i)
         : cuda::std::nullopt;
 
-    auto edge_partition_frontier_local_degrees =
-      !edge_partition_e_mask
-        ? edge_partition.compute_local_degrees(
-            aggregate_local_frontier_major_first + local_frontier_offsets[i],
-            aggregate_local_frontier_major_first + local_frontier_offsets[i + 1],
-            handle.get_stream())
-        : edge_partition.compute_local_degrees_with_mask(
-            raft::device_span<uint32_t const>(
-              (*edge_partition_e_mask).value_first(),
-              packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges()))),
-            aggregate_local_frontier_major_first + local_frontier_offsets[i],
-            aggregate_local_frontier_major_first + local_frontier_offsets[i + 1],
-            handle.get_stream());
+    auto const frontier_partition_size = local_frontier_offsets[i + 1] - local_frontier_offsets[i];
+    auto edge_partition_major_first =
+      aggregate_local_frontier_major_first + local_frontier_offsets[i];
+
+    auto edge_partition_frontier_local_degrees = [&]() {
+      if constexpr (is_arithmetic_pointer_v<std::decay_t<decltype(edge_partition_major_first)>>) {
+        auto const majors_span = raft::device_span<vertex_t const>(
+          edge_partition_major_first, static_cast<size_t>(frontier_partition_size));
+        return !edge_partition_e_mask
+                 ? edge_partition.compute_local_degrees(majors_span, handle.get_stream())
+                 : edge_partition.compute_local_degrees_with_mask(
+                     raft::device_span<uint32_t const>(
+                       (*edge_partition_e_mask).value_first(),
+                       packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges()))),
+                     majors_span,
+                     handle.get_stream());
+      } else {
+        return !edge_partition_e_mask
+                 ? edge_partition.compute_local_degrees(
+                     edge_partition_major_first,
+                     edge_partition_major_first + frontier_partition_size,
+                     handle.get_stream())
+                 : edge_partition.compute_local_degrees_with_mask(
+                     raft::device_span<uint32_t const>(
+                       (*edge_partition_e_mask).value_first(),
+                       packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges()))),
+                     edge_partition_major_first,
+                     edge_partition_major_first + frontier_partition_size,
+                     handle.get_stream());
+      }
+    }();
 
     // FIXME: this copy is unnecessary if edge_partition.compute_local_degrees() takes a pointer
     // to the output array
@@ -2618,10 +2653,10 @@ compute_aggregate_local_frontier_biases(raft::handle_t const& handle,
     aggregate_local_frontier_biases = std::move(nz_biases);
   }
 
-  thrust::inclusive_scan(handle.get_thrust_policy(),
-                         aggregate_local_frontier_local_degrees.begin(),
-                         aggregate_local_frontier_local_degrees.end(),
-                         aggregate_local_frontier_local_degree_offsets.begin() + 1);
+  cugraph::inclusive_scan(handle.get_thrust_policy(),
+                          aggregate_local_frontier_local_degrees.begin(),
+                          aggregate_local_frontier_local_degrees.end(),
+                          aggregate_local_frontier_local_degree_offsets.begin() + 1);
 
   return std::make_tuple(std::move(aggregate_local_frontier_biases),
                          std::move(aggregate_local_frontier_nz_bias_indices),
@@ -2789,10 +2824,10 @@ compute_aggregate_local_frontier_bias_type_pairs(
                      });
   }
 
-  thrust::inclusive_scan(handle.get_thrust_policy(),
-                         aggregate_local_frontier_local_degrees.begin(),
-                         aggregate_local_frontier_local_degrees.end(),
-                         aggregate_local_frontier_local_degree_offsets.begin() + 1);
+  cugraph::inclusive_scan(handle.get_thrust_policy(),
+                          aggregate_local_frontier_local_degrees.begin(),
+                          aggregate_local_frontier_local_degrees.end(),
+                          aggregate_local_frontier_local_degree_offsets.begin() + 1);
 
   {
     auto triplet_first =
@@ -2876,7 +2911,7 @@ shuffle_and_compute_local_nbr_values(
     rmm::device_uvector<size_t>(sample_local_nbr_values.size(), handle.get_stream());
 
   rmm::device_uvector<size_t> d_tx_counts(minor_comm_size, handle.get_stream());
-  thrust::fill(handle.get_thrust_policy(), d_tx_counts.begin(), d_tx_counts.end(), size_t{0});
+  cugraph::fill(handle.get_thrust_policy(), d_tx_counts.begin(), d_tx_counts.end(), size_t{0});
   auto input_pair_first = thrust::make_zip_iterator(
     sample_local_nbr_values.begin(),
     cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{0}), divider_t<size_t>{K}));
@@ -2899,7 +2934,7 @@ shuffle_and_compute_local_nbr_values(
       minor_comm_size,
       invalid_value});
   rmm::device_uvector<size_t> tx_displacements(minor_comm_size, handle.get_stream());
-  thrust::exclusive_scan(
+  cugraph::exclusive_scan(
     handle.get_thrust_policy(), d_tx_counts.begin(), d_tx_counts.end(), tx_displacements.begin());
   auto tmp_sample_local_nbr_values =
     rmm::device_uvector<value_t>(tx_displacements.back_element(handle.get_stream()) +
@@ -2985,7 +3020,7 @@ shuffle_and_compute_per_type_local_nbr_values(
     rmm::device_uvector<size_t>(sample_per_type_local_nbr_values.size(), handle.get_stream());
 
   rmm::device_uvector<size_t> d_tx_counts(minor_comm_size, handle.get_stream());
-  thrust::fill(handle.get_thrust_policy(), d_tx_counts.begin(), d_tx_counts.end(), size_t{0});
+  cugraph::fill(handle.get_thrust_policy(), d_tx_counts.begin(), d_tx_counts.end(), size_t{0});
   auto input_pair_first   = thrust::make_zip_iterator(sample_per_type_local_nbr_values.begin(),
                                                     thrust::make_counting_iterator(size_t{0}));
   auto output_tuple_first = thrust::make_zip_iterator(minor_comm_ranks.begin(),
@@ -3011,7 +3046,7 @@ shuffle_and_compute_per_type_local_nbr_values(
                      minor_comm_size,
                      invalid_value});
   rmm::device_uvector<size_t> tx_displacements(minor_comm_size, handle.get_stream());
-  thrust::exclusive_scan(
+  cugraph::exclusive_scan(
     handle.get_thrust_policy(), d_tx_counts.begin(), d_tx_counts.end(), tx_displacements.begin());
   auto tmp_sample_per_type_local_nbr_values =
     rmm::device_uvector<value_t>(tx_displacements.back_element(handle.get_stream()) +
@@ -3625,12 +3660,12 @@ homogeneous_biased_sample_without_replacement(
           aggregate_mid_local_frontier_local_degrees.size() + 1, handle.get_stream());
         aggregate_mid_local_frontier_local_degree_offsets.set_element_to_zero_async(
           0, handle.get_stream());
-        thrust::inclusive_scan(handle.get_thrust_policy(),
-                               aggregate_mid_local_frontier_local_degrees.begin(),
-                               aggregate_mid_local_frontier_local_degrees.end(),
-                               aggregate_mid_local_frontier_local_degree_offsets.begin() + 1,
-                               size_t{0},
-                               converting_plus_t<edge_t, size_t>{});
+        cugraph::inclusive_scan(handle.get_thrust_policy(),
+                                aggregate_mid_local_frontier_local_degrees.begin(),
+                                aggregate_mid_local_frontier_local_degrees.end(),
+                                aggregate_mid_local_frontier_local_degree_offsets.begin() + 1,
+                                size_t{0},
+                                converting_plus_t<edge_t, size_t>{});
         aggregate_mid_local_frontier_biases.resize(
           aggregate_mid_local_frontier_local_degree_offsets.back_element(handle.get_stream()),
           handle.get_stream());
@@ -3688,11 +3723,11 @@ homogeneous_biased_sample_without_replacement(
                d_mid_local_frontier_offsets.size())] __device__(size_t i) {
               return mid_local_frontier_offsets[i + 1];
             }));
-        thrust::gather(handle.get_thrust_policy(),
-                       map_first,
-                       map_first + num_local_edge_partitions,
-                       aggregate_mid_local_frontier_local_degree_offsets.begin(),
-                       d_lasts.begin());
+        cugraph::gather(handle.get_thrust_policy(),
+                        map_first,
+                        map_first + num_local_edge_partitions,
+                        aggregate_mid_local_frontier_local_degree_offsets.begin(),
+                        d_lasts.begin());
         std::vector<size_t> h_lasts(d_lasts.size());
         raft::update_host(h_lasts.data(), d_lasts.data(), d_lasts.size(), handle.get_stream());
         handle.sync_stream();
@@ -3719,12 +3754,12 @@ homogeneous_biased_sample_without_replacement(
           mid_frontier_gathered_local_degrees.size() + 1, handle.get_stream());
         mid_frontier_gathered_local_degree_offsets.set_element_to_zero_async(0,
                                                                              handle.get_stream());
-        thrust::inclusive_scan(handle.get_thrust_policy(),
-                               mid_frontier_gathered_local_degrees.begin(),
-                               mid_frontier_gathered_local_degrees.end(),
-                               mid_frontier_gathered_local_degree_offsets.begin() + 1,
-                               size_t{0},
-                               converting_plus_t<edge_t, size_t>{});
+        cugraph::inclusive_scan(handle.get_thrust_policy(),
+                                mid_frontier_gathered_local_degrees.begin(),
+                                mid_frontier_gathered_local_degrees.end(),
+                                mid_frontier_gathered_local_degree_offsets.begin() + 1,
+                                size_t{0},
+                                converting_plus_t<edge_t, size_t>{});
       }
 
       rmm::device_uvector<bias_t> mid_frontier_gathered_biases(0, handle.get_stream());
@@ -3746,12 +3781,12 @@ homogeneous_biased_sample_without_replacement(
       rmm::device_uvector<size_t> mid_frontier_degree_offsets(mid_frontier_size + 1,
                                                               handle.get_stream());
       mid_frontier_degree_offsets.set_element_to_zero_async(0, handle.get_stream());
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             mid_frontier_degree_first,
-                             mid_frontier_degree_first + mid_frontier_size,
-                             mid_frontier_degree_offsets.begin() + 1,
-                             size_t{0},
-                             converting_plus_t<edge_t, size_t>{});
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              mid_frontier_degree_first,
+                              mid_frontier_degree_first + mid_frontier_size,
+                              mid_frontier_degree_offsets.begin() + 1,
+                              size_t{0},
+                              converting_plus_t<edge_t, size_t>{});
       rmm::device_uvector<bias_t> mid_frontier_biases(mid_frontier_gathered_biases.size(),
                                                       handle.get_stream());
       thrust::for_each(
@@ -3834,7 +3869,7 @@ homogeneous_biased_sample_without_replacement(
       for (size_t i = 0; i < num_local_edge_partitions; ++i) {
         rmm::device_uvector<size_t> unique_key_indices_for_key_indices(high_local_frontier_sizes[i],
                                                                        handle.get_stream());
-        thrust::gather(
+        cugraph::gather(
           handle.get_thrust_policy(),
           aggregate_high_local_frontier_indices.begin() + high_local_frontier_offsets[i],
           aggregate_high_local_frontier_indices.begin() + high_local_frontier_offsets[i + 1],
@@ -3920,7 +3955,7 @@ homogeneous_biased_sample_without_replacement(
                                                                    minor_comm_rank] +
                    high_frontier_gathered_local_nbr_indices[i];
           }));
-      thrust::gather(
+      cugraph::gather(
         handle.get_thrust_policy(),
         index_first,
         index_first + high_frontier_nbr_indices.size(),
@@ -4033,7 +4068,7 @@ homogeneous_biased_sample_without_replacement(
     if (mid_and_high_frontier_size > 0) {
       rmm::device_uvector<size_t> unique_key_indices_for_key_indices(mid_and_high_frontier_size,
                                                                      handle.get_stream());
-      thrust::gather(
+      cugraph::gather(
         handle.get_thrust_policy(),
         frontier_indices.begin() + frontier_partition_offsets[1],
         frontier_indices.begin() + frontier_partition_offsets[1] + mid_and_high_frontier_size,
@@ -4272,7 +4307,7 @@ heterogeneous_biased_sample_without_replacement(
           aggregate_mid_local_frontier_per_type_local_degrees.size() + 1, handle.get_stream());
         aggregate_mid_local_frontier_per_type_local_degree_offsets.set_element_to_zero_async(
           0, handle.get_stream());
-        thrust::inclusive_scan(
+        cugraph::inclusive_scan(
           handle.get_thrust_policy(),
           aggregate_mid_local_frontier_per_type_local_degrees.begin(),
           aggregate_mid_local_frontier_per_type_local_degrees.end(),
@@ -4345,11 +4380,11 @@ heterogeneous_biased_sample_without_replacement(
                             mid_local_frontier_offsets.size(),
                             handle.get_stream());
         rmm::device_uvector<size_t> d_lasts(num_local_edge_partitions, handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       d_mid_local_frontier_offsets.begin() + 1,
-                       d_mid_local_frontier_offsets.end(),
-                       aggregate_mid_local_frontier_per_type_local_degree_offsets.begin(),
-                       d_lasts.begin());
+        cugraph::gather(handle.get_thrust_policy(),
+                        d_mid_local_frontier_offsets.begin() + 1,
+                        d_mid_local_frontier_offsets.end(),
+                        aggregate_mid_local_frontier_per_type_local_degree_offsets.begin(),
+                        d_lasts.begin());
         std::vector<size_t> h_lasts(d_lasts.size());
         raft::update_host(h_lasts.data(), d_lasts.data(), d_lasts.size(), handle.get_stream());
         handle.sync_stream();
@@ -4375,12 +4410,12 @@ heterogeneous_biased_sample_without_replacement(
           mid_frontier_gathered_per_type_local_degrees.size() + 1, handle.get_stream());
         mid_frontier_gathered_per_type_local_degree_offsets.set_element_to_zero_async(
           0, handle.get_stream());
-        thrust::inclusive_scan(handle.get_thrust_policy(),
-                               mid_frontier_gathered_per_type_local_degrees.begin(),
-                               mid_frontier_gathered_per_type_local_degrees.end(),
-                               mid_frontier_gathered_per_type_local_degree_offsets.begin() + 1,
-                               size_t{0},
-                               converting_plus_t<edge_t, size_t>{});
+        cugraph::inclusive_scan(handle.get_thrust_policy(),
+                                mid_frontier_gathered_per_type_local_degrees.begin(),
+                                mid_frontier_gathered_per_type_local_degrees.end(),
+                                mid_frontier_gathered_per_type_local_degree_offsets.begin() + 1,
+                                size_t{0},
+                                converting_plus_t<edge_t, size_t>{});
       }
 
       rmm::device_uvector<bias_t> mid_frontier_gathered_biases(0, handle.get_stream());
@@ -4405,12 +4440,12 @@ heterogeneous_biased_sample_without_replacement(
       rmm::device_uvector<size_t> mid_frontier_per_type_degree_offsets(mid_frontier_size + 1,
                                                                        handle.get_stream());
       mid_frontier_per_type_degree_offsets.set_element_to_zero_async(0, handle.get_stream());
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             mid_frontier_per_type_degree_first,
-                             mid_frontier_per_type_degree_first + mid_frontier_size,
-                             mid_frontier_per_type_degree_offsets.begin() + 1,
-                             size_t{0},
-                             converting_plus_t<edge_t, size_t>{});
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              mid_frontier_per_type_degree_first,
+                              mid_frontier_per_type_degree_first + mid_frontier_size,
+                              mid_frontier_per_type_degree_offsets.begin() + 1,
+                              size_t{0},
+                              converting_plus_t<edge_t, size_t>{});
       rmm::device_uvector<bias_t> mid_frontier_biases(mid_frontier_gathered_biases.size(),
                                                       handle.get_stream());
       thrust::for_each(
@@ -4522,7 +4557,7 @@ heterogeneous_biased_sample_without_replacement(
             }));
         aggregate_high_local_frontier_output_offsets.set_element_to_zero_async(0,
                                                                                handle.get_stream());
-        thrust::inclusive_scan(
+        cugraph::inclusive_scan(
           handle.get_thrust_policy(),
           K_first,
           K_first + std::get<1>(aggregate_high_local_frontier_index_type_pairs).size(),
@@ -4537,7 +4572,7 @@ heterogeneous_biased_sample_without_replacement(
       for (size_t i = 0; i < num_local_edge_partitions; ++i) {
         rmm::device_uvector<size_t> unique_key_indices_for_key_indices(high_local_frontier_sizes[i],
                                                                        handle.get_stream());
-        thrust::gather(
+        cugraph::gather(
           handle.get_thrust_policy(),
           std::get<0>(aggregate_high_local_frontier_index_type_pairs).begin() +
             high_local_frontier_offsets[i],
@@ -4587,11 +4622,11 @@ heterogeneous_biased_sample_without_replacement(
                             high_local_frontier_offsets.size(),
                             handle.get_stream());
         rmm::device_uvector<size_t> d_lasts(num_local_edge_partitions, handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       d_high_local_frontier_offsets.begin() + 1,
-                       d_high_local_frontier_offsets.end(),
-                       aggregate_high_local_frontier_output_offsets.begin(),
-                       d_lasts.begin());
+        cugraph::gather(handle.get_thrust_policy(),
+                        d_high_local_frontier_offsets.begin() + 1,
+                        d_high_local_frontier_offsets.end(),
+                        aggregate_high_local_frontier_output_offsets.begin(),
+                        d_lasts.begin());
         std::vector<size_t> h_lasts(d_lasts.size());
         raft::update_host(h_lasts.data(), d_lasts.data(), d_lasts.size(), handle.get_stream());
         handle.sync_stream();
@@ -4628,10 +4663,10 @@ heterogeneous_biased_sample_without_replacement(
               return K_offsets[type + 1] - K_offsets[type];
             }));
         high_frontier_output_offsets.set_element_to_zero_async(0, handle.get_stream());
-        thrust::inclusive_scan(handle.get_thrust_policy(),
-                               K_first,
-                               K_first + high_frontier_size,
-                               high_frontier_output_offsets.begin() + 1);
+        cugraph::inclusive_scan(handle.get_thrust_policy(),
+                                K_first,
+                                K_first + high_frontier_size,
+                                high_frontier_output_offsets.begin() + 1);
       }
 
       rmm::device_uvector<edge_t> high_frontier_per_type_nbr_indices(
@@ -4683,13 +4718,13 @@ heterogeneous_biased_sample_without_replacement(
                      [(frontier_idx * num_edge_types + type) * minor_comm_size + minor_comm_rank] +
                    high_frontier_gathered_per_type_local_nbr_indices[i];
           }));
-      thrust::gather(handle.get_thrust_policy(),
-                     index_first,
-                     index_first + high_frontier_per_type_nbr_indices.size(),
-                     thrust::make_zip_iterator(high_frontier_gathered_per_type_nbr_idx_first,
-                                               high_frontier_gathered_keys.begin()),
-                     thrust::make_zip_iterator(high_frontier_per_type_nbr_indices.begin(),
-                                               high_frontier_keys.begin()));
+      cugraph::gather(handle.get_thrust_policy(),
+                      index_first,
+                      index_first + high_frontier_per_type_nbr_indices.size(),
+                      thrust::make_zip_iterator(high_frontier_gathered_per_type_nbr_idx_first,
+                                                high_frontier_gathered_keys.begin()),
+                      thrust::make_zip_iterator(high_frontier_per_type_nbr_indices.begin(),
+                                                high_frontier_keys.begin()));
       high_frontier_gathered_per_type_local_nbr_indices.resize(0, handle.get_stream());
       high_frontier_gathered_per_type_local_nbr_indices.shrink_to_fit(handle.get_stream());
       high_frontier_gathered_keys.resize(0, handle.get_stream());
@@ -4817,7 +4852,7 @@ heterogeneous_biased_sample_without_replacement(
     if (mid_and_high_frontier_size > 0) {
       rmm::device_uvector<size_t> unique_key_indices_for_key_indices(mid_and_high_frontier_size,
                                                                      handle.get_stream());
-      thrust::gather(
+      cugraph::gather(
         handle.get_thrust_policy(),
         frontier_indices.begin() + frontier_partition_offsets[1],
         frontier_indices.begin() + frontier_partition_offsets[1] + mid_and_high_frontier_size,
@@ -5414,12 +5449,12 @@ heterogeneous_uniform_sample_and_compute_local_nbr_indices(
       rmm::device_uvector<size_t> aggregate_local_frontier_unique_key_indices(
         local_frontier_unique_key_offsets.back(), handle.get_stream());
       for (size_t i = 0; i < local_frontier_unique_key_offsets.size() - 1; ++i) {
-        thrust::sequence(handle.get_thrust_policy(),
-                         aggregate_local_frontier_unique_key_indices.begin() +
-                           local_frontier_unique_key_offsets[i],
-                         aggregate_local_frontier_unique_key_indices.begin() +
-                           local_frontier_unique_key_offsets[i + 1],
-                         size_t{0});
+        cugraph::sequence(handle.get_thrust_policy(),
+                          aggregate_local_frontier_unique_key_indices.begin() +
+                            local_frontier_unique_key_offsets[i],
+                          aggregate_local_frontier_unique_key_indices.begin() +
+                            local_frontier_unique_key_offsets[i + 1],
+                          size_t{0});
       }
 
       auto aggregate_local_frontier_unique_key_per_type_local_degrees =
@@ -5441,7 +5476,7 @@ heterogeneous_uniform_sample_and_compute_local_nbr_indices(
 
       aggregate_local_frontier_unique_key_per_type_local_degree_offsets.set_element_to_zero_async(
         0, handle.get_stream());
-      thrust::inclusive_scan(
+      cugraph::inclusive_scan(
         handle.get_thrust_policy(),
         aggregate_local_frontier_unique_key_per_type_local_degrees.begin(),
         aggregate_local_frontier_unique_key_per_type_local_degrees.end(),
@@ -5802,7 +5837,7 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
                                                             handle.get_stream());
       rmm::device_uvector<size_t> sequences(h_nbr_offsets[i + 1] - h_nbr_offsets[i],
                                             handle.get_stream());
-      thrust::sequence(handle.get_thrust_policy(), sequences.begin(), sequences.end(), size_t{0});
+      cugraph::sequence(handle.get_thrust_policy(), sequences.begin(), sequences.end(), size_t{0});
       rmm::device_uvector<size_t> segment_sorted_sequences(h_nbr_offsets[i + 1] - h_nbr_offsets[i],
                                                            handle.get_stream());
 
@@ -5846,7 +5881,7 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
                                                         handle.get_stream());
       rmm::device_uvector<edge_t> segment_sorted_nz_bias_indices(
         h_nbr_offsets[i + 1] - h_nbr_offsets[i], handle.get_stream());
-      thrust::gather(
+      cugraph::gather(
         handle.get_thrust_policy(),
         segment_sorted_sequences.begin(),
         segment_sorted_sequences.end(),
@@ -5879,12 +5914,12 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
       rmm::device_uvector<size_t> aggregate_local_frontier_unique_key_indices(
         local_frontier_unique_key_offsets.back(), handle.get_stream());
       for (size_t i = 0; i < local_frontier_unique_key_offsets.size() - 1; ++i) {
-        thrust::sequence(handle.get_thrust_policy(),
-                         aggregate_local_frontier_unique_key_indices.begin() +
-                           local_frontier_unique_key_offsets[i],
-                         aggregate_local_frontier_unique_key_indices.begin() +
-                           local_frontier_unique_key_offsets[i + 1],
-                         size_t{0});
+        cugraph::sequence(handle.get_thrust_policy(),
+                          aggregate_local_frontier_unique_key_indices.begin() +
+                            local_frontier_unique_key_offsets[i],
+                          aggregate_local_frontier_unique_key_indices.begin() +
+                            local_frontier_unique_key_offsets[i + 1],
+                          size_t{0});
       }
 
       auto aggregate_local_frontier_unique_key_per_type_local_degrees =
@@ -5908,7 +5943,7 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
         aggregate_local_frontier_unique_key_per_type_local_degrees.size() + 1, handle.get_stream());
       aggregate_local_frontier_unique_key_per_type_local_degree_offsets.set_element_to_zero_async(
         0, handle.get_stream());
-      thrust::inclusive_scan(
+      cugraph::inclusive_scan(
         handle.get_thrust_policy(),
         aggregate_local_frontier_unique_key_per_type_local_degrees.begin(),
         aggregate_local_frontier_unique_key_per_type_local_degrees.end(),

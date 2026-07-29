@@ -16,6 +16,7 @@
 #include <cugraph/prims/transform_reduce_v.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -67,10 +68,10 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
                  initial_centralities->end(),
                  centralities.begin());
   } else {
-    thrust::fill(handle.get_thrust_policy(),
-                 centralities.begin(),
-                 centralities.end(),
-                 weight_t{1.0} / static_cast<weight_t>(num_vertices));
+    cugraph::fill(handle.get_thrust_policy(),
+                  centralities.begin(),
+                  centralities.end(),
+                  weight_t{1.0} / static_cast<weight_t>(num_vertices));
   }
 
   // Power iteration

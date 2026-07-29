@@ -1,6 +1,6 @@
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -15,12 +15,14 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_partition_view.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/extract_transform_e.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
@@ -166,6 +168,21 @@ class Tests_MGExtractTransformE
     // 3. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
+      // the MG primitive returns renumbered (internal) vertex IDs while the SG reference graph
+      // below is created in the unrenumbered (external) vertex ID space, so unrenumber first
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        std::get<0>(mg_extract_transform_output_buffer).data(),
+        std::get<0>(mg_extract_transform_output_buffer).size(),
+        (*d_mg_renumber_map_labels).data(),
+        mg_graph_view.vertex_partition_range_lasts());
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        std::get<1>(mg_extract_transform_output_buffer).data(),
+        std::get<1>(mg_extract_transform_output_buffer).size(),
+        (*d_mg_renumber_map_labels).data(),
+        mg_graph_view.vertex_partition_range_lasts());
+
       auto mg_aggregate_extract_transform_output_buffer = cugraph::allocate_dataframe_buffer<
         typename e_op_t<vertex_t, output_payload_t>::return_type>(size_t{0}, handle_->get_stream());
       std::get<0>(mg_aggregate_extract_transform_output_buffer) =
@@ -200,7 +217,7 @@ class Tests_MGExtractTransformE
           false);
 
       if (handle_->get_comms().get_rank() == int{0}) {
-        thrust::sort(
+        cugraph::sort(
           handle_->get_thrust_policy(),
           cugraph::get_dataframe_buffer_begin(mg_aggregate_extract_transform_output_buffer),
           cugraph::get_dataframe_buffer_end(mg_aggregate_extract_transform_output_buffer));
@@ -215,15 +232,18 @@ class Tests_MGExtractTransformE
                                        cugraph::edge_dummy_property_t{}.view(),
                                        e_op_t<vertex_t, output_payload_t>{});
 
-        thrust::sort(handle_->get_thrust_policy(),
-                     cugraph::get_dataframe_buffer_begin(sg_extract_transform_output_buffer),
-                     cugraph::get_dataframe_buffer_end(sg_extract_transform_output_buffer));
+        cugraph::sort(handle_->get_thrust_policy(),
+                      cugraph::get_dataframe_buffer_begin(sg_extract_transform_output_buffer),
+                      cugraph::get_dataframe_buffer_end(sg_extract_transform_output_buffer));
+
+        ASSERT_EQ(cugraph::size_dataframe_buffer(sg_extract_transform_output_buffer),
+                  cugraph::size_dataframe_buffer(mg_aggregate_extract_transform_output_buffer));
 
         bool e_op_result_passed = thrust::equal(
           handle_->get_thrust_policy(),
           cugraph::get_dataframe_buffer_begin(sg_extract_transform_output_buffer),
-          cugraph::get_dataframe_buffer_begin(sg_extract_transform_output_buffer),
-          cugraph::get_dataframe_buffer_end(mg_aggregate_extract_transform_output_buffer));
+          cugraph::get_dataframe_buffer_end(sg_extract_transform_output_buffer),
+          cugraph::get_dataframe_buffer_begin(mg_aggregate_extract_transform_output_buffer));
         ASSERT_TRUE(e_op_result_passed);
       }
     }

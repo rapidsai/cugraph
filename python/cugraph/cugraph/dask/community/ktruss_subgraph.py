@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -87,7 +87,7 @@ def ktruss_subgraph(input_graph, k: int) -> dask_cudf.DataFrame:
             workers=[w],
             allow_other_workers=False,
         )
-        for w in Comms.get_workers()
+        for w in input_graph._plc_graph
     ]
     wait(result)
 

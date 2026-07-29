@@ -11,6 +11,8 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -19,6 +21,7 @@
 
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <cuda/atomic>
 #include <cuda/functional>
@@ -322,7 +325,7 @@ class key_bucket_t {
       vertices_.resize(1, handle_ptr_->get_stream());
       tags_.resize(1, handle_ptr_->get_stream());
       auto pair_first = thrust::make_zip_iterator(vertices_.begin(), tags_.begin());
-      thrust::fill(handle_ptr_->get_thrust_policy(), pair_first, pair_first + 1, key);
+      cugraph::fill(handle_ptr_->get_thrust_policy(), pair_first, pair_first + 1, key);
     }
   }
 
@@ -354,9 +357,9 @@ class key_bucket_t {
                       vertex_last,
                       merged_vertices.begin());
         merged_vertices.resize(cuda::std::distance(merged_vertices.begin(),
-                                                   thrust::unique(handle_ptr_->get_thrust_policy(),
-                                                                  merged_vertices.begin(),
-                                                                  merged_vertices.end())),
+                                                   cugraph::unique(handle_ptr_->get_thrust_policy(),
+                                                                   merged_vertices.begin(),
+                                                                   merged_vertices.end())),
                                handle_ptr_->get_stream());
         vertices_ = std::move(merged_vertices);
       } else {
@@ -406,9 +409,9 @@ class key_bucket_t {
                       merged_pair_first);
         merged_vertices.resize(
           cuda::std::distance(merged_pair_first,
-                              thrust::unique(handle_ptr_->get_thrust_policy(),
-                                             merged_pair_first,
-                                             merged_pair_first + merged_vertices.size())),
+                              cugraph::unique(handle_ptr_->get_thrust_policy(),
+                                              merged_pair_first,
+                                              merged_pair_first + merged_vertices.size())),
           handle_ptr_->get_stream());
         merged_tags.resize(merged_vertices.size(), handle_ptr_->get_stream());
         vertices_ = std::move(merged_vertices);

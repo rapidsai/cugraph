@@ -30,6 +30,8 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/scatter.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
@@ -481,10 +483,10 @@ class Tests_GRAPH500_MGBFS
     for (size_t i = 0; i < (num_warmup_starting_vertices + num_timed_starting_vertices); ++i) {
       double elapsed{0.0};
 
-      thrust::fill(handle_->get_thrust_policy(),
-                   d_mg_distances.begin(),
-                   d_mg_distances.end(),
-                   invalid_distance);
+      cugraph::fill(handle_->get_thrust_policy(),
+                    d_mg_distances.begin(),
+                    d_mg_distances.end(),
+                    invalid_distance);
 
       if (cugraph::test::g_perf) {
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -572,10 +574,10 @@ class Tests_GRAPH500_MGBFS
                                        : invalid_vertex;
                             }));
       } else {
-        thrust::fill(handle_->get_thrust_policy(),
-                     d_mg_unrenumbered_predecessors.begin(),
-                     d_mg_unrenumbered_predecessors.end(),
-                     invalid_vertex);
+        cugraph::fill(handle_->get_thrust_policy(),
+                      d_mg_unrenumbered_predecessors.begin(),
+                      d_mg_unrenumbered_predecessors.end(),
+                      invalid_vertex);
       }
 
       vertex_t subgraph_starting_vertex{starting_vertex};
@@ -660,12 +662,12 @@ class Tests_GRAPH500_MGBFS
                                 : mg_isolated_trees_view.vertex_partition_range_lasts());
       }
 
-      thrust::scatter(handle_->get_thrust_policy(),
-                      d_mg_bfs_predecessors.begin(),
-                      d_mg_bfs_predecessors.end(),
-                      reachable_from_2cores ? mg_pruned_graph_to_graph_map.begin()
-                                            : mg_isolated_trees_to_graph_map.begin(),
-                      d_mg_unrenumbered_predecessors.begin());
+      cugraph::scatter(handle_->get_thrust_policy(),
+                       d_mg_bfs_predecessors.begin(),
+                       d_mg_bfs_predecessors.end(),
+                       reachable_from_2cores ? mg_pruned_graph_to_graph_map.begin()
+                                             : mg_isolated_trees_to_graph_map.begin(),
+                       d_mg_unrenumbered_predecessors.begin());
 
       {  // update the starting vertex's parent
         if (subgraph_starting_vertex_vertex_partition_id ==
@@ -712,11 +714,11 @@ class Tests_GRAPH500_MGBFS
                                 }
                               }));
         }
-        thrust::scatter(handle_->get_thrust_policy(),
-                        d_mg_bfs_distances.begin(),
-                        d_mg_bfs_distances.end(),
-                        mg_pruned_graph_to_graph_map.begin(),
-                        d_mg_distances.begin());
+        cugraph::scatter(handle_->get_thrust_policy(),
+                         d_mg_bfs_distances.begin(),
+                         d_mg_bfs_distances.end(),
+                         mg_pruned_graph_to_graph_map.begin(),
+                         d_mg_distances.begin());
         update_unvisited_vertex_distances<vertex_t, vertex_t>(
           *handle_,
           raft::device_span<vertex_t const>(parents.data(), parents.size()),
@@ -731,11 +733,11 @@ class Tests_GRAPH500_MGBFS
           invalid_distance);
       } else {
         assert(subgraph_starting_vertex_distance == vertex_t{0});
-        thrust::scatter(handle_->get_thrust_policy(),
-                        d_mg_bfs_distances.begin(),
-                        d_mg_bfs_distances.end(),
-                        mg_isolated_trees_to_graph_map.begin(),
-                        d_mg_distances.begin());
+        cugraph::scatter(handle_->get_thrust_policy(),
+                         d_mg_bfs_distances.begin(),
+                         d_mg_bfs_distances.end(),
+                         mg_isolated_trees_to_graph_map.begin(),
+                         d_mg_distances.begin());
       }
 
       /* compute the number of visisted edges */

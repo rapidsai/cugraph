@@ -1,3 +1,54 @@
+# cugraph 26.06.00 (3 Jun 2026)
+
+### 🚨 Breaking Changes
+* Replace legacy SCC with the new SCC implementation and SCC performance improvements by @seunghwak in https://github.com/rapidsai/cugraph/pull/5469
+* Migrate RMM usage to CCCL MR design by @bdice in https://github.com/rapidsai/cugraph/pull/5483
+* cuGraph common refactor by @bdice in https://github.com/rapidsai/cugraph/pull/5502
+### 🐛 Bug Fixes
+* Add missing CCCL headers for cuda:: symbols by @bdice in https://github.com/rapidsai/cugraph/pull/5466
+* Fix build errors in debug build by @seunghwak in https://github.com/rapidsai/cugraph/pull/5474
+* Fix k-truss test failure on Blackwell by @jnke2016 in https://github.com/rapidsai/cugraph/pull/5495
+* Typo in selecting hungarian implementation by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5506
+* Re-enable test_benchmarking_datasets test by @rlratzel in https://github.com/rapidsai/cugraph/pull/5504
+### 🚀 New Features
+* Strongly Connected Components Part 1/2 by @seunghwak in https://github.com/rapidsai/cugraph/pull/5442
+* Strongly Connected Components 2 (Find trivial SCCs in components & Intersect reachable sets) by @ngokulakrish in https://github.com/rapidsai/cugraph/pull/5468
+* Move cugraph C++ primitives from src/prims to include/cugraph/prims by @seunghwak in https://github.com/rapidsai/cugraph/pull/5477
+* Add topological sort algorithm by @ngokulakrish in https://github.com/rapidsai/cugraph/pull/5492
+### 🛠️ Improvements
+* Update C++ test build to use C++ 20  by @seunghwak in https://github.com/rapidsai/cugraph/pull/5459
+* Cut binary size in similarity coefficients. by @seunghwak in https://github.com/rapidsai/cugraph/pull/5455
+* Improve BFS performance for large-scale multi-node NVLink systems by @seunghwak in https://github.com/rapidsai/cugraph/pull/5322
+* Forward-merge release/26.04 into main by @jameslamb in https://github.com/rapidsai/cugraph/pull/5470
+* Forward-merge release/26.04 into main by @jameslamb in https://github.com/rapidsai/cugraph/pull/5472
+* depend on libnvjitlink-dev at build time unconditionally by @jameslamb in https://github.com/rapidsai/cugraph/pull/5479
+* Main merge release/26.04 by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5478
+* update pip devcontainers' base image tags by @trxcllnt in https://github.com/rapidsai/cugraph/pull/5481
+* Remove a couple of variant branches to shrink libcugraph_mg about 6% by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5482
+* wheels CI: update to torch 2.10 for 'oldest' configuration by @jameslamb in https://github.com/rapidsai/cugraph/pull/5485
+* Temporarily skip the k-truss tests by @jnke2016 in https://github.com/rapidsai/cugraph/pull/5487
+* Update to clang 20.1.8 by @bdice in https://github.com/rapidsai/cugraph/pull/5488
+* Revert "wheels CI: update to torch 2.10 for 'oldest' configuration (#5485) by @jameslamb in https://github.com/rapidsai/cugraph/pull/5493
+* Reduce binary size part2 by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5486
+* Addressing Issue 5397 5384 by @BradReesWork in https://github.com/rapidsai/cugraph/pull/5490
+* Deduplicate compute_number_of_edges CUB/Thrust kernels via explicit instantiation by @bdice in https://github.com/rapidsai/cugraph/pull/5489
+* Use `token.rapids.nvidia.com` when issuing S3 bucket creds in devcontainers by @trxcllnt in https://github.com/rapidsai/cugraph/pull/5505
+* Remove `NO_CUDART_DEP` property by @KyleFromNVIDIA in https://github.com/rapidsai/cugraph/pull/5508
+* Fix symbol export by @vyasr in https://github.com/rapidsai/cugraph/pull/5510
+* fix(ci): resolve all zizmor findings and add zizmor pre-commit checks by @gforsyth in https://github.com/rapidsai/cugraph/pull/5509
+* Link libcugraph dynamically against libcuvs by @bdice in https://github.com/rapidsai/cugraph/pull/5499
+* fix(ci): add explicit `actions: write` permission for `telemetry-summarize`
+ by @gforsyth in https://github.com/rapidsai/cugraph/pull/5513
+* Build and test with CUDA 13.2.0 by @bdice in https://github.com/rapidsai/cugraph/pull/5511
+* split testing libraries from run libraries in dependencies.yaml by @jayavenkatesh19 in https://github.com/rapidsai/cugraph/pull/5447
+* add support for multigraph to disjoint sampling by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5520
+* skip CuPy 14.1.0 by @jameslamb in https://github.com/rapidsai/cugraph/pull/5531
+
+## New Contributors
+* @ngokulakrish made their first contribution in https://github.com/rapidsai/cugraph/pull/5468
+
+**Full Changelog**: https://github.com/rapidsai/cugraph/compare/v26.06.00a...release/26.06
+
 # cugraph 26.04.00 (8 Apr 2026)
 
 ### 🚨 Breaking Changes

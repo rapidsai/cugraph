@@ -15,6 +15,9 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/scatter.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -120,12 +123,15 @@ void fill_edge_major_property(raft::handle_t const& handle,
     }
     if constexpr (contains_packed_bool_element) {
       auto packed_input = input ? packed_bool_full_mask() : packed_bool_empty_mask();
-      thrust::fill_n(handle.get_thrust_policy(),
-                     value_firsts[i],
-                     packed_bool_size(num_buffer_elements),
-                     packed_input);
+      cugraph::fill(handle.get_thrust_policy(),
+                    value_firsts[i],
+                    (value_firsts[i]) + (packed_bool_size(num_buffer_elements)),
+                    packed_input);
     } else {
-      thrust::fill_n(handle.get_thrust_policy(), value_firsts[i], num_buffer_elements, input);
+      cugraph::fill(handle.get_thrust_policy(),
+                    value_firsts[i],
+                    (value_firsts[i]) + (num_buffer_elements),
+                    input);
     }
   }
 }
@@ -236,11 +242,11 @@ void fill_edge_major_property(raft::handle_t const& handle,
           auto val_first = cuda::make_constant_iterator(input);
           // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
           // directly scatters from the internal buffer)
-          thrust::scatter(handle.get_thrust_policy(),
-                          val_first,
-                          val_first + local_v_list_sizes[i],
-                          map_first,
-                          edge_partition_value_firsts[i]);
+          cugraph::scatter(handle.get_thrust_policy(),
+                           val_first,
+                           val_first + local_v_list_sizes[i],
+                           map_first,
+                           edge_partition_value_firsts[i]);
         }
       }
     }
@@ -257,7 +263,7 @@ void fill_edge_major_property(raft::handle_t const& handle,
                          auto v) { packed_bool_atomic_set(output_value_first, v, input); });
     } else {
       auto val_first = cuda::make_constant_iterator(input);
-      thrust::scatter(
+      cugraph::scatter(
         handle.get_thrust_policy(),
         val_first,
         val_first + cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
@@ -293,10 +299,13 @@ void fill_edge_minor_property(raft::handle_t const& handle,
   if constexpr (contains_packed_bool_element) {
     static_assert(std::is_arithmetic_v<T>, "unimplemented for cuda::std::tuple types.");
     auto packed_input = input ? packed_bool_full_mask() : packed_bool_empty_mask();
-    thrust::fill_n(
-      handle.get_thrust_policy(), value_first, packed_bool_size(num_buffer_elements), packed_input);
+    cugraph::fill(handle.get_thrust_policy(),
+                  value_first,
+                  (value_first) + (packed_bool_size(num_buffer_elements)),
+                  packed_input);
   } else {
-    thrust::fill_n(handle.get_thrust_policy(), value_first, num_buffer_elements, input);
+    cugraph::fill(
+      handle.get_thrust_policy(), value_first, (value_first) + (num_buffer_elements), input);
   }
 }
 
@@ -660,11 +669,11 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                        (num_leading_words + packed_bool_word_bcast_alignment) +
                      (num_leading_words + (i % packed_bool_word_bcast_alignment));
             }));
-          thrust::gather(handle.get_thrust_policy(),
-                         map_first,
-                         map_first + aggregate_boundary_words.size(),
-                         d_aggregate_tmps.begin(),
-                         aggregate_boundary_words.begin());
+          cugraph::gather(handle.get_thrust_policy(),
+                          map_first,
+                          map_first + aggregate_boundary_words.size(),
+                          d_aggregate_tmps.begin(),
+                          aggregate_boundary_words.begin());
           v_list_bitmap = std::move(aggregate_boundary_words);
         } else {
           v_list_bitmap = compute_vertex_list_bitmap_info(
@@ -1030,22 +1039,22 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                         return static_cast<vertex_t>(v_offset + (range_first - minor_range_first));
                       }));
                   auto val_first = cuda::make_constant_iterator(input);
-                  thrust::scatter(rmm::exec_policy_nosync(loop_stream),
-                                  val_first,
-                                  val_first + local_v_list_sizes[i],
-                                  map_first,
-                                  edge_partition_value_first);
+                  cugraph::scatter(rmm::exec_policy_nosync(loop_stream),
+                                   val_first,
+                                   val_first + local_v_list_sizes[i],
+                                   map_first,
+                                   edge_partition_value_first);
                 } else {
                   auto map_first = cuda::make_transform_iterator(
                     rx_vertex_first,
                     cuda::proclaim_return_type<vertex_t>(
                       [minor_range_first] __device__(auto v) { return v - minor_range_first; }));
                   auto val_first = cuda::make_constant_iterator(input);
-                  thrust::scatter(rmm::exec_policy_nosync(loop_stream),
-                                  val_first,
-                                  val_first + local_v_list_sizes[i],
-                                  map_first,
-                                  edge_partition_value_first);
+                  cugraph::scatter(rmm::exec_policy_nosync(loop_stream),
+                                   val_first,
+                                   val_first + local_v_list_sizes[i],
+                                   map_first,
+                                   edge_partition_value_first);
                 }
               }
             }
@@ -1161,7 +1170,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                        });
     } else {
       auto val_first = cuda::make_constant_iterator(input);
-      thrust::scatter(
+      cugraph::scatter(
         handle.get_thrust_policy(),
         val_first,
         val_first + cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),

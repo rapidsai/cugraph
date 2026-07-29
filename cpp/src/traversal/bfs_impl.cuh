@@ -15,6 +15,8 @@
 #include <cugraph/prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/scatter.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/core/handle.hpp>
@@ -268,19 +270,19 @@ void bfs(raft::handle_t const& handle,
   auto constexpr invalid_distance = std::numeric_limits<vertex_t>::max();
   auto constexpr invalid_vertex   = invalid_vertex_id<vertex_t>::value;
 
-  thrust::fill(handle.get_thrust_policy(),
-               distances,
-               distances + graph_view.local_vertex_partition_range_size(),
-               invalid_distance);
-  thrust::fill(handle.get_thrust_policy(),
-               predecessor_first,
-               predecessor_first + graph_view.local_vertex_partition_range_size(),
-               invalid_vertex);
+  cugraph::fill(handle.get_thrust_policy(),
+                distances,
+                distances + graph_view.local_vertex_partition_range_size(),
+                invalid_distance);
+  cugraph::fill(handle.get_thrust_policy(),
+                predecessor_first,
+                predecessor_first + graph_view.local_vertex_partition_range_size(),
+                invalid_vertex);
   auto output_first = thrust::make_permutation_iterator(
     distances,
     cuda::make_transform_iterator(
       sources, detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}));
-  thrust::fill(handle.get_thrust_policy(), output_first, output_first + n_sources, vertex_t{0});
+  cugraph::fill(handle.get_thrust_policy(), output_first, output_first + n_sources, vertex_t{0});
 
   // 3. update meta data for direction optimizing BFS
 
@@ -354,10 +356,10 @@ void bfs(raft::handle_t const& handle,
 
     rmm::device_uvector<uint32_t> visited_bitmap(
       packed_bool_size(graph_view.local_vertex_partition_range_size()), handle.get_stream());
-    thrust::fill(handle.get_thrust_policy(),
-                 visited_bitmap.begin(),
-                 visited_bitmap.end(),
-                 packed_bool_empty_mask());
+    cugraph::fill(handle.get_thrust_policy(),
+                  visited_bitmap.begin(),
+                  visited_bitmap.end(),
+                  packed_bool_empty_mask());
     thrust::for_each(
       handle.get_thrust_policy(),
       sources,
@@ -468,7 +470,7 @@ void bfs(raft::handle_t const& handle,
       {
         auto input_pair_first = thrust::make_zip_iterator(cuda::make_constant_iterator(depth + 1),
                                                           predecessor_buffer.begin());
-        thrust::scatter(
+        cugraph::scatter(
           handle.get_thrust_policy(),
           input_pair_first,
           input_pair_first + new_frontier_vertex_buffer.size(),

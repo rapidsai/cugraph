@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -14,12 +14,15 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_partition_view.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/extract_transform_if_v_frontier_incoming_outgoing_e.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
@@ -243,10 +246,10 @@ class Tests_MGExtractTransformIfVFrontierIncomingOutgoingE
     auto mg_key_buffer = cugraph::allocate_dataframe_buffer<key_t>(
       mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
     if constexpr (std::is_same_v<tag_t, void>) {
-      thrust::sequence(handle_->get_thrust_policy(),
-                       cugraph::get_dataframe_buffer_begin(mg_key_buffer),
-                       cugraph::get_dataframe_buffer_end(mg_key_buffer),
-                       mg_graph_view.local_vertex_partition_range_first());
+      cugraph::sequence(handle_->get_thrust_policy(),
+                        cugraph::get_dataframe_buffer_begin(mg_key_buffer),
+                        cugraph::get_dataframe_buffer_end(mg_key_buffer),
+                        mg_graph_view.local_vertex_partition_range_first());
     } else {
       thrust::tabulate(handle_->get_thrust_policy(),
                        cugraph::get_dataframe_buffer_begin(mg_key_buffer),
@@ -310,6 +313,26 @@ class Tests_MGExtractTransformIfVFrontierIncomingOutgoingE
     // 3. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
+      // the MG primitive returns renumbered (internal) vertex IDs while the SG reference graph
+      // below is created in the unrenumbered (external) vertex ID space, so unrenumber first
+      {
+        constexpr size_t src_idx = 0;
+        constexpr size_t dst_idx =
+          (!std::is_same_v<key_t, vertex_t> && !store_transposed) ? size_t{2} : size_t{1};
+        cugraph::unrenumber_int_vertices<vertex_t, true>(
+          *handle_,
+          std::get<src_idx>(mg_extract_transform_output_buffer).data(),
+          std::get<src_idx>(mg_extract_transform_output_buffer).size(),
+          (*d_mg_renumber_map_labels).data(),
+          mg_graph_view.vertex_partition_range_lasts());
+        cugraph::unrenumber_int_vertices<vertex_t, true>(
+          *handle_,
+          std::get<dst_idx>(mg_extract_transform_output_buffer).data(),
+          std::get<dst_idx>(mg_extract_transform_output_buffer).size(),
+          (*d_mg_renumber_map_labels).data(),
+          mg_graph_view.vertex_partition_range_lasts());
+      }
+
       auto mg_aggregate_extract_transform_output_buffer = cugraph::allocate_dataframe_buffer<
         typename e_op_t<key_t, vertex_t, result_t, output_payload_t, store_transposed>::
           return_type>(size_t{0}, handle_->get_stream());
@@ -361,7 +384,7 @@ class Tests_MGExtractTransformIfVFrontierIncomingOutgoingE
           raft::device_span<result_t const>(mg_vertex_prop.data(), mg_vertex_prop.size()));
 
       if (handle_->get_comms().get_rank() == int{0}) {
-        thrust::sort(
+        cugraph::sort(
           handle_->get_thrust_policy(),
           cugraph::get_dataframe_buffer_begin(mg_aggregate_extract_transform_output_buffer),
           cugraph::get_dataframe_buffer_end(mg_aggregate_extract_transform_output_buffer));
@@ -376,10 +399,10 @@ class Tests_MGExtractTransformIfVFrontierIncomingOutgoingE
         auto sg_key_buffer = cugraph::allocate_dataframe_buffer<key_t>(
           sg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
         if constexpr (std::is_same_v<tag_t, void>) {
-          thrust::sequence(handle_->get_thrust_policy(),
-                           cugraph::get_dataframe_buffer_begin(sg_key_buffer),
-                           cugraph::get_dataframe_buffer_end(sg_key_buffer),
-                           sg_graph_view.local_vertex_partition_range_first());
+          cugraph::sequence(handle_->get_thrust_policy(),
+                            cugraph::get_dataframe_buffer_begin(sg_key_buffer),
+                            cugraph::get_dataframe_buffer_end(sg_key_buffer),
+                            sg_graph_view.local_vertex_partition_range_first());
         } else {
           thrust::tabulate(handle_->get_thrust_policy(),
                            cugraph::get_dataframe_buffer_begin(sg_key_buffer),
@@ -422,9 +445,12 @@ class Tests_MGExtractTransformIfVFrontierIncomingOutgoingE
             pred_op_t<key_t, vertex_t, result_t, store_transposed>{});
         }
 
-        thrust::sort(handle_->get_thrust_policy(),
-                     cugraph::get_dataframe_buffer_begin(sg_extract_transform_output_buffer),
-                     cugraph::get_dataframe_buffer_end(sg_extract_transform_output_buffer));
+        cugraph::sort(handle_->get_thrust_policy(),
+                      cugraph::get_dataframe_buffer_begin(sg_extract_transform_output_buffer),
+                      cugraph::get_dataframe_buffer_end(sg_extract_transform_output_buffer));
+
+        ASSERT_EQ(cugraph::size_dataframe_buffer(sg_extract_transform_output_buffer),
+                  cugraph::size_dataframe_buffer(mg_aggregate_extract_transform_output_buffer));
 
         bool e_op_result_passed = thrust::equal(
           handle_->get_thrust_policy(),

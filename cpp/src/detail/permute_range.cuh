@@ -9,6 +9,7 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -53,8 +54,10 @@ rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> permuted_integers(local_range_size, handle.get_stream());
 
   // generate as many integers as #local_range_size on each GPU
-  detail::sequence_fill(
-    handle.get_stream(), permuted_integers.begin(), permuted_integers.size(), local_range_start);
+  cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                    permuted_integers.begin(),
+                    permuted_integers.begin() + permuted_integers.size(),
+                    local_range_start);
 
   if (multi_gpu) {
     // randomly distribute integers to all GPUs

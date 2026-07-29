@@ -17,6 +17,9 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+
+#include <rmm/exec_policy.hpp>
 
 namespace {
 
@@ -153,10 +156,10 @@ struct two_hop_neighbors_functor : public cugraph::c_api::abstract_functor {
 
       } else {
         start_vertices.resize(graph_view.local_vertex_partition_range_size(), handle_.get_stream());
-        cugraph::detail::sequence_fill(handle_.get_stream(),
-                                       start_vertices.data(),
-                                       start_vertices.size(),
-                                       graph_view.local_vertex_partition_range_first());
+        cugraph::sequence(rmm::exec_policy(handle_.get_stream()),
+                          start_vertices.data(),
+                          start_vertices.data() + start_vertices.size(),
+                          graph_view.local_vertex_partition_range_first());
       }
 
       auto [offsets, dst] = cugraph::k_hop_nbrs(

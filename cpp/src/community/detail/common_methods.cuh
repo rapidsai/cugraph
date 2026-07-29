@@ -17,6 +17,9 @@
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+
+#include <rmm/exec_policy.hpp>
 
 #include <cuda/functional>
 #include <cuda/iterator>
@@ -30,6 +33,10 @@
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 
+#include <algorithm>
+#include <limits>
+#include <type_traits>
+
 CUCO_DECLARE_BITWISE_COMPARABLE(float)
 CUCO_DECLARE_BITWISE_COMPARABLE(double)
 // FIXME: a temporary workaround for a compiler error, should be deleted once cuco gets patched.
@@ -40,6 +47,24 @@ struct is_bitwise_comparable<cuco::pair<int32_t, float>> : std::true_type {};
 
 namespace cugraph {
 namespace detail {
+
+template <typename weight_t>
+constexpr weight_t louvain_delta_modularity_noise_floor()
+{
+  if constexpr (std::is_same_v<weight_t, float>) {
+    return weight_t{1e-12};
+  } else {
+    return weight_t{1e-15};
+  }
+}
+
+template <typename weight_t, typename vertex_t>
+weight_t compute_louvain_min_vertex_move_gain(weight_t threshold, vertex_t number_of_vertices)
+{
+  auto const vertex_count     = std::max(number_of_vertices, vertex_t{1});
+  auto const scaled_threshold = threshold / static_cast<weight_t>(vertex_count);
+  return std::max(scaled_threshold, louvain_delta_modularity_noise_floor<weight_t>());
+}
 
 // FIXME: a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename vertex_t, typename weight_t>
@@ -93,6 +118,7 @@ struct reduce_op_t {
 template <typename vertex_t, typename weight_t>
 struct count_updown_moves_op_t {
   bool up_down{};
+  weight_t min_gain{};
   __device__ auto operator()(
     cuda::std::tuple<vertex_t, cuda::std::tuple<vertex_t, weight_t>> p) const
   {
@@ -102,25 +128,26 @@ struct count_updown_moves_op_t {
     weight_t delta_modularity  = cuda::std::get<1>(new_cluster_gain_pair);
 
     auto result_assignment =
-      (delta_modularity > weight_t{0})
+      (delta_modularity > min_gain)
         ? (((new_cluster > old_cluster) != up_down) ? old_cluster : new_cluster)
         : old_cluster;
 
-    return (delta_modularity > weight_t{0})
-             ? (((new_cluster > old_cluster) != up_down) ? false : true)
-             : false;
+    return (delta_modularity > min_gain) ? (((new_cluster > old_cluster) != up_down) ? false : true)
+                                         : false;
   }
 };
+
 // FIXME: a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename vertex_t, typename weight_t>
 struct cluster_update_op_t {
   bool up_down{};
+  weight_t min_gain{};
   __device__ auto operator()(vertex_t old_cluster, cuda::std::tuple<vertex_t, weight_t> p) const
   {
     vertex_t new_cluster      = cuda::std::get<0>(p);
     weight_t delta_modularity = cuda::std::get<1>(p);
 
-    return (delta_modularity > weight_t{0})
+    return (delta_modularity > min_gain)
              ? (((new_cluster > old_cluster) != up_down) ? old_cluster : new_cluster)
              : old_cluster;
   }
@@ -215,10 +242,10 @@ graph_contraction(raft::handle_t const& handle,
   auto new_graph_view = new_graph.view();
 
   rmm::device_uvector<vertex_t> numbering_indices((*numbering_map).size(), handle.get_stream());
-  detail::sequence_fill(handle.get_stream(),
-                        numbering_indices.data(),
-                        numbering_indices.size(),
-                        new_graph_view.local_vertex_partition_range_first());
+  cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                    numbering_indices.data(),
+                    numbering_indices.data() + numbering_indices.size(),
+                    new_graph_view.local_vertex_partition_range_first());
 
   relabel<vertex_t, multi_gpu>(
     handle,
@@ -246,7 +273,8 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
   edge_src_property_t<vertex_t, weight_t> const& src_vertex_weights_cache,
   edge_src_property_t<vertex_t, vertex_t> const& src_clusters_cache,
   edge_dst_property_t<vertex_t, vertex_t> const& dst_clusters_cache,
-  bool up_down)
+  bool up_down,
+  weight_t threshold)
 {
   CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted.");
 
@@ -392,13 +420,16 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
     detail::reduce_op_t<vertex_t, weight_t>{},
     cugraph::get_dataframe_buffer_begin(output_buffer));
 
-  int nr_moves =
-    thrust::count_if(handle.get_thrust_policy(),
-                     thrust::make_zip_iterator(next_clusters_v.begin(),
-                                               cugraph::get_dataframe_buffer_begin(output_buffer)),
-                     thrust::make_zip_iterator(next_clusters_v.end(),
-                                               cugraph::get_dataframe_buffer_end(output_buffer)),
-                     detail::count_updown_moves_op_t<vertex_t, weight_t>{up_down});
+  auto const min_vertex_move_gain =
+    compute_louvain_min_vertex_move_gain(threshold, graph_view.number_of_vertices());
+
+  int nr_moves = thrust::count_if(
+    handle.get_thrust_policy(),
+    thrust::make_zip_iterator(next_clusters_v.begin(),
+                              cugraph::get_dataframe_buffer_begin(output_buffer)),
+    thrust::make_zip_iterator(next_clusters_v.end(),
+                              cugraph::get_dataframe_buffer_end(output_buffer)),
+    detail::count_updown_moves_op_t<vertex_t, weight_t>{up_down, min_vertex_move_gain});
 
   if constexpr (multi_gpu) {
     nr_moves = host_scalar_allreduce(
@@ -412,7 +443,7 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
                     next_clusters_v.end(),
                     cugraph::get_dataframe_buffer_begin(output_buffer),
                     next_clusters_v.begin(),
-                    detail::cluster_update_op_t<vertex_t, weight_t>{up_down});
+                    detail::cluster_update_op_t<vertex_t, weight_t>{up_down, min_vertex_move_gain});
 
   return std::move(next_clusters_v);
 }

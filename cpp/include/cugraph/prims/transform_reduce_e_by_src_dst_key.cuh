@@ -565,10 +565,10 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
       edge_offsets_with_mask =
         rmm::device_uvector<edge_t>(edge_partition.major_range_size() + 1, handle.get_stream());
       (*edge_offsets_with_mask).set_element_to_zero_async(0, handle.get_stream());
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             local_degrees.begin(),
-                             local_degrees.end(),
-                             (*edge_offsets_with_mask).begin() + 1);
+      cugraph::inclusive_scan(handle.get_thrust_policy(),
+                              local_degrees.begin(),
+                              local_degrees.end(),
+                              (*edge_offsets_with_mask).begin() + 1);
       tmp_keys.resize((*edge_offsets_with_mask).back_element(handle.get_stream()),
                       handle.get_stream());
     } else {

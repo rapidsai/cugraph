@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "sampling/random_walks_check.hpp"
@@ -7,6 +7,7 @@
 
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
@@ -62,9 +63,9 @@ void random_walks_validate(
     rmm::device_uvector<int> failures(d_start.size() * max_length, handle.get_stream());
 
     if (d_wgt) {
-      thrust::sort(handle.get_thrust_policy(),
-                   thrust::make_zip_iterator(d_src.begin(), d_dst.begin(), d_wgt->begin()),
-                   thrust::make_zip_iterator(d_src.end(), d_dst.end(), d_wgt->end()));
+      cugraph::sort(handle.get_thrust_policy(),
+                    thrust::make_zip_iterator(d_src.begin(), d_dst.begin(), d_wgt->begin()),
+                    thrust::make_zip_iterator(d_src.end(), d_dst.end(), d_wgt->end()));
 
       thrust::transform(
         handle.get_thrust_policy(),
@@ -86,8 +87,9 @@ void random_walks_validate(
           //    should add a check to verify that degree(src) == 0
           if (d != cugraph::invalid_vertex_id<vertex_t>::value) {
             auto iter = thrust::make_zip_iterator(src, dst);
-            auto pos =
-              thrust::find(thrust::seq, iter, iter + num_edges, cuda::std::make_tuple(s, d));
+            auto pos  = thrust::find_if(thrust::seq, iter, iter + num_edges, [s, d](auto edge) {
+              return edge == cuda::std::make_tuple(s, d);
+            });
 
             if (pos != (iter + num_edges)) {
               auto index = cuda::std::distance(iter, pos);
@@ -109,9 +111,9 @@ void random_walks_validate(
           return 0;
         });
     } else {
-      thrust::sort(handle.get_thrust_policy(),
-                   thrust::make_zip_iterator(d_src.begin(), d_dst.begin()),
-                   thrust::make_zip_iterator(d_src.end(), d_dst.end()));
+      cugraph::sort(handle.get_thrust_policy(),
+                    thrust::make_zip_iterator(d_src.begin(), d_dst.begin()),
+                    thrust::make_zip_iterator(d_src.end(), d_dst.end()));
 
       thrust::transform(
         handle.get_thrust_policy(),
@@ -130,8 +132,9 @@ void random_walks_validate(
           //    should add a check to verify that degree(src) == 0
           if (d != cugraph::invalid_vertex_id<vertex_t>::value) {
             auto iter = thrust::make_zip_iterator(src, dst);
-            auto pos =
-              thrust::find(thrust::seq, iter, iter + num_edges, cuda::std::make_tuple(s, d));
+            auto pos  = thrust::find_if(thrust::seq, iter, iter + num_edges, [s, d](auto edge) {
+              return edge == cuda::std::make_tuple(s, d);
+            });
 
             if (pos == (iter + num_edges)) printf("edge (%d,%d) NOT FOUND\n", (int)s, (int)d);
 

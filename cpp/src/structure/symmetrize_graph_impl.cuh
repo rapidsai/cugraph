@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -8,6 +8,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -192,7 +193,7 @@ symmetrize_graph_impl(raft::handle_t const& handle,
                            : std::make_optional<rmm::device_uvector<vertex_t>>(number_of_vertices,
                                                                                handle.get_stream());
   if (!renumber) {
-    thrust::sequence(
+    cugraph::sequence(
       handle.get_thrust_policy(), (*vertices).begin(), (*vertices).end(), vertex_t{0});
   }
 

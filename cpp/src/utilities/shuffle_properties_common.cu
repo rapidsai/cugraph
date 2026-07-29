@@ -9,6 +9,8 @@
 #include <cugraph/export.hpp>
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -70,7 +72,7 @@ CUGRAPH_EXPORT std::vector<arithmetic_device_uvector_t> shuffle_properties(
       large_buffer_type
         ? large_buffer_manager::allocate_memory_buffer<size_t>(gpus.size(), handle.get_stream())
         : rmm::device_uvector<size_t>(gpus.size(), handle.get_stream());
-    thrust::sequence(
+    cugraph::sequence(
       handle.get_thrust_policy(), property_positions.begin(), property_positions.end(), size_t{0});
     thrust::sort_by_key(
       handle.get_thrust_policy(), gpus.begin(), gpus.end(), property_positions.begin());
@@ -100,11 +102,11 @@ CUGRAPH_EXPORT std::vector<arithmetic_device_uvector_t> shuffle_properties(
             auto tmp = large_buffer_type ? large_buffer_manager::allocate_memory_buffer<T>(
                                              prop.size(), handle.get_stream())
                                          : rmm::device_uvector<T>(prop.size(), handle.get_stream());
-            thrust::gather(handle.get_thrust_policy(),
-                           property_positions.begin(),
-                           property_positions.end(),
-                           prop.begin(),
-                           tmp.begin());
+            cugraph::gather(handle.get_thrust_policy(),
+                            property_positions.begin(),
+                            property_positions.end(),
+                            prop.begin(),
+                            tmp.begin());
             std::tie(prop, std::ignore) =
               shuffle_values(handle.get_comms(),
                              tmp.begin(),

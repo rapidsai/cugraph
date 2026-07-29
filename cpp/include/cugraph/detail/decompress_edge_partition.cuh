@@ -189,11 +189,11 @@ void decompress_edge_partition_to_fill_edgelist_majors(
   }
 
   if (tmp_buffer) {
-    copy_if_mask_set(handle,
-                     (*tmp_buffer).begin(),
-                     (*tmp_buffer).end(),
-                     (*edge_partition_mask_view).value_first(),
-                     majors.begin());
+    cugraph::copy_if_mask_set(handle,
+                              (*tmp_buffer).begin(),
+                              (*tmp_buffer).end(),
+                              (*edge_partition_mask_view).value_first(),
+                              majors.begin());
   }
 }
 
@@ -225,11 +225,11 @@ void decompress_edge_partition_to_edgelist(
   decompress_edge_partition_to_fill_edgelist_majors(
     handle, edge_partition, edge_partition_mask_view, edgelist_majors, segment_offsets);
   if (edge_partition_mask_view) {
-    copy_if_mask_set(handle,
-                     edge_partition.indices(),
-                     edge_partition.indices() + number_of_edges,
-                     (*edge_partition_mask_view).value_first(),
-                     edgelist_minors.begin());
+    cugraph::copy_if_mask_set(handle,
+                              edge_partition.indices(),
+                              edge_partition.indices() + number_of_edges,
+                              (*edge_partition_mask_view).value_first(),
+                              edgelist_minors.begin());
   } else {
     thrust::copy(handle.get_thrust_policy(),
                  edge_partition.indices(),
@@ -239,11 +239,11 @@ void decompress_edge_partition_to_edgelist(
   if (edge_partition_weight_view) {
     assert(edgelist_weights.has_value());
     if (edge_partition_mask_view) {
-      copy_if_mask_set(handle,
-                       (*edge_partition_weight_view).value_first(),
-                       (*edge_partition_weight_view).value_first() + number_of_edges,
-                       (*edge_partition_mask_view).value_first(),
-                       (*edgelist_weights).begin());
+      cugraph::copy_if_mask_set(handle,
+                                (*edge_partition_weight_view).value_first(),
+                                (*edge_partition_weight_view).value_first() + number_of_edges,
+                                (*edge_partition_mask_view).value_first(),
+                                (*edgelist_weights).begin());
     } else {
       thrust::copy(handle.get_thrust_policy(),
                    (*edge_partition_weight_view).value_first(),
@@ -254,11 +254,11 @@ void decompress_edge_partition_to_edgelist(
   if (edge_partition_id_view) {
     assert(edgelist_ids.has_value());
     if (edge_partition_mask_view) {
-      copy_if_mask_set(handle,
-                       (*edge_partition_id_view).value_first(),
-                       (*edge_partition_id_view).value_first() + number_of_edges,
-                       (*edge_partition_mask_view).value_first(),
-                       (*edgelist_ids).begin());
+      cugraph::copy_if_mask_set(handle,
+                                (*edge_partition_id_view).value_first(),
+                                (*edge_partition_id_view).value_first() + number_of_edges,
+                                (*edge_partition_mask_view).value_first(),
+                                (*edgelist_ids).begin());
     } else {
       thrust::copy(handle.get_thrust_policy(),
                    (*edge_partition_id_view).value_first(),
@@ -270,11 +270,11 @@ void decompress_edge_partition_to_edgelist(
   if (edge_partition_type_view) {
     assert(edgelist_types.has_value());
     if (edge_partition_mask_view) {
-      copy_if_mask_set(handle,
-                       (*edge_partition_type_view).value_first(),
-                       (*edge_partition_type_view).value_first() + number_of_edges,
-                       (*edge_partition_mask_view).value_first(),
-                       (*edgelist_types).begin());
+      cugraph::copy_if_mask_set(handle,
+                                (*edge_partition_type_view).value_first(),
+                                (*edge_partition_type_view).value_first() + number_of_edges,
+                                (*edge_partition_mask_view).value_first(),
+                                (*edgelist_types).begin());
     } else {
       thrust::copy(handle.get_thrust_policy(),
                    (*edge_partition_type_view).value_first(),

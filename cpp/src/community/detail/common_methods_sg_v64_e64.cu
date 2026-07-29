@@ -58,7 +58,8 @@ template CUGRAPH_EXPORT rmm::device_uvector<int64_t> update_clustering_by_delta_
   edge_src_property_t<int64_t, float> const& src_vertex_weights_cache,
   edge_src_property_t<int64_t, int64_t> const& src_clusters_cache,
   edge_dst_property_t<int64_t, int64_t> const& dst_clusters_cache,
-  bool up_down);
+  bool up_down,
+  float threshold);
 
 template CUGRAPH_EXPORT rmm::device_uvector<int64_t> update_clustering_by_delta_modularity(
   raft::handle_t const& handle,
@@ -73,7 +74,8 @@ template CUGRAPH_EXPORT rmm::device_uvector<int64_t> update_clustering_by_delta_
   edge_src_property_t<int64_t, double> const& src_vertex_weights_cache,
   edge_src_property_t<int64_t, int64_t> const& src_clusters_cache,
   edge_dst_property_t<int64_t, int64_t> const& dst_clusters_cache,
-  bool up_down);
+  bool up_down,
+  double threshold);
 
 template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<float>>
 compute_cluster_keys_and_values(

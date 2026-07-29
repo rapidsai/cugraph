@@ -15,8 +15,11 @@
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/random/rng_state.hpp>
+
+#include <rmm/exec_policy.hpp>
 
 #include <memory>
 #include <numeric>
@@ -493,10 +496,11 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                       : rmm::device_uvector<vertex_t>(tot_vertex_counts, handle.get_stream());
     size_t v_offset{0};
     for (size_t i = 0; i < partition_vertex_firsts.size(); ++i) {
-      cugraph::detail::sequence_fill(handle.get_stream(),
-                                     vertex_v.begin() + v_offset,
-                                     partition_vertex_lasts[i] - partition_vertex_firsts[i],
-                                     partition_vertex_firsts[i]);
+      cugraph::sequence(
+        rmm::exec_policy(handle.get_stream()),
+        vertex_v.begin() + v_offset,
+        vertex_v.begin() + v_offset + partition_vertex_lasts[i] - partition_vertex_firsts[i],
+        partition_vertex_firsts[i]);
       v_offset += partition_vertex_lasts[i] - partition_vertex_firsts[i];
     }
     if (scramble_vertex_ids_) {

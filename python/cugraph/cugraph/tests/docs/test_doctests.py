@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import contextlib
@@ -97,6 +97,9 @@ def _fetch_doctests():
     )
 
 
+DOCTESTS = tuple(_fetch_doctests())
+
+
 def skip_docstring(docstring_obj):
     """
     Returns a string indicating why the doctest example string should not be
@@ -127,7 +130,7 @@ class TestDoctests:
 
     @pytest.mark.sg
     @pytest.mark.parametrize(
-        "docstring", _fetch_doctests(), ids=lambda docstring: docstring.name
+        "docstring", DOCTESTS, ids=lambda docstring: docstring.name
     )
     @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_docstring(self, docstring):

@@ -14,6 +14,8 @@
 #include <cugraph/legacy/functions.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
 
 #include <rmm/exec_policy.hpp>
 #include <rmm/resource_ref.hpp>
@@ -96,7 +98,7 @@ void fill_offset(VT* source,
                  ET number_of_edges,
                  rmm::cuda_stream_view stream_view)
 {
-  thrust::fill(
+  cugraph::fill(
     rmm::exec_policy(stream_view), offsets, offsets + number_of_vertices + 1, number_of_edges);
   thrust::for_each(rmm::exec_policy(stream_view),
                    thrust::make_counting_iterator<ET>(1),
@@ -110,7 +112,7 @@ void fill_offset(VT* source,
   off[src[0]]                = ET{0};
 
   auto iter = cuda::std::make_reverse_iterator(offsets + number_of_vertices + 1);
-  thrust::inclusive_scan(
+  cugraph::inclusive_scan(
     rmm::exec_policy(stream_view), iter, iter + number_of_vertices + 1, iter, cuda::minimum<ET>());
 }
 

@@ -6,6 +6,7 @@
 #include "utilities/validation_utilities.hpp"
 
 #include <cugraph/utilities/graph_partition_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <cuda/std/iterator>
@@ -47,15 +48,15 @@ size_t count_duplicate_vertex_pairs_sorted(raft::handle_t const& handle,
                           });
 }
 
-// FIXME: Resolve this with dataframe_buffer variations in thrust_wrappers.cu
+// FIXME: Resolve this with dataframe_buffer variations in thrust_wrappers/fill.cu
 template <typename vertex_t>
 void sort(raft::handle_t const& handle,
           raft::device_span<vertex_t> srcs,
           raft::device_span<vertex_t> dsts)
 {
-  thrust::sort(handle.get_thrust_policy(),
-               thrust::make_zip_iterator(srcs.begin(), dsts.begin()),
-               thrust::make_zip_iterator(srcs.end(), dsts.end()));
+  cugraph::sort(handle.get_thrust_policy(),
+                thrust::make_zip_iterator(srcs.begin(), dsts.begin()),
+                thrust::make_zip_iterator(srcs.end(), dsts.end()));
 }
 
 template <typename vertex_t,
@@ -77,23 +78,23 @@ void sort(raft::handle_t const& handle,
       if (types) {
         if (start_times) {
           if (end_times) {
-            thrust::sort(handle.get_thrust_policy(),
-                         thrust::make_zip_iterator(srcs.begin(),
-                                                   dsts.begin(),
-                                                   wgts->begin(),
-                                                   ids->begin(),
-                                                   types->begin(),
-                                                   start_times->begin(),
-                                                   end_times->begin()),
-                         thrust::make_zip_iterator(srcs.end(),
-                                                   dsts.end(),
-                                                   wgts->end(),
-                                                   ids->end(),
-                                                   types->end(),
-                                                   start_times->end(),
-                                                   end_times->end()));
+            cugraph::sort(handle.get_thrust_policy(),
+                          thrust::make_zip_iterator(srcs.begin(),
+                                                    dsts.begin(),
+                                                    wgts->begin(),
+                                                    ids->begin(),
+                                                    types->begin(),
+                                                    start_times->begin(),
+                                                    end_times->begin()),
+                          thrust::make_zip_iterator(srcs.end(),
+                                                    dsts.end(),
+                                                    wgts->end(),
+                                                    ids->end(),
+                                                    types->end(),
+                                                    start_times->end(),
+                                                    end_times->end()));
           } else {
-            thrust::sort(
+            cugraph::sort(
               handle.get_thrust_policy(),
               thrust::make_zip_iterator(srcs.begin(),
                                         dsts.begin(),
@@ -106,7 +107,7 @@ void sort(raft::handle_t const& handle,
           }
         } else {
           if (end_times) {
-            thrust::sort(
+            cugraph::sort(
               handle.get_thrust_policy(),
               thrust::make_zip_iterator(srcs.begin(),
                                         dsts.begin(),
@@ -117,31 +118,32 @@ void sort(raft::handle_t const& handle,
               thrust::make_zip_iterator(
                 srcs.end(), dsts.end(), wgts->end(), ids->end(), types->end(), end_times->end()));
           } else {
-            thrust::sort(handle.get_thrust_policy(),
-                         thrust::make_zip_iterator(
-                           srcs.begin(), dsts.begin(), wgts->begin(), ids->begin(), types->begin()),
-                         thrust::make_zip_iterator(
-                           srcs.end(), dsts.end(), wgts->end(), ids->end(), types->end()));
+            cugraph::sort(
+              handle.get_thrust_policy(),
+              thrust::make_zip_iterator(
+                srcs.begin(), dsts.begin(), wgts->begin(), ids->begin(), types->begin()),
+              thrust::make_zip_iterator(
+                srcs.end(), dsts.end(), wgts->end(), ids->end(), types->end()));
           }
         }
       } else {
         if (start_times) {
           if (end_times) {
-            thrust::sort(handle.get_thrust_policy(),
-                         thrust::make_zip_iterator(srcs.begin(),
-                                                   dsts.begin(),
-                                                   wgts->begin(),
-                                                   ids->begin(),
-                                                   start_times->begin(),
-                                                   end_times->begin()),
-                         thrust::make_zip_iterator(srcs.end(),
-                                                   dsts.end(),
-                                                   wgts->end(),
-                                                   ids->end(),
-                                                   start_times->end(),
-                                                   end_times->end()));
+            cugraph::sort(handle.get_thrust_policy(),
+                          thrust::make_zip_iterator(srcs.begin(),
+                                                    dsts.begin(),
+                                                    wgts->begin(),
+                                                    ids->begin(),
+                                                    start_times->begin(),
+                                                    end_times->begin()),
+                          thrust::make_zip_iterator(srcs.end(),
+                                                    dsts.end(),
+                                                    wgts->end(),
+                                                    ids->end(),
+                                                    start_times->end(),
+                                                    end_times->end()));
           } else {
-            thrust::sort(
+            cugraph::sort(
               handle.get_thrust_policy(),
               thrust::make_zip_iterator(
                 srcs.begin(), dsts.begin(), wgts->begin(), ids->begin(), start_times->begin()),
@@ -150,14 +152,14 @@ void sort(raft::handle_t const& handle,
           }
         } else {
           if (end_times) {
-            thrust::sort(
+            cugraph::sort(
               handle.get_thrust_policy(),
               thrust::make_zip_iterator(
                 srcs.begin(), dsts.begin(), wgts->begin(), ids->begin(), end_times->begin()),
               thrust::make_zip_iterator(
                 srcs.end(), dsts.end(), wgts->end(), ids->end(), end_times->end()));
           } else {
-            thrust::sort(
+            cugraph::sort(
               handle.get_thrust_policy(),
               thrust::make_zip_iterator(srcs.begin(), dsts.begin(), wgts->begin(), ids->begin()),
               thrust::make_zip_iterator(srcs.end(), dsts.end(), wgts->end(), ids->end()));
@@ -168,21 +170,21 @@ void sort(raft::handle_t const& handle,
       if (types) {
         if (start_times) {
           if (end_times) {
-            thrust::sort(handle.get_thrust_policy(),
-                         thrust::make_zip_iterator(srcs.begin(),
-                                                   dsts.begin(),
-                                                   wgts->begin(),
-                                                   types->begin(),
-                                                   start_times->begin(),
-                                                   end_times->begin()),
-                         thrust::make_zip_iterator(srcs.end(),
-                                                   dsts.end(),
-                                                   wgts->end(),
-                                                   types->end(),
-                                                   start_times->end(),
-                                                   end_times->end()));
+            cugraph::sort(handle.get_thrust_policy(),
+                          thrust::make_zip_iterator(srcs.begin(),
+                                                    dsts.begin(),
+                                                    wgts->begin(),
+                                                    types->begin(),
+                                                    start_times->begin(),
+                                                    end_times->begin()),
+                          thrust::make_zip_iterator(srcs.end(),
+                                                    dsts.end(),
+                                                    wgts->end(),
+                                                    types->end(),
+                                                    start_times->end(),
+                                                    end_times->end()));
           } else {
-            thrust::sort(
+            cugraph::sort(
               handle.get_thrust_policy(),
               thrust::make_zip_iterator(
                 srcs.begin(), dsts.begin(), wgts->begin(), types->begin(), start_times->begin()),
@@ -191,14 +193,14 @@ void sort(raft::handle_t const& handle,
           }
         } else {
           if (end_times) {
-            thrust::sort(
+            cugraph::sort(
               handle.get_thrust_policy(),
               thrust::make_zip_iterator(
                 srcs.begin(), dsts.begin(), wgts->begin(), types->begin(), end_times->begin()),
               thrust::make_zip_iterator(
                 srcs.end(), dsts.end(), wgts->end(), types->end(), end_times->end()));
           } else {
-            thrust::sort(
+            cugraph::sort(
               handle.get_thrust_policy(),
               thrust::make_zip_iterator(srcs.begin(), dsts.begin(), wgts->begin(), types->begin()),
               thrust::make_zip_iterator(srcs.end(), dsts.end(), wgts->end(), types->end()));
@@ -207,7 +209,7 @@ void sort(raft::handle_t const& handle,
       } else {
         if (start_times) {
           if (end_times) {
-            thrust::sort(
+            cugraph::sort(
               handle.get_thrust_policy(),
               thrust::make_zip_iterator(srcs.begin(),
                                         dsts.begin(),
@@ -217,7 +219,7 @@ void sort(raft::handle_t const& handle,
               thrust::make_zip_iterator(
                 srcs.end(), dsts.end(), wgts->end(), start_times->end(), end_times->end()));
           } else {
-            thrust::sort(
+            cugraph::sort(
               handle.get_thrust_policy(),
               thrust::make_zip_iterator(
                 srcs.begin(), dsts.begin(), wgts->begin(), start_times->begin()),
@@ -225,15 +227,15 @@ void sort(raft::handle_t const& handle,
           }
         } else {
           if (end_times) {
-            thrust::sort(
+            cugraph::sort(
               handle.get_thrust_policy(),
               thrust::make_zip_iterator(
                 srcs.begin(), dsts.begin(), wgts->begin(), end_times->begin()),
               thrust::make_zip_iterator(srcs.end(), dsts.end(), wgts->end(), end_times->end()));
           } else {
-            thrust::sort(handle.get_thrust_policy(),
-                         thrust::make_zip_iterator(srcs.begin(), dsts.begin(), wgts->begin()),
-                         thrust::make_zip_iterator(srcs.end(), dsts.end(), wgts->end()));
+            cugraph::sort(handle.get_thrust_policy(),
+                          thrust::make_zip_iterator(srcs.begin(), dsts.begin(), wgts->begin()),
+                          thrust::make_zip_iterator(srcs.end(), dsts.end(), wgts->end()));
           }
         }
       }
@@ -243,21 +245,21 @@ void sort(raft::handle_t const& handle,
       if (types) {
         if (start_times) {
           if (end_times) {
-            thrust::sort(handle.get_thrust_policy(),
-                         thrust::make_zip_iterator(srcs.begin(),
-                                                   dsts.begin(),
-                                                   ids->begin(),
-                                                   types->begin(),
-                                                   start_times->begin(),
-                                                   end_times->begin()),
-                         thrust::make_zip_iterator(srcs.end(),
-                                                   dsts.end(),
-                                                   ids->end(),
-                                                   types->end(),
-                                                   start_times->end(),
-                                                   end_times->end()));
+            cugraph::sort(handle.get_thrust_policy(),
+                          thrust::make_zip_iterator(srcs.begin(),
+                                                    dsts.begin(),
+                                                    ids->begin(),
+                                                    types->begin(),
+                                                    start_times->begin(),
+                                                    end_times->begin()),
+                          thrust::make_zip_iterator(srcs.end(),
+                                                    dsts.end(),
+                                                    ids->end(),
+                                                    types->end(),
+                                                    start_times->end(),
+                                                    end_times->end()));
           } else {
-            thrust::sort(
+            cugraph::sort(
               handle.get_thrust_policy(),
               thrust::make_zip_iterator(
                 srcs.begin(), dsts.begin(), ids->begin(), types->begin(), start_times->begin()),
@@ -266,14 +268,14 @@ void sort(raft::handle_t const& handle,
           }
         } else {
           if (end_times) {
-            thrust::sort(
+            cugraph::sort(
               handle.get_thrust_policy(),
               thrust::make_zip_iterator(
                 srcs.begin(), dsts.begin(), ids->begin(), types->begin(), end_times->begin()),
               thrust::make_zip_iterator(
                 srcs.end(), dsts.end(), ids->end(), types->end(), end_times->end()));
           } else {
-            thrust::sort(
+            cugraph::sort(
               handle.get_thrust_policy(),
               thrust::make_zip_iterator(srcs.begin(), dsts.begin(), ids->begin(), types->begin()),
               thrust::make_zip_iterator(srcs.end(), dsts.end(), ids->end(), types->end()));
@@ -282,14 +284,14 @@ void sort(raft::handle_t const& handle,
       } else {
         if (start_times) {
           if (end_times) {
-            thrust::sort(
+            cugraph::sort(
               handle.get_thrust_policy(),
               thrust::make_zip_iterator(
                 srcs.begin(), dsts.begin(), ids->begin(), start_times->begin(), end_times->begin()),
               thrust::make_zip_iterator(
                 srcs.end(), dsts.end(), ids->end(), start_times->end(), end_times->end()));
           } else {
-            thrust::sort(
+            cugraph::sort(
               handle.get_thrust_policy(),
               thrust::make_zip_iterator(
                 srcs.begin(), dsts.begin(), ids->begin(), start_times->begin()),
@@ -297,15 +299,15 @@ void sort(raft::handle_t const& handle,
           }
         } else {
           if (end_times) {
-            thrust::sort(
+            cugraph::sort(
               handle.get_thrust_policy(),
               thrust::make_zip_iterator(
                 srcs.begin(), dsts.begin(), ids->begin(), end_times->begin()),
               thrust::make_zip_iterator(srcs.end(), dsts.end(), ids->end(), end_times->end()));
           } else {
-            thrust::sort(handle.get_thrust_policy(),
-                         thrust::make_zip_iterator(srcs.begin(), dsts.begin(), ids->begin()),
-                         thrust::make_zip_iterator(srcs.end(), dsts.end(), ids->end()));
+            cugraph::sort(handle.get_thrust_policy(),
+                          thrust::make_zip_iterator(srcs.begin(), dsts.begin(), ids->begin()),
+                          thrust::make_zip_iterator(srcs.end(), dsts.end(), ids->end()));
           }
         }
       }
@@ -313,7 +315,7 @@ void sort(raft::handle_t const& handle,
       if (types) {
         if (start_times) {
           if (end_times) {
-            thrust::sort(
+            cugraph::sort(
               handle.get_thrust_policy(),
               thrust::make_zip_iterator(srcs.begin(),
                                         dsts.begin(),
@@ -323,7 +325,7 @@ void sort(raft::handle_t const& handle,
               thrust::make_zip_iterator(
                 srcs.end(), dsts.end(), types->end(), start_times->end(), end_times->end()));
           } else {
-            thrust::sort(
+            cugraph::sort(
               handle.get_thrust_policy(),
               thrust::make_zip_iterator(
                 srcs.begin(), dsts.begin(), types->begin(), start_times->begin()),
@@ -331,40 +333,40 @@ void sort(raft::handle_t const& handle,
           }
         } else {
           if (end_times) {
-            thrust::sort(
+            cugraph::sort(
               handle.get_thrust_policy(),
               thrust::make_zip_iterator(
                 srcs.begin(), dsts.begin(), types->begin(), end_times->begin()),
               thrust::make_zip_iterator(srcs.end(), dsts.end(), types->end(), end_times->end()));
           } else {
-            thrust::sort(handle.get_thrust_policy(),
-                         thrust::make_zip_iterator(srcs.begin(), dsts.begin(), types->begin()),
-                         thrust::make_zip_iterator(srcs.end(), dsts.end(), types->end()));
+            cugraph::sort(handle.get_thrust_policy(),
+                          thrust::make_zip_iterator(srcs.begin(), dsts.begin(), types->begin()),
+                          thrust::make_zip_iterator(srcs.end(), dsts.end(), types->end()));
           }
         }
       } else {
         if (start_times) {
           if (end_times) {
-            thrust::sort(handle.get_thrust_policy(),
-                         thrust::make_zip_iterator(
-                           srcs.begin(), dsts.begin(), start_times->begin(), end_times->begin()),
-                         thrust::make_zip_iterator(
-                           srcs.end(), dsts.end(), start_times->end(), end_times->end()));
+            cugraph::sort(handle.get_thrust_policy(),
+                          thrust::make_zip_iterator(
+                            srcs.begin(), dsts.begin(), start_times->begin(), end_times->begin()),
+                          thrust::make_zip_iterator(
+                            srcs.end(), dsts.end(), start_times->end(), end_times->end()));
           } else {
-            thrust::sort(
+            cugraph::sort(
               handle.get_thrust_policy(),
               thrust::make_zip_iterator(srcs.begin(), dsts.begin(), start_times->begin()),
               thrust::make_zip_iterator(srcs.end(), dsts.end(), start_times->end()));
           }
         } else {
           if (end_times) {
-            thrust::sort(handle.get_thrust_policy(),
-                         thrust::make_zip_iterator(srcs.begin(), dsts.begin(), end_times->begin()),
-                         thrust::make_zip_iterator(srcs.end(), dsts.end(), end_times->end()));
+            cugraph::sort(handle.get_thrust_policy(),
+                          thrust::make_zip_iterator(srcs.begin(), dsts.begin(), end_times->begin()),
+                          thrust::make_zip_iterator(srcs.end(), dsts.end(), end_times->end()));
           } else {
-            thrust::sort(handle.get_thrust_policy(),
-                         thrust::make_zip_iterator(srcs.begin(), dsts.begin()),
-                         thrust::make_zip_iterator(srcs.end(), dsts.end()));
+            cugraph::sort(handle.get_thrust_policy(),
+                          thrust::make_zip_iterator(srcs.begin(), dsts.begin()),
+                          thrust::make_zip_iterator(srcs.end(), dsts.end()));
           }
         }
       }

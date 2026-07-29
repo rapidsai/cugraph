@@ -9,6 +9,7 @@
 
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/core/resource/thrust_policy.hpp>
@@ -57,15 +58,15 @@ temporal_partition_vertices(raft::handle_t const& handle,
                  vertex_labels->end(),
                  vertex_labels_p1->begin());
 
-    thrust::sort(
+    cugraph::sort(
       handle.get_thrust_policy(),
       thrust::make_zip_iterator(
         vertices_p1.begin(), vertex_times_p1.begin(), vertex_labels_p1->begin()),
       thrust::make_zip_iterator(vertices_p1.end(), vertex_times_p1.end(), vertex_labels_p1->end()));
   } else {
-    thrust::sort(handle.get_thrust_policy(),
-                 thrust::make_zip_iterator(vertices_p1.begin(), vertex_times_p1.begin()),
-                 thrust::make_zip_iterator(vertices_p1.end(), vertex_times_p1.end()));
+    cugraph::sort(handle.get_thrust_policy(),
+                  thrust::make_zip_iterator(vertices_p1.begin(), vertex_times_p1.begin()),
+                  thrust::make_zip_iterator(vertices_p1.end(), vertex_times_p1.end()));
   }
 
   rmm::device_uvector<uint32_t> vertex_partition_mask(cugraph::packed_bool_size(vertices_p1.size()),
@@ -97,7 +98,7 @@ temporal_partition_vertices(raft::handle_t const& handle,
     });
 
   size_t num_unique_vertices =
-    detail::count_set_bits(handle, vertex_partition_mask.begin(), vertices_p1.size());
+    count_set_bits(handle.get_thrust_policy(), vertex_partition_mask.begin(), vertices_p1.size());
 
   if (num_unique_vertices == 0) {
     return std::make_tuple(std::move(vertices_p2),
@@ -113,7 +114,7 @@ temporal_partition_vertices(raft::handle_t const& handle,
     if (vertex_labels) {
       vertex_labels_p2->resize(vertices_p1.size() - num_unique_vertices, handle.get_stream());
 
-      copy_if_mask_unset(
+      cugraph::copy_if_mask_unset(
         handle,
         thrust::make_zip_iterator(
           vertices_p1.begin(), vertex_times_p1.begin(), vertex_labels_p1->begin()),
@@ -127,7 +128,7 @@ temporal_partition_vertices(raft::handle_t const& handle,
         cuda::std::distance(
           thrust::make_zip_iterator(
             vertices_p1.begin(), vertex_times_p1.begin(), vertex_labels_p1->begin()),
-          copy_if_mask_set(
+          cugraph::copy_if_mask_set(
             handle,
             thrust::make_zip_iterator(
               vertices_p1.begin(), vertex_times_p1.begin(), vertex_labels_p1->begin()),
@@ -141,15 +142,16 @@ temporal_partition_vertices(raft::handle_t const& handle,
       vertex_labels_p1->resize(vertices_p1.size(), handle.get_stream());
       vertex_times_p1.resize(vertices_p1.size(), handle.get_stream());
     } else {
-      copy_if_mask_unset(handle,
-                         thrust::make_zip_iterator(vertices_p1.begin(), vertex_times_p1.begin()),
-                         thrust::make_zip_iterator(vertices_p1.end(), vertex_times_p1.end()),
-                         vertex_partition_mask.begin(),
-                         thrust::make_zip_iterator(vertices_p2.begin(), vertex_times_p2.begin()));
+      cugraph::copy_if_mask_unset(
+        handle,
+        thrust::make_zip_iterator(vertices_p1.begin(), vertex_times_p1.begin()),
+        thrust::make_zip_iterator(vertices_p1.end(), vertex_times_p1.end()),
+        vertex_partition_mask.begin(),
+        thrust::make_zip_iterator(vertices_p2.begin(), vertex_times_p2.begin()));
       vertices_p1.resize(
         cuda::std::distance(
           thrust::make_zip_iterator(vertices_p1.begin(), vertex_times_p1.begin()),
-          copy_if_mask_set(
+          cugraph::copy_if_mask_set(
             handle,
             thrust::make_zip_iterator(vertices_p1.begin(), vertex_times_p1.begin()),
             thrust::make_zip_iterator(vertices_p1.end(), vertex_times_p1.end()),
