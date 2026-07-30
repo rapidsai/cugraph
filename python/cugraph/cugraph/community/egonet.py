@@ -16,24 +16,20 @@ def _convert_graph_to_output_type(G, input_type):
     return G
 
 
-def _convert_df_series_to_output_type(df, offsets, input_type):
-    """
-    Given a cudf.DataFrame df, convert it to a new type appropriate for the
-    graph algos in this module, based on input_type.
-    """
-    return df, offsets
+def _build_ego_graph(G, df, src_names, dst_names):
+    result_graph = type(G)(directed=G.is_directed())
+    if G.edgelist.weights:
+        result_graph.from_cudf_edgelist(
+            df, source=src_names, destination=dst_names, edge_attr="weight"
+        )
+    else:
+        result_graph.from_cudf_edgelist(
+            df, source=src_names, destination=dst_names
+        )
+    return result_graph
 
 
-def ego_graph(
-    G,
-    n,
-    radius=1,
-    center=True,
-    undirected=None,
-    distance=None,
-    *,
-    return_offsets=False,
-):
+def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
     """Compute ego graph(s) centered at one or more seed vertices.
 
     Parameters
@@ -41,7 +37,8 @@ def ego_graph(
     G : cugraph.Graph, CuPy or SciPy sparse matrix
         Input graph.
     n : integer, list, cudf.Series, or cudf.DataFrame
-        One seed vertex, or multiple seed vertices when ``return_offsets=True``.
+        A single seed vertex or multiple seed vertices. For multi-column
+        vertices, each row of a ``cudf.DataFrame`` represents one seed.
     radius : integer, optional
         Include neighbors at distance less than or equal to ``radius``.
     center : bool, optional
@@ -50,21 +47,20 @@ def ego_graph(
         Present for NetworkX compatibility and currently ignored.
     distance : optional
         Present for NetworkX compatibility and currently ignored.
-    return_offsets : bool, keyword-only, optional
-        When ``False`` (default), preserve the existing single-seed behavior and
-        return a ``cugraph.Graph``. Multiple seeds raise ``ValueError`` rather
-        than silently returning a composite graph.
-
-        When ``True``, return ``(edge_dataframe, offsets)``. ``offsets[i]`` and
-        ``offsets[i + 1]`` delimit the rows belonging to seed ``i``. This keeps
-        the ordering and boundaries returned by pylibcugraph.
 
     Returns
     -------
     cugraph.Graph
-        The ego graph for a single seed when ``return_offsets=False``.
-    tuple
-        ``(edge_dataframe, offsets)`` when ``return_offsets=True``.
+        The ego graph when one seed vertex is supplied.
+    list of cugraph.Graph
+        Ego graphs ordered to match the supplied seeds when multiple seed
+        vertices are supplied.
+
+    Notes
+    -----
+    The high-level API returns one ``Graph`` per seed. Users requiring the
+    combined edge output and offsets for maximum batching efficiency can call
+    ``pylibcugraph.ego_graph`` directly.
     """
     (G, input_type) = ensure_cugraph_obj(G)
 
@@ -90,12 +86,6 @@ def ego_graph(
     if seed_count == 0:
         raise ValueError("'n' must contain at least one seed vertex")
 
-    if seed_count > 1 and not return_offsets:
-        raise ValueError(
-            "Multiple seed vertices require return_offsets=True so that "
-            "individual ego-graph boundaries are preserved."
-        )
-
     n_type = G.edgelist.edgelist_df["src"].dtype
     n = n.astype(n_type)
 
@@ -120,16 +110,16 @@ def ego_graph(
         src_names = "src"
         dst_names = "dst"
 
-    if return_offsets:
-        offsets = cudf.Series(offsets)
-        return _convert_df_series_to_output_type(df, offsets, input_type)
+    offsets = cudf.Series(offsets)
+    result_graphs = []
+    for i in range(seed_count):
+        start = int(offsets.iloc[i])
+        stop = int(offsets.iloc[i + 1])
+        seed_df = df.iloc[start:stop]
+        result_graph = _build_ego_graph(G, seed_df, src_names, dst_names)
+        result_graphs.append(_convert_graph_to_output_type(result_graph, input_type))
 
-    result_graph = type(G)(directed=G.is_directed())
-    if G.edgelist.weights:
-        result_graph.from_cudf_edgelist(
-            df, source=src_names, destination=dst_names, edge_attr="weight"
-        )
-    else:
-        result_graph.from_cudf_edgelist(df, source=src_names, destination=dst_names)
+    if seed_count == 1:
+        return result_graphs[0]
 
-    return _convert_graph_to_output_type(result_graph, input_type)
+    return result_graphs
