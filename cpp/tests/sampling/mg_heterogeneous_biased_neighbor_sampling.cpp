@@ -191,7 +191,7 @@ class Tests_MGHeterogeneous_Biased_Neighbor_Sampling
       //  empty result.  Check first that an empty result was actually justified.
       auto num_sampled_edges = static_cast<size_t>(src_out.size());
       num_sampled_edges      = cugraph::host_scalar_allreduce(
-        *handle_->get_comms(), num_sampled_edges, raft::comms::op_t::SUM, handle_->get_stream());
+        handle_->get_comms(), num_sampled_edges, raft::comms::op_t::SUM, handle_->get_stream());
       ASSERT_TRUE(cugraph::test::validate_sampling_empty_result(
         *handle_,
         mg_graph_view,
