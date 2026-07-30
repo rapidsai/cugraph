@@ -23,9 +23,7 @@ def _build_ego_graph(G, df, src_names, dst_names):
             df, source=src_names, destination=dst_names, edge_attr="weight"
         )
     else:
-        result_graph.from_cudf_edgelist(
-            df, source=src_names, destination=dst_names
-        )
+        result_graph.from_cudf_edgelist(df, source=src_names, destination=dst_names)
     return result_graph
 
 
