@@ -156,6 +156,7 @@ set(CUGRAPH_COMMON_UTILITY_SOURCES
     src/detail/utility_wrappers_64_common.cu
     src/detail/permute_range_common_v32.cu
     src/detail/permute_range_common_v64.cu
+    src/utilities/arithmetic_variant_types.cpp
     src/utilities/mask_utils.cu
     src/utilities/partition_scatter_map_wrappers.cu
     src/utilities/permute_wrappers.cu
@@ -179,8 +180,8 @@ set(CUGRAPH_COMMON_DISTRIBUTED_SOURCES
 )
 
 set(CUGRAPH_COMMON_SAMPLING_SOURCES
-    src/sampling/detail/sample_one_property_common_v64_e64.cu
-    src/sampling/detail/sample_one_property_common_v32_e32.cu
+    src/sampling/detail/sample_outgoing_edges_common_v64_e64.cu
+    src/sampling/detail/sample_outgoing_edges_common_v32_e32.cu
     src/sampling/detail/update_visited_utils_common_v32_e32.cu
     src/sampling/detail/update_visited_utils_common_v64_e64.cu
     src/sampling/detail/deduplicate_edges_by_minor_common_v32_e32.cu
@@ -188,8 +189,6 @@ set(CUGRAPH_COMMON_SAMPLING_SOURCES
     src/sampling/detail/shuffle_and_organize_output_common.cu
     src/sampling/detail/remove_visited_vertices_from_frontier_common_v32_e32.cu
     src/sampling/detail/remove_visited_vertices_from_frontier_common_v64_e64.cu
-    src/sampling/detail/temporal_partition_vertices_common_v64.cu
-    src/sampling/detail/temporal_partition_vertices_common_v32.cu
 )
 
 set(CUGRAPH_COMMON_STRUCTURE_SOURCES
@@ -222,8 +221,6 @@ set(CUGRAPH_SG_SOURCES
     src/sampling/temporal_sampling_sg_v64_e64.cu
     src/sampling/detail/gather_sampled_properties_sg_v32_e32.cu
     src/sampling/detail/gather_sampled_properties_sg_v64_e64.cu
-    src/sampling/detail/update_temporal_edge_mask_sg_v32_e32.cu
-    src/sampling/detail/update_temporal_edge_mask_sg_v64_e64.cu
     src/utilities/validation_checks_sg_v32_e32.cu
     src/utilities/validation_checks_sg_v64_e64.cu
     src/detail/collect_local_vertex_values_sg_v32_e32.cu
@@ -376,8 +373,6 @@ set(CUGRAPH_MG_SOURCES
     src/sampling/temporal_sampling_mg_v64_e64.cu
     src/sampling/detail/gather_sampled_properties_mg_v32_e32.cu
     src/sampling/detail/gather_sampled_properties_mg_v64_e64.cu
-    src/sampling/detail/update_temporal_edge_mask_mg_v32_e32.cu
-    src/sampling/detail/update_temporal_edge_mask_mg_v64_e64.cu
     src/utilities/validation_checks_mg_v32_e32.cu
     src/utilities/validation_checks_mg_v64_e64.cu
     src/utilities/shuffle_local_edge_srcs_dsts_mg_v32.cu

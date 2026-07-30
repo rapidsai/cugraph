@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -538,6 +538,8 @@ extern "C" cugraph_error_code_t cugraph_test_sample_result_create(
 
 extern "C" void cugraph_sample_result_free(cugraph_sample_result_t* result)
 {
+  if (result == nullptr) { return; }
+
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t*>(result);
 
   delete internal_pointer->major_offsets_;

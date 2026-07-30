@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -9,10 +9,12 @@
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/device_span.hpp>
+#include <raft/core/handle.hpp>
 
 #include <rmm/device_uvector.hpp>
 
 #include <variant>
+#include <vector>
 
 namespace CUGRAPH_EXPORT cugraph {
 
@@ -129,5 +131,21 @@ inline std::vector<const_arithmetic_device_span_t> make_const_arithmetic_device_
   });
   return results;
 }
+
+/**
+ * @brief Concatenate same-typed device spans into a contiguous device vector.
+ *
+ * The spans are concatenated in the order given. The element type is inferred from the first span,
+ * and every span must hold the same arithmetic variant alternative.
+ *
+ * @param handle RAFT handle used to access the CUDA stream.
+ * @param spans Device spans to concatenate.
+ * @param result_size Total number of elements across all spans.
+ * @return A device vector containing the concatenated elements, or a monostate variant if
+ * @p spans is empty.
+ */
+arithmetic_device_uvector_t concatenate_spans(raft::handle_t const& handle,
+                                              std::vector<arithmetic_device_span_t> const& spans,
+                                              size_t result_size);
 
 }  // namespace CUGRAPH_EXPORT cugraph

@@ -27,8 +27,6 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 | Core            |                                                              |                                                              |
 |                 | [K-Core](algorithms/cores/kcore.ipynb)                                  | Extracts the K-core cluster                                  |
 |                 | [Core Number](algorithms/cores/core-number.ipynb)                       | Computer the Core number for each vertex in a graph          |
-Layout            |                                                              |                                                              |
-|                 | [Force-Atlas2](algorithms/layout/Force-Atlas2.ipynb)   |A large graph visualization achieved with cuGraph. |
 | Link Analysis   |                                                              |                                                              |
 |                 | [Pagerank](algorithms/link_analysis/Pagerank.ipynb)                     | Compute the PageRank of every vertex in a graph              |
 |                 | [HITS](algorithms/link_analysis/HITS.ipynb)                             | Compute the HITS' Hub and Authority scores for every vertex in a graph              |
@@ -63,13 +61,13 @@ The easiest way to run the notebooks is to get the latest [rapidsai/notebooks](h
 
 For example, get the latest (as of writing the document) nightly image (`a` after the version number indicates that an image is nightly) with CUDA 13 using
 ```sh
-docker pull rapidsai/notebooks:26.08a-cuda13-py3.13
+docker pull rapidsai/notebooks:26.10a-cuda13-py3.13
 ```
 
 And, then run a container based on the image using
 
 ```sh
-docker run --rm  -it --pull always --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864   -p 8888:8888 rapidsai/notebooks:26.08a-cuda13-py3.13
+docker run --rm  -it --pull always --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864   -p 8888:8888 rapidsai/notebooks:26.10a-cuda13-py3.13
 ```
 You are all set. Run and edit cugraph notebooks from a browser at url
 http://127.0.0.1:8888/lab/tree/cugraph/cugraph_benchmarks
@@ -85,8 +83,8 @@ ssh -L  127.0.0.1:8888:127.0.0.1:8888 [USER_NAME@][REMOTE_HOST_NAME or REMOTE_HO
 and then run the container in your remote machine.
 
 ```sh
-docker pull rapidsai/notebooks:26.08a-cuda13-py3.13
-docker run --rm  -it --pull always --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -p 8888:8888 rapidsai/notebooks:26.08a-cuda13-py3.13
+docker pull rapidsai/notebooks:26.10a-cuda13-py3.13
+docker run --rm  -it --pull always --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -p 8888:8888 rapidsai/notebooks:26.10a-cuda13-py3.13
 ```
 
 You can run and edit cugraph notebooks at url http://127.0.0.1:8888/lab/tree/cugraph/cugraph_benchmarks as if they are running locally.

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -224,9 +224,12 @@ class simpleDistributedGraphImpl:
         ddf_columns = s_col + d_col
         self.vertex_columns = ddf_columns.copy()
         _client = default_client()
-        workers = _client.scheduler_info(n_workers=-1)["workers"]
-        # Repartition to 2 partitions per GPU for memory efficient process
-        input_ddf = input_ddf.repartition(npartitions=len(workers) * 2)
+        # Repartition to 2 partitions per GPU for memory efficient process.
+        # Size from Comms.get_n_workers() (scheduler_info()["n_workers"]) rather
+        # than len(scheduler_info()["workers"]): the latter is periodically
+        # overwritten with an empty dict by dask's scheduler-info poll, which can
+        # make npartitions=0 and raise ZeroDivisionError in dask's repartition.
+        input_ddf = input_ddf.repartition(npartitions=Comms.get_n_workers() * 2)
         # The dataframe will be symmetrized iff the graph is undirected
         # otherwise, the inital dataframe will be returned
         if edge_attr is not None:
@@ -354,8 +357,7 @@ class simpleDistributedGraphImpl:
             is_multigraph=self.properties.multi_edge,
             is_symmetric=not self.properties.directed,
         )
-        ddf = ddf.repartition(npartitions=len(workers) * 2)
-        workers = _client.scheduler_info(n_workers=-1)["workers"].keys()
+        ddf = ddf.repartition(npartitions=Comms.get_n_workers() * 2)
         persisted_keys_d = persist_dask_df_equal_parts_per_worker(
             ddf, _client, return_type="dict"
         )
@@ -471,10 +473,8 @@ class simpleDistributedGraphImpl:
             if not self.properties.multi_edge:
                 # Drop parallel edges for non MultiGraph
                 # FIXME: Drop multi edges with the CAPI instead.
-                _client = default_client()
-                workers = _client.scheduler_info(n_workers=-1)["workers"]
                 edgelist_df = _memory_efficient_drop_duplicates(
-                    edgelist_df, [srcCol, dstCol], len(workers)
+                    edgelist_df, [srcCol, dstCol], Comms.get_n_workers()
                 )
 
             edgelist_df[srcCol], edgelist_df[dstCol] = (
