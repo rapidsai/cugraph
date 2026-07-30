@@ -457,12 +457,33 @@ __device__ void nbr_intersection_nbr_list(
   }
 }
 
-// Emit the operator for the common neighbor w located at short-list position (short_off + s) by the
-// scan-shorter / binary-search-longer kernels (mid- and high-degree). To stay consistent with the
-// merge-walk used by the low-degree kernel and the materializing nbr_intersection, duplicate
-// neighbors (multigraphs) are paired one-to-one between the two lists, so w contributes
-// min(multiplicity in short, multiplicity in long) times (not the short-list multiplicity). Only the
-// first occurrence of w in the sorted short list does the work for the whole duplicate run.
+// Emit the operator for the common neighbor w sitting at short-list position (short_off + s). This
+// is the per-w step of the scan-shorter / binary-search-longer strategy used by the mid- and
+// high-degree kernels: one thread per short-list entry, each asking whether its entry also appears
+// in the longer list.
+//
+// Multigraphs are the reason this is not a three-line function, so it is worth spelling out.
+//
+// The low-degree kernel and the materializing nbr_intersection do not binary-search; they merge-walk
+// the two sorted lists with one cursor each. That structure handles repeated neighbors for free: if
+// w appears k times in one list and m times in the other, the two cursors advance together and pair
+// them off exactly min(k, m) times, which is the number of distinct triangles those parallel edges
+// form.
+//
+// Binary search has no cursors and therefore no pairing. Left alone it would go wrong twice over.
+// Every one of the k short-list copies of w is its own thread, each search succeeds, and each would
+// emit, giving k contributions instead of min(k, m). Suppress the repeats and the count instead
+// collapses to 1, which is just as wrong whenever k and m both exceed one.
+//
+// So the pairing has to be rebuilt by hand, in two parts:
+//   - the run of k copies is collapsed to a single owner, the first occurrence, so the run is
+//     handled once rather than k times;
+//   - that owner then walks both runs of w in lockstep, exactly as the merge would have, emitting
+//     one contribution per paired occurrence and stopping when either run is exhausted.
+//
+// The result matches the merge-walk paths on any graph, so all three agree on multigraphs. On a
+// simple graph k and m are both 1: the first-occurrence check never fires and the walk runs once, so
+// none of this costs anything.
 template <bool check_edge_mask,
           typename vertex_t,
           typename edge_t,
@@ -491,7 +512,10 @@ __device__ void nbr_intersection_emit_intersecting_w(vertex_t v0,
 {
   auto p = short_off + s;
   auto w = short_indices[p];
-  // Defer to the first occurrence of w in the sorted short list.
+  // First half of the multigraph fix: if w is repeated, only the first copy in the run does anything
+  // and every later copy leaves immediately. The list is sorted, so a repeat is recognized by
+  // comparing against the entry just before it. Without this, k parallel edges to w would run this
+  // whole function k times and emit k times over.
   if (s > edge_t{0} && short_indices[p - 1] == w) { return; }
 
   // Binary search for w in the longer list. Could equivalently use the sequential thrust version:
@@ -512,7 +536,12 @@ __device__ void nbr_intersection_emit_intersecting_w(vertex_t v0,
   }
   if (lo >= long_off + long_deg || long_indices[lo] != w) { return; }
 
-  // Merge-walk the two duplicate runs of w, pairing (unmasked) occurrences one-to-one.
+  // Second half of the multigraph fix, and the reason the first half is not enough on its own:
+  // suppressing the repeats leaves one contribution, but the correct answer is min(k, m). The search
+  // above landed on the first copy of w in the long run, so walking both runs from there with a
+  // cursor each reproduces what the merge-walk kernels do, one contribution per paired occurrence,
+  // ending as soon as either run is used up. Masked-off edges advance their own cursor without
+  // pairing, so a dead parallel edge removes one contribution rather than shifting the pairing.
   auto short_end = short_off + short_deg;
   auto long_end  = long_off + long_deg;
   edge_t sk      = p;
@@ -644,105 +673,6 @@ __global__ static void nbr_intersection_low_degree(
     idx += static_cast<size_t>(gridDim.x) * blockDim.x;
   }
 }
-
-// Single thread per pair, binary-search variant: instead of merge-walking, the thread scans the
-// shorter neighbor list and binary-searches each element in the longer one (same emit helper as the
-// mid/high kernels). Disabled (kept for reference): an experiment showed binary search beats the
-// merge-walk low kernel on skewed (RMAT) graphs, motivating a future asymmetry-ratio-based adaptive
-// dispatch. Re-enable to route the low-degree bin through binary search.
-#if 0
-template <bool check_edge_mask,
-          typename vertex_t,
-          typename edge_t,
-          bool multi_gpu,
-          typename VertexPairIterator,
-          typename FirstElementToIdxMap,
-          typename SecondElementToIdxMap,
-          typename IntersectionOp>
-__global__ static void nbr_intersection_low_degree_binary(
-  edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition,
-  VertexPairIterator vertex_pair_first,
-  raft::device_span<size_t const> pair_indices,
-  FirstElementToIdxMap first_element_to_idx_map,
-  raft::device_span<edge_t const> first_element_offsets,
-  raft::device_span<vertex_t const> first_element_indices,
-  SecondElementToIdxMap second_element_to_idx_map,
-  raft::device_span<edge_t const> second_element_offsets,
-  raft::device_span<vertex_t const> second_element_indices,
-  IntersectionOp intersection_op,
-  uint32_t const* edge_mask)
-{
-  constexpr bool v0_local = std::is_same_v<FirstElementToIdxMap, void*>;
-  constexpr bool v1_local = std::is_same_v<SecondElementToIdxMap, void*>;
-
-  auto const tid = threadIdx.x + static_cast<size_t>(blockIdx.x) * blockDim.x;
-  size_t idx     = tid;
-
-  check_bit_set_t<uint32_t const*, edge_t> check_bit_set{edge_mask, edge_t{0}};
-
-  while (idx < pair_indices.size()) {
-    auto i    = pair_indices[idx];
-    auto pair = *(vertex_pair_first + i);
-    auto v0   = cuda::std::get<0>(pair);
-    auto v1   = cuda::std::get<1>(pair);
-
-    vertex_t const* v0_indices{nullptr};
-    vertex_t const* v1_indices{nullptr};
-    edge_t v0_off{}, v0_deg{}, v1_off{}, v1_deg{};
-    nbr_intersection_nbr_list(edge_partition,
-                              first_element_to_idx_map,
-                              first_element_offsets,
-                              first_element_indices,
-                              v0,
-                              v0_indices,
-                              v0_off,
-                              v0_deg);
-    nbr_intersection_nbr_list(edge_partition,
-                              second_element_to_idx_map,
-                              second_element_offsets,
-                              second_element_indices,
-                              v1,
-                              v1_indices,
-                              v1_off,
-                              v1_deg);
-
-    bool v0_is_short              = (v0_deg <= v1_deg);
-    vertex_t const* short_indices = v0_is_short ? v0_indices : v1_indices;
-    vertex_t const* long_indices  = v0_is_short ? v1_indices : v0_indices;
-    edge_t short_off              = v0_is_short ? v0_off : v1_off;
-    edge_t short_deg              = v0_is_short ? v0_deg : v1_deg;
-    edge_t long_off               = v0_is_short ? v1_off : v0_off;
-    edge_t long_deg               = v0_is_short ? v1_deg : v0_deg;
-    bool short_local              = v0_is_short ? v0_local : v1_local;
-    bool long_local               = v0_is_short ? v1_local : v0_local;
-
-    auto v0_v1_itr =
-      thrust::lower_bound(thrust::seq, v0_indices + v0_off, v0_indices + v0_off + v0_deg, v1);
-    edge_t v0_v1_edge_offset = static_cast<edge_t>(v0_v1_itr - v0_indices);
-
-    for (edge_t s = 0; s < short_deg; ++s) {
-      nbr_intersection_emit_intersecting_w<check_edge_mask>(v0,
-                                                            v1,
-                                                            i,
-                                                            v0_v1_edge_offset,
-                                                            short_indices,
-                                                            short_off,
-                                                            short_deg,
-                                                            short_local,
-                                                            long_indices,
-                                                            long_off,
-                                                            long_deg,
-                                                            long_local,
-                                                            v0_is_short,
-                                                            s,
-                                                            check_bit_set,
-                                                            intersection_op);
-    }
-
-    idx += static_cast<size_t>(gridDim.x) * blockDim.x;
-  }
-}
-#endif
 
 // One warp per pair: each lane scans part of the shorter neighbor list and binary-searches the
 // longer one.
