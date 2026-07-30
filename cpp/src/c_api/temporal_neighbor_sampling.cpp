@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -24,8 +24,6 @@
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/thrust_wrappers/fill.hpp>
 #include <cugraph/utilities/thrust_wrappers/sequence.hpp>
-#include <cugraph/utilities/thrust_wrappers/sort.hpp>
-#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -40,7 +38,10 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
   std::string temporal_column_name_{};
   cugraph::c_api::cugraph_edge_property_view_t const* edge_biases_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertices_{nullptr};
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const* starting_vertex_times_{nullptr};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* starting_vertex_start_times_{
+    nullptr};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* starting_vertex_end_times_{
+    nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* starting_vertex_label_offsets_{
     nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* vertex_type_offsets_{nullptr};
@@ -60,7 +61,8 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
     const char* temporal_column_name,
     cugraph_edge_property_view_t const* edge_biases,
     cugraph_type_erased_device_array_view_t const* start_vertices,
-    cugraph_type_erased_device_array_view_t const* starting_vertex_times,
+    cugraph_type_erased_device_array_view_t const* starting_vertex_start_times,
+    cugraph_type_erased_device_array_view_t const* starting_vertex_end_times,
     cugraph_type_erased_device_array_view_t const* starting_vertex_label_offsets,
     cugraph_type_erased_device_array_view_t const* vertex_type_offsets,
     cugraph_type_erased_host_array_view_t const* fan_out,
@@ -77,9 +79,12 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
       start_vertices_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
           start_vertices)),
-      starting_vertex_times_(
+      starting_vertex_start_times_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-          starting_vertex_times)),
+          starting_vertex_start_times)),
+      starting_vertex_end_times_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+          starting_vertex_end_times)),
       starting_vertex_label_offsets_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
           starting_vertex_label_offsets)),
@@ -157,13 +162,23 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
                  start_vertices.size(),
                  handle_.get_stream());
 
-      std::optional<rmm::device_uvector<time_stamp_t>> starting_vertex_times{std::nullopt};
-      if (starting_vertex_times_ != nullptr) {
-        starting_vertex_times =
-          rmm::device_uvector<time_stamp_t>(starting_vertex_times_->size_, handle_.get_stream());
-        raft::copy(starting_vertex_times->data(),
-                   starting_vertex_times_->as_type<time_stamp_t>(),
-                   starting_vertex_times->size(),
+      std::optional<rmm::device_uvector<time_stamp_t>> starting_vertex_start_times{std::nullopt};
+      if (starting_vertex_start_times_ != nullptr) {
+        starting_vertex_start_times = rmm::device_uvector<time_stamp_t>(
+          starting_vertex_start_times_->size_, handle_.get_stream());
+        raft::copy(starting_vertex_start_times->data(),
+                   starting_vertex_start_times_->as_type<time_stamp_t>(),
+                   starting_vertex_start_times->size(),
+                   handle_.get_stream());
+      }
+
+      std::optional<rmm::device_uvector<time_stamp_t>> starting_vertex_end_times{std::nullopt};
+      if (starting_vertex_end_times_ != nullptr) {
+        starting_vertex_end_times = rmm::device_uvector<time_stamp_t>(
+          starting_vertex_end_times_->size_, handle_.get_stream());
+        raft::copy(starting_vertex_end_times->data(),
+                   starting_vertex_end_times_->as_type<time_stamp_t>(),
+                   starting_vertex_end_times->size(),
                    handle_.get_stream());
       }
 
@@ -188,37 +203,29 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
         if constexpr (multi_gpu) {
           auto num_local_labels = starting_vertex_label_offsets_->size_ - 1;
 
-          auto global_labels = cugraph::host_scalar_allgather(
+          // Each GPU owns a contiguous range of the global label space sized by its local label
+          // count, so a rank's displacement into that space is both the offset to apply to its own
+          // labels and its displacement into the concatenated label to rank mapping below.
+          auto recvcounts = cugraph::host_scalar_allgather(
             handle_.get_comms(), num_local_labels, handle_.get_stream());
 
+          std::vector<size_t> displacements(recvcounts.size());
           std::exclusive_scan(
-            global_labels.begin(), global_labels.end(), global_labels.begin(), label_t{0});
+            recvcounts.begin(), recvcounts.end(), displacements.begin(), size_t{0});
 
           // Compute the global starting_vertex_label_offsets
 
           cugraph::detail::transform_increment_ints(
             raft::device_span<label_t>{(*start_vertex_labels).data(),
                                        (*start_vertex_labels).size()},
-            (label_t)global_labels[handle_.get_comms().get_rank()],
+            static_cast<label_t>(displacements[handle_.get_comms().get_rank()]),
             handle_.get_stream());
 
-          rmm::device_uvector<label_t> unique_labels((*start_vertex_labels).size(),
-                                                     handle_.get_stream());
-          raft::copy(unique_labels.data(),
-                     (*start_vertex_labels).data(),
-                     unique_labels.size(),
-                     handle_.get_stream());
-
-          // Get unique labels
-          // sort the start_vertex_labels
-          cugraph::sort(handle_.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
-
-          auto num_unique_labels = static_cast<size_t>(cuda::std::distance(
-            unique_labels.begin(),
-            cugraph::unique(
-              handle_.get_thrust_policy(), unique_labels.begin(), unique_labels.end())));
-
-          rmm::device_uvector<label_t> local_label_to_comm_rank(num_unique_labels,
+          // Map this GPU's entire label range to this rank, including any label whose seed range is
+          // empty.  Deriving this from the labels present in the seeds instead would leave the
+          // mapping shorter than the global label space and shift it out of alignment with the
+          // label numbering computed above.
+          rmm::device_uvector<label_t> local_label_to_comm_rank(num_local_labels,
                                                                 handle_.get_stream());
 
           cugraph::fill(rmm::exec_policy(handle_.get_stream()),
@@ -227,13 +234,6 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
                         label_t{handle_.get_comms().get_rank()});  // This should be rename to rank
 
           // Perform allgather to get global_label_to_comm_rank_d_vector
-          auto recvcounts = cugraph::host_scalar_allgather(
-            handle_.get_comms(), num_unique_labels, handle_.get_stream());
-
-          std::vector<size_t> displacements(recvcounts.size());
-          std::exclusive_scan(
-            recvcounts.begin(), recvcounts.end(), displacements.begin(), size_t{0});
-
           label_to_comm_rank = rmm::device_uvector<label_t>(
             displacements.back() + recvcounts.back(), handle_.get_stream());
 
@@ -246,8 +246,11 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
             handle_.get_stream());
 
           std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
-          if (starting_vertex_times) {
-            vertex_properties.push_back(std::move(*starting_vertex_times));
+          if (starting_vertex_start_times) {
+            vertex_properties.push_back(std::move(*starting_vertex_start_times));
+          }
+          if (starting_vertex_end_times) {
+            vertex_properties.push_back(std::move(*starting_vertex_end_times));
           }
           if (start_vertex_labels) { vertex_properties.push_back(std::move(*start_vertex_labels)); }
 
@@ -255,8 +258,12 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
             handle_, std::move(start_vertices), std::move(vertex_properties));
 
           size_t pos = 0;
-          if (starting_vertex_times) {
-            starting_vertex_times =
+          if (starting_vertex_start_times) {
+            starting_vertex_start_times =
+              std::move(std::get<rmm::device_uvector<time_stamp_t>>(vertex_properties[pos++]));
+          }
+          if (starting_vertex_end_times) {
+            starting_vertex_end_times =
               std::move(std::get<rmm::device_uvector<time_stamp_t>>(vertex_properties[pos++]));
           }
           if (start_vertex_labels) {
@@ -267,16 +274,24 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
       } else {
         if constexpr (multi_gpu) {
           std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
-          if (starting_vertex_times) {
-            vertex_properties.push_back(std::move(*starting_vertex_times));
+          if (starting_vertex_start_times) {
+            vertex_properties.push_back(std::move(*starting_vertex_start_times));
+          }
+          if (starting_vertex_end_times) {
+            vertex_properties.push_back(std::move(*starting_vertex_end_times));
           }
 
-          std::tie(start_vertices, std::ignore) = cugraph::shuffle_ext_vertices(
+          std::tie(start_vertices, vertex_properties) = cugraph::shuffle_ext_vertices(
             handle_, std::move(start_vertices), std::move(vertex_properties));
 
-          if (starting_vertex_times) {
-            starting_vertex_times =
-              std::move(std::get<rmm::device_uvector<time_stamp_t>>(vertex_properties[0]));
+          size_t pos = 0;
+          if (starting_vertex_start_times) {
+            starting_vertex_start_times =
+              std::move(std::get<rmm::device_uvector<time_stamp_t>>(vertex_properties[pos++]));
+          }
+          if (starting_vertex_end_times) {
+            starting_vertex_end_times =
+              std::move(std::get<rmm::device_uvector<time_stamp_t>>(vertex_properties[pos++]));
           }
         }
       }
@@ -355,9 +370,13 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
                                           : std::nullopt,
               (edge_biases != nullptr) ? *edge_biases : edge_weights->view(),
               raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
-              starting_vertex_times
+              starting_vertex_start_times
                 ? std::make_optional<raft::device_span<time_stamp_t const>>(
-                    starting_vertex_times->data(), starting_vertex_times->size())
+                    starting_vertex_start_times->data(), starting_vertex_start_times->size())
+                : std::nullopt,
+              starting_vertex_end_times
+                ? std::make_optional<raft::device_span<time_stamp_t const>>(
+                    starting_vertex_end_times->data(), starting_vertex_end_times->size())
                 : std::nullopt,
               (starting_vertex_label_offsets_ != nullptr)
                 ? std::make_optional<raft::device_span<int const>>((*start_vertex_labels).data(),
@@ -396,9 +415,13 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
               (edge_end_times != nullptr) ? std::make_optional(edge_end_times->view())
                                           : std::nullopt,
               raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
-              starting_vertex_times
+              starting_vertex_start_times
                 ? std::make_optional<raft::device_span<time_stamp_t const>>(
-                    starting_vertex_times->data(), starting_vertex_times->size())
+                    starting_vertex_start_times->data(), starting_vertex_start_times->size())
+                : std::nullopt,
+              starting_vertex_end_times
+                ? std::make_optional<raft::device_span<time_stamp_t const>>(
+                    starting_vertex_end_times->data(), starting_vertex_end_times->size())
                 : std::nullopt,
               (starting_vertex_label_offsets_ != nullptr)
                 ? std::make_optional<raft::device_span<int const>>((*start_vertex_labels).data(),
@@ -441,9 +464,13 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
                                           : std::nullopt,
               (edge_biases != nullptr) ? *edge_biases : edge_weights->view(),
               raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
-              starting_vertex_times
+              starting_vertex_start_times
                 ? std::make_optional<raft::device_span<time_stamp_t const>>(
-                    starting_vertex_times->data(), starting_vertex_times->size())
+                    starting_vertex_start_times->data(), starting_vertex_start_times->size())
+                : std::nullopt,
+              starting_vertex_end_times
+                ? std::make_optional<raft::device_span<time_stamp_t const>>(
+                    starting_vertex_end_times->data(), starting_vertex_end_times->size())
                 : std::nullopt,
               (starting_vertex_label_offsets_ != nullptr)
                 ? std::make_optional<raft::device_span<int const>>((*start_vertex_labels).data(),
@@ -481,9 +508,13 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
               (edge_end_times != nullptr) ? std::make_optional(edge_end_times->view())
                                           : std::nullopt,
               raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
-              starting_vertex_times
+              starting_vertex_start_times
                 ? std::make_optional<raft::device_span<time_stamp_t const>>(
-                    starting_vertex_times->data(), starting_vertex_times->size())
+                    starting_vertex_start_times->data(), starting_vertex_start_times->size())
+                : std::nullopt,
+              starting_vertex_end_times
+                ? std::make_optional<raft::device_span<time_stamp_t const>>(
+                    starting_vertex_end_times->data(), starting_vertex_end_times->size())
                 : std::nullopt,
               (starting_vertex_label_offsets_ != nullptr)
                 ? std::make_optional<raft::device_span<int const>>((*start_vertex_labels).data(),
@@ -930,7 +961,8 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neighbor_sample(
   cugraph_graph_t* graph,
   const char* temporal_column_name,
   const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* starting_vertex_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_start_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_end_times,
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
@@ -971,15 +1003,32 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neighbor_sample(
                "vertex type of graph and start_vertices must match",
                *error);
 
-  CAPI_EXPECTS(starting_vertex_times == nullptr ||
+  CAPI_EXPECTS(starting_vertex_start_times == nullptr ||
                  reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-                   starting_vertex_times)
+                   starting_vertex_start_times)
                      ->size_ ==
                    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
                      start_vertices)
                      ->size_,
                CUGRAPH_INVALID_INPUT,
-               "starting_vertex_times should have the same size as start_vertices",
+               "starting_vertex_start_times should have the same size as start_vertices",
+               *error);
+
+  CAPI_EXPECTS(starting_vertex_end_times == nullptr ||
+                 reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                   starting_vertex_end_times)
+                     ->size_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     start_vertices)
+                     ->size_,
+               CUGRAPH_INVALID_INPUT,
+               "starting_vertex_end_times should have the same size as start_vertices",
+               *error);
+
+  CAPI_EXPECTS(options_cpp.disjoint_sampling_ == TRUE,
+               CUGRAPH_INVALID_INPUT,
+               "temporal neighbor sampling requires disjoint sampling; set disjoint_sampling to "
+               "TRUE in the sampling options",
                *error);
 
   temporal_neighbor_sampling_functor functor{handle,
@@ -988,7 +1037,8 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neighbor_sample(
                                              temporal_column_name,
                                              nullptr,
                                              start_vertices,
-                                             starting_vertex_times,
+                                             starting_vertex_start_times,
+                                             starting_vertex_end_times,
                                              starting_vertex_label_offsets,
                                              vertex_type_offsets,
                                              fan_out,
@@ -1006,7 +1056,8 @@ cugraph_error_code_t cugraph_heterogeneous_biased_temporal_neighbor_sample(
   const char* temporal_column_name,
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* starting_vertex_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_start_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_end_times,
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
@@ -1054,15 +1105,32 @@ cugraph_error_code_t cugraph_heterogeneous_biased_temporal_neighbor_sample(
                "vertex type of graph and start_vertices must match",
                *error);
 
-  CAPI_EXPECTS(starting_vertex_times == nullptr ||
+  CAPI_EXPECTS(starting_vertex_start_times == nullptr ||
                  reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-                   starting_vertex_times)
+                   starting_vertex_start_times)
                      ->size_ ==
                    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
                      start_vertices)
                      ->size_,
                CUGRAPH_INVALID_INPUT,
-               "starting_vertex_times should have the same size as start_vertices",
+               "starting_vertex_start_times should have the same size as start_vertices",
+               *error);
+
+  CAPI_EXPECTS(starting_vertex_end_times == nullptr ||
+                 reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                   starting_vertex_end_times)
+                     ->size_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     start_vertices)
+                     ->size_,
+               CUGRAPH_INVALID_INPUT,
+               "starting_vertex_end_times should have the same size as start_vertices",
+               *error);
+
+  CAPI_EXPECTS(options_cpp.disjoint_sampling_ == TRUE,
+               CUGRAPH_INVALID_INPUT,
+               "temporal neighbor sampling requires disjoint sampling; set disjoint_sampling to "
+               "TRUE in the sampling options",
                *error);
 
   temporal_neighbor_sampling_functor functor{handle,
@@ -1071,7 +1139,8 @@ cugraph_error_code_t cugraph_heterogeneous_biased_temporal_neighbor_sample(
                                              temporal_column_name,
                                              edge_biases,
                                              start_vertices,
-                                             starting_vertex_times,
+                                             starting_vertex_start_times,
+                                             starting_vertex_end_times,
                                              starting_vertex_label_offsets,
                                              vertex_type_offsets,
                                              fan_out,
@@ -1088,7 +1157,8 @@ extern "C" cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sa
   cugraph_graph_t* graph,
   const char* temporal_column_name,
   const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* starting_vertex_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_start_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_end_times,
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* options,
@@ -1127,15 +1197,32 @@ extern "C" cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sa
                "vertex type of graph and start_vertices must match",
                *error);
 
-  CAPI_EXPECTS(starting_vertex_times == nullptr ||
+  CAPI_EXPECTS(starting_vertex_start_times == nullptr ||
                  reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-                   starting_vertex_times)
+                   starting_vertex_start_times)
                      ->size_ ==
                    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
                      start_vertices)
                      ->size_,
                CUGRAPH_INVALID_INPUT,
-               "starting_vertex_times should have the same size as start_vertices",
+               "starting_vertex_start_times should have the same size as start_vertices",
+               *error);
+
+  CAPI_EXPECTS(starting_vertex_end_times == nullptr ||
+                 reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                   starting_vertex_end_times)
+                     ->size_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     start_vertices)
+                     ->size_,
+               CUGRAPH_INVALID_INPUT,
+               "starting_vertex_end_times should have the same size as start_vertices",
+               *error);
+
+  CAPI_EXPECTS(options_cpp.disjoint_sampling_ == TRUE,
+               CUGRAPH_INVALID_INPUT,
+               "temporal neighbor sampling requires disjoint sampling; set disjoint_sampling to "
+               "TRUE in the sampling options",
                *error);
 
   temporal_neighbor_sampling_functor functor{handle,
@@ -1144,7 +1231,8 @@ extern "C" cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sa
                                              temporal_column_name,
                                              nullptr,
                                              start_vertices,
-                                             starting_vertex_times,
+                                             starting_vertex_start_times,
+                                             starting_vertex_end_times,
                                              starting_vertex_label_offsets,
                                              nullptr,
                                              fan_out,
@@ -1162,7 +1250,8 @@ extern "C" cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor_sam
   const char* temporal_column_name,
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* starting_vertex_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_start_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_end_times,
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* options,
@@ -1208,15 +1297,32 @@ extern "C" cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor_sam
                "vertex type of graph and start_vertices must match",
                *error);
 
-  CAPI_EXPECTS(starting_vertex_times == nullptr ||
+  CAPI_EXPECTS(starting_vertex_start_times == nullptr ||
                  reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
-                   starting_vertex_times)
+                   starting_vertex_start_times)
                      ->size_ ==
                    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
                      start_vertices)
                      ->size_,
                CUGRAPH_INVALID_INPUT,
-               "starting_vertex_times should have the same size as start_vertices",
+               "starting_vertex_start_times should have the same size as start_vertices",
+               *error);
+
+  CAPI_EXPECTS(starting_vertex_end_times == nullptr ||
+                 reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                   starting_vertex_end_times)
+                     ->size_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     start_vertices)
+                     ->size_,
+               CUGRAPH_INVALID_INPUT,
+               "starting_vertex_end_times should have the same size as start_vertices",
+               *error);
+
+  CAPI_EXPECTS(options_cpp.disjoint_sampling_ == TRUE,
+               CUGRAPH_INVALID_INPUT,
+               "temporal neighbor sampling requires disjoint sampling; set disjoint_sampling to "
+               "TRUE in the sampling options",
                *error);
 
   temporal_neighbor_sampling_functor functor{handle,
@@ -1225,7 +1331,8 @@ extern "C" cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor_sam
                                              temporal_column_name,
                                              edge_biases,
                                              start_vertices,
-                                             starting_vertex_times,
+                                             starting_vertex_start_times,
+                                             starting_vertex_end_times,
                                              starting_vertex_label_offsets,
                                              nullptr,
                                              fan_out,

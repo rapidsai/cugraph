@@ -112,6 +112,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
                 utilities/property_generator_utilities_mg.cu
                 utilities/debug_utilities_mg.cpp
                 sampling/random_walks_check_mg.cu
+                sampling/detail/nbr_sampling_validate_empty_result_mg.cu
                 c_api/mg_test_utils.cpp
                 )
 
