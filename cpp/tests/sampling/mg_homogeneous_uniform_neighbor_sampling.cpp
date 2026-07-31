@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -13,6 +13,7 @@
 
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <gtest/gtest.h>
 
@@ -185,6 +186,18 @@ class Tests_MGHomogeneous_Uniform_Neighbor_Sampling
     }
 
     if (homogeneous_uniform_neighbor_sampling_usecase.check_correctness) {
+      //  Every check below only inspects the edges that came back, so they all pass trivially on an
+      //  empty result.  Check first that an empty result was actually justified.
+      auto num_sampled_edges = static_cast<size_t>(src_out.size());
+      num_sampled_edges      = cugraph::host_scalar_allreduce(
+        handle_->get_comms(), num_sampled_edges, raft::comms::op_t::SUM, handle_->get_stream());
+      ASSERT_TRUE(cugraph::test::validate_sampling_empty_result(
+        *handle_,
+        mg_graph_view,
+        raft::device_span<vertex_t const>{random_sources.data(), random_sources.size()},
+        num_sampled_edges,
+        homogeneous_uniform_neighbor_sampling_usecase.disjoint_sampling));
+
       // Consolidate results on GPU 0
       auto mg_start_src = cugraph::test::device_gatherv(
         *handle_, raft::device_span<vertex_t const>{random_sources.data(), random_sources.size()});

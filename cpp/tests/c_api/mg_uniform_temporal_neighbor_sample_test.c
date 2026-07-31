@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -46,6 +46,8 @@ int generic_uniform_temporal_neighbor_sample_test(
   size_t num_vertices,
   size_t num_edges,
   vertex_t* h_start,
+  time_stamp_t* h_start_times,
+  time_stamp_t* h_start_end_times,
   size_t* h_start_vertex_label_offsets,
   size_t num_start_vertices,
   size_t num_start_labels,
@@ -56,7 +58,9 @@ int generic_uniform_temporal_neighbor_sample_test(
   cugraph_prior_sources_behavior_t prior_sources_behavior,
   bool_t dedupe_sources,
   bool_t renumber_results,
-  bool_t is_multigraph)
+  bool_t is_multigraph,
+  vertex_t* expected_dsts,
+  size_t num_expected_edges)
 {
   // Create graph
   int test_ret_value              = 0;
@@ -94,6 +98,10 @@ int generic_uniform_temporal_neighbor_sample_test(
 
   cugraph_type_erased_device_array_t* d_start                         = NULL;
   cugraph_type_erased_device_array_view_t* d_start_view               = NULL;
+  cugraph_type_erased_device_array_t* d_start_times                   = NULL;
+  cugraph_type_erased_device_array_view_t* d_start_times_view         = NULL;
+  cugraph_type_erased_device_array_t* d_start_end_times               = NULL;
+  cugraph_type_erased_device_array_view_t* d_start_end_times_view     = NULL;
   cugraph_type_erased_device_array_t* d_start_label_offsets           = NULL;
   cugraph_type_erased_device_array_view_t* d_start_label_offsets_view = NULL;
   cugraph_type_erased_host_array_view_t* h_fan_out_view               = NULL;
@@ -108,6 +116,26 @@ int generic_uniform_temporal_neighbor_sample_test(
 
   ret_code = cugraph_type_erased_device_array_view_copy_from_host(
     handle, d_start_view, (byte_t*)h_start, &ret_error);
+
+  if (h_start_times != NULL) {
+    ret_code = cugraph_type_erased_device_array_create(
+      handle, num_start_vertices, INT32, &d_start_times, &ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start_times create failed.");
+    d_start_times_view = cugraph_type_erased_device_array_view(d_start_times);
+    ret_code           = cugraph_type_erased_device_array_view_copy_from_host(
+      handle, d_start_times_view, (byte_t*)h_start_times, &ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "start times copy failed.");
+  }
+
+  if (h_start_end_times != NULL) {
+    ret_code = cugraph_type_erased_device_array_create(
+      handle, num_start_vertices, INT32, &d_start_end_times, &ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start_end_times create failed.");
+    d_start_end_times_view = cugraph_type_erased_device_array_view(d_start_end_times);
+    ret_code               = cugraph_type_erased_device_array_view_copy_from_host(
+      handle, d_start_end_times_view, (byte_t*)h_start_end_times, &ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "start end times copy failed.");
+  }
 
   if (h_start_vertex_label_offsets != NULL) {
     ret_code = cugraph_type_erased_device_array_create(
@@ -140,13 +168,16 @@ int generic_uniform_temporal_neighbor_sample_test(
   cugraph_sampling_set_dedupe_sources(sampling_options, dedupe_sources);
   cugraph_sampling_set_renumber_results(sampling_options, renumber_results);
   cugraph_sampling_set_temporal_sampling_comparison(sampling_options, STRICTLY_INCREASING);
+  // Temporal neighbor sampling requires disjoint sampling.
+  cugraph_sampling_set_disjoint_sampling(sampling_options, TRUE);
 
   ret_code = cugraph_homogeneous_uniform_temporal_neighbor_sample(handle,
                                                                   rng_state,
                                                                   graph,
                                                                   "edge_start_time",
                                                                   d_start_view,
-                                                                  NULL,
+                                                                  d_start_times_view,
+                                                                  d_start_end_times_view,
                                                                   d_start_label_offsets_view,
                                                                   h_fan_out_view,
                                                                   sampling_options,
@@ -180,8 +211,43 @@ int generic_uniform_temporal_neighbor_sample_test(
     TEST_ASSERT(test_ret_value, test_ret_value == 0, "validate_sample_result failed.");
   }
 
+  if ((test_ret_value == 0) && (expected_dsts != NULL)) {
+    cugraph_type_erased_device_array_view_t* result_dsts =
+      cugraph_sample_result_get_destinations(result);
+    cugraph_type_erased_device_array_view_t* result_times =
+      cugraph_sample_result_get_edge_start_time(result);
+    size_t result_size           = cugraph_test_device_gatherv_size(handle, result_dsts);
+    vertex_t* gathered_dsts      = (vertex_t*)malloc(result_size * sizeof(vertex_t));
+    time_stamp_t* gathered_times = (time_stamp_t*)malloc(result_size * sizeof(time_stamp_t));
+
+    ret_code = cugraph_test_device_gatherv_fill(handle, result_dsts, gathered_dsts);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "gather destinations failed.");
+    ret_code = cugraph_test_device_gatherv_fill(handle, result_times, gathered_times);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "gather edge times failed.");
+
+    if (rank == 0) {
+      TEST_ASSERT(test_ret_value, result_size == num_expected_edges, "unexpected result size.");
+      for (size_t i = 0; i < result_size; ++i) {
+        bool found = false;
+        for (size_t j = 0; j < num_expected_edges; ++j) {
+          if (gathered_dsts[i] == expected_dsts[j]) {
+            found = true;
+            break;
+          }
+        }
+        TEST_ASSERT(test_ret_value, found, "unexpected destination for seed time window.");
+        TEST_ASSERT(
+          test_ret_value,
+          (gathered_times[i] >= h_start_times[0]) && (gathered_times[i] <= h_start_end_times[0]),
+          "sampled edge time falls outside seed time window.");
+      }
+    }
+    free(gathered_dsts);
+    free(gathered_times);
+  }
+
   cugraph_sampling_options_free(sampling_options);
-  cugraph_sample_result_free(result);
+  if (result != NULL) { cugraph_sample_result_free(result); }
   cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
   return test_ret_value;
@@ -199,8 +265,10 @@ int test_uniform_temporal_neighbor_sample(const cugraph_resource_handle_t* handl
   time_stamp_t start_times[] = {0, 1, 2, 3, 4, 5, 6, 7};
   time_stamp_t end_times[]   = {1, 2, 3, 4, 5, 6, 7, 8};
   edge_t idx[]               = {0, 1, 2, 3, 4, 5, 6, 7};
-  vertex_t start[]           = {2, 2};
-  int fan_out[]              = {1, 2};
+  // Disjoint sampling forbids duplicate starting vertices within a label.
+  vertex_t start[]                    = {2, 3};
+  size_t start_vertex_label_offsets[] = {0, 1, 2};
+  int fan_out[]                       = {1, 2};
 
   bool_t with_replacement                                 = FALSE;
   bool_t return_hops                                      = TRUE;
@@ -219,8 +287,10 @@ int test_uniform_temporal_neighbor_sample(const cugraph_resource_handle_t* handl
                                                        num_edges,
                                                        start,
                                                        NULL,
+                                                       NULL,
+                                                       start_vertex_label_offsets,
                                                        num_starts,
-                                                       0,
+                                                       num_starts + 1,
                                                        fan_out,
                                                        fan_out_size,
                                                        with_replacement,
@@ -228,7 +298,59 @@ int test_uniform_temporal_neighbor_sample(const cugraph_resource_handle_t* handl
                                                        prior_sources_behavior,
                                                        dedupe_sources,
                                                        FALSE,
-                                                       FALSE);
+                                                       FALSE,
+                                                       NULL,
+                                                       0);
+}
+
+int test_uniform_temporal_neighbor_sample_time_window(const cugraph_resource_handle_t* handle)
+{
+  size_t num_edges        = 4;
+  size_t num_vertices     = 5;
+  size_t fan_out_size     = 1;
+  size_t num_starts       = 1;
+  size_t num_start_labels = 2;
+
+  vertex_t src[]                        = {0, 0, 0, 0};
+  vertex_t dst[]                        = {1, 2, 3, 4};
+  edge_t edge_ids[]                     = {0, 1, 2, 3};
+  time_stamp_t edge_start_times[]       = {1, 2, 3, 5};
+  time_stamp_t edge_end_times[]         = {2, 3, 4, 6};
+  vertex_t start[]                      = {0};
+  time_stamp_t start_vertex_times[]     = {0};
+  time_stamp_t start_vertex_end_times[] = {2};
+  size_t start_vertex_label_offsets[]   = {0, 1};
+  int fan_out[]                         = {-1};
+  vertex_t expected_dsts[]              = {1, 2};
+
+  // The seed window [0, 2] admits times 1 and 2 and excludes edges at times 3 and 5.
+  return generic_uniform_temporal_neighbor_sample_test(
+    handle,
+    src,
+    dst,
+    NULL,
+    edge_ids,
+    NULL,
+    edge_start_times,
+    edge_end_times,
+    num_vertices,
+    num_edges,
+    start,
+    start_vertex_times,
+    start_vertex_end_times,
+    start_vertex_label_offsets,
+    num_starts,
+    num_start_labels,
+    fan_out,
+    fan_out_size,
+    FALSE,
+    TRUE,
+    DEFAULT,
+    FALSE,
+    FALSE,
+    FALSE,
+    expected_dsts,
+    sizeof(expected_dsts) / sizeof(expected_dsts[0]));
 }
 
 int test_uniform_temporal_neighbor_from_alex(const cugraph_resource_handle_t* handle)
@@ -266,6 +388,8 @@ int test_uniform_temporal_neighbor_from_alex(const cugraph_resource_handle_t* ha
                                                        num_vertices,
                                                        num_edges,
                                                        start,
+                                                       NULL,
+                                                       NULL,
                                                        start_vertex_label_offsets,
                                                        num_starts,
                                                        num_starts + 1,
@@ -276,7 +400,9 @@ int test_uniform_temporal_neighbor_from_alex(const cugraph_resource_handle_t* ha
                                                        prior_sources_behavior,
                                                        dedupe_sources,
                                                        renumber_results,
-                                                       TRUE);
+                                                       TRUE,
+                                                       NULL,
+                                                       0);
 }
 
 int test_uniform_temporal_neighbor_sample_dedupe_sources(const cugraph_resource_handle_t* handle)
@@ -321,6 +447,8 @@ int test_uniform_temporal_neighbor_sample_dedupe_sources(const cugraph_resource_
                                                        num_vertices,
                                                        num_edges,
                                                        start,
+                                                       NULL,
+                                                       NULL,
                                                        start_label_offsets,
                                                        num_starts,
                                                        num_starts + 1,
@@ -331,7 +459,9 @@ int test_uniform_temporal_neighbor_sample_dedupe_sources(const cugraph_resource_
                                                        prior_sources_behavior,
                                                        dedupe_sources,
                                                        FALSE,
-                                                       FALSE);
+                                                       FALSE,
+                                                       NULL,
+                                                       0);
 }
 
 int test_uniform_temporal_neighbor_sample_unique_sources(const cugraph_resource_handle_t* handle)
@@ -376,6 +506,8 @@ int test_uniform_temporal_neighbor_sample_unique_sources(const cugraph_resource_
                                                        num_vertices,
                                                        num_edges,
                                                        start,
+                                                       NULL,
+                                                       NULL,
                                                        start_label_offsets,
                                                        num_starts,
                                                        num_starts + 1,
@@ -386,7 +518,9 @@ int test_uniform_temporal_neighbor_sample_unique_sources(const cugraph_resource_
                                                        prior_sources_behavior,
                                                        dedupe_sources,
                                                        FALSE,
-                                                       FALSE);
+                                                       FALSE,
+                                                       NULL,
+                                                       0);
 }
 
 int test_uniform_temporal_neighbor_sample_carry_over_sources(
@@ -432,6 +566,8 @@ int test_uniform_temporal_neighbor_sample_carry_over_sources(
                                                        num_vertices,
                                                        num_edges,
                                                        start,
+                                                       NULL,
+                                                       NULL,
                                                        start_label_offsets,
                                                        num_starts,
                                                        num_starts + 1,
@@ -442,7 +578,9 @@ int test_uniform_temporal_neighbor_sample_carry_over_sources(
                                                        prior_sources_behavior,
                                                        dedupe_sources,
                                                        FALSE,
-                                                       FALSE);
+                                                       FALSE,
+                                                       NULL,
+                                                       0);
 }
 
 /******************************************************************************/
@@ -454,6 +592,7 @@ int main(int argc, char** argv)
 
   int result = 0;
   result |= RUN_MG_TEST(test_uniform_temporal_neighbor_sample, handle);
+  result |= RUN_MG_TEST(test_uniform_temporal_neighbor_sample_time_window, handle);
   result |= RUN_MG_TEST(test_uniform_temporal_neighbor_from_alex, handle);
   // result |= RUN_MG_TEST(test_uniform_temporal_neighbor_sample_dedupe_sources, handle);
   // result |= RUN_MG_TEST(test_uniform_temporal_neighbor_sample_unique_sources, handle);

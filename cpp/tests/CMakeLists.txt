@@ -112,6 +112,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
                 utilities/property_generator_utilities_mg.cu
                 utilities/debug_utilities_mg.cpp
                 sampling/random_walks_check_mg.cu
+                sampling/detail/nbr_sampling_validate_empty_result_mg.cu
                 c_api/mg_test_utils.cpp
                 )
 
@@ -935,6 +936,10 @@ ConfigureCTest(CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST c_api/weakly_connected_comp
 ConfigureCTest(CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST c_api/strongly_connected_components_test.c)
 ConfigureCTest(CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST c_api/uniform_neighbor_sample_test.c)
 ConfigureCTest(CAPI_UNIFORM_TEMPORAL_NEIGHBOR_SAMPLE_TEST c_api/uniform_temporal_neighbor_sample_test.c)
+ConfigureCTest(
+    CAPI_TEMPORAL_NEIGHBOR_SAMPLE_COMPUTE_UNIQUE_KEYS_PERF_TEST
+    c_api/temporal_neighbor_sample_compute_unique_keys_perf_test.c
+)
 ConfigureCTest(CAPI_BIASED_NEIGHBOR_SAMPLE_TEST c_api/biased_neighbor_sample_test.c)
 ConfigureCTest(CAPI_NEGATIVE_SAMPLING_TEST c_api/negative_sampling_test.c)
 ConfigureCTest(CAPI_RANDOM_WALKS_TEST c_api/sg_random_walks_test.c)

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -39,6 +39,7 @@
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/adjacent_difference.h>
+#include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -430,19 +431,15 @@ compute_unique_keys(raft::handle_t const& handle,
                    local_frontier_unique_key_sizes[i],
                  get_dataframe_buffer_begin(aggregate_local_frontier_unique_keys) +
                    local_frontier_unique_key_offsets[i]);
-    thrust::transform(
+    thrust::lower_bound(
       handle.get_thrust_policy(),
+      get_dataframe_buffer_begin(aggregate_local_frontier_unique_keys) +
+        local_frontier_unique_key_offsets[i],
+      get_dataframe_buffer_begin(aggregate_local_frontier_unique_keys) +
+        local_frontier_unique_key_offsets[i + 1],
       aggregate_local_frontier_key_first + local_frontier_offsets[i],
       aggregate_local_frontier_key_first + local_frontier_offsets[i + 1],
-      aggregate_local_frontier_key_idx_to_unique_key_idx.begin() + local_frontier_offsets[i],
-      cuda::proclaim_return_type<size_t>(
-        [unique_key_first = get_dataframe_buffer_begin(aggregate_local_frontier_unique_keys) +
-                            local_frontier_unique_key_offsets[i],
-         unique_key_last = get_dataframe_buffer_begin(aggregate_local_frontier_unique_keys) +
-                           local_frontier_unique_key_offsets[i + 1]] __device__(key_t key) {
-          return static_cast<size_t>(cuda::std::distance(
-            unique_key_first, thrust::find(thrust::seq, unique_key_first, unique_key_last, key)));
-        }));
+      aggregate_local_frontier_key_idx_to_unique_key_idx.begin() + local_frontier_offsets[i]);
   }
 
   return std::make_tuple(std::move(aggregate_local_frontier_unique_keys),
