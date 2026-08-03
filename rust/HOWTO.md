@@ -73,7 +73,7 @@ CUGRAPH_LIB_DIR=/path/to/lib cargo test --test runtime_smoke --features runtime-
 The code example is under _examples/pagerank_exmple.rs_
 
 ### Step 1: Create a CUDA Context Resource Handle
-A standard step for all CUDA application is to create a resource handle.  
+A standard step for all CUDA application is to create a resource handle.
 A simple resource creation utility function is available for use
 ```eamples/utils/resourcehandle.rx```
   * create_resource_handle() - returns the resource handle
@@ -119,10 +119,10 @@ check_status(
   )?;
 ```
 Repeat the above for all the columns.
-Once the data is ready, the next step is to get the data into the GPU and a cuGraph Graph created. 
+Once the data is ready, the next step is to get the data into the GPU and a cuGraph Graph created.
 
 ### Step 3: Create a cuGraph Graph
-Before any graph algorithm can be executed, a _Graph_ needs to be created.  Now that data is on the GPU it can be passed to the graph creation function.  
+Before any graph algorithm can be executed, a _Graph_ needs to be created.  Now that data is on the GPU it can be passed to the graph creation function.
 
 ```
   check_status(
