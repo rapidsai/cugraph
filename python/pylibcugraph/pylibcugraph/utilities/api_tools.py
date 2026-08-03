@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import functools
@@ -64,7 +64,7 @@ def experimental_warning_wrapper(obj, obj_namespace_name=None):
             def __init__(self, *args, **kwargs):
                 """
                 Internal helper for  init  .
-                
+
                 Parameters
                 ----------
                 self : object
@@ -73,7 +73,7 @@ def experimental_warning_wrapper(obj, obj_namespace_name=None):
                     Input argument `args` passed to the backend algorithm.
                 kwargs : object
                     Input argument `kwargs` passed to the backend algorithm.
-                
+
                 Returns
                 -------
                 object
@@ -102,14 +102,14 @@ def experimental_warning_wrapper(obj, obj_namespace_name=None):
     def warning_wrapper_function(*args, **kwargs):
         """
         Execute warning wrapper function using the pylibcugraph backend.
-        
+
         Parameters
         ----------
         args : object
             Input argument `args` passed to the backend algorithm.
         kwargs : object
             Input argument `kwargs` passed to the backend algorithm.
-        
+
         Returns
         -------
         object
@@ -173,7 +173,7 @@ def promoted_experimental_warning_wrapper(obj, obj_namespace_name=None):
             def __init__(self, *args, **kwargs):
                 """
                 Internal helper for  init  .
-                
+
                 Parameters
                 ----------
                 self : object
@@ -182,7 +182,7 @@ def promoted_experimental_warning_wrapper(obj, obj_namespace_name=None):
                     Input argument `args` passed to the backend algorithm.
                 kwargs : object
                     Input argument `kwargs` passed to the backend algorithm.
-                
+
                 Returns
                 -------
                 object
@@ -207,14 +207,14 @@ def promoted_experimental_warning_wrapper(obj, obj_namespace_name=None):
     def warning_wrapper_function(*args, **kwargs):
         """
         Execute warning wrapper function using the pylibcugraph backend.
-        
+
         Parameters
         ----------
         args : object
             Input argument `args` passed to the backend algorithm.
         kwargs : object
             Input argument `kwargs` passed to the backend algorithm.
-        
+
         Returns
         -------
         object
@@ -268,7 +268,7 @@ def deprecated_warning_wrapper(obj, obj_namespace_name=None):
             def __init__(self, *args, **kwargs):
                 """
                 Internal helper for  init  .
-                
+
                 Parameters
                 ----------
                 self : object
@@ -277,7 +277,7 @@ def deprecated_warning_wrapper(obj, obj_namespace_name=None):
                     Input argument `args` passed to the backend algorithm.
                 kwargs : object
                     Input argument `kwargs` passed to the backend algorithm.
-                
+
                 Returns
                 -------
                 object
@@ -302,14 +302,14 @@ def deprecated_warning_wrapper(obj, obj_namespace_name=None):
     def warning_wrapper_function(*args, **kwargs):
         """
         Execute warning wrapper function using the pylibcugraph backend.
-        
+
         Parameters
         ----------
         args : object
             Input argument `args` passed to the backend algorithm.
         kwargs : object
             Input argument `kwargs` passed to the backend algorithm.
-        
+
         Returns
         -------
         object

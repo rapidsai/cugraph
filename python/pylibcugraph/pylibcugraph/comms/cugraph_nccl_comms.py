@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import math
@@ -17,7 +17,7 @@ except ImportError:
         def __call__(self, *args, **kwargs):
             """
             Raise a missing-dependency error when UCXX/NCCL support is unavailable.
-            
+
             Parameters
             ----------
             self : object
@@ -26,7 +26,7 @@ except ImportError:
                 Input argument `args` passed to the backend algorithm.
             kwargs : object
                 Input argument `kwargs` passed to the backend algorithm.
-            
+
             Returns
             -------
             object
@@ -40,14 +40,14 @@ except ImportError:
         def __getattr__(self, name):
             """
             Raise a missing-dependency error for attribute access when UCXX/NCCL support is unavailable.
-            
+
             Parameters
             ----------
             self : object
                 Input argument `self` passed to the backend algorithm.
             name : object
                 Input argument `name` passed to the backend algorithm.
-            
+
             Returns
             -------
             object
@@ -69,7 +69,7 @@ __old_device = None
 def nccl_init(rank: int, world_size: int, uid: int):
     """
     Initialize a cuGraph NCCL communicator object.
-    
+
     Parameters
     ----------
     rank : object
@@ -78,7 +78,7 @@ def nccl_init(rank: int, world_size: int, uid: int):
         Input argument `world_size` passed to the backend algorithm.
     uid : object
         Input argument `uid` passed to the backend algorithm.
-    
+
     Returns
     -------
     object
@@ -97,7 +97,7 @@ def make_raft_handle(
 ):
     """
     Create a RAFT handle configured with NCCL communications.
-    
+
     Parameters
     ----------
     rank : object
@@ -110,7 +110,7 @@ def make_raft_handle(
         Input argument `n_streams_per_handle` passed to the backend algorithm.
     verbose : object
         Input argument `verbose` passed to the backend algorithm.
-    
+
     Returns
     -------
     object
@@ -125,12 +125,12 @@ def make_raft_handle(
 def __get_2D_div(ngpus):
     """
     Compute a 2D communicator partition from the GPU count.
-    
+
     Parameters
     ----------
     ngpus : object
         Input argument `ngpus` passed to the backend algorithm.
-    
+
     Returns
     -------
     object
@@ -145,7 +145,7 @@ def __get_2D_div(ngpus):
 def cugraph_comms_init(rank, world_size, uid, device=0):
     """
     Initialize process-local cuGraph communication state.
-    
+
     Parameters
     ----------
     rank : object
@@ -156,7 +156,7 @@ def cugraph_comms_init(rank, world_size, uid, device=0):
         Input argument `uid` passed to the backend algorithm.
     device : object
         Input argument `device` passed to the backend algorithm.
-    
+
     Returns
     -------
     object
@@ -186,12 +186,12 @@ def cugraph_comms_init(rank, world_size, uid, device=0):
 def cugraph_comms_shutdown():
     """
     Shut down process-local cuGraph communication state.
-    
+
     Parameters
     ----------
     None
         This function does not accept input arguments.
-    
+
     Returns
     -------
     object
@@ -210,12 +210,12 @@ def cugraph_comms_shutdown():
 def cugraph_comms_create_unique_id():
     """
     Create a unique NCCL identifier for communicator setup.
-    
+
     Parameters
     ----------
     None
         This function does not accept input arguments.
-    
+
     Returns
     -------
     object
@@ -227,12 +227,12 @@ def cugraph_comms_create_unique_id():
 def cugraph_comms_get_raft_handle():
     """
     Execute cugraph comms get raft handle using the pylibcugraph backend.
-    
+
     Parameters
     ----------
     None
         This function does not accept input arguments.
-    
+
     Returns
     -------
     object

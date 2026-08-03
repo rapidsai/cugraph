@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -11,7 +11,7 @@ cdef class GraphProperties:
     def __cinit__(self, is_symmetric=False, is_multigraph=False):
         """
         Initialize this object and allocate its underlying native resources.
-        
+
         Parameters
         ----------
         self : object
@@ -20,7 +20,7 @@ cdef class GraphProperties:
             Input argument `is_symmetric` passed to the backend algorithm.
         is_multigraph : object
             Input argument `is_multigraph` passed to the backend algorithm.
-        
+
         Returns
         -------
         object
@@ -33,12 +33,12 @@ cdef class GraphProperties:
     def __getnewargs_ex__(self):
         """
         Internal helper for  getnewargs ex  .
-        
+
         Parameters
         ----------
         self : object
             Input argument `self` passed to the backend algorithm.
-        
+
         Returns
         -------
         tuple
@@ -51,12 +51,12 @@ cdef class GraphProperties:
     def __getstate__(self):
         """
         Internal helper for  getstate  .
-        
+
         Parameters
         ----------
         self : object
             Input argument `self` passed to the backend algorithm.
-        
+
         Returns
         -------
         object
@@ -67,14 +67,14 @@ cdef class GraphProperties:
     def __setstate__(self, state):
         """
         Internal helper for  setstate  .
-        
+
         Parameters
         ----------
         self : object
             Input argument `self` passed to the backend algorithm.
         state : object
             Input argument `state` passed to the backend algorithm.
-        
+
         Returns
         -------
         object
@@ -86,12 +86,12 @@ cdef class GraphProperties:
     def is_symmetric(self):
         """
         Execute is symmetric using the pylibcugraph backend.
-        
+
         Parameters
         ----------
         self : object
             Input argument `self` passed to the backend algorithm.
-        
+
         Returns
         -------
         object
@@ -103,14 +103,14 @@ cdef class GraphProperties:
     def is_symmetric(self, value):
         """
         Execute is symmetric using the pylibcugraph backend.
-        
+
         Parameters
         ----------
         self : object
             Input argument `self` passed to the backend algorithm.
         value : object
             Input argument `value` passed to the backend algorithm.
-        
+
         Returns
         -------
         object
@@ -122,12 +122,12 @@ cdef class GraphProperties:
     def is_multigraph(self):
         """
         Execute is multigraph using the pylibcugraph backend.
-        
+
         Parameters
         ----------
         self : object
             Input argument `self` passed to the backend algorithm.
-        
+
         Returns
         -------
         object
@@ -139,14 +139,14 @@ cdef class GraphProperties:
     def is_multigraph(self, value):
         """
         Execute is multigraph using the pylibcugraph backend.
-        
+
         Parameters
         ----------
         self : object
             Input argument `self` passed to the backend algorithm.
         value : object
             Input argument `value` passed to the backend algorithm.
-        
+
         Returns
         -------
         object

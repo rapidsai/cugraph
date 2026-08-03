@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -50,7 +50,7 @@ cdef class EdgeIdLookupTable:
     def __cinit__(self, ResourceHandle resource_handle, _GPUGraph graph):
         """
         Initialize this object and allocate its underlying native resources.
-        
+
         Parameters
         ----------
         self : object
@@ -59,7 +59,7 @@ cdef class EdgeIdLookupTable:
             Handle to device resources used by the underlying C++ algorithm call.
         graph : object
             Input graph object on which the algorithm is executed.
-        
+
         Returns
         -------
         object
@@ -83,12 +83,12 @@ cdef class EdgeIdLookupTable:
     def __dealloc__(self):
         """
         Release native resources owned by this object.
-        
+
         Parameters
         ----------
         self : object
             Input argument `self` passed to the backend algorithm.
-        
+
         Returns
         -------
         object

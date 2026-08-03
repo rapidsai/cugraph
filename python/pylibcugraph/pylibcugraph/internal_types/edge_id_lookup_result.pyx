@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -30,12 +30,12 @@ cdef class EdgeIdLookupResult:
     def __dealloc__(self):
         """
         Release native resources owned by this object.
-        
+
         Parameters
         ----------
         self : object
             Input argument `self` passed to the backend algorithm.
-        
+
         Returns
         -------
         object
@@ -56,12 +56,12 @@ cdef class EdgeIdLookupResult:
     def get_sources(self):
         """
         Return sources from this result object.
-        
+
         Parameters
         ----------
         self : object
             Input argument `self` passed to the backend algorithm.
-        
+
         Returns
         -------
         object
@@ -75,12 +75,12 @@ cdef class EdgeIdLookupResult:
     def get_destinations(self):
         """
         Return destinations from this result object.
-        
+
         Parameters
         ----------
         self : object
             Input argument `self` passed to the backend algorithm.
-        
+
         Returns
         -------
         object

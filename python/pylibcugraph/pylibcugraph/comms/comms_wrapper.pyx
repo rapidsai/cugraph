@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # cython: profile=False
@@ -14,14 +14,14 @@ from pylibcugraph.comms.comms cimport init_subcomm as c_init_subcomm
 def init_subcomms(handle, row_comm_size):
     """
     Initialize subcommunicators for multi-GPU communication.
-    
+
     Parameters
     ----------
     handle : object
         Handle to device resources used by the underlying C++ algorithm call.
     row_comm_size : object
         Input argument `row_comm_size` passed to the backend algorithm.
-    
+
     Returns
     -------
     object

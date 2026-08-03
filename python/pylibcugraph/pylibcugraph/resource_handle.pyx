@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -20,14 +20,14 @@ cdef class ResourceHandle:
     def __cinit__(self, handle=None):
         """
         Initialize this object and allocate its underlying native resources.
-        
+
         Parameters
         ----------
         self : object
             Input argument `self` passed to the backend algorithm.
         handle : object
             Handle to device resources used by the underlying C++ algorithm call.
-        
+
         Returns
         -------
         object
@@ -49,12 +49,12 @@ cdef class ResourceHandle:
     def __dealloc__(self):
         """
         Release native resources owned by this object.
-        
+
         Parameters
         ----------
         self : object
             Input argument `self` passed to the backend algorithm.
-        
+
         Returns
         -------
         object
