@@ -30,11 +30,37 @@ cdef class COO:
     referencing.
     """
     def __cinit__(self):
+        """
+        Initialize this object and allocate its underlying native resources.
+        
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+        
+        Returns
+        -------
+        object
+                Algorithm result returned by the backend binding.
+        """
         # This COO instance owns sample_result_ptr now. It will be
         # freed when this instance is deleted (see __dealloc__())
         self.c_coo_ptr = NULL
 
     def __dealloc__(self):
+        """
+        Release native resources owned by this object.
+        
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+        
+        Returns
+        -------
+        object
+                Output value: create_cupy_array_view_for_device_ptr(.
+        """
         if self.c_coo_ptr is not NULL:
             cugraph_coo_free(self.c_coo_ptr)
 
@@ -51,6 +77,19 @@ cdef class COO:
         )
 
     def get_sources(self):
+        """
+        Return sources from this result object.
+        
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+        
+        Returns
+        -------
+        object
+                Output value: self.get_array(ptr).
+        """
         if self.c_coo_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
@@ -58,6 +97,19 @@ cdef class COO:
         return self.get_array(ptr)
 
     def get_destinations(self):
+        """
+        Return destinations from this result object.
+        
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+        
+        Returns
+        -------
+        object
+                Output value: self.get_array(ptr).
+        """
         if self.c_coo_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
@@ -65,6 +117,19 @@ cdef class COO:
         return self.get_array(ptr)
 
     def get_edge_ids(self):
+        """
+        Return edge ids from this result object.
+        
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+        
+        Returns
+        -------
+        object
+                Output value: self.get_array(ptr).
+        """
         if self.c_coo_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
@@ -72,6 +137,19 @@ cdef class COO:
         return self.get_array(ptr)
 
     def get_edge_types(self):
+        """
+        Return edge types from this result object.
+        
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+        
+        Returns
+        -------
+        object
+                Output value: self.get_array(ptr).
+        """
         if self.c_coo_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
@@ -79,6 +157,19 @@ cdef class COO:
         return self.get_array(ptr)
 
     def get_edge_weights(self):
+        """
+        Return edge weights from this result object.
+        
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+        
+        Returns
+        -------
+        object
+                Output value: self.get_array(ptr).
+        """
         if self.c_coo_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")

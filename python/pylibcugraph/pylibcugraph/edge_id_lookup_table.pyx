@@ -48,6 +48,23 @@ from pylibcugraph.internal_types.edge_id_lookup_result cimport (
 
 cdef class EdgeIdLookupTable:
     def __cinit__(self, ResourceHandle resource_handle, _GPUGraph graph):
+        """
+        Initialize this object and allocate its underlying native resources.
+        
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+        resource_handle : object
+            Handle to device resources used by the underlying C++ algorithm call.
+        graph : object
+            Input graph object on which the algorithm is executed.
+        
+        Returns
+        -------
+        object
+                Algorithm result returned by the backend binding.
+        """
         self.handle = resource_handle
         self.graph = graph
 
@@ -64,6 +81,19 @@ cdef class EdgeIdLookupTable:
         assert_success(error_code, error_ptr, "cugraph_build_edge_id_and_type_to_src_dst_lookup_map")
 
     def __dealloc__(self):
+        """
+        Release native resources owned by this object.
+        
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+        
+        Returns
+        -------
+        object
+                Algorithm result returned by the backend binding.
+        """
         if self.lookup_container_c_ptr is not NULL:
             cugraph_lookup_container_free(self.lookup_container_c_ptr)
 

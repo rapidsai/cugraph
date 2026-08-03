@@ -28,6 +28,19 @@ cdef class EdgeIdLookupResult:
         self.result_c_ptr = ptr
 
     def __dealloc__(self):
+        """
+        Release native resources owned by this object.
+        
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+        
+        Returns
+        -------
+        object
+                Output value: create_cupy_array_view_for_device_ptr(.
+        """
         if self.result_c_ptr is not NULL:
             cugraph_lookup_result_free(self.result_c_ptr)
 
@@ -41,12 +54,38 @@ cdef class EdgeIdLookupResult:
         )
 
     def get_sources(self):
+        """
+        Return sources from this result object.
+        
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+        
+        Returns
+        -------
+        object
+                Output value: self.get_array(ptr).
+        """
         if self.result_c_ptr is NULL:
             return None
         cdef cugraph_type_erased_device_array_view_t* ptr = cugraph_lookup_result_get_srcs(self.result_c_ptr)
         return self.get_array(ptr)
 
     def get_destinations(self):
+        """
+        Return destinations from this result object.
+        
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+        
+        Returns
+        -------
+        object
+                Output value: self.get_array(ptr).
+        """
         if self.result_c_ptr is NULL:
             return None
         cdef cugraph_type_erased_device_array_view_t* ptr = cugraph_lookup_result_get_dsts(self.result_c_ptr)

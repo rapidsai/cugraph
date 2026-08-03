@@ -18,6 +18,21 @@ cdef class ResourceHandle:
     the corresponding pointer to a cugraph_resource_handle_t
     """
     def __cinit__(self, handle=None):
+        """
+        Initialize this object and allocate its underlying native resources.
+        
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+        handle : object
+            Handle to device resources used by the underlying C++ algorithm call.
+        
+        Returns
+        -------
+        object
+                Algorithm result returned by the backend binding.
+        """
         cdef void* handle_ptr = NULL
         cdef size_t handle_size_t
         if handle is not None:
@@ -32,5 +47,18 @@ cdef class ResourceHandle:
         # FIXME: check for error
 
     def __dealloc__(self):
+        """
+        Release native resources owned by this object.
+        
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+        
+        Returns
+        -------
+        object
+                Algorithm result returned by the backend binding.
+        """
         # FIXME: free only if handle is a valid pointer
         cugraph_free_resource_handle(self.c_resource_handle_ptr)

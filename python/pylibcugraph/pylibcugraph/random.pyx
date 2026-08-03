@@ -27,6 +27,19 @@ import os
 import socket
 
 def generate_default_seed():
+    """
+    Generate a default random seed value.
+    
+    Parameters
+    ----------
+    None
+        This function does not accept input arguments.
+    
+    Returns
+    -------
+    object
+            Output value: h.
+    """
     h = hash(
             (
                 socket.gethostname(),
