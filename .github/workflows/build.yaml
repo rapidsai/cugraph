@@ -31,6 +31,8 @@ concurrency:
   cancel-in-progress: true
 permissions: {}
 jobs:
+  build-details:
+    uses: rapidsai/shared-workflows/.github/workflows/compute-build-details.yaml@main
   cpp-build:
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@main
