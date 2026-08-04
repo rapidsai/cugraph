@@ -13,6 +13,7 @@ jobs:
   # Please keep pr-builder as the top job here
   pr-builder:
     needs:
+      - build-details
       - check-nightly-ci
       - changed-files
       - checks
@@ -80,7 +81,10 @@ jobs:
           - '!.github/ops-bot.yaml'
           - '!.github/release.yml'
           - '!.github/workflows/add-to-project.yml'
+          - '!.github/workflows/build.yaml'
+          - '!.github/workflows/labeler.yml'
           - '!.github/workflows/new-issues-to-triage-projects.yml'
+          - '!.github/workflows/test.yaml'
           - '!.github/workflows/trigger-breaking-change-alert.yaml'
           - '!.pre-commit-config.yaml'
           - '!.yamllint.yaml'
@@ -108,7 +112,10 @@ jobs:
           - '!.github/ops-bot.yaml'
           - '!.github/release.yml'
           - '!.github/workflows/add-to-project.yml'
+          - '!.github/workflows/build.yaml'
+          - '!.github/workflows/labeler.yml'
           - '!.github/workflows/new-issues-to-triage-projects.yml'
+          - '!.github/workflows/test.yaml'
           - '!.github/workflows/trigger-breaking-change-alert.yaml'
           - '!.pre-commit-config.yaml'
           - '!.yamllint.yaml'
@@ -143,7 +150,10 @@ jobs:
           - '!.github/ops-bot.yaml'
           - '!.github/release.yml'
           - '!.github/workflows/add-to-project.yml'
+          - '!.github/workflows/build.yaml'
+          - '!.github/workflows/labeler.yml'
           - '!.github/workflows/new-issues-to-triage-projects.yml'
+          - '!.github/workflows/test.yaml'
           - '!.github/workflows/trigger-breaking-change-alert.yaml'
           - '!.pre-commit-config.yaml'
           - '!.yamllint.yaml'
@@ -172,7 +182,10 @@ jobs:
           - '!.github/ops-bot.yaml'
           - '!.github/release.yml'
           - '!.github/workflows/add-to-project.yml'
+          - '!.github/workflows/build.yaml'
+          - '!.github/workflows/labeler.yml'
           - '!.github/workflows/new-issues-to-triage-projects.yml'
+          - '!.github/workflows/test.yaml'
           - '!.github/workflows/trigger-breaking-change-alert.yaml'
           - '!.pre-commit-config.yaml'
           - '!.yamllint.yaml'
@@ -205,7 +218,10 @@ jobs:
           - '!.github/ops-bot.yaml'
           - '!.github/release.yml'
           - '!.github/workflows/add-to-project.yml'
+          - '!.github/workflows/build.yaml'
+          - '!.github/workflows/labeler.yml'
           - '!.github/workflows/new-issues-to-triage-projects.yml'
+          - '!.github/workflows/test.yaml'
           - '!.github/workflows/trigger-breaking-change-alert.yaml'
           - '!.pre-commit-config.yaml'
           - '!.yamllint.yaml'
@@ -239,11 +255,12 @@ jobs:
     permissions:
       contents: read
   conda-cpp-build:
-    needs: checks
+    needs: [build-details, checks]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@main
     with:
       build_type: pull-request
+      build-datetime: ${{ needs.build-details.outputs.build-datetime }}
       node_type: cpu16
       script: ci/build_cpp.sh
     permissions:
@@ -280,11 +297,12 @@ jobs:
       packages: read
       pull-requests: read
   conda-python-build:
-    needs: conda-cpp-build
+    needs: [build-details, conda-cpp-build]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@main
     with:
       build_type: pull-request
+      build-datetime: ${{ needs.build-details.outputs.build-datetime }}
       script: ci/build_python.sh
       # Build a conda package for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
@@ -343,13 +361,14 @@ jobs:
       packages: read
       pull-requests: read
   wheel-build-libcugraph:
-    needs: checks
+    needs: [build-details, checks]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
     with:
       # build for every combination of arch and CUDA version, but only for the latest Python
       matrix_filter: group_by([.ARCH, (.CUDA_VER|split(".")|map(tonumber)|.[0])]) | map(max_by(.PY_VER|split(".")|map(tonumber)))
       build_type: pull-request
+      build-datetime: ${{ needs.build-details.outputs.build-datetime }}
       node_type: cpu16
       script: ci/build_wheel_libcugraph.sh
       package-name: libcugraph
@@ -361,11 +380,12 @@ jobs:
       packages: read
       pull-requests: read
   wheel-build-pylibcugraph:
-    needs: wheel-build-libcugraph
+    needs: [build-details, wheel-build-libcugraph]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
     with:
       build_type: pull-request
+      build-datetime: ${{ needs.build-details.outputs.build-datetime }}
       node_type: cpu8
       script: ci/build_wheel_pylibcugraph.sh
       package-name: pylibcugraph
@@ -393,11 +413,12 @@ jobs:
       packages: read
       pull-requests: read
   wheel-build-cugraph:
-    needs: wheel-build-pylibcugraph
+    needs: [build-details, wheel-build-pylibcugraph]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
     with:
       build_type: pull-request
+      build-datetime: ${{ needs.build-details.outputs.build-datetime }}
       node_type: cpu8
       script: ci/build_wheel_cugraph.sh
       package-name: cugraph
