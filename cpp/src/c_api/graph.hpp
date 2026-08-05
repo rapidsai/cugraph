@@ -59,6 +59,7 @@ struct cugraph_graph_t {
   void* edge_types_;        // edge_property_t<edge_t, edge_type_t>*
   void* edge_start_times_;  // edge_property_t<edge_t, time_stamp_t>*
   void* edge_end_times_;    // edge_property_t<edge_t, time_stamp_t>*
+  bool renumber_;
 };
 
 template <typename vertex_t,
