@@ -4055,7 +4055,7 @@ homogeneous_biased_sample_without_replacement(
                                           local_nbr_indices.begin() + i * K + degree,
                                           edge_t{0});
                          thrust::fill(thrust::seq,
-                                      local_nbr_indices.begin() + i * K + +degree,
+                                      local_nbr_indices.begin() + i * K + degree,
                                       local_nbr_indices.begin() + (i + 1) * K,
                                       invalid_idx);
                        });
