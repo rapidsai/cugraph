@@ -520,28 +520,43 @@ homogeneous_uniform_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
 {
-  using bias_t = weight_t;  // dummy
+  using time_stamp_t = int32_t;  // dummy; times unused
 
-  CUGRAPH_EXPECTS(!(sampling_flags.with_replacement && sampling_flags.disjoint_sampling),
-                  "Invalid input argument: disjoint sampling and sampling with replacement are "
-                  "mutually exclusive.");
-  auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets] =
-    detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
-      handle,
-      rng_state,
-      graph_view,
-      edge_weight_view,
-      edge_id_view,
-      edge_type_view,
-      std::optional<edge_property_view_t<edge_t, bias_t const*>>{
-        std::nullopt},  // Optional edge_bias_view
-      starting_vertices,
-      starting_vertex_labels,
-      label_to_output_comm_rank,
-      fan_out,
-      std::optional<edge_type_t>{std::nullopt},
-      sampling_flags,
-      do_expensive_check);
+  rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
+  std::optional<rmm::device_uvector<edge_t>> edge_ids{std::nullopt};
+  std::optional<rmm::device_uvector<edge_type_t>> edge_types{std::nullopt};
+  std::optional<rmm::device_uvector<int32_t>> hops{std::nullopt};
+  std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
+
+  std::tie(majors, minors, weights, edge_ids, edge_types, std::ignore, std::ignore, hops, offsets) =
+    neighbor_sample<vertex_t,
+                    edge_t,
+                    weight_t,
+                    edge_type_t,
+                    time_stamp_t,
+                    store_transposed,
+                    multi_gpu>(handle,
+                               rng_state,
+                               graph_view,
+                               edge_weight_view,
+                               edge_id_view,
+                               edge_type_view,
+                               std::nullopt,  // edge_start_time_view
+                               std::nullopt,  // edge_end_time_view
+                               std::nullopt,  // edge_bias_view
+                               starting_vertices,
+                               std::nullopt,  // starting_vertex_start_times
+                               std::nullopt,  // starting_vertex_end_times
+                               starting_vertex_labels,
+                               label_to_output_comm_rank,
+                               fan_out,
+                               std::nullopt,  // num_edge_types
+                               sampling_flags.neighbor_selection,
+                               std::nullopt,  // temporal_sampling_comparison
+                               sampling_flags,
+                               do_expensive_check);
 
   return std::make_tuple(std::move(majors),
                          std::move(minors),
@@ -580,28 +595,43 @@ heterogeneous_uniform_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
 {
-  using bias_t = weight_t;  // dummy
+  using time_stamp_t = int32_t;  // dummy; times unused
 
-  CUGRAPH_EXPECTS(!(sampling_flags.with_replacement && sampling_flags.disjoint_sampling),
-                  "Invalid input argument: disjoint sampling and sampling with replacement are "
-                  "mutually exclusive.");
-  auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets] =
-    detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
-      handle,
-      rng_state,
-      graph_view,
-      edge_weight_view,
-      edge_id_view,
-      std::make_optional(edge_type_view),
-      std::optional<edge_property_view_t<edge_t, bias_t const*>>{
-        std::nullopt},  // Optional edge_bias_view
-      starting_vertices,
-      starting_vertex_labels,
-      label_to_output_comm_rank,
-      fan_out,
-      std::optional<edge_type_t>{num_edge_types},
-      sampling_flags,
-      do_expensive_check);
+  rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
+  std::optional<rmm::device_uvector<edge_t>> edge_ids{std::nullopt};
+  std::optional<rmm::device_uvector<edge_type_t>> edge_types{std::nullopt};
+  std::optional<rmm::device_uvector<int32_t>> hops{std::nullopt};
+  std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
+
+  std::tie(majors, minors, weights, edge_ids, edge_types, std::ignore, std::ignore, hops, offsets) =
+    neighbor_sample<vertex_t,
+                    edge_t,
+                    weight_t,
+                    edge_type_t,
+                    time_stamp_t,
+                    store_transposed,
+                    multi_gpu>(handle,
+                               rng_state,
+                               graph_view,
+                               edge_weight_view,
+                               edge_id_view,
+                               std::make_optional(edge_type_view),
+                               std::nullopt,  // edge_start_time_view
+                               std::nullopt,  // edge_end_time_view
+                               std::nullopt,  // edge_bias_view
+                               starting_vertices,
+                               std::nullopt,  // starting_vertex_start_times
+                               std::nullopt,  // starting_vertex_end_times
+                               starting_vertex_labels,
+                               label_to_output_comm_rank,
+                               fan_out,
+                               std::make_optional(num_edge_types),
+                               sampling_flags.neighbor_selection,
+                               std::nullopt,  // temporal_sampling_comparison
+                               sampling_flags,
+                               do_expensive_check);
 
   return std::make_tuple(std::move(majors),
                          std::move(minors),
@@ -641,25 +671,44 @@ homogeneous_biased_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(!(sampling_flags.with_replacement && sampling_flags.disjoint_sampling),
-                  "Invalid input argument: disjoint sampling and sampling with replacement are "
-                  "mutually exclusive.");
-  auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets] =
-    detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
-      handle,
-      rng_state,
-      graph_view,
-      edge_weight_view,
-      edge_id_view,
-      edge_type_view,
-      std::make_optional(edge_bias_view),
-      starting_vertices,
-      starting_vertex_labels,
-      label_to_output_comm_rank,
-      fan_out,
-      std::optional<edge_type_t>{std::nullopt},
-      sampling_flags,
-      do_expensive_check);
+  static_assert(std::is_same_v<bias_t, weight_t>);
+  using time_stamp_t = int32_t;  // dummy; times unused
+
+  rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
+  std::optional<rmm::device_uvector<edge_t>> edge_ids{std::nullopt};
+  std::optional<rmm::device_uvector<edge_type_t>> edge_types{std::nullopt};
+  std::optional<rmm::device_uvector<int32_t>> hops{std::nullopt};
+  std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
+
+  std::tie(majors, minors, weights, edge_ids, edge_types, std::ignore, std::ignore, hops, offsets) =
+    neighbor_sample<vertex_t,
+                    edge_t,
+                    weight_t,
+                    edge_type_t,
+                    time_stamp_t,
+                    store_transposed,
+                    multi_gpu>(handle,
+                               rng_state,
+                               graph_view,
+                               edge_weight_view,
+                               edge_id_view,
+                               edge_type_view,
+                               std::nullopt,  // edge_start_time_view
+                               std::nullopt,  // edge_end_time_view
+                               std::make_optional(edge_bias_view),
+                               starting_vertices,
+                               std::nullopt,  // starting_vertex_start_times
+                               std::nullopt,  // starting_vertex_end_times
+                               starting_vertex_labels,
+                               label_to_output_comm_rank,
+                               fan_out,
+                               std::nullopt,  // num_edge_types
+                               sampling_flags.neighbor_selection,
+                               std::nullopt,  // temporal_sampling_comparison
+                               sampling_flags,
+                               do_expensive_check);
 
   return std::make_tuple(std::move(majors),
                          std::move(minors),
@@ -700,25 +749,44 @@ heterogeneous_biased_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(!(sampling_flags.with_replacement && sampling_flags.disjoint_sampling),
-                  "Invalid input argument: disjoint sampling and sampling with replacement are "
-                  "mutually exclusive.");
-  auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets] =
-    detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
-      handle,
-      rng_state,
-      graph_view,
-      edge_weight_view,
-      edge_id_view,
-      std::make_optional(edge_type_view),
-      std::make_optional(edge_bias_view),
-      starting_vertices,
-      starting_vertex_labels,
-      label_to_output_comm_rank,
-      fan_out,
-      std::optional<edge_type_t>{num_edge_types},
-      sampling_flags,
-      do_expensive_check);
+  static_assert(std::is_same_v<bias_t, weight_t>);
+  using time_stamp_t = int32_t;  // dummy; times unused
+
+  rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
+  std::optional<rmm::device_uvector<edge_t>> edge_ids{std::nullopt};
+  std::optional<rmm::device_uvector<edge_type_t>> edge_types{std::nullopt};
+  std::optional<rmm::device_uvector<int32_t>> hops{std::nullopt};
+  std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
+
+  std::tie(majors, minors, weights, edge_ids, edge_types, std::ignore, std::ignore, hops, offsets) =
+    neighbor_sample<vertex_t,
+                    edge_t,
+                    weight_t,
+                    edge_type_t,
+                    time_stamp_t,
+                    store_transposed,
+                    multi_gpu>(handle,
+                               rng_state,
+                               graph_view,
+                               edge_weight_view,
+                               edge_id_view,
+                               std::make_optional(edge_type_view),
+                               std::nullopt,  // edge_start_time_view
+                               std::nullopt,  // edge_end_time_view
+                               std::make_optional(edge_bias_view),
+                               starting_vertices,
+                               std::nullopt,  // starting_vertex_start_times
+                               std::nullopt,  // starting_vertex_end_times
+                               starting_vertex_labels,
+                               label_to_output_comm_rank,
+                               fan_out,
+                               std::make_optional(num_edge_types),
+                               sampling_flags.neighbor_selection,
+                               std::nullopt,  // temporal_sampling_comparison
+                               sampling_flags,
+                               do_expensive_check);
 
   return std::make_tuple(std::move(majors),
                          std::move(minors),

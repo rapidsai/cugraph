@@ -121,27 +121,45 @@ class Tests_Homogeneous_Uniform_Neighbor_Sampling
       hr_timer.start("Uniform neighbor sampling");
     }
 
-    auto&& [src_out, dst_out, wgt_out, edge_id, edge_type, hop, offsets] =
-      cugraph::homogeneous_uniform_neighbor_sample(
+    auto&& [src_out,
+            dst_out,
+            wgt_out,
+            edge_id,
+            edge_type,
+            edge_start_time,
+            edge_end_time,
+            hop,
+            offsets] =
+      cugraph::neighbor_sample<vertex_t, edge_t, weight_t, int32_t, int32_t, false, false>(
         handle,
         rng_state,
         graph_view,
         edge_weight_view,
         std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
         std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
         raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
+        std::optional<raft::device_span<int32_t const>>{std::nullopt},
+        std::optional<raft::device_span<int32_t const>>{std::nullopt},
         batch_number ? std::make_optional(raft::device_span<int32_t const>{batch_number->data(),
                                                                            batch_number->size()})
                      : std::nullopt,
         label_to_output_comm_rank_mapping,
         raft::host_span<int32_t const>(homogeneous_uniform_neighbor_sampling_usecase.fanout.data(),
                                        homogeneous_uniform_neighbor_sampling_usecase.fanout.size()),
+        std::optional<int32_t>{std::nullopt},
+        cugraph::neighbor_selection_t::RANDOM,
+        std::optional<cugraph::temporal_sampling_comparison_t>{std::nullopt},
         cugraph::sampling_flags_t{cugraph::prior_sources_behavior_t{0},
                                   true,   // return_hops
                                   false,  // dedupe_sources
                                   homogeneous_uniform_neighbor_sampling_usecase.flag_replacement,
                                   cugraph::temporal_sampling_comparison_t::STRICTLY_INCREASING,
                                   homogeneous_uniform_neighbor_sampling_usecase.disjoint_sampling});
+    EXPECT_FALSE(edge_start_time.has_value());
+    EXPECT_FALSE(edge_end_time.has_value());
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

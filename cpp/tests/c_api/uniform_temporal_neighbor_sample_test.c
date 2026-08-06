@@ -225,6 +225,7 @@ int generic_uniform_temporal_neighbor_sample_test(
   cugraph_prior_sources_behavior_t prior_sources_behavior,
   bool_t dedupe_sources,
   cugraph_temporal_sampling_comparison_t temporal_sampling_comparison,
+  cugraph_neighbor_selection_t neighbor_selection,
   bool_t renumber_results,
   expected_temporal_sample_edge_t const* expected_edges,
   size_t num_expected_edges)
@@ -340,19 +341,23 @@ int generic_uniform_temporal_neighbor_sample_test(
   // Temporal neighbor sampling requires disjoint sampling.
   cugraph_sampling_set_disjoint_sampling(sampling_options, TRUE);
 
-  ret_code = cugraph_homogeneous_uniform_temporal_neighbor_sample(handle,
-                                                                  rng_state,
-                                                                  graph,
-                                                                  "edge_start_time",
-                                                                  d_start_view,
-                                                                  d_start_vertex_start_times_view,
-                                                                  d_start_vertex_end_times_view,
-                                                                  d_start_label_offsets_view,
-                                                                  h_fan_out_view,
-                                                                  sampling_options,
-                                                                  FALSE,
-                                                                  &result,
-                                                                  &ret_error);
+  ret_code = cugraph_neighbor_sample(handle,
+                                     rng_state,
+                                     graph,
+                                     NULL,
+                                     d_start_view,
+                                     d_start_vertex_start_times_view,
+                                     d_start_vertex_end_times_view,
+                                     d_start_label_offsets_view,
+                                     NULL,
+                                     h_fan_out_view,
+                                     1,
+                                     neighbor_selection,
+                                     &temporal_sampling_comparison,
+                                     sampling_options,
+                                     FALSE,
+                                     &result,
+                                     &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(
@@ -685,6 +690,7 @@ int test_uniform_temporal_neighbor_sample_clean(const cugraph_resource_handle_t*
                                                        prior_sources_behavior,
                                                        dedupe_sources,
                                                        temporal_sampling_comparison,
+                                                       CUGRAPH_NEIGHBOR_SELECTION_RANDOM,
                                                        renumber_results,
                                                        NULL,
                                                        0);
@@ -749,6 +755,7 @@ int test_uniform_temporal_neighbor_sample_dedupe_sources(const cugraph_resource_
                                                        prior_sources_behavior,
                                                        dedupe_sources,
                                                        temporal_sampling_comparison,
+                                                       CUGRAPH_NEIGHBOR_SELECTION_RANDOM,
                                                        renumber_results,
                                                        NULL,
                                                        0);
@@ -813,6 +820,7 @@ int test_uniform_temporal_neighbor_sample_unique_sources(const cugraph_resource_
                                                        prior_sources_behavior,
                                                        dedupe_sources,
                                                        temporal_sampling_comparison,
+                                                       CUGRAPH_NEIGHBOR_SELECTION_RANDOM,
                                                        renumber_results,
                                                        NULL,
                                                        0);
@@ -878,6 +886,7 @@ int test_uniform_temporal_neighbor_sample_carry_over_sources(
                                                        prior_sources_behavior,
                                                        dedupe_sources,
                                                        temporal_sampling_comparison,
+                                                       CUGRAPH_NEIGHBOR_SELECTION_RANDOM,
                                                        renumber_results,
                                                        NULL,
                                                        0);
@@ -942,6 +951,7 @@ int test_uniform_temporal_neighbor_sample_renumber_results(const cugraph_resourc
                                                        prior_sources_behavior,
                                                        dedupe_sources,
                                                        temporal_sampling_comparison,
+                                                       CUGRAPH_NEIGHBOR_SELECTION_RANDOM,
                                                        renumber_results,
                                                        NULL,
                                                        0);
@@ -1007,6 +1017,7 @@ int test_uniform_temporal_neighbor_sample_strictly_increasing(
                                                        prior_sources_behavior,
                                                        dedupe_sources,
                                                        temporal_sampling_comparison,
+                                                       CUGRAPH_NEIGHBOR_SELECTION_RANDOM,
                                                        renumber_results,
                                                        NULL,
                                                        0);
@@ -1072,6 +1083,7 @@ int test_uniform_temporal_neighbor_sample_monotonically_decreasing(
                                                        prior_sources_behavior,
                                                        dedupe_sources,
                                                        temporal_sampling_comparison,
+                                                       CUGRAPH_NEIGHBOR_SELECTION_RANDOM,
                                                        renumber_results,
                                                        NULL,
                                                        0);
@@ -1137,6 +1149,7 @@ int test_uniform_temporal_neighbor_sample_strictly_decreasing(
                                                        prior_sources_behavior,
                                                        dedupe_sources,
                                                        temporal_sampling_comparison,
+                                                       CUGRAPH_NEIGHBOR_SELECTION_RANDOM,
                                                        renumber_results,
                                                        NULL,
                                                        0);
@@ -1204,6 +1217,7 @@ int test_uniform_temporal_neighbor_sample_with_vertex_start_times(
                                                        prior_sources_behavior,
                                                        dedupe_sources,
                                                        temporal_sampling_comparison,
+                                                       CUGRAPH_NEIGHBOR_SELECTION_RANDOM,
                                                        renumber_results,
                                                        NULL,
                                                        0);
@@ -1269,6 +1283,7 @@ int test_uniform_temporal_neighbor_sample_with_vertex_end_times(
     prior_sources_behavior,
     dedupe_sources,
     temporal_sampling_comparison,
+    CUGRAPH_NEIGHBOR_SELECTION_RANDOM,
     renumber_results,
     expected_edges,
     sizeof(expected_edges) / sizeof(expected_edges[0]));
@@ -1335,6 +1350,7 @@ int test_uniform_temporal_neighbor_sample_with_vertex_end_times_limits_multihop(
     prior_sources_behavior,
     dedupe_sources,
     temporal_sampling_comparison,
+    CUGRAPH_NEIGHBOR_SELECTION_RANDOM,
     renumber_results,
     expected_edges,
     sizeof(expected_edges) / sizeof(expected_edges[0]));
@@ -1400,6 +1416,7 @@ int test_uniform_temporal_neighbor_sample_with_per_seed_time_windows(
     prior_sources_behavior,
     dedupe_sources,
     temporal_sampling_comparison,
+    CUGRAPH_NEIGHBOR_SELECTION_RANDOM,
     renumber_results,
     expected_edges,
     sizeof(expected_edges) / sizeof(expected_edges[0]));
@@ -1466,6 +1483,7 @@ int test_uniform_temporal_neighbor_sample_with_vertex_end_times_monotonically_de
     prior_sources_behavior,
     dedupe_sources,
     temporal_sampling_comparison,
+    CUGRAPH_NEIGHBOR_SELECTION_RANDOM,
     renumber_results,
     expected_edges,
     sizeof(expected_edges) / sizeof(expected_edges[0]));
@@ -1531,6 +1549,334 @@ int test_uniform_temporal_neighbor_sample_with_start_time_only_monotonically_dec
     prior_sources_behavior,
     dedupe_sources,
     temporal_sampling_comparison,
+    CUGRAPH_NEIGHBOR_SELECTION_RANDOM,
+    renumber_results,
+    expected_edges,
+    sizeof(expected_edges) / sizeof(expected_edges[0]));
+}
+
+int test_uniform_temporal_neighbor_sample_fixed_window_multihop(
+  const cugraph_resource_handle_t* handle)
+{
+  size_t num_edges        = 3;
+  size_t num_vertices     = 4;
+  size_t fan_out_size     = 2;
+  size_t num_starts       = 1;
+  size_t num_start_labels = 2;
+
+  // Chain/fork: 0->1 (t=50), then from 1: 1->2 (t=30) and 1->3 (t=80).
+  // Seed window [10, 100].
+  // MONOTONICALLY_INCREASING would exclude 1->2 after sampling 0->1, because hop-2 would require
+  // edge_time >= 50. FIXED_WINDOW keeps applying [10, 100] at every hop, so both 1->2 and 1->3
+  // remain eligible.
+  vertex_t src[]                          = {0, 1, 1};
+  vertex_t dst[]                          = {1, 2, 3};
+  edge_t edge_ids[]                       = {0, 1, 2};
+  weight_t weight[]                       = {0.1, 0.2, 0.3};
+  int32_t edge_types[]                    = {0, 1, 2};
+  time_stamp_t edge_start_times[]         = {50, 30, 80};
+  time_stamp_t edge_end_times[]           = {51, 31, 81};
+  vertex_t start[]                        = {0};
+  time_stamp_t start_vertex_start_times[] = {10};
+  time_stamp_t start_vertex_end_times[]   = {100};
+  size_t start_vertex_label_offsets[]     = {0, 1};
+  int fan_out[]                           = {-1, -1};
+
+  bool_t with_replacement                                             = FALSE;
+  bool_t return_hops                                                  = TRUE;
+  cugraph_prior_sources_behavior_t prior_sources_behavior             = DEFAULT;
+  bool_t dedupe_sources                                               = FALSE;
+  bool_t renumber_results                                             = FALSE;
+  cugraph_temporal_sampling_comparison_t temporal_sampling_comparison = FIXED_WINDOW;
+
+  expected_temporal_sample_edge_t expected_edges[] = {
+    {0, 1, 50, 0},
+    {1, 2, 30, 1},
+    {1, 3, 80, 1},
+  };
+
+  return generic_uniform_temporal_neighbor_sample_test(
+    handle,
+    src,
+    dst,
+    weight,
+    edge_ids,
+    edge_types,
+    edge_start_times,
+    edge_end_times,
+    num_vertices,
+    num_edges,
+    start,
+    start_vertex_start_times,
+    start_vertex_end_times,
+    start_vertex_label_offsets,
+    num_starts,
+    num_start_labels,
+    fan_out,
+    fan_out_size,
+    with_replacement,
+    return_hops,
+    prior_sources_behavior,
+    dedupe_sources,
+    temporal_sampling_comparison,
+    CUGRAPH_NEIGHBOR_SELECTION_RANDOM,
+    renumber_results,
+    expected_edges,
+    sizeof(expected_edges) / sizeof(expected_edges[0]));
+}
+
+int test_uniform_temporal_neighbor_sample_first_single_hop(const cugraph_resource_handle_t* handle)
+{
+  size_t num_edges        = 3;
+  size_t num_vertices     = 4;
+  size_t fan_out_size     = 1;
+  size_t num_starts       = 1;
+  size_t num_start_labels = 2;
+
+  // Star from seed 0 with three outgoing edges at distinct times. FIRST with fan_out=1 must pick
+  // the earliest eligible edge.
+  vertex_t src[]                          = {0, 0, 0};
+  vertex_t dst[]                          = {1, 2, 3};
+  edge_t edge_ids[]                       = {0, 1, 2};
+  weight_t weight[]                       = {0.1, 0.2, 0.3};
+  int32_t edge_types[]                    = {0, 1, 2};
+  time_stamp_t edge_start_times[]         = {10, 20, 30};
+  time_stamp_t edge_end_times[]           = {11, 21, 31};
+  vertex_t start[]                        = {0};
+  time_stamp_t start_vertex_start_times[] = {0};
+  time_stamp_t start_vertex_end_times[]   = {100};
+  size_t start_vertex_label_offsets[]     = {0, 1};
+  int fan_out[]                           = {1};
+
+  bool_t with_replacement                                             = FALSE;
+  bool_t return_hops                                                  = TRUE;
+  cugraph_prior_sources_behavior_t prior_sources_behavior             = DEFAULT;
+  bool_t dedupe_sources                                               = FALSE;
+  bool_t renumber_results                                             = FALSE;
+  cugraph_temporal_sampling_comparison_t temporal_sampling_comparison = MONOTONICALLY_INCREASING;
+
+  expected_temporal_sample_edge_t expected_edges[] = {
+    {0, 1, 10, 0},
+  };
+
+  return generic_uniform_temporal_neighbor_sample_test(
+    handle,
+    src,
+    dst,
+    weight,
+    edge_ids,
+    edge_types,
+    edge_start_times,
+    edge_end_times,
+    num_vertices,
+    num_edges,
+    start,
+    start_vertex_start_times,
+    start_vertex_end_times,
+    start_vertex_label_offsets,
+    num_starts,
+    num_start_labels,
+    fan_out,
+    fan_out_size,
+    with_replacement,
+    return_hops,
+    prior_sources_behavior,
+    dedupe_sources,
+    temporal_sampling_comparison,
+    CUGRAPH_NEIGHBOR_SELECTION_FIRST,
+    renumber_results,
+    expected_edges,
+    sizeof(expected_edges) / sizeof(expected_edges[0]));
+}
+
+int test_uniform_temporal_neighbor_sample_last_single_hop(const cugraph_resource_handle_t* handle)
+{
+  size_t num_edges        = 3;
+  size_t num_vertices     = 4;
+  size_t fan_out_size     = 1;
+  size_t num_starts       = 1;
+  size_t num_start_labels = 2;
+
+  // Same star as FIRST; LAST with fan_out=1 must pick the latest eligible edge.
+  vertex_t src[]                          = {0, 0, 0};
+  vertex_t dst[]                          = {1, 2, 3};
+  edge_t edge_ids[]                       = {0, 1, 2};
+  weight_t weight[]                       = {0.1, 0.2, 0.3};
+  int32_t edge_types[]                    = {0, 1, 2};
+  time_stamp_t edge_start_times[]         = {10, 20, 30};
+  time_stamp_t edge_end_times[]           = {11, 21, 31};
+  vertex_t start[]                        = {0};
+  time_stamp_t start_vertex_start_times[] = {0};
+  time_stamp_t start_vertex_end_times[]   = {100};
+  size_t start_vertex_label_offsets[]     = {0, 1};
+  int fan_out[]                           = {1};
+
+  bool_t with_replacement                                             = FALSE;
+  bool_t return_hops                                                  = TRUE;
+  cugraph_prior_sources_behavior_t prior_sources_behavior             = DEFAULT;
+  bool_t dedupe_sources                                               = FALSE;
+  bool_t renumber_results                                             = FALSE;
+  cugraph_temporal_sampling_comparison_t temporal_sampling_comparison = MONOTONICALLY_INCREASING;
+
+  expected_temporal_sample_edge_t expected_edges[] = {
+    {0, 3, 30, 0},
+  };
+
+  return generic_uniform_temporal_neighbor_sample_test(
+    handle,
+    src,
+    dst,
+    weight,
+    edge_ids,
+    edge_types,
+    edge_start_times,
+    edge_end_times,
+    num_vertices,
+    num_edges,
+    start,
+    start_vertex_start_times,
+    start_vertex_end_times,
+    start_vertex_label_offsets,
+    num_starts,
+    num_start_labels,
+    fan_out,
+    fan_out_size,
+    with_replacement,
+    return_hops,
+    prior_sources_behavior,
+    dedupe_sources,
+    temporal_sampling_comparison,
+    CUGRAPH_NEIGHBOR_SELECTION_LAST,
+    renumber_results,
+    expected_edges,
+    sizeof(expected_edges) / sizeof(expected_edges[0]));
+}
+
+int test_uniform_temporal_neighbor_sample_fixed_window_first(
+  const cugraph_resource_handle_t* handle)
+{
+  size_t num_edges        = 3;
+  size_t num_vertices     = 4;
+  size_t fan_out_size     = 2;
+  size_t num_starts       = 1;
+  size_t num_start_labels = 2;
+
+  // FIXED_WINDOW keeps seed window [10, 100] at hop 1, so both 1->2 (t=30) and 1->3 (t=80) are
+  // eligible. FIRST with fan_out={-1,1} takes the earliest of those at hop 1.
+  vertex_t src[]                          = {0, 1, 1};
+  vertex_t dst[]                          = {1, 2, 3};
+  edge_t edge_ids[]                       = {0, 1, 2};
+  weight_t weight[]                       = {0.1, 0.2, 0.3};
+  int32_t edge_types[]                    = {0, 1, 2};
+  time_stamp_t edge_start_times[]         = {50, 30, 80};
+  time_stamp_t edge_end_times[]           = {51, 31, 81};
+  vertex_t start[]                        = {0};
+  time_stamp_t start_vertex_start_times[] = {10};
+  time_stamp_t start_vertex_end_times[]   = {100};
+  size_t start_vertex_label_offsets[]     = {0, 1};
+  int fan_out[]                           = {-1, 1};
+
+  bool_t with_replacement                                             = FALSE;
+  bool_t return_hops                                                  = TRUE;
+  cugraph_prior_sources_behavior_t prior_sources_behavior             = DEFAULT;
+  bool_t dedupe_sources                                               = FALSE;
+  bool_t renumber_results                                             = FALSE;
+  cugraph_temporal_sampling_comparison_t temporal_sampling_comparison = FIXED_WINDOW;
+
+  expected_temporal_sample_edge_t expected_edges[] = {
+    {0, 1, 50, 0},
+    {1, 2, 30, 1},
+  };
+
+  return generic_uniform_temporal_neighbor_sample_test(
+    handle,
+    src,
+    dst,
+    weight,
+    edge_ids,
+    edge_types,
+    edge_start_times,
+    edge_end_times,
+    num_vertices,
+    num_edges,
+    start,
+    start_vertex_start_times,
+    start_vertex_end_times,
+    start_vertex_label_offsets,
+    num_starts,
+    num_start_labels,
+    fan_out,
+    fan_out_size,
+    with_replacement,
+    return_hops,
+    prior_sources_behavior,
+    dedupe_sources,
+    temporal_sampling_comparison,
+    CUGRAPH_NEIGHBOR_SELECTION_FIRST,
+    renumber_results,
+    expected_edges,
+    sizeof(expected_edges) / sizeof(expected_edges[0]));
+}
+
+int test_uniform_temporal_neighbor_sample_fixed_window_last(const cugraph_resource_handle_t* handle)
+{
+  size_t num_edges        = 3;
+  size_t num_vertices     = 4;
+  size_t fan_out_size     = 2;
+  size_t num_starts       = 1;
+  size_t num_start_labels = 2;
+
+  // Same FIXED_WINDOW graph as FIRST; LAST picks the latest eligible hop-1 edge.
+  vertex_t src[]                          = {0, 1, 1};
+  vertex_t dst[]                          = {1, 2, 3};
+  edge_t edge_ids[]                       = {0, 1, 2};
+  weight_t weight[]                       = {0.1, 0.2, 0.3};
+  int32_t edge_types[]                    = {0, 1, 2};
+  time_stamp_t edge_start_times[]         = {50, 30, 80};
+  time_stamp_t edge_end_times[]           = {51, 31, 81};
+  vertex_t start[]                        = {0};
+  time_stamp_t start_vertex_start_times[] = {10};
+  time_stamp_t start_vertex_end_times[]   = {100};
+  size_t start_vertex_label_offsets[]     = {0, 1};
+  int fan_out[]                           = {-1, 1};
+
+  bool_t with_replacement                                             = FALSE;
+  bool_t return_hops                                                  = TRUE;
+  cugraph_prior_sources_behavior_t prior_sources_behavior             = DEFAULT;
+  bool_t dedupe_sources                                               = FALSE;
+  bool_t renumber_results                                             = FALSE;
+  cugraph_temporal_sampling_comparison_t temporal_sampling_comparison = FIXED_WINDOW;
+
+  expected_temporal_sample_edge_t expected_edges[] = {
+    {0, 1, 50, 0},
+    {1, 3, 80, 1},
+  };
+
+  return generic_uniform_temporal_neighbor_sample_test(
+    handle,
+    src,
+    dst,
+    weight,
+    edge_ids,
+    edge_types,
+    edge_start_times,
+    edge_end_times,
+    num_vertices,
+    num_edges,
+    start,
+    start_vertex_start_times,
+    start_vertex_end_times,
+    start_vertex_label_offsets,
+    num_starts,
+    num_start_labels,
+    fan_out,
+    fan_out_size,
+    with_replacement,
+    return_hops,
+    prior_sources_behavior,
+    dedupe_sources,
+    temporal_sampling_comparison,
+    CUGRAPH_NEIGHBOR_SELECTION_LAST,
     renumber_results,
     expected_edges,
     sizeof(expected_edges) / sizeof(expected_edges[0]));
@@ -1561,6 +1907,11 @@ int main(int argc, char** argv)
     test_uniform_temporal_neighbor_sample_with_vertex_end_times_monotonically_decreasing, handle);
   result |= RUN_TEST_NEW(
     test_uniform_temporal_neighbor_sample_with_start_time_only_monotonically_decreasing, handle);
+  result |= RUN_TEST_NEW(test_uniform_temporal_neighbor_sample_fixed_window_multihop, handle);
+  result |= RUN_TEST_NEW(test_uniform_temporal_neighbor_sample_first_single_hop, handle);
+  result |= RUN_TEST_NEW(test_uniform_temporal_neighbor_sample_last_single_hop, handle);
+  result |= RUN_TEST_NEW(test_uniform_temporal_neighbor_sample_fixed_window_first, handle);
+  result |= RUN_TEST_NEW(test_uniform_temporal_neighbor_sample_fixed_window_last, handle);
 
   cugraph_free_resource_handle(handle);
 

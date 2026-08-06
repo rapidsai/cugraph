@@ -566,44 +566,33 @@ temporal_gather_one_hop_edgelist(
           temporal_sampling_comparison ==
             temporal_sampling_comparison_t::MONOTONICALLY_INCREASING ||
           temporal_sampling_comparison == temporal_sampling_comparison_t::STRICTLY_INCREASING;
-        auto const n = kv_majors->size();
+        // FIXED_WINDOW keeps every seed's original window bounds fixed, so duplicate entries for
+        // the same key are expected to be identical; simply keep the first rather than taking a
+        // max/min extremum (which is otherwise wrong since FIXED_WINDOW is neither increasing nor
+        // decreasing).
+        bool const fixed_window = is_fixed_window(temporal_sampling_comparison);
+        auto const n            = kv_majors->size();
         rmm::device_uvector<vertex_t> out_majors(n, handle.get_stream());
         rmm::device_uvector<label_t> out_labels(n, handle.get_stream());
         rmm::device_uvector<time_stamp_t> out_window_starts(n, handle.get_stream());
         rmm::device_uvector<time_stamp_t> out_window_ends(n, handle.get_stream());
 
-        size_t new_size{};
-        if (increasing) {
-          auto ends = thrust::reduce_by_key(
-            handle.get_thrust_policy(),
-            thrust::make_zip_iterator(kv_majors->begin(), kv_labels->begin()),
-            thrust::make_zip_iterator(kv_majors->end(), kv_labels->end()),
-            thrust::make_zip_iterator(kv_window_starts->begin(), kv_window_ends->begin()),
-            thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()),
-            thrust::make_zip_iterator(out_window_starts.begin(), out_window_ends.begin()),
-            thrust::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
-            [] __device__(cuda::std::tuple<time_stamp_t, time_stamp_t> a,
-                          cuda::std::tuple<time_stamp_t, time_stamp_t> b) {
-              return cuda::std::get<0>(a) >= cuda::std::get<0>(b) ? a : b;
-            });
-          new_size = static_cast<size_t>(cuda::std::distance(
-            thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()), ends.first));
-        } else {
-          auto ends = thrust::reduce_by_key(
-            handle.get_thrust_policy(),
-            thrust::make_zip_iterator(kv_majors->begin(), kv_labels->begin()),
-            thrust::make_zip_iterator(kv_majors->end(), kv_labels->end()),
-            thrust::make_zip_iterator(kv_window_starts->begin(), kv_window_ends->begin()),
-            thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()),
-            thrust::make_zip_iterator(out_window_starts.begin(), out_window_ends.begin()),
-            thrust::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
-            [] __device__(cuda::std::tuple<time_stamp_t, time_stamp_t> a,
-                          cuda::std::tuple<time_stamp_t, time_stamp_t> b) {
-              return cuda::std::get<0>(a) <= cuda::std::get<0>(b) ? a : b;
-            });
-          new_size = static_cast<size_t>(cuda::std::distance(
-            thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()), ends.first));
-        }
+        auto ends = thrust::reduce_by_key(
+          handle.get_thrust_policy(),
+          thrust::make_zip_iterator(kv_majors->begin(), kv_labels->begin()),
+          thrust::make_zip_iterator(kv_majors->end(), kv_labels->end()),
+          thrust::make_zip_iterator(kv_window_starts->begin(), kv_window_ends->begin()),
+          thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()),
+          thrust::make_zip_iterator(out_window_starts.begin(), out_window_ends.begin()),
+          thrust::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
+          [fixed_window, increasing] __device__(cuda::std::tuple<time_stamp_t, time_stamp_t> a,
+                                                cuda::std::tuple<time_stamp_t, time_stamp_t> b) {
+            if (fixed_window) { return a; }
+            if (increasing) { return cuda::std::get<0>(a) >= cuda::std::get<0>(b) ? a : b; }
+            return cuda::std::get<0>(a) <= cuda::std::get<0>(b) ? a : b;
+          });
+        auto const new_size = static_cast<size_t>(cuda::std::distance(
+          thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()), ends.first));
 
         kv_majors        = std::move(out_majors);
         kv_labels        = std::move(out_labels);

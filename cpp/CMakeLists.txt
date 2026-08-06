@@ -182,6 +182,10 @@ set(CUGRAPH_COMMON_DISTRIBUTED_SOURCES
 set(CUGRAPH_COMMON_SAMPLING_SOURCES
     src/sampling/detail/sample_outgoing_edges_common_v64_e64.cu
     src/sampling/detail/sample_outgoing_edges_common_v32_e32.cu
+    src/sampling/detail/gather_one_hop_common_v32_e32.cu
+    src/sampling/detail/gather_one_hop_common_v64_e64.cu
+    src/sampling/detail/gather_sampled_properties_common_v32_e32.cu
+    src/sampling/detail/gather_sampled_properties_common_v64_e64.cu
     src/sampling/detail/update_visited_utils_common_v32_e32.cu
     src/sampling/detail/update_visited_utils_common_v64_e64.cu
     src/sampling/detail/deduplicate_edges_by_minor_common_v32_e32.cu
@@ -196,6 +200,11 @@ set(CUGRAPH_COMMON_STRUCTURE_SOURCES
     src/structure/renumber_utils_common_v32_e32.cu
     src/structure/edge_partition_device_view_mask_degrees_common_v32_e32.cu
     src/structure/edge_partition_device_view_mask_degrees_common_v64_e64.cu
+    # MG graph_view_t (needed by gather_one_hop_common_* / sample_outgoing_edges_common_*).
+    # Keep self-contained in libcugraph_common.so so SG test binaries that do not link
+    # libcugraph_mg.so can still resolve local_edge_partition_* for multi_gpu=true.
+    src/structure/graph_view_mg_v64_e64.cu
+    src/structure/graph_view_mg_v32_e32.cu
 )
 
 set(CUGRAPH_COMMON_SOURCES
@@ -219,8 +228,6 @@ set(CUGRAPH_MTMG_SOURCES
 set(CUGRAPH_SG_SOURCES
     src/sampling/temporal_sampling_sg_v32_e32.cu
     src/sampling/temporal_sampling_sg_v64_e64.cu
-    src/sampling/detail/gather_sampled_properties_sg_v32_e32.cu
-    src/sampling/detail/gather_sampled_properties_sg_v64_e64.cu
     src/utilities/validation_checks_sg_v32_e32.cu
     src/utilities/validation_checks_sg_v64_e64.cu
     src/detail/collect_local_vertex_values_sg_v32_e32.cu
@@ -275,8 +282,6 @@ set(CUGRAPH_SG_SOURCES
     src/sampling/detail/prepare_next_frontier_sg_v32_e32.cu
     src/sampling/detail/check_edge_bias_values_sg_v64_e64.cu
     src/sampling/detail/check_edge_bias_values_sg_v32_e32.cu
-    src/sampling/detail/gather_one_hop_sg_v32_e32.cu
-    src/sampling/detail/gather_one_hop_sg_v64_e64.cu
     src/sampling/detail/sample_edges_sg_v64_e64.cu
     src/sampling/detail/sample_edges_sg_v32_e32.cu
     src/sampling/neighbor_sampling_sg_v32_e32.cu
@@ -371,8 +376,6 @@ set(CUGRAPH_SG_SOURCES
 set(CUGRAPH_MG_SOURCES
     src/sampling/temporal_sampling_mg_v32_e32.cu
     src/sampling/temporal_sampling_mg_v64_e64.cu
-    src/sampling/detail/gather_sampled_properties_mg_v32_e32.cu
-    src/sampling/detail/gather_sampled_properties_mg_v64_e64.cu
     src/utilities/validation_checks_mg_v32_e32.cu
     src/utilities/validation_checks_mg_v64_e64.cu
     src/utilities/shuffle_local_edge_srcs_dsts_mg_v32.cu
@@ -395,8 +398,6 @@ set(CUGRAPH_MG_SOURCES
     src/community/detail/maximal_independent_moves_mg_v32_e32.cu
     src/link_prediction/detail/similarity_mg_v32_e32.cu
     src/link_prediction/detail/similarity_mg_v64_e64.cu
-    src/structure/graph_view_mg_v64_e64.cu
-    src/structure/graph_view_mg_v32_e32.cu
     src/structure/edge_partition_device_view_mg_v64_e64.cu
     src/structure/edge_partition_device_view_mg_v32_e32.cu
     src/link_prediction/jaccard_mg_v64_e64.cu
@@ -423,8 +424,6 @@ set(CUGRAPH_MG_SOURCES
     src/sampling/detail/prepare_next_frontier_mg_v32_e32.cu
     src/sampling/detail/check_edge_bias_values_mg_v64_e64.cu
     src/sampling/detail/check_edge_bias_values_mg_v32_e32.cu
-    src/sampling/detail/gather_one_hop_mg_v32_e32.cu
-    src/sampling/detail/gather_one_hop_mg_v64_e64.cu
     src/sampling/detail/sample_edges_mg_v64_e64.cu
     src/sampling/detail/sample_edges_mg_v32_e32.cu
     src/sampling/neighbor_sampling_mg_v32_e32.cu

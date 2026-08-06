@@ -320,6 +320,12 @@ bool validate_temporal_integrity(
                 thrust::make_zip_iterator(sorted_dsts.begin(), sorted_dst_times.begin()),
                 thrust::make_zip_iterator(sorted_dsts.end(), sorted_dst_times.end()));
 
+  // FIXED_WINDOW does not impose path-wise monotonicity; only seed-window bounds matter, and those
+  // are checked by validate_temporal_time_windows.
+  if (temporal_sampling_comparison == cugraph::temporal_sampling_comparison_t::FIXED_WINDOW) {
+    return true;
+  }
+
   if ((temporal_sampling_comparison ==
        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING) ||
       (temporal_sampling_comparison ==

@@ -197,8 +197,18 @@ typedef enum {
   STRICTLY_DECREASING,      /** Time strictly decreasing (each time is before the previous one) */
   MONOTONICALLY_DECREASING, /** Time monotonically decreasing (could have multiple edges with same
                                 time) */
-  LAST                      /** Support last n behavior */
+  FIXED_WINDOW,             /** Apply the original per-seed time window at every hop */
+  LAST = FIXED_WINDOW       /** Deprecated alias for FIXED_WINDOW */
 } cugraph_temporal_sampling_comparison_t;
+
+/**
+ * @brief Selects neighbors from the set that satisfies the sampling filters.
+ */
+typedef enum {
+  CUGRAPH_NEIGHBOR_SELECTION_RANDOM = 0, /** Uniform without biases, biased with biases */
+  CUGRAPH_NEIGHBOR_SELECTION_FIRST,      /** Deterministically select the earliest edges */
+  CUGRAPH_NEIGHBOR_SELECTION_LAST        /** Deterministically select the latest edges */
+} cugraph_neighbor_selection_t;
 
 /**
  * @brief Selects the type of compression to use for the output samples.
@@ -339,6 +349,59 @@ CUGRAPH_EXPORT void cugraph_sampling_set_disjoint_sampling(cugraph_sampling_opti
 CUGRAPH_EXPORT void cugraph_sampling_options_free(cugraph_sampling_options_t* options);
 
 /**
+ * @brief Unified homogeneous/heterogeneous and temporal/non-temporal neighborhood sampling.
+ *
+ * RANDOM selection samples uniformly if @p edge_biases is NULL and samples according to
+ * @p edge_biases otherwise. FIRST and LAST deterministically select the earliest or latest
+ * temporally eligible edges and require @p temporal_sampling_comparison to be non-NULL.
+ *
+ * Sampling is non-temporal when @p temporal_sampling_comparison is NULL; all temporal arguments
+ * must then be NULL. Sampling is homogeneous when @p num_edge_types is 1; otherwise
+ * @p fan_out contains one value per (hop, edge type). When @p vertex_type_offsets is NULL,
+ * all vertices are treated as a single vertex type.
+ *
+ * @param [in] handle Handle for accessing resources.
+ * @param [in,out] rng_state State of the random number generator, updated for RANDOM selection.
+ * @param [in] graph Graph to sample. It may be transposed internally.
+ * @param [in] edge_biases Optional edge biases. NULL means uniform RANDOM selection.
+ * @param [in] start_vertices Device array of starting vertices.
+ * @param [in] starting_vertex_start_times Optional per-seed lower time-window bounds.
+ * @param [in] starting_vertex_end_times Optional per-seed upper time-window bounds.
+ * @param [in] starting_vertex_label_offsets Optional offsets defining labels in the seed list.
+ * @param [in] vertex_type_offsets Optional vertex-type offsets, required for heterogeneous output
+ * processing.
+ * @param [in] fan_out Host array defining fanout per hop (and per edge type when heterogeneous).
+ * @param [in] num_edge_types Number of edge types. Use 1 for homogeneous sampling.
+ * @param [in] neighbor_selection RANDOM, FIRST, or LAST.
+ * @param [in] temporal_sampling_comparison Optional temporal comparison. NULL disables temporal
+ * sampling.
+ * @param [in] sampling_options Sampling options.
+ * @param [in] do_expensive_check Whether to perform expensive input validation.
+ * @param [out] result Sampling result.
+ * @param [out] error Error details on failure.
+ * @return Error code.
+ */
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_neighbor_sample(
+  const cugraph_resource_handle_t* handle,
+  cugraph_rng_state_t* rng_state,
+  cugraph_graph_t* graph,
+  const cugraph_edge_property_view_t* edge_biases,
+  const cugraph_type_erased_device_array_view_t* start_vertices,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_start_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_end_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
+  const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
+  const cugraph_type_erased_host_array_view_t* fan_out,
+  int num_edge_types,
+  cugraph_neighbor_selection_t neighbor_selection,
+  const cugraph_temporal_sampling_comparison_t* temporal_sampling_comparison,
+  const cugraph_sampling_options_t* sampling_options,
+  bool_t do_expensive_check,
+  cugraph_sample_result_t** result,
+  cugraph_error_t** error);
+
+/**
+ * @deprecated Use cugraph_neighbor_sample instead.
  * @brief     Homogeneous Uniform Neighborhood Sampling
  *
  * Returns a sample of the neighborhood around specified start vertices and fan_out.
@@ -381,6 +444,7 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
   cugraph_error_t** error);
 
 /**
+ * @deprecated Use cugraph_neighbor_sample instead.
  * @brief     Homogeneous Biased Neighborhood Sampling
  *
  * Returns a sample of the neighborhood around specified start vertices and fan_out.
@@ -426,6 +490,7 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
   cugraph_error_t** error);
 
 /**
+ * @deprecated Use cugraph_neighbor_sample instead.
  * @brief     Heterogeneous Uniform Neighborhood Sampling
  *
  * Returns a sample of the neighborhood around specified start vertices and fan_out.
@@ -474,6 +539,7 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sampl
   cugraph_error_t** error);
 
 /**
+ * @deprecated Use cugraph_neighbor_sample instead.
  * @brief     Heterogeneous Biased Neighborhood Sampling
  *
  * Returns a sample of the neighborhood around specified start vertices and fan_out.
@@ -525,6 +591,7 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample
   cugraph_error_t** error);
 
 /**
+ * @deprecated Use cugraph_neighbor_sample instead.
  * @brief     Homogeneous Uniform Temporal Neighborhood Sampling
  *
  * Returns a sample of the neighborhood around specified start vertices and fan_out.
@@ -603,6 +670,7 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbo
   cugraph_error_t** error);
 
 /**
+ * @deprecated Use cugraph_neighbor_sample instead.
  * @brief     Homogeneous Biased Temporal Neighborhood Sampling
  *
  * Returns a sample of the neighborhood around specified start vertices and fan_out.
@@ -684,6 +752,7 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor
   cugraph_error_t** error);
 
 /**
+ * @deprecated Use cugraph_neighbor_sample instead.
  * @brief     Heterogeneous Uniform Temporal Neighborhood Sampling
  *
  * Returns a sample of the neighborhood around specified start vertices and fan_out.
@@ -768,6 +837,7 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neigh
   cugraph_error_t** error);
 
 /**
+ * @deprecated Use cugraph_neighbor_sample instead.
  * @brief     Heterogeneous Biased Temporal Neighborhood Sampling
  *
  * Returns a sample of the neighborhood around specified start vertices and fan_out.

@@ -40,11 +40,15 @@
 #include <thrust/distance.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
+#include <thrust/gather.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
+#include <thrust/scan.h>
+#include <thrust/sequence.h>
 #include <thrust/sort.h>
+#include <thrust/transform.h>
 #include <thrust/unique.h>
 
 #include <limits>
@@ -681,6 +685,418 @@ rmm::device_uvector<int32_t> gather_edge_types_for_sampled_edgelist(
   return edge_types;
 }
 
+// Gathers a single scalar edge property (e.g. edge start time, edge type) for the given
+// (major, minor[, multi-edge index]) edge list.  Unlike gather_edge_types_for_sampled_edgelist,
+// this also accepts a monostate multi-edge index (i.e. a non-multigraph edge list), matching the
+// "Filter by time" pattern used by temporal_gather_one_hop_edgelist.
+template <typename vertex_t, typename edge_t, typename T, bool multi_gpu>
+rmm::device_uvector<T> gather_scalar_edge_property_for_edgelist(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  raft::device_span<vertex_t const> majors,
+  raft::device_span<vertex_t const> minors,
+  arithmetic_device_uvector_t const& multi_edge_index,
+  edge_property_view_t<edge_t, T const*> prop_view)
+{
+  constexpr bool store_transposed = false;
+
+  rmm::device_uvector<T> values(majors.size(), handle.get_stream());
+
+  cugraph::edge_bucket_t<vertex_t, edge_t, !store_transposed, multi_gpu, false> edge_list(
+    handle, graph_view.is_multigraph());
+
+  edge_list.insert(
+    majors.begin(),
+    majors.end(),
+    minors.begin(),
+    std::holds_alternative<rmm::device_uvector<edge_t>>(multi_edge_index)
+      ? std::make_optional(std::get<rmm::device_uvector<edge_t>>(multi_edge_index).begin())
+      : std::nullopt);
+
+  cugraph::transform_gather_e(handle,
+                              graph_view,
+                              edge_list,
+                              edge_src_dummy_property_t{}.view(),
+                              edge_dst_dummy_property_t{}.view(),
+                              prop_view,
+                              return_edge_property_t{},
+                              values.begin());
+
+  return values;
+}
+
+// Looks up, for each (major[, label]) in the current (possibly carryover-shrunk) frontier, the
+// matching window bound from the pre-sorted, MG-allgathered temporal_params side table built once
+// (outside the disjoint-resample loop) by temporal_sample_edges_to_unvisited_neighbors.  Every
+// queried key is guaranteed present since the current frontier is always a subset of the frontier
+// used to build that table.
+template <typename vertex_t, typename time_stamp_t>
+rmm::device_uvector<time_stamp_t> lookup_temporal_bounds_for_active_majors(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> sorted_majors,
+  cuda::std::optional<raft::device_span<int32_t const>> sorted_labels,
+  raft::device_span<time_stamp_t const> sorted_values,
+  raft::device_span<vertex_t const> query_majors,
+  std::optional<raft::device_span<int32_t const>> query_labels)
+{
+  rmm::device_uvector<time_stamp_t> result(query_majors.size(), handle.get_stream());
+
+  if (query_labels) {
+    auto const labels  = *sorted_labels;
+    auto const qlabels = *query_labels;
+    thrust::transform(
+      handle.get_thrust_policy(),
+      thrust::make_counting_iterator(size_t{0}),
+      thrust::make_counting_iterator(query_majors.size()),
+      result.begin(),
+      [sorted_majors, labels, sorted_values, query_majors, qlabels] __device__(size_t i) {
+        size_t idx{};
+        try_find_temporal_key_index(sorted_majors, labels, query_majors[i], qlabels[i], idx);
+        return sorted_values[idx];
+      });
+  } else {
+    thrust::transform(handle.get_thrust_policy(),
+                      query_majors.begin(),
+                      query_majors.end(),
+                      result.begin(),
+                      [sorted_majors, sorted_values] __device__(vertex_t major) {
+                        size_t idx{};
+                        try_find_temporal_key_index(sorted_majors, major, idx);
+                        return sorted_values[idx];
+                      });
+  }
+
+  return result;
+}
+
+// FIRST/LAST temporal edge selection.  Returns the same (labels, majors, minors, properties) shape
+// as call_biased_per_v_random_select_transform_outgoing_e /
+// call_unbiased_per_v_random_select_transform_outgoing_e so it can be swapped into the
+// disjoint-resample loop in sample_unvisited_outgoing_edges below.
+//
+// Gathers every currently-eligible (temporal-window and, if heterogeneous, type filtered)
+// outgoing edge for the active frontier via temporal_gather_one_hop_edgelist. That helper already
+// collects edges across minor_comm on MG (the frontier keys are majors, and the extraction prims
+// return every matching edge regardless of which minor_comm rank stores it), so the ranking below
+// operates on the full, globally-eligible edge set for each major -- not just this rank's local
+// partition. Edges to already-visited destinations are then dropped, and the survivors are
+// deterministically ranked within each (major[, label][, type]) group by (edge start time,
+// tie-break), keeping the first K. The tie-break prefers the multi-edge index (local offset among
+// parallel (src, dst) edges) when the graph is a multigraph -- needed anyway to identify which
+// parallel edge was selected for later property gather -- and always falls back to dst so the
+// order is a deterministic total order even when multiple destinations tie on time.
+template <typename vertex_t, typename edge_t, typename tag_t, typename time_stamp_t, bool multi_gpu>
+std::tuple<std::optional<rmm::device_uvector<int32_t>>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           arithmetic_device_uvector_t>
+call_ordered_select_unvisited_temporal_outgoing_e(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false> const& key_bucket_view,
+  std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>> edge_type_view,
+  temporal_unvisited_params_t<vertex_t, edge_t, time_stamp_t> const& temporal_params,
+  raft::device_span<vertex_t const> visited_minors,
+  cuda::std::optional<raft::device_span<int32_t const>> visited_minor_labels,
+  raft::host_span<size_t const> Ks,
+  std::optional<raft::device_span<int32_t const>> active_major_labels,
+  bool select_earliest)
+{
+  using edge_type_t = int32_t;
+
+  raft::device_span<vertex_t const> active_majors{key_bucket_view.vertex_begin(),
+                                                  key_bucket_view.size()};
+
+  // This iteration's frontier is a subset of the frontier temporal_params was built from; look up
+  // each active major's window bound from that pre-built table rather than re-deriving it (which
+  // would require another MG allgather).
+  std::optional<rmm::device_uvector<time_stamp_t>> window_starts{std::nullopt};
+  if (temporal_params.active_major_window_starts) {
+    window_starts = lookup_temporal_bounds_for_active_majors<vertex_t, time_stamp_t>(
+      handle,
+      temporal_params.active_majors,
+      temporal_params.active_major_labels,
+      *temporal_params.active_major_window_starts,
+      active_majors,
+      active_major_labels);
+  }
+  std::optional<rmm::device_uvector<time_stamp_t>> window_ends{std::nullopt};
+  if (temporal_params.active_major_window_ends) {
+    window_ends = lookup_temporal_bounds_for_active_majors<vertex_t, time_stamp_t>(
+      handle,
+      temporal_params.active_majors,
+      temporal_params.active_major_labels,
+      *temporal_params.active_major_window_ends,
+      active_majors,
+      active_major_labels);
+  }
+
+  // Homogeneous sampling uses Ks.size()==1 even when the graph stores edge-type properties.
+  // Only type-filter when sampling heterogeneously; otherwise a 1-wide gather_flags table would
+  // treat type IDs >= 1 as out-of-range (wrong results / illegal memory access).
+  bool const heterogeneous = Ks.size() > 1;
+  auto const edge_type_for_gather =
+    heterogeneous ? edge_type_view
+                  : std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{};
+
+  size_t const num_types = Ks.size();
+  rmm::device_uvector<bool> gather_flags_storage(heterogeneous ? num_types : size_t{0},
+                                                 handle.get_stream());
+  std::optional<raft::device_span<bool const>> gather_flags{std::nullopt};
+  if (heterogeneous) {
+    thrust::fill(
+      handle.get_thrust_policy(), gather_flags_storage.begin(), gather_flags_storage.end(), true);
+    gather_flags =
+      raft::device_span<bool const>{gather_flags_storage.data(), gather_flags_storage.size()};
+  }
+
+  auto [result_majors, result_minors, tmp_multi_edge_indices, result_labels] =
+    temporal_gather_one_hop_edgelist<vertex_t, edge_t, time_stamp_t, multi_gpu>(
+      handle,
+      graph_view,
+      temporal_params.edge_time_view,
+      edge_type_for_gather,
+      active_majors,
+      window_starts ? std::make_optional(raft::device_span<time_stamp_t const>{
+                        window_starts->data(), window_starts->size()})
+                    : std::nullopt,
+      window_ends ? std::make_optional(raft::device_span<time_stamp_t const>{window_ends->data(),
+                                                                             window_ends->size()})
+                  : std::nullopt,
+      active_major_labels,
+      gather_flags,
+      temporal_params.temporal_sampling_comparison,
+      false);
+
+  // Drop edges whose destination has already been visited (mirrors
+  // gather_one_hop_edgelist_to_unvisited_neighbors / gather_one_hop_impl.cuh's visited filter).
+  {
+    auto [keep_count, marked_entries] =
+      visited_minor_labels
+        ? mark_entries(
+            result_minors.size(),
+            cuda::proclaim_return_type<bool>(
+              [minors              = result_minors.data(),
+               labels              = result_labels->data(),
+               visited_minors      = visited_minors.data(),
+               visited_labels      = visited_minor_labels->data(),
+               visited_minors_size = visited_minors.size()] __device__(size_t index) {
+                auto iter_begin = thrust::make_zip_iterator(visited_minors, visited_labels);
+                return !thrust::binary_search(thrust::seq,
+                                              iter_begin,
+                                              iter_begin + visited_minors_size,
+                                              cuda::std::make_tuple(minors[index], labels[index]));
+              }),
+            handle.get_stream())
+        : mark_entries(
+            result_minors.size(),
+            cuda::proclaim_return_type<bool>(
+              [minors              = result_minors.data(),
+               visited_minors      = visited_minors.data(),
+               visited_minors_size = visited_minors.size()] __device__(size_t index) {
+                return !thrust::binary_search(
+                  thrust::seq, visited_minors, visited_minors + visited_minors_size, minors[index]);
+              }),
+            handle.get_stream());
+
+    raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(),
+                                                        marked_entries.size()};
+    result_majors =
+      keep_marked_entries(handle, std::move(result_majors), marked_entry_span, keep_count);
+    result_minors =
+      keep_marked_entries(handle, std::move(result_minors), marked_entry_span, keep_count);
+    if (result_labels) {
+      *result_labels =
+        keep_marked_entries(handle, std::move(*result_labels), marked_entry_span, keep_count);
+    }
+    if (std::holds_alternative<rmm::device_uvector<edge_t>>(tmp_multi_edge_indices)) {
+      tmp_multi_edge_indices = keep_marked_entries(
+        handle,
+        std::move(std::get<rmm::device_uvector<edge_t>>(tmp_multi_edge_indices)),
+        marked_entry_span,
+        keep_count);
+    }
+  }
+
+  auto const n = result_majors.size();
+  bool const has_multi_index =
+    std::holds_alternative<rmm::device_uvector<edge_t>>(tmp_multi_edge_indices);
+
+  // Primary rank key: edge start time. For heterogeneous sampling also gather the edge type so
+  // edges can be grouped (and looked up against the correct per-type K) below.
+  rmm::device_uvector<time_stamp_t> edge_times =
+    gather_scalar_edge_property_for_edgelist<vertex_t, edge_t, time_stamp_t, multi_gpu>(
+      handle,
+      graph_view,
+      raft::device_span<vertex_t const>{result_majors.data(), n},
+      raft::device_span<vertex_t const>{result_minors.data(), n},
+      tmp_multi_edge_indices,
+      temporal_params.edge_time_view);
+
+  rmm::device_uvector<edge_type_t> edge_types(num_types > 1 ? n : size_t{0}, handle.get_stream());
+  if (num_types > 1) {
+    edge_types = gather_scalar_edge_property_for_edgelist<vertex_t, edge_t, edge_type_t, multi_gpu>(
+      handle,
+      graph_view,
+      raft::device_span<vertex_t const>{result_majors.data(), n},
+      raft::device_span<vertex_t const>{result_minors.data(), n},
+      tmp_multi_edge_indices,
+      *edge_type_view);
+  }
+
+  // Rank order (indices into the result_* / edge_times / edge_types arrays): ascending by
+  // (major[, label][, type]), then by a monotonic time key (edge time for FIRST; max-time for
+  // LAST so an ascending compare still prefers later edges), then by the deterministic
+  // tie-break (multi-edge index if available, else dst; dst is always included so the order is
+  // total even when the tie-break alone would not distinguish two different destinations).
+  //
+  // Prefer a single ascending comparator over flipping `<`/`>`: DeviceMergeSort with a
+  // greater-than time compare was observed to leave the CSR (earliest-first) order unchanged,
+  // so LAST incorrectly returned the same edge as FIRST.
+  rmm::device_uvector<time_stamp_t> rank_times(n, handle.get_stream());
+  if (select_earliest) {
+    thrust::copy(
+      handle.get_thrust_policy(), edge_times.begin(), edge_times.end(), rank_times.begin());
+  } else {
+    thrust::transform(handle.get_thrust_policy(),
+                      edge_times.begin(),
+                      edge_times.end(),
+                      rank_times.begin(),
+                      cuda::proclaim_return_type<time_stamp_t>([] __device__(time_stamp_t t) {
+                        return std::numeric_limits<time_stamp_t>::max() - t;
+                      }));
+  }
+
+  rmm::device_uvector<size_t> order(n, handle.get_stream());
+  thrust::sequence(handle.get_thrust_policy(), order.begin(), order.end(), size_t{0});
+  {
+    vertex_t const* d_majors    = result_majors.data();
+    int32_t const* d_labels     = active_major_labels ? result_labels->data() : nullptr;
+    edge_type_t const* d_types  = num_types > 1 ? edge_types.data() : nullptr;
+    time_stamp_t const* d_times = rank_times.data();
+    vertex_t const* d_minors    = result_minors.data();
+    edge_t const* d_multi_index =
+      has_multi_index ? std::get<rmm::device_uvector<edge_t>>(tmp_multi_edge_indices).data()
+                      : nullptr;
+
+    thrust::sort(handle.get_thrust_policy(),
+                 order.begin(),
+                 order.end(),
+                 cuda::proclaim_return_type<bool>(
+                   [d_majors, d_labels, d_types, d_times, d_minors, d_multi_index] __device__(
+                     size_t a, size_t b) {
+                     if (d_majors[a] != d_majors[b]) return d_majors[a] < d_majors[b];
+                     if (d_labels && (d_labels[a] != d_labels[b])) return d_labels[a] < d_labels[b];
+                     if (d_types && (d_types[a] != d_types[b])) return d_types[a] < d_types[b];
+                     if (d_times[a] != d_times[b]) return d_times[a] < d_times[b];
+                     if (d_minors[a] != d_minors[b]) return d_minors[a] < d_minors[b];
+                     if (d_multi_index) return d_multi_index[a] < d_multi_index[b];
+                     return false;
+                   }));
+  }
+
+  rmm::device_uvector<vertex_t> sorted_majors(n, handle.get_stream());
+  rmm::device_uvector<vertex_t> sorted_minors(n, handle.get_stream());
+  rmm::device_uvector<int32_t> sorted_labels(active_major_labels ? n : size_t{0},
+                                             handle.get_stream());
+  rmm::device_uvector<edge_type_t> sorted_types(num_types > 1 ? n : size_t{0}, handle.get_stream());
+  arithmetic_device_uvector_t sorted_multi_index{std::monostate{}};
+
+  thrust::gather(handle.get_thrust_policy(),
+                 order.begin(),
+                 order.end(),
+                 result_majors.begin(),
+                 sorted_majors.begin());
+  thrust::gather(handle.get_thrust_policy(),
+                 order.begin(),
+                 order.end(),
+                 result_minors.begin(),
+                 sorted_minors.begin());
+  if (active_major_labels) {
+    thrust::gather(handle.get_thrust_policy(),
+                   order.begin(),
+                   order.end(),
+                   result_labels->begin(),
+                   sorted_labels.begin());
+  }
+  if (num_types > 1) {
+    thrust::gather(handle.get_thrust_policy(),
+                   order.begin(),
+                   order.end(),
+                   edge_types.begin(),
+                   sorted_types.begin());
+  }
+  if (has_multi_index) {
+    rmm::device_uvector<edge_t> tmp(n, handle.get_stream());
+    thrust::gather(handle.get_thrust_policy(),
+                   order.begin(),
+                   order.end(),
+                   std::get<rmm::device_uvector<edge_t>>(tmp_multi_edge_indices).begin(),
+                   tmp.begin());
+    sorted_multi_index = std::move(tmp);
+  }
+
+  // Rank within each (major[, label][, type]) group (0-based, in the order established above) and
+  // keep only the first K of that group's K value.
+  rmm::device_uvector<size_t> position_in_group(n, handle.get_stream());
+  {
+    vertex_t const* d_majors   = sorted_majors.data();
+    int32_t const* d_labels    = active_major_labels ? sorted_labels.data() : nullptr;
+    edge_type_t const* d_types = num_types > 1 ? sorted_types.data() : nullptr;
+
+    thrust::exclusive_scan_by_key(handle.get_thrust_policy(),
+                                  thrust::make_counting_iterator(size_t{0}),
+                                  thrust::make_counting_iterator(n),
+                                  thrust::make_constant_iterator(size_t{1}),
+                                  position_in_group.begin(),
+                                  size_t{0},
+                                  cuda::proclaim_return_type<bool>(
+                                    [d_majors, d_labels, d_types] __device__(size_t a, size_t b) {
+                                      if (d_majors[a] != d_majors[b]) return false;
+                                      if (d_labels && (d_labels[a] != d_labels[b])) return false;
+                                      if (d_types && (d_types[a] != d_types[b])) return false;
+                                      return true;
+                                    }));
+  }
+
+  rmm::device_uvector<size_t> d_Ks(num_types, handle.get_stream());
+  raft::update_device(d_Ks.data(), Ks.data(), Ks.size(), handle.get_stream());
+
+  auto [keep_count, marked_entries] = mark_entries(
+    n,
+    cuda::proclaim_return_type<bool>([position = position_in_group.data(),
+                                      types    = num_types > 1 ? sorted_types.data() : nullptr,
+                                      d_Ks     = d_Ks.data()] __device__(size_t i) {
+      auto const k = types ? d_Ks[types[i]] : d_Ks[0];
+      return position[i] < k;
+    }),
+    handle.get_stream());
+
+  raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(), marked_entries.size()};
+
+  sorted_majors =
+    keep_marked_entries(handle, std::move(sorted_majors), marked_entry_span, keep_count);
+  sorted_minors =
+    keep_marked_entries(handle, std::move(sorted_minors), marked_entry_span, keep_count);
+  std::optional<rmm::device_uvector<int32_t>> out_labels{std::nullopt};
+  if (active_major_labels) {
+    out_labels =
+      keep_marked_entries(handle, std::move(sorted_labels), marked_entry_span, keep_count);
+  }
+  if (has_multi_index) {
+    sorted_multi_index =
+      keep_marked_entries(handle,
+                          std::move(std::get<rmm::device_uvector<edge_t>>(sorted_multi_index)),
+                          marked_entry_span,
+                          keep_count);
+  }
+
+  return std::make_tuple(std::move(out_labels),
+                         std::move(sorted_majors),
+                         std::move(sorted_minors),
+                         std::move(sorted_multi_index));
+}
+
 template <typename vertex_t,
           typename edge_t,
           typename tag_t,
@@ -715,6 +1131,15 @@ sample_unvisited_outgoing_edges(
 
   if (Ks.size() > 1) {
     CUGRAPH_EXPECTS(edge_type_view.has_value(), "heterogeneous sampling requires edge_type_view.");
+  }
+
+  if constexpr (is_temporal) {
+    CUGRAPH_EXPECTS(
+      (temporal_params.neighbor_selection == neighbor_selection_t::RANDOM) || !with_replacement,
+      "FIRST and LAST neighbor selection do not support sampling with replacement.");
+    CUGRAPH_EXPECTS(
+      (temporal_params.neighbor_selection == neighbor_selection_t::RANDOM) || !edge_bias_view,
+      "FIRST and LAST neighbor selection do not accept edge biases.");
   }
 
   rmm::device_uvector<vertex_t> result_majors(0, handle.get_stream());
@@ -846,26 +1271,45 @@ sample_unvisited_outgoing_edges(
       using bias_t = float;
       if constexpr (is_temporal) {
         using time_stamp_t = typename temporal_params_t::time_type;
-        std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
-          call_biased_per_v_random_select_transform_outgoing_e(
-            handle,
-            graph_view,
-            active_bucket_view,
-            temporal_params.edge_time_view,
-            has_output_edge_properties,
-            sample_unvisited_temporal_edge_biases_op_t<vertex_t, bias_t, time_stamp_t>{
-              temporal_params.temporal_sampling_comparison,
-              temporal_params.active_majors,
-              temporal_params.active_major_window_starts,
-              temporal_params.active_major_window_ends,
-              temporal_params.active_major_labels,
+        if (temporal_params.neighbor_selection == neighbor_selection_t::RANDOM) {
+          std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
+            call_biased_per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              active_bucket_view,
+              temporal_params.edge_time_view,
+              has_output_edge_properties,
+              sample_unvisited_temporal_edge_biases_op_t<vertex_t, bias_t, time_stamp_t>{
+                temporal_params.temporal_sampling_comparison,
+                temporal_params.active_majors,
+                temporal_params.active_major_window_starts,
+                temporal_params.active_major_window_ends,
+                temporal_params.active_major_labels,
+                visited_minors_span,
+                visited_minor_labels_span},
+              edge_type_filter,
+              rng_state,
+              Ks,
+              active_major_labels,
+              with_replacement);
+        } else {
+          std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
+            call_ordered_select_unvisited_temporal_outgoing_e<vertex_t,
+                                                              edge_t,
+                                                              tag_t,
+                                                              time_stamp_t,
+                                                              multi_gpu>(
+              handle,
+              graph_view,
+              active_bucket_view,
+              edge_type_filter,
+              temporal_params,
               visited_minors_span,
-              visited_minor_labels_span},
-            edge_type_filter,
-            rng_state,
-            Ks,
-            active_major_labels,
-            with_replacement);
+              visited_minor_labels_span,
+              Ks,
+              active_major_labels,
+              temporal_params.neighbor_selection == neighbor_selection_t::FIRST);
+        }
       } else {
         std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
           call_biased_per_v_random_select_transform_outgoing_e(
