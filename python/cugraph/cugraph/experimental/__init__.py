@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 from pylibcugraph.utilities.api_tools import (
@@ -14,4 +14,17 @@ from cugraph.experimental.components.scc import EXPERIMENTAL__strong_connected_c
 
 strong_connected_component = experimental_warning_wrapper(
     EXPERIMENTAL__strong_connected_component, _ns_name
+)
+
+from cugraph.experimental.isomorphism.subgraph_isomorphism import EXPERIMENTAL__subgraph_isomorphism
+
+subgraph_isomorphism = experimental_warning_wrapper(
+    EXPERIMENTAL__subgraph_isomorphism, _ns_name
+)
+
+# MotifData and default_motif_library are plain data helpers, not
+# algorithms, exported without the experimental wrapper
+from cugraph.experimental.isomorphism.motif import (
+    MotifData,
+    default_motif_library,
 )
