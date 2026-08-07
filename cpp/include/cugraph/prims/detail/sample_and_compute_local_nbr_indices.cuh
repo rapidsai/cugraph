@@ -4940,7 +4940,7 @@ rmm::device_uvector<edge_t> remap_local_nbr_indices(
   size_t K)
 {
   if (key_indices) {
-    auto pair_first = thrust::make_zip_iterator(local_nbr_indices.begin(), (*key_indices).begin());
+    auto pair_first = thrust::make_zip_iterator(local_nbr_indices.begin(), key_indices->begin());
     for (size_t i = 0; i < local_frontier_offsets.size() - 1; ++i) {
       thrust::transform(
         handle.get_thrust_policy(),
@@ -4954,7 +4954,7 @@ rmm::device_uvector<edge_t> remap_local_nbr_indices(
            unique_key_local_degree_offsets = raft::device_span<size_t const>(
              aggregate_local_frontier_unique_key_local_degree_offsets.data() +
                local_frontier_unique_key_offsets[i],
-             (local_frontier_unique_key_offsets[i + 1], local_frontier_unique_key_offsets[i]) + 1),
+             (local_frontier_unique_key_offsets[i + 1] - local_frontier_unique_key_offsets[i]) + 1),
            aggregate_local_frontier_unique_key_org_indices = raft::device_span<edge_t const>(
              aggregate_local_frontier_unique_key_org_indices.data(),
              aggregate_local_frontier_unique_key_org_indices.size()),
@@ -5622,7 +5622,8 @@ homogeneous_biased_sample_and_compute_local_nbr_indices(
   // 2. sample neighbor indices and shuffle neighbor indices
 
   rmm::device_uvector<edge_t> local_nbr_indices(0, handle.get_stream());
-  std::optional<rmm::device_uvector<size_t>> key_indices{std::nullopt};
+  std::optional<rmm::device_uvector<size_t>> key_indices{
+    std::nullopt};  // valid when minor_comm_size > 1
   std::vector<size_t> local_frontier_sample_offsets{};
   if (with_replacement) {
     std::tie(local_nbr_indices, key_indices, local_frontier_sample_offsets) =
@@ -5660,63 +5661,25 @@ homogeneous_biased_sample_and_compute_local_nbr_indices(
 
   // 3. remap non-zero bias local neighbor indices to local neighbor indices
 
-  if (key_indices) {
-    auto pair_first = thrust::make_zip_iterator(local_nbr_indices.begin(), (*key_indices).begin());
-    for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-      thrust::transform(
-        handle.get_thrust_policy(),
-        pair_first + local_frontier_sample_offsets[i],
-        pair_first + local_frontier_sample_offsets[i + 1],
-        local_nbr_indices.begin() + local_frontier_sample_offsets[i],
-        cuda::proclaim_return_type<edge_t>(
-          [key_idx_to_unique_key_idx = raft::device_span<size_t const>(
-             aggregate_local_frontier_key_idx_to_unique_key_idx.data() + local_frontier_offsets[i],
-             local_frontier_offsets[i + 1] - local_frontier_offsets[i]),
-           unique_key_local_degree_offsets = raft::device_span<size_t const>(
-             aggregate_local_frontier_unique_key_local_degree_offsets.data() +
-               local_frontier_unique_key_offsets[i],
-             (local_frontier_unique_key_offsets[i + 1] - local_frontier_unique_key_offsets[i]) + 1),
-           unique_key_nz_bias_indices = raft::device_span<edge_t const>(
-             aggregate_local_frontier_unique_key_nz_bias_indices.data(),
-             aggregate_local_frontier_unique_key_nz_bias_indices.size())] __device__(auto pair) {
-            auto nz_bias_idx    = cuda::std::get<0>(pair);
-            auto key_idx        = cuda::std::get<1>(pair);
-            auto unique_key_idx = key_idx_to_unique_key_idx[key_idx];
-            return unique_key_nz_bias_indices[unique_key_local_degree_offsets[unique_key_idx] +
-                                              nz_bias_idx];
-          }));
-    }
-  } else {
-    auto pair_first = thrust::make_zip_iterator(local_nbr_indices.begin(),
-                                                thrust::make_counting_iterator(size_t{0}));
-    for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-      thrust::transform_if(
-        handle.get_thrust_policy(),
-        pair_first + local_frontier_sample_offsets[i],
-        pair_first + local_frontier_sample_offsets[i + 1],
-        local_nbr_indices.begin() + local_frontier_sample_offsets[i],
-        local_nbr_indices.begin() + local_frontier_sample_offsets[i],
-        cuda::proclaim_return_type<edge_t>(
-          [key_idx_to_unique_key_idx = raft::device_span<size_t const>(
-             aggregate_local_frontier_key_idx_to_unique_key_idx.data() + local_frontier_offsets[i],
-             local_frontier_offsets[i + 1] - local_frontier_offsets[i]),
-           unique_key_local_degree_offsets = raft::device_span<size_t const>(
-             aggregate_local_frontier_unique_key_local_degree_offsets.data() +
-               local_frontier_unique_key_offsets[i],
-             (local_frontier_unique_key_offsets[i + 1] - local_frontier_unique_key_offsets[i]) + 1),
-           unique_key_nz_bias_indices = raft::device_span<edge_t const>(
-             aggregate_local_frontier_unique_key_nz_bias_indices.data(),
-             aggregate_local_frontier_unique_key_nz_bias_indices.size()),
-           K] __device__(auto pair) {
-            auto nz_bias_idx    = cuda::std::get<0>(pair);
-            auto key_idx        = cuda::std::get<1>(pair) / K;
-            auto unique_key_idx = key_idx_to_unique_key_idx[key_idx];
-            return unique_key_nz_bias_indices[unique_key_local_degree_offsets[unique_key_idx] +
-                                              nz_bias_idx];
-          }),
-        is_not_equal_t<edge_t>{cugraph::invalid_edge_id_v<edge_t>});
-    }
-  }
+  local_nbr_indices = remap_local_nbr_indices(
+    handle,
+    raft::device_span<size_t const>(aggregate_local_frontier_key_idx_to_unique_key_idx.data(),
+                                    aggregate_local_frontier_key_idx_to_unique_key_idx.size()),
+    local_frontier_offsets,
+    raft::device_span<edge_t const>(aggregate_local_frontier_unique_key_nz_bias_indices.data(),
+                                    aggregate_local_frontier_unique_key_nz_bias_indices.size()),
+    raft::device_span<size_t const>(
+      aggregate_local_frontier_unique_key_local_degree_offsets.data(),
+      aggregate_local_frontier_unique_key_local_degree_offsets.size()),
+    raft::host_span<size_t const>(local_frontier_unique_key_offsets.data(),
+                                  local_frontier_unique_key_offsets.size()),
+    std::move(local_nbr_indices),
+    key_indices ? std::make_optional<raft::device_span<size_t const>>((*key_indices).data(),
+                                                                      (*key_indices).size())
+                : std::nullopt,
+    raft::host_span<size_t const>(local_frontier_sample_offsets.data(),
+                                  local_frontier_sample_offsets.size()),
+    K);
 
   // 4. convert neighbor indices in the neighbor list considering edge mask to neighbor indices in
   // the neighbor list ignoring edge mask
@@ -5788,7 +5751,8 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
 
   auto edge_mask_view = graph_view.edge_mask_view();
 
-  // 1. compute (bias, type) pairs for unique keys (to reduce memory footprint)
+  // 1. compute (bias, type) pairs for unique keys (to reduce memory footprint when some keys appear
+  // multiple times)
 
   auto [aggregate_local_frontier_unique_keys,
         aggregate_local_frontier_key_idx_to_unique_key_idx,
