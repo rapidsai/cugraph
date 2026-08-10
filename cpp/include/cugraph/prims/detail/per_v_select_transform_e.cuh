@@ -500,23 +500,24 @@ template <bool incoming,
           typename EdgeTypeInputWrapper,
           typename T>
 std::tuple<std::optional<rmm::device_uvector<size_t>>, dataframe_buffer_type_t<T>>
-per_v_select_transform_e(raft::handle_t const& handle,
-                         GraphViewType const& graph_view,
-                         KeyBucketType const& key_list,
-                         BiasEdgeSrcValueInputWrapper bias_edge_src_value_input,
-                         BiasEdgeDstValueInputWrapper bias_edge_dst_value_input,
-                         BiasEdgeValueInputWrapper bias_edge_value_input,
-                         BiasEdgeOp bias_e_op,
-                         EdgeSrcValueInputWrapper edge_src_value_input,
-                         EdgeDstValueInputWrapper edge_dst_value_input,
-                         EdgeValueInputWrapper edge_value_input,
-                         EdgeOp e_op,
-                         EdgeTypeInputWrapper edge_type_input,
-                         raft::random::RngState& rng_state,
-                         raft::host_span<size_t const> Ks,
-                         bool with_replacement,
-                         std::optional<T> invalid_value,
-                         bool do_expensive_check)
+per_v_select_transform_e(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  KeyBucketType const& key_list,
+  BiasEdgeSrcValueInputWrapper bias_edge_src_value_input,
+  BiasEdgeDstValueInputWrapper bias_edge_dst_value_input,
+  BiasEdgeValueInputWrapper bias_edge_value_input,
+  BiasEdgeOp bias_e_op,
+  EdgeSrcValueInputWrapper edge_src_value_input,
+  EdgeDstValueInputWrapper edge_dst_value_input,
+  EdgeValueInputWrapper edge_value_input,
+  EdgeOp e_op,
+  EdgeTypeInputWrapper edge_type_input,
+  raft::random::RngState* rng_state /* top-k select if nullptr, random select otherwise */,
+  raft::host_span<size_t const> Ks,
+  bool with_replacement,
+  std::optional<T> invalid_value,
+  bool do_expensive_check)
 {
   using vertex_t     = typename GraphViewType::vertex_type;
   using edge_t       = typename GraphViewType::edge_type;
@@ -614,6 +615,9 @@ per_v_select_transform_e(raft::handle_t const& handle,
                                                     BiasEdgeDstValueInputWrapper,
                                                     BiasEdgeValueInputWrapper,
                                                     key_t>>) {  // uniform sampling
+    CUGRAPH_EXPECTS(rng_state != nullptr,
+                    "rng_state should not be nullptr when bias_e_op is constant_bias_e_op_t (top-k "
+                    "select is undefined for uniform sampling).");
     if constexpr (std::is_same_v<EdgeTypeInputWrapper,
                                  edge_dummy_property_view_t>) {  // homogeneous
       std::tie(sample_local_nbr_indices, sample_key_indices, local_key_list_sample_offsets) =
@@ -624,7 +628,7 @@ per_v_select_transform_e(raft::handle_t const& handle,
                                 : key_list.begin(),
           raft::host_span<size_t const>(local_key_list_offsets.data(),
                                         local_key_list_offsets.size()),
-          rng_state,
+          *rng_state,
           Ks[0],
           with_replacement);
     } else {  // heterogeneous
@@ -637,13 +641,16 @@ per_v_select_transform_e(raft::handle_t const& handle,
           edge_type_input,
           raft::host_span<size_t const>(local_key_list_offsets.data(),
                                         local_key_list_offsets.size()),
-          rng_state,
+          *rng_state,
           Ks,
           with_replacement);
     }
   } else {  // biased sampling
     if constexpr (std::is_same_v<EdgeTypeInputWrapper,
                                  edge_dummy_property_view_t>) {  // homogeneous
+      CUGRAPH_EXPECTS(!with_replacement || rng_state != nullptr,
+                      "rng_state should not be nullptr when with_replacement is true (top-k select "
+                      "is undefined when with_replacement is true).");
       std::tie(sample_local_nbr_indices, sample_key_indices, local_key_list_sample_offsets) =
         homogeneous_biased_sample_and_compute_local_nbr_indices(
           handle,

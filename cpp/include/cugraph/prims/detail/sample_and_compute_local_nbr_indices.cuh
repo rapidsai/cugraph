@@ -1866,7 +1866,7 @@ void compute_homogeneous_biased_sampling_index_without_replacement(
     output_frontier_indices,  // output_nbr_indices is already packed if std::nullopt
   raft::device_span<edge_t> output_nbr_indices,
   std::optional<raft::device_span<bias_t>> output_keys,
-  raft::random::RngState& rng_state,
+  raft::random::RngState* rng_state /* top-k select if nullptr, random select otherwise */,
   size_t K,
   bool jump)
 {
@@ -1922,8 +1922,10 @@ void compute_homogeneous_biased_sampling_index_without_replacement(
       auto num_chunk_pairs = element_offsets[i + 1] - element_offsets[i];
       rmm::device_uvector<bias_t> keys(num_chunk_pairs, handle.get_stream());
 
-      cugraph::detail::uniform_random_fill(
-        handle.get_stream(), keys.data(), keys.size(), bias_t{0.0}, bias_t{1.0}, rng_state);
+      if (rng_state != nullptr) {
+        cugraph::detail::uniform_random_fill(
+          handle.get_stream(), keys.data(), keys.size(), bias_t{0.0}, bias_t{1.0}, *rng_state);
+      }
 
       if (packed_input_degree_offsets) {
         auto bias_first = cuda::make_transform_iterator(
@@ -1944,29 +1946,55 @@ void compute_homogeneous_biased_sampling_index_without_replacement(
               return input_biases[input_degree_offsets[frontier_idx] +
                                   (i - packed_input_degree_offsets[idx])];
             }));
-        thrust::transform(
-          handle.get_thrust_policy(),
-          keys.begin(),
-          keys.end(),
-          bias_first,
-          keys.begin(),
-          cuda::proclaim_return_type<bias_t>([] __device__(bias_t r, bias_t b) {
-            assert(b >
-                   0.0);  // 0 bias neighbors shold be pre-filtered before invoking this function
-            return cuda::std::min(-cuda::std::log(r) / b, std::numeric_limits<bias_t>::max());
-          }));
+        if (rng_state == nullptr) {
+          thrust::transform(
+            handle.get_thrust_policy(),
+            bias_first,
+            bias_first + keys.size(),
+            keys.begin(),
+            cuda::proclaim_return_type<bias_t>([] __device__(bias_t b) {
+              assert(b >
+                     0.0);  // 0 bias neighbors shold be pre-filtered before invoking this function
+              return -b;
+            }));
+        } else {
+          thrust::transform(
+            handle.get_thrust_policy(),
+            keys.begin(),
+            keys.end(),
+            bias_first,
+            keys.begin(),
+            cuda::proclaim_return_type<bias_t>([] __device__(bias_t r, bias_t b) {
+              assert(b >
+                     0.0);  // 0 bias neighbors shold be pre-filtered before invoking this function
+              return cuda::std::min(-cuda::std::log(r) / b, std::numeric_limits<bias_t>::max());
+            }));
+        }
       } else {
-        thrust::transform(
-          handle.get_thrust_policy(),
-          keys.begin(),
-          keys.end(),
-          input_biases.begin() + element_offsets[i],
-          keys.begin(),
-          cuda::proclaim_return_type<bias_t>([] __device__(bias_t r, bias_t b) {
-            assert(b >
-                   0.0);  // 0 bias neighbors shold be pre-filtered before invoking this function
-            return cuda::std::min(-cuda::std::log(r) / b, std::numeric_limits<bias_t>::max());
-          }));
+        if (rng_state == nullptr) {
+          thrust::transform(
+            handle.get_thrust_policy(),
+            input_biases.begin() + element_offsets[i],
+            input_biases.begin() + element_offsets[i + 1],
+            keys.begin(),
+            cuda::proclaim_return_type<bias_t>([] __device__(bias_t b) {
+              assert(b >
+                     0.0);  // 0 bias neighbors shold be pre-filtered before invoking this function
+              return -b;
+            }));
+        } else {
+          thrust::transform(
+            handle.get_thrust_policy(),
+            keys.begin(),
+            keys.end(),
+            input_biases.begin() + element_offsets[i],
+            keys.begin(),
+            cuda::proclaim_return_type<bias_t>([] __device__(bias_t r, bias_t b) {
+              assert(b >
+                     0.0);  // 0 bias neighbors shold be pre-filtered before invoking this function
+              return cuda::std::min(-cuda::std::log(r) / b, std::numeric_limits<bias_t>::max());
+            }));
+        }
       }
 
       rmm::device_uvector<edge_t> nbr_indices(keys.size(), handle.get_stream());
@@ -2108,7 +2136,7 @@ void compute_heterogeneous_biased_sampling_index_without_replacement(
   raft::device_span<size_t const> output_start_displacements,
   raft::device_span<edge_t> output_per_type_nbr_indices,
   std::optional<raft::device_span<bias_t>> output_keys,
-  raft::random::RngState& rng_state,
+  raft::random::RngState* rng_state /* top-k select if nullptr, random select otherwise */,
   raft::device_span<size_t const> K_offsets,
   bool jump)
 {
@@ -2172,8 +2200,10 @@ void compute_heterogeneous_biased_sampling_index_without_replacement(
       auto num_chunk_pairs = element_offsets[i + 1] - element_offsets[i];
       rmm::device_uvector<bias_t> keys(num_chunk_pairs, handle.get_stream());
 
-      cugraph::detail::uniform_random_fill(
-        handle.get_stream(), keys.data(), keys.size(), bias_t{0.0}, bias_t{1.0}, rng_state);
+      if (rng_state != nullptr) {
+        cugraph::detail::uniform_random_fill(
+          handle.get_stream(), keys.data(), keys.size(), bias_t{0.0}, bias_t{1.0}, *rng_state);
+      }
 
       if (packed_input_per_type_degree_offsets) {
         auto bias_first = cuda::make_transform_iterator(
@@ -2198,29 +2228,55 @@ void compute_heterogeneous_biased_sampling_index_without_replacement(
                                                                 type] +
                                   (i - packed_input_per_type_degree_offsets[idx])];
             }));
-        thrust::transform(
-          handle.get_thrust_policy(),
-          keys.begin(),
-          keys.end(),
-          bias_first,
-          keys.begin(),
-          cuda::proclaim_return_type<bias_t>([] __device__(bias_t r, bias_t b) {
-            assert(b >
-                   0.0);  // 0 bias neighbors shold be pre-filtered before invoking this function
-            return cuda::std::min(-cuda::std::log(r) / b, std::numeric_limits<bias_t>::max());
-          }));
+        if (rng_state == nullptr) {
+          thrust::transform(
+            handle.get_thrust_policy(),
+            bias_first,
+            bias_first + keys.size(),
+            keys.begin(),
+            cuda::proclaim_return_type<bias_t>([] __device__(bias_t b) {
+              assert(b >
+                     0.0);  // 0 bias neighbors shold be pre-filtered before invoking this function
+              return -b;
+            }));
+        } else {
+          thrust::transform(
+            handle.get_thrust_policy(),
+            keys.begin(),
+            keys.end(),
+            bias_first,
+            keys.begin(),
+            cuda::proclaim_return_type<bias_t>([] __device__(bias_t r, bias_t b) {
+              assert(b >
+                     0.0);  // 0 bias neighbors shold be pre-filtered before invoking this function
+              return cuda::std::min(-cuda::std::log(r) / b, std::numeric_limits<bias_t>::max());
+            }));
+        }
       } else {
-        thrust::transform(
-          handle.get_thrust_policy(),
-          keys.begin(),
-          keys.end(),
-          input_biases.begin() + element_offsets[i],
-          keys.begin(),
-          cuda::proclaim_return_type<bias_t>([] __device__(bias_t r, bias_t b) {
-            assert(b >
-                   0.0);  // 0 bias neighbors shold be pre-filtered before invoking this function
-            return cuda::std::min(-cuda::std::log(r) / b, std::numeric_limits<bias_t>::max());
-          }));
+        if (rng_state == nullptr) {
+          thrust::transform(
+            handle.get_thrust_policy(),
+            input_biases.begin() + element_offsets[i],
+            input_biases.begin() + element_offsets[i + 1],
+            keys.begin(),
+            cuda::proclaim_return_type<bias_t>([] __device__(bias_t b) {
+              assert(b >
+                     0.0);  // 0 bias neighbors shold be pre-filtered before invoking this function
+              return -b;
+            }));
+        } else {
+          thrust::transform(
+            handle.get_thrust_policy(),
+            keys.begin(),
+            keys.end(),
+            input_biases.begin() + element_offsets[i],
+            keys.begin(),
+            cuda::proclaim_return_type<bias_t>([] __device__(bias_t r, bias_t b) {
+              assert(b >
+                     0.0);  // 0 bias neighbors shold be pre-filtered before invoking this function
+              return cuda::std::min(-cuda::std::log(r) / b, std::numeric_limits<bias_t>::max());
+            }));
+        }
       }
 
       rmm::device_uvector<edge_t> per_type_nbr_indices(keys.size(), handle.get_stream());
@@ -3439,7 +3495,7 @@ homogeneous_biased_sample_without_replacement(
   raft::device_span<bias_t const> aggregate_local_frontier_unique_key_biases,
   raft::device_span<size_t const> aggregate_local_frontier_unique_key_local_degree_offsets,
   raft::host_span<size_t const> local_frontier_unique_key_offsets,
-  raft::random::RngState& rng_state,
+  raft::random::RngState* rng_state /* top-k select if nullptr, random select otherwise */,
   size_t K)
 {
   int minor_comm_rank{0};
@@ -4018,7 +4074,7 @@ heterogeneous_biased_sample_without_replacement(
   raft::device_span<bias_t const> aggregate_local_frontier_unique_key_biases,
   raft::device_span<size_t const> aggregate_local_frontier_unique_key_per_type_local_degree_offsets,
   raft::host_span<size_t const> local_frontier_unique_key_offsets,
-  raft::random::RngState& rng_state,
+  raft::random::RngState* rng_state /* top-k select if nullptr, random select otherwise */,
   raft::host_span<size_t const> Ks)
 {
   int minor_comm_rank{0};
@@ -5444,7 +5500,7 @@ homogeneous_biased_sample_and_compute_local_nbr_indices(
   EdgeValueInputWrapper edge_value_input,
   BiasEdgeOp bias_e_op,
   raft::host_span<size_t const> local_frontier_offsets,
-  raft::random::RngState& rng_state,
+  raft::random::RngState* rng_state /* top-k select if nullptr, random select otherwise */,
   size_t K,
   bool with_replacement,
   bool do_expensive_check /* check bias_e_op return values */)
@@ -5460,6 +5516,10 @@ homogeneous_biased_sample_and_compute_local_nbr_indices(
                                                    EdgeValueInputWrapper,
                                                    BiasEdgeOp>::type;
   using edge_type_t = int32_t;  // dummy
+
+  CUGRAPH_EXPECTS(!with_replacement || rng_state != nullptr,
+                  "rng_state should not be nullptr when with_replacement is true (top-k select is "
+                  "undefined when with_replacement is true).");
 
   int minor_comm_size{1};
   if constexpr (GraphViewType::is_multi_gpu) {
@@ -5512,7 +5572,7 @@ homogeneous_biased_sample_and_compute_local_nbr_indices(
           aggregate_local_frontier_unique_key_local_degree_offsets.size()),
         raft::host_span<size_t const>(local_frontier_unique_key_offsets.data(),
                                       local_frontier_unique_key_offsets.size()),
-        rng_state,
+        *rng_state,
         raft::host_span<size_t const>(&K, size_t{1}));
   } else {
     std::tie(local_nbr_indices, key_indices, local_frontier_sample_offsets) =
@@ -5596,7 +5656,7 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
   BiasEdgeOp bias_e_op,
   EdgeTypeInputWrapper edge_type_input,
   raft::host_span<size_t const> local_frontier_offsets,
-  raft::random::RngState& rng_state,
+  raft::random::RngState* rng_state /* top-k select if nullptr, random select otherwise */,
   raft::host_span<size_t const> Ks,
   bool with_replacement,
   bool do_expensive_check /* check bias_e_op return values */)
@@ -5612,6 +5672,10 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
                                                    EdgeValueInputWrapper,
                                                    BiasEdgeOp>::type;
   using edge_type_t = typename EdgeTypeInputWrapper::value_type;
+
+  CUGRAPH_EXPECTS(!with_replacement || rng_state != nullptr,
+                  "rng_state should not be nullptr when with_replacement is true (top-k select is "
+                  "undefined when with_replacement is true).");
 
   int minor_comm_size{1};
   if constexpr (GraphViewType::is_multi_gpu) {
@@ -5788,7 +5852,7 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
             aggregate_local_frontier_unique_key_per_type_local_degree_offsets.size()),
           raft::host_span<size_t const>(local_frontier_unique_key_offsets.data(),
                                         local_frontier_unique_key_offsets.size()),
-          rng_state,
+          *rng_state,
           Ks);
     } else {
       std::tie(local_nbr_indices, key_indices, local_frontier_sample_offsets) =
