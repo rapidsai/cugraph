@@ -610,6 +610,7 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
 
               if (sg_nbr_bias_first) {
                 auto lower_it = thrust::lower_bound(thrust::seq, sg_nbr_first, sg_nbr_last, sg_dst);
+                if ((lower_it == sg_nbr_last) || (*lower_it != sg_dst)) { return true; }
                 auto upper_it = thrust::upper_bound(thrust::seq, sg_nbr_first, sg_nbr_last, sg_dst);
                 bool found    = false;
                 for (auto it = (*sg_nbr_bias_first + cuda::std::distance(sg_nbr_first, lower_it));
