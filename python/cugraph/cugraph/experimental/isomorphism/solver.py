@@ -14,8 +14,8 @@ import numpy as np
 
 from cugraph.experimental.isomorphism.motif import (
     MotifData,
-    data_to_dataframe,
-    make_m2_motif,
+    _data_to_dataframe,
+    _make_m2_motif,
 )
 from cugraph.experimental.isomorphism.slicing import (
     slice_pattern_graph_using_motifs,
@@ -55,6 +55,13 @@ class _PartitionWriter:
     def add(self, df):
         n = len(df)
         if n == 0:
+            return
+        if n > self._row_limit:
+            # A single filtered chunk can exceed the limit (batch sizing is
+            # based on an estimated fan-out); split it before buffering so
+            # every emitted partition honors the limit.
+            for start in range(0, n, self._row_limit):
+                self.add(df.iloc[start : start + self._row_limit])
             return
         if self._buffer and self._buffered_rows + n > self._row_limit:
             self._flush()
@@ -119,8 +126,11 @@ class _MotifSubgraphIsomorphismSolver:
     ):
         self._target_edge_df = target_edge_df
         self._num_target_vertices = num_target_vertices
-        # Explicit rows-per-batch override; <= 0 selects adaptive batching
-        # that targets _JOIN_MEM_BUDGET_GIB per join intermediate.
+        # Explicit rows-per-batch override (internal debug knob); <= 0
+        # selects adaptive batching that targets the dynamic join memory
+        # budget per intermediate. CAUTION: an explicit batch size bypasses
+        # the row-limit clamp, so batch_size * fanout can exceed cuDF's
+        # 2**31 row limit and fail loudly inside the merge.
         self._batch_size = int(batch_size) if batch_size else 0
         self.motif_metadata = motif_metadata if motif_metadata is not None else []
         self.decomposition = None
@@ -130,12 +140,17 @@ class _MotifSubgraphIsomorphismSolver:
 
         The base single-edge M2 motif is always generated first; each further
         motif is solved recursively using the motifs generated before it.
-        Sets and returns ``self.motif_metadata``.
+        Sets and returns ``self.motif_metadata``. Note: user-supplied
+        MotifData objects are updated in place — their ``embeddings``
+        attribute is set to the precomputed cuDF table. A precomputed motif
+        table is a single cuDF table, so a motif with 2**31 or more
+        embeddings in the target is rejected (unlike pattern solutions,
+        which are partitioned).
         """
         if motifs is None:
             motifs = []
 
-        m2_motif = make_m2_motif(self._target_edge_df, self._num_target_vertices)
+        m2_motif = _make_m2_motif(self._target_edge_df, self._num_target_vertices)
         motif_data_list = [m2_motif]
         for motif_data in motifs:
             solver = _MotifSubgraphIsomorphismSolver(
@@ -144,11 +159,19 @@ class _MotifSubgraphIsomorphismSolver:
                 motif_metadata=motif_data_list,
                 batch_size=self._batch_size,
             )
-            result = solver.solve(motif_data.graph)
+            result = solver.solve(motif_data._to_nx())
             if result is None:
                 continue
 
-            motif_data.isomorphisms = data_to_dataframe(
+            if len(result.mappings) >= 2**31:
+                raise ValueError(
+                    f"Motif '{motif_data.name}' has {len(result.mappings)} "
+                    "embeddings in the target graph, which exceeds the "
+                    "2**31 - 1 row limit of a single precomputed motif "
+                    "table. Omit this motif; the pattern can still be "
+                    "solved from smaller motifs."
+                )
+            motif_data.embeddings = _data_to_dataframe(
                 result.mappings, self._num_target_vertices
             )
             motif_data_list.append(motif_data)
@@ -177,13 +200,18 @@ class _MotifSubgraphIsomorphismSolver:
         slicing_res.boundaries.pop(0)
         slicing_res.intersections.pop(0)
 
-        if len(initial_motif.isomorphisms) == 0:
+        if len(initial_motif.embeddings) == 0:
             return None
 
-        initial_df = initial_motif.isomorphisms
+        initial_df = initial_motif.embeddings
         # Positional renaming: m4_v5 means 4th motif, 5th motif vertex.
         initial_df.columns = [f"m0_v{i}" for i in range(len(initial_df.columns))]
-        partitions = [initial_df]
+        # Route the seed through the writer too: motif tables may hold up
+        # to 2**31 - 1 rows, above _ROW_LIMIT, and every partition in the
+        # pipeline must honor the limit.
+        seed_writer = _PartitionWriter(self._ROW_LIMIT)
+        seed_writer.add(initial_df)
+        partitions = seed_writer.finish()
 
         count = 0
         while slicing_res.chosen_motifs:
@@ -222,7 +250,7 @@ class _MotifSubgraphIsomorphismSolver:
         Output is re-partitioned to keep every cuDF table below the ~2**31
         row limit.
         """
-        next_df = next_motif.isomorphisms
+        next_df = next_motif.embeddings
         next_df.columns = [f"m{count}_v{i}" for i in range(len(next_df.columns))]
 
         left_keys, right_keys = [], []
@@ -265,7 +293,24 @@ class _MotifSubgraphIsomorphismSolver:
         self._times["step 2 batches"] += total_batches
 
         result = writer.finish()
-        return result if result else [partitions[0].iloc[:0]]
+        if result:
+            return result
+        # Every batch filtered down to zero rows. Fall back to an empty
+        # frame with the POST-merge schema (previous columns plus the new
+        # motif's non-key columns) so later merges can still reference this
+        # motif's vertices and the final output keeps all pattern-vertex
+        # columns.
+        empty = (
+            partitions[0]
+            .iloc[:0]
+            .merge(
+                next_df.iloc[:0],
+                how="inner",
+                left_on=left_keys,
+                right_on=right_keys,
+            )
+        )
+        return [empty.drop(columns=right_keys)]
 
     def _merge_filter_one(
         self,
@@ -312,34 +357,56 @@ class _MotifSubgraphIsomorphismSolver:
         """Pick a left-batch size so the merged intermediate stays within
         the memory budget.
 
-        The join fan-out is estimated from a small sample of the left table;
-        the batch size is then the memory budget divided by
-        ``fan-out * row_width``.
+        The join fan-out is estimated by joining samples of the left rows
+        (a prefix and a stride; all rows, for small partitions) against the
+        new motif's per-key match counts; summing the counts gives the
+        exact number of rows the sampled keys would produce without
+        materializing any of them, and the larger of the two estimates is
+        used. The batch size is then the memory budget divided by
+        ``fan-out * row_width``, subject to the row-limit clamp.
         """
         n_rows = len(left_df)
-        if n_rows <= self._FANOUT_SAMPLE_ROWS:
-            return n_rows
-
         dtype_bytes = int(np.dtype(left_df[left_df.columns[0]].dtype).itemsize)
         row_width = len(left_df.columns) + len(next_df.columns)
         bytes_per_row = max(row_width * dtype_bytes, 1)
-
-        sample = left_df.iloc[: self._FANOUT_SAMPLE_ROWS]
-        sample_merged = sample.merge(
-            next_df, how="inner", left_on=left_keys, right_on=right_keys
-        )
-        fanout = len(sample_merged) / self._FANOUT_SAMPLE_ROWS
-        del sample, sample_merged
-        if fanout <= 0:
-            return n_rows
-
         budget_rows = budget_bytes / bytes_per_row
+
+        # Partitions are key-clustered, so any single sample can be biased
+        # in either direction: a prefix misses hub keys later in the
+        # partition, while a stride dilutes a hub-dense head. Estimate from
+        # both and keep the LARGER fan-out — over-estimating only makes
+        # batches smaller (lower peak), while under-estimating risks a
+        # single merge output beyond the row limit.
+        sample_rows = min(n_rows, self._FANOUT_SAMPLE_ROWS)
+        stride = n_rows // sample_rows
+        key_counts = next_df[right_keys].value_counts().reset_index()
+        count_col = key_counts.columns[-1]
+        fanout = 0.0
+        for sample_keys in (
+            left_df[left_keys].iloc[:sample_rows],
+            left_df[left_keys].take(cp.arange(0, stride * sample_rows, stride)),
+        ):
+            sample_matches = sample_keys.merge(
+                key_counts, how="inner", left_on=left_keys, right_on=right_keys
+            )
+            fanout = max(fanout, float(sample_matches[count_col].sum()) / sample_rows)
+        del key_counts, sample_matches
+        if fanout <= 0:
+            # No sampled key matches. The unsampled rows may still match,
+            # so do NOT merge the whole partition in one batch; fall back
+            # to the byte budget with an assumed fan-out of 1, still
+            # subject to the row-limit clamp.
+            return max(1, min(n_rows, int(budget_rows), self._ROW_LIMIT))
+
         batch_rows = int(budget_rows / fanout)
         # Independent of the byte budget, never let a single merge output
         # exceed the cuDF row limit: with small vertex dtypes on large GPUs
-        # the byte budget alone can project past 2**31 rows. fanout is a
-        # sampled estimate; _ROW_LIMIT's ~15% margin under 2**31 absorbs
-        # estimation error.
+        # the byte budget alone can project past 2**31 rows. Sampling
+        # reduces but cannot bound estimation error (a hub-key cluster
+        # narrower than the stride can be missed entirely); _ROW_LIMIT's
+        # ~16% margin under 2**31 absorbs moderate skew, and a merge that
+        # still exceeds the limit fails loudly inside cuDF rather than
+        # returning wrong results.
         batch_rows = min(batch_rows, int(self._ROW_LIMIT / fanout))
         return max(1, min(batch_rows, n_rows))
 
@@ -429,9 +496,9 @@ class _MotifSubgraphIsomorphismSolver:
                 "Validation failed: Pattern graph exceeds target graph capacity."
             )
 
-        # motif_metadata[0] is always M2, whose isomorphisms table is the
+        # motif_metadata[0] is always M2, whose embeddings table is the
         # bidirectional target edge list.
-        num_target_edges = len(self.motif_metadata[0].isomorphisms)
+        num_target_edges = len(self.motif_metadata[0].embeddings)
         if 2 * pattern_graph.number_of_edges() > num_target_edges:
             raise ValueError(
                 "Validation failed: Pattern graph requires more connectivity "

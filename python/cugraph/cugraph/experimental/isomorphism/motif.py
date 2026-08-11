@@ -9,20 +9,18 @@ import cudf
 
 from cugraph.utilities.utils import import_optional
 
-# networkx is an optional (test) dependency of cugraph; only the code paths
-# that use it require it to be installed.
+# networkx is an optional dependency of cugraph (declared for tests only);
+# import_optional defers the failure to first use, and only the private
+# pattern-decomposition code paths use it — never MotifData instances.
 nx = import_optional("networkx")
 
 
-def count_unique(edge_list):
-    """Count the number of unique vertices in an edge list."""
-    return len(set().union(*edge_list))
-
-
 @dataclass
-class MotifData:
+class EXPERIMENTAL__MotifData:
     """A small building-block graph ("motif") used to decompose the pattern
-    graph during motif-based subgraph isomorphism.
+    graph during motif-based subgraph monomorphism. Holds only plain Python
+    data (an edge list) plus, after precomputation, a cuDF table of the
+    motif's embeddings in the target graph.
 
     Parameters
     ----------
@@ -34,40 +32,68 @@ class MotifData:
 
     name: str
     motif: list
-    graph: object = field(init=False, default=None, repr=False)
     size: int = field(init=False, default=0)
-    isomorphisms: object = field(init=False, default=None, repr=False)
+    embeddings: object = field(init=False, default=None, repr=False)
 
     def __post_init__(self):
-        self.size = count_unique(self.motif) if self.motif else 1
-        self.graph = nx.Graph()
-        self.graph.add_nodes_from(range(self.size))
-        self.graph.add_edges_from(self.motif)
+        # Materialize first so a generator input can't be silently
+        # exhausted between validation and use.
+        self.motif = list(self.motif)
+        vertices = set().union(*self.motif) if self.motif else set()
+        if not self.motif or vertices != set(range(len(vertices))):
+            raise ValueError(
+                "motif must be a non-empty edge list over contiguous vertices 0..k-1"
+            )
+        self.size = len(vertices)
+
+    def _to_nx(self):
+        """Build a networkx.Graph of this motif (private; used by the CPU
+        pattern-decomposition step only)."""
+        graph = nx.Graph()
+        graph.add_nodes_from(range(self.size))
+        graph.add_edges_from(self.motif)
+        return graph
 
     def copy(self):
-        """Copy this MotifData; the isomorphisms DataFrame is deep-copied."""
-        new_instance = self.__class__(motif=self.motif, name=self.name)
-        new_instance.graph = self.graph
+        """Copy this MotifData. The embeddings table is copied shallowly
+        (shared data buffers, independent column metadata): the solver only
+        ever renames the copy's columns, so slices of the same motif can
+        share one embeddings table instead of duplicating it on the GPU."""
+        # Explicit class (not self.__class__) so copies of instances created
+        # through the experimental warning wrapper don't re-warn.
+        new_instance = EXPERIMENTAL__MotifData(motif=self.motif, name=self.name)
         new_instance.size = self.size
-        if self.isomorphisms is not None:
-            new_instance.isomorphisms = self.isomorphisms.copy()
+        if self.embeddings is not None:
+            new_instance.embeddings = self.embeddings.copy(deep=False)
         return new_instance
 
 
-def data_to_dataframe(data, num_vertices):
+# Internal alias: intra-package code (and type hints) use the plain name;
+# the public export in cugraph.experimental applies the warning wrapper to
+# the EXPERIMENTAL__-prefixed name above. Do not import this alias from
+# outside the package — it bypasses the experimental warning. Note that
+# instances made internally (default_motif_library, copy()) are of the raw
+# class, so isinstance/== checks against the wrapped public class will not
+# match them; experimental users should not rely on either.
+MotifData = EXPERIMENTAL__MotifData
+
+
+def _data_to_dataframe(data, num_vertices):
     # Down-cast by vertex-id range; every motif table uses the same rule so
     # cudf merge keys stay dtype-consistent across tables.
     if num_vertices <= 256:
         dtype = "uint8"
     elif num_vertices <= 65536:
         dtype = "uint16"
-    else:
+    elif num_vertices <= 2**32:
         dtype = "uint32"
+    else:
+        dtype = "uint64"
     return cudf.DataFrame(data, dtype=dtype)
 
 
-def make_m2_motif(edge_df, num_vertices):
-    """Build the base single-edge ("M2") motif whose isomorphisms table is
+def _make_m2_motif(edge_df, num_vertices):
+    """Build the base single-edge ("M2") motif whose embeddings table is
     the bidirectional, de-duplicated edge list of the target graph.
 
     The concat + drop_duplicates normalizes the input regardless of whether
@@ -81,20 +107,30 @@ def make_m2_motif(edge_df, num_vertices):
     num_vertices : int
         Number of vertices in the target graph.
     """
+    if len(edge_df) >= 2**30:
+        # The concat below materializes 2 * len(edge_df) rows BEFORE the
+        # dedup, so at 2**30 input rows it exceeds cuDF's 2**31 - 1 row
+        # limit regardless of how many duplicates the dedup would remove;
+        # fail clearly rather than inside the concat. Support for larger
+        # targets would need a partitioned M2 table.
+        raise ValueError(
+            f"Target graph has {len(edge_df)} edges; the bidirectional "
+            "M2 motif table would exceed cuDF's 2**31 - 1 row limit."
+        )
     m2_motif = MotifData(name="M2", motif=[(0, 1)])
-    df = data_to_dataframe(edge_df.to_cupy(), num_vertices)
+    df = _data_to_dataframe(edge_df.to_cupy(), num_vertices)
     df_rev = df[[1, 0]]
     df_rev.columns = [0, 1]
-    m2_motif.isomorphisms = cudf.concat(
-        [df, df_rev], ignore_index=True
-    ).drop_duplicates(ignore_index=True, keep="first")
+    m2_motif.embeddings = cudf.concat([df, df_rev], ignore_index=True).drop_duplicates(
+        ignore_index=True, keep="first"
+    )
     return m2_motif
 
 
-def default_motif_library():
+def EXPERIMENTAL__default_motif_library():
     """Return a small library of 3-vertex motifs usable as building blocks.
 
-    Passing these to ``subgraph_isomorphism`` makes the solver precompute
+    Passing these to ``subgraph_monomorphism`` makes the solver precompute
     their embeddings in the target graph (a full solve per motif), which can
     speed up large patterns at the cost of upfront work and memory.
     """
@@ -102,3 +138,6 @@ def default_motif_library():
         MotifData(name="M3-path", motif=[(0, 1), (1, 2)]),
         MotifData(name="M3-triangle", motif=[(0, 1), (1, 2), (0, 2)]),
     ]
+
+
+default_motif_library = EXPERIMENTAL__default_motif_library

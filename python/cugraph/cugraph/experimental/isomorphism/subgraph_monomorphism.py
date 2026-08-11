@@ -6,7 +6,7 @@ import cudf
 from cugraph.experimental.isomorphism.solver import (
     _MotifSubgraphIsomorphismSolver,
 )
-from cugraph.utilities.utils import import_optional
+from cugraph.utilities.utils import MissingModule, import_optional
 
 nx = import_optional("networkx")
 
@@ -31,14 +31,14 @@ def _pattern_to_nx(pattern_G):
     return pattern_nx
 
 
-def EXPERIMENTAL__subgraph_isomorphism(G, pattern_G, motifs=None):
+def EXPERIMENTAL__subgraph_monomorphism(G, pattern_G, motifs=None):
     """
-    Find all subgraph isomorphisms (monomorphisms) of a pattern graph in a
-    target graph using GPU-accelerated motif-based decomposition. Algortithm
-    described in:
-        Wang, Y., Ginez, E., Friel, J., Baum, Y., Kim, J. S., Shih, A, O. Green,
-        “Δ-Motif: Parallel Subgraph Isomorphism via Tabular Operations for Scalable Layout Selection”,
-        IEEE Quantum Week (QCE), 2026
+    Find all subgraph monomorphisms of a pattern graph in a target graph
+    using GPU-accelerated motif-based decomposition. Algorithm described in:
+        Wang, Y., Ginez, E., Friel, J., Baum, Y., Kim, J. S., Shih, A.,
+        O. Green, "Delta-Motif: Parallel Subgraph Isomorphism via Tabular
+        Operations for Scalable Layout Selection", IEEE Quantum Week (QCE),
+        2026
 
     The pattern is decomposed into small motifs (CPU VF2 on the pattern
     only), each motif's embeddings in the target are computed as cuDF
@@ -59,6 +59,11 @@ def EXPERIMENTAL__subgraph_isomorphism(G, pattern_G, motifs=None):
     This matches NetworkX ``GraphMatcher.subgraph_monomorphisms_iter``,
     not the induced ``subgraph_isomorphisms_iter``.
 
+    This function requires ``networkx`` at runtime, used only to decompose
+    the (small) pattern graph on the CPU; all work proportional to the
+    target graph or the solution set runs on the GPU. networkx is not a
+    hard dependency of cugraph, so install it separately if needed.
+
     Parameters
     ----------
     G : cugraph.Graph
@@ -74,7 +79,9 @@ def EXPERIMENTAL__subgraph_isomorphism(G, pattern_G, motifs=None):
         The single-edge M2 motif is always included automatically, so the
         default finds embeddings edge by edge. Larger motifs can speed up
         big patterns, but each one costs a full pre-solve to enumerate its
-        embeddings in the target.
+        embeddings in the target. The passed MotifData objects are updated
+        in place: their ``embeddings`` attribute is set to the precomputed
+        cuDF table.
 
     Returns
     -------
@@ -83,13 +90,16 @@ def EXPERIMENTAL__subgraph_isomorphism(G, pattern_G, motifs=None):
         the pattern vertex id (as a string, sorted order); values are the
         target vertex ids (original ids if the graph was renumbered). An
         empty DataFrame (with the same columns) means no embedding exists.
+        The returned DataFrame is a single cuDF table, so a solution set of
+        2**31 or more embeddings raises ValueError (intermediates larger
+        than that are handled internally via partitioning).
 
     Examples
     --------
     >>> import cudf
     >>> from cugraph import Graph
     >>> from cugraph.datasets import karate
-    >>> from cugraph.experimental import subgraph_isomorphism
+    >>> from cugraph.experimental import subgraph_monomorphism
     >>> G = karate.get_graph(download=True)
     >>> triangle = cudf.DataFrame(
     ...     {"src": [0, 1, 2], "dst": [1, 2, 0]}
@@ -97,9 +107,16 @@ def EXPERIMENTAL__subgraph_isomorphism(G, pattern_G, motifs=None):
     >>> pattern_G = Graph()
     >>> pattern_G.from_cudf_edgelist(triangle, source="src",
     ...                              destination="dst")
-    >>> mappings = subgraph_isomorphism(G, pattern_G)
+    >>> mappings = subgraph_monomorphism(G, pattern_G)
 
     """
+    if isinstance(nx, MissingModule):
+        raise RuntimeError(
+            "subgraph_monomorphism requires networkx (used only for CPU "
+            "decomposition of the small pattern graph); please install "
+            "networkx to use this function."
+        )
+
     if G.is_directed() or pattern_G.is_directed():
         raise ValueError("input graphs must be undirected")
 
@@ -127,6 +144,17 @@ def EXPERIMENTAL__subgraph_isomorphism(G, pattern_G, motifs=None):
             {name: cudf.Series([], dtype=vertex_dtype) for name in column_names}
         )
 
+    if len(result.mappings) >= 2**31:
+        # The solver holds intermediates as partitions beyond this size,
+        # but the returned cuDF DataFrame is a single table subject to
+        # cuDF's 2**31 - 1 column-size limit; fail clearly rather than
+        # deep inside cuDF.
+        raise ValueError(
+            f"The solution set has {len(result.mappings)} embeddings, "
+            "which exceeds the 2**31 - 1 row limit of the returned cuDF "
+            "DataFrame. Use a more selective pattern, or a chunked result "
+            "API (planned follow-up) for solution sets this large."
+        )
     column_names = [str(v) for v in result.pattern_vertices]
     result_df = cudf.DataFrame(result.mappings, columns=column_names)
     # Cast up from the solver's compact uint dtypes so unrenumber's merge

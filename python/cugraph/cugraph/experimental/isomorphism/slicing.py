@@ -76,7 +76,7 @@ def slice_pattern_graph_using_motifs(
             # Node-induced subgraph matches of the motif in the residual
             # pattern graph (same semantics as rustworkx vf2_mapping with
             # subgraph=True).
-            matcher = nx.algorithms.isomorphism.GraphMatcher(graph, motif_data.graph)
+            matcher = nx.algorithms.isomorphism.GraphMatcher(graph, motif_data._to_nx())
 
             for mapping in matcher.subgraph_isomorphisms_iter():
                 # mapping is {pattern_node: motif_node}; invert it so that
@@ -95,6 +95,12 @@ def slice_pattern_graph_using_motifs(
                 slice_edges = [
                     (slice_nodes[u], slice_nodes[v]) for (u, v) in motif_data.motif
                 ]
+                # NOTE: find_boundary_nodes mutates adjacency_map (removes
+                # the slice's edges) before this candidate can still be
+                # rejected below. That is safe only because a rejected
+                # candidate here is an induced match over already-covered
+                # slices, whose edges were removed when first covered —
+                # i.e. the mutation is idempotent for rejected candidates.
                 updated_boundary = find_boundary_nodes(
                     combined_nodes, slice_edges, adjacency_map
                 )
