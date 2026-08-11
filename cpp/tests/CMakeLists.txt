@@ -529,10 +529,10 @@ ConfigureTest(
         GPUS 1 PERCENT 75)
 
 ###################################################################################################
-# - TEMPORAL NBR SAMPLING deterministic tests -----------------------------------------------------
+# - TEMPORAL NBR SAMPLING fixed-window tests ------------------------------------------------------
 ConfigureTest(
-    TEMPORAL_NEIGHBOR_SAMPLING_DETERMINISTIC_TEST
-    sampling/temporal_neighbor_sampling_deterministic.cpp
+    TEMPORAL_NEIGHBOR_SAMPLING_FIXED_WINDOW_TEST
+    sampling/temporal_neighbor_sampling_fixed_window.cpp
         GPUS 1 PERCENT 25)
 
 ###################################################################################################
@@ -866,8 +866,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(
         MG_TEMPORAL_NEIGHBOR_SAMPLING_TEST sampling/mg_temporal_neighbor_sampling.cpp)
     ConfigureTestMG(
-        MG_TEMPORAL_NEIGHBOR_SAMPLING_DETERMINISTIC_TEST
-        sampling/mg_temporal_neighbor_sampling_deterministic.cpp)
+        MG_TEMPORAL_NEIGHBOR_SAMPLING_FIXED_WINDOW_TEST
+        sampling/mg_temporal_neighbor_sampling_fixed_window.cpp)
 
     ###################################################################################################
     # - NEGATIVE SAMPLING tests --------------------------------------------------------------------

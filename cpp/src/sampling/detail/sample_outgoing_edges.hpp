@@ -48,8 +48,7 @@ struct temporal_unvisited_params_t {
   cuda::std::optional<raft::device_span<int32_t const>> active_major_labels;  // sorted parallel
   temporal_sampling_comparison_t temporal_sampling_comparison;
   // RANDOM (default) reuses the existing per_v_random_select_transform_outgoing_e path below.
-  // FIRST/LAST instead deterministically rank eligible edges by (time, tie-break) and keep the
-  // top K; see call_ordered_select_unvisited_temporal_outgoing_e in sample_outgoing_edges_impl.cuh.
+  // FIRST/LAST are accepted at the API boundary but are not yet implemented.
   neighbor_selection_t neighbor_selection{neighbor_selection_t::RANDOM};
 };
 

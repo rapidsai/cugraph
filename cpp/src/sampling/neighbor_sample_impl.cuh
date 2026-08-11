@@ -70,6 +70,9 @@ neighbor_sample(
   CUGRAPH_EXPECTS(
     neighbor_selection == neighbor_selection_t::RANDOM || !sampling_flags.with_replacement,
     "FIRST and LAST neighbor selection do not support sampling with replacement.");
+  if (neighbor_selection != neighbor_selection_t::RANDOM) {
+    CUGRAPH_FAIL("FIRST and LAST neighbor selection are not yet implemented.");
+  }
   CUGRAPH_EXPECTS(!(sampling_flags.with_replacement && sampling_flags.disjoint_sampling),
                   "Invalid input argument: disjoint sampling and sampling with replacement are "
                   "mutually exclusive.");

@@ -206,8 +206,10 @@ typedef enum {
  */
 typedef enum {
   CUGRAPH_NEIGHBOR_SELECTION_RANDOM = 0, /** Uniform without biases, biased with biases */
-  CUGRAPH_NEIGHBOR_SELECTION_FIRST,      /** Deterministically select the earliest edges */
-  CUGRAPH_NEIGHBOR_SELECTION_LAST        /** Deterministically select the latest edges */
+  CUGRAPH_NEIGHBOR_SELECTION_FIRST,      /** Deterministically select the earliest edges (not yet
+                                            implemented) */
+  CUGRAPH_NEIGHBOR_SELECTION_LAST        /** Deterministically select the latest edges (not yet
+                                            implemented) */
 } cugraph_neighbor_selection_t;
 
 /**
@@ -352,8 +354,9 @@ CUGRAPH_EXPORT void cugraph_sampling_options_free(cugraph_sampling_options_t* op
  * @brief Unified homogeneous/heterogeneous and temporal/non-temporal neighborhood sampling.
  *
  * RANDOM selection samples uniformly if @p edge_biases is NULL and samples according to
- * @p edge_biases otherwise. FIRST and LAST deterministically select the earliest or latest
- * temporally eligible edges and require @p temporal_sampling_comparison to be non-NULL.
+ * @p edge_biases otherwise. FIRST and LAST are reserved for deterministically selecting the
+ * earliest or latest temporally eligible edges (requiring @p temporal_sampling_comparison), but
+ * are not yet implemented.
  *
  * Sampling is non-temporal when @p temporal_sampling_comparison is NULL; all temporal arguments
  * must then be NULL. Sampling is homogeneous when @p num_edge_types is 1; otherwise

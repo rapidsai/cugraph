@@ -265,7 +265,7 @@ void expect_edges(raft::handle_t const& handle,
   }
 }
 
-class Tests_MGTemporalNeighborSamplingDeterministic : public ::testing::Test {
+class Tests_MGTemporalNeighborSamplingFixedWindow : public ::testing::Test {
  public:
   static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
   static void TearDownTestCase() { handle_.reset(); }
@@ -274,61 +274,11 @@ class Tests_MGTemporalNeighborSamplingDeterministic : public ::testing::Test {
   static std::unique_ptr<raft::handle_t> handle_;
 };
 
-std::unique_ptr<raft::handle_t> Tests_MGTemporalNeighborSamplingDeterministic::handle_{nullptr};
+std::unique_ptr<raft::handle_t> Tests_MGTemporalNeighborSamplingFixedWindow::handle_{nullptr};
 
 }  // namespace
 
-TEST_F(Tests_MGTemporalNeighborSamplingDeterministic, FirstSingleHop)
-{
-  auto [graph, edge_start_times, edge_end_times, renumber_map] =
-    make_mg_temporal_graph(*handle_,
-                           /*srcs*/ {0, 0, 0},
-                           /*dsts*/ {1, 2, 3},
-                           /*start times*/ {10, 20, 30},
-                           std::vector<time_stamp_t>{11, 21, 31});
-
-  auto actual =
-    run_and_collect(*handle_,
-                    graph.view(),
-                    renumber_map,
-                    edge_start_times.view(),
-                    edge_end_times ? std::make_optional(edge_end_times->view()) : std::nullopt,
-                    /*starts*/ {0},
-                    std::vector<time_stamp_t>{0},
-                    std::vector<time_stamp_t>{100},
-                    /*fan_out*/ {1},
-                    cugraph::neighbor_selection_t::FIRST,
-                    cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING);
-
-  expect_edges(*handle_, std::move(actual), {{0, 1, 10, 0}});
-}
-
-TEST_F(Tests_MGTemporalNeighborSamplingDeterministic, LastSingleHop)
-{
-  auto [graph, edge_start_times, edge_end_times, renumber_map] =
-    make_mg_temporal_graph(*handle_,
-                           /*srcs*/ {0, 0, 0},
-                           /*dsts*/ {1, 2, 3},
-                           /*start times*/ {10, 20, 30},
-                           std::vector<time_stamp_t>{11, 21, 31});
-
-  auto actual =
-    run_and_collect(*handle_,
-                    graph.view(),
-                    renumber_map,
-                    edge_start_times.view(),
-                    edge_end_times ? std::make_optional(edge_end_times->view()) : std::nullopt,
-                    /*starts*/ {0},
-                    std::vector<time_stamp_t>{0},
-                    std::vector<time_stamp_t>{100},
-                    /*fan_out*/ {1},
-                    cugraph::neighbor_selection_t::LAST,
-                    cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING);
-
-  expect_edges(*handle_, std::move(actual), {{0, 3, 30, 0}});
-}
-
-TEST_F(Tests_MGTemporalNeighborSamplingDeterministic, FixedWindowMultihop)
+TEST_F(Tests_MGTemporalNeighborSamplingFixedWindow, Multihop)
 {
   auto [graph, edge_start_times, edge_end_times, renumber_map] =
     make_mg_temporal_graph(*handle_,
@@ -351,56 +301,6 @@ TEST_F(Tests_MGTemporalNeighborSamplingDeterministic, FixedWindowMultihop)
                     cugraph::temporal_sampling_comparison_t::FIXED_WINDOW);
 
   expect_edges(*handle_, std::move(actual), {{0, 1, 50, 0}, {1, 2, 30, 1}, {1, 3, 80, 1}});
-}
-
-TEST_F(Tests_MGTemporalNeighborSamplingDeterministic, FixedWindowFirst)
-{
-  auto [graph, edge_start_times, edge_end_times, renumber_map] =
-    make_mg_temporal_graph(*handle_,
-                           /*srcs*/ {0, 1, 1},
-                           /*dsts*/ {1, 2, 3},
-                           /*start times*/ {50, 30, 80},
-                           std::vector<time_stamp_t>{51, 31, 81});
-
-  auto actual =
-    run_and_collect(*handle_,
-                    graph.view(),
-                    renumber_map,
-                    edge_start_times.view(),
-                    edge_end_times ? std::make_optional(edge_end_times->view()) : std::nullopt,
-                    /*starts*/ {0},
-                    std::vector<time_stamp_t>{10},
-                    std::vector<time_stamp_t>{100},
-                    /*fan_out*/ {-1, 1},
-                    cugraph::neighbor_selection_t::FIRST,
-                    cugraph::temporal_sampling_comparison_t::FIXED_WINDOW);
-
-  expect_edges(*handle_, std::move(actual), {{0, 1, 50, 0}, {1, 2, 30, 1}});
-}
-
-TEST_F(Tests_MGTemporalNeighborSamplingDeterministic, FixedWindowLast)
-{
-  auto [graph, edge_start_times, edge_end_times, renumber_map] =
-    make_mg_temporal_graph(*handle_,
-                           /*srcs*/ {0, 1, 1},
-                           /*dsts*/ {1, 2, 3},
-                           /*start times*/ {50, 30, 80},
-                           std::vector<time_stamp_t>{51, 31, 81});
-
-  auto actual =
-    run_and_collect(*handle_,
-                    graph.view(),
-                    renumber_map,
-                    edge_start_times.view(),
-                    edge_end_times ? std::make_optional(edge_end_times->view()) : std::nullopt,
-                    /*starts*/ {0},
-                    std::vector<time_stamp_t>{10},
-                    std::vector<time_stamp_t>{100},
-                    /*fan_out*/ {-1, 1},
-                    cugraph::neighbor_selection_t::LAST,
-                    cugraph::temporal_sampling_comparison_t::FIXED_WINDOW);
-
-  expect_edges(*handle_, std::move(actual), {{0, 1, 50, 0}, {1, 3, 80, 1}});
 }
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

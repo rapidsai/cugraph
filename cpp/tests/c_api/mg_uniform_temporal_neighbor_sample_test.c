@@ -954,98 +954,6 @@ int generic_neighbor_sample_expected_edges_test(
   return test_ret_value;
 }
 
-int test_mg_neighbor_sample_first_single_hop(const cugraph_resource_handle_t* handle)
-{
-  size_t num_edges    = 3;
-  size_t fan_out_size = 1;
-  size_t num_starts   = 1;
-
-  vertex_t src[]                          = {0, 0, 0};
-  vertex_t dst[]                          = {1, 2, 3};
-  edge_t edge_ids[]                       = {0, 1, 2};
-  weight_t weight[]                       = {0.1, 0.2, 0.3};
-  int32_t edge_types[]                    = {0, 1, 2};
-  time_stamp_t edge_start_times[]         = {10, 20, 30};
-  time_stamp_t edge_end_times[]           = {11, 21, 31};
-  vertex_t start[]                        = {0};
-  time_stamp_t start_vertex_start_times[] = {0};
-  time_stamp_t start_vertex_end_times[]   = {100};
-  size_t start_vertex_label_offsets[]     = {0, 1};
-  int fan_out[]                           = {1};
-
-  expected_temporal_sample_edge_t expected_edges[] = {
-    {0, 1, 10, 0},
-  };
-
-  return generic_neighbor_sample_expected_edges_test(
-    handle,
-    src,
-    dst,
-    weight,
-    edge_ids,
-    edge_types,
-    edge_start_times,
-    edge_end_times,
-    num_edges,
-    start,
-    start_vertex_start_times,
-    start_vertex_end_times,
-    start_vertex_label_offsets,
-    num_starts,
-    fan_out,
-    fan_out_size,
-    MONOTONICALLY_INCREASING,
-    CUGRAPH_NEIGHBOR_SELECTION_FIRST,
-    expected_edges,
-    sizeof(expected_edges) / sizeof(expected_edges[0]));
-}
-
-int test_mg_neighbor_sample_last_single_hop(const cugraph_resource_handle_t* handle)
-{
-  size_t num_edges    = 3;
-  size_t fan_out_size = 1;
-  size_t num_starts   = 1;
-
-  vertex_t src[]                          = {0, 0, 0};
-  vertex_t dst[]                          = {1, 2, 3};
-  edge_t edge_ids[]                       = {0, 1, 2};
-  weight_t weight[]                       = {0.1, 0.2, 0.3};
-  int32_t edge_types[]                    = {0, 1, 2};
-  time_stamp_t edge_start_times[]         = {10, 20, 30};
-  time_stamp_t edge_end_times[]           = {11, 21, 31};
-  vertex_t start[]                        = {0};
-  time_stamp_t start_vertex_start_times[] = {0};
-  time_stamp_t start_vertex_end_times[]   = {100};
-  size_t start_vertex_label_offsets[]     = {0, 1};
-  int fan_out[]                           = {1};
-
-  expected_temporal_sample_edge_t expected_edges[] = {
-    {0, 3, 30, 0},
-  };
-
-  return generic_neighbor_sample_expected_edges_test(
-    handle,
-    src,
-    dst,
-    weight,
-    edge_ids,
-    edge_types,
-    edge_start_times,
-    edge_end_times,
-    num_edges,
-    start,
-    start_vertex_start_times,
-    start_vertex_end_times,
-    start_vertex_label_offsets,
-    num_starts,
-    fan_out,
-    fan_out_size,
-    MONOTONICALLY_INCREASING,
-    CUGRAPH_NEIGHBOR_SELECTION_LAST,
-    expected_edges,
-    sizeof(expected_edges) / sizeof(expected_edges[0]));
-}
-
 int test_mg_neighbor_sample_fixed_window_multihop(const cugraph_resource_handle_t* handle)
 {
   size_t num_edges    = 3;
@@ -1096,100 +1004,6 @@ int test_mg_neighbor_sample_fixed_window_multihop(const cugraph_resource_handle_
     sizeof(expected_edges) / sizeof(expected_edges[0]));
 }
 
-int test_mg_neighbor_sample_fixed_window_first(const cugraph_resource_handle_t* handle)
-{
-  size_t num_edges    = 3;
-  size_t fan_out_size = 2;
-  size_t num_starts   = 1;
-
-  vertex_t src[]                          = {0, 1, 1};
-  vertex_t dst[]                          = {1, 2, 3};
-  edge_t edge_ids[]                       = {0, 1, 2};
-  weight_t weight[]                       = {0.1, 0.2, 0.3};
-  int32_t edge_types[]                    = {0, 0, 0};
-  time_stamp_t edge_start_times[]         = {50, 30, 80};
-  time_stamp_t edge_end_times[]           = {51, 31, 81};
-  vertex_t start[]                        = {0};
-  time_stamp_t start_vertex_start_times[] = {10};
-  time_stamp_t start_vertex_end_times[]   = {100};
-  size_t start_vertex_label_offsets[]     = {0, 1};
-  int fan_out[]                           = {-1, 1};
-
-  expected_temporal_sample_edge_t expected_edges[] = {
-    {0, 1, 50, 0},
-    {1, 2, 30, 1},
-  };
-
-  return generic_neighbor_sample_expected_edges_test(
-    handle,
-    src,
-    dst,
-    weight,
-    edge_ids,
-    edge_types,
-    edge_start_times,
-    edge_end_times,
-    num_edges,
-    start,
-    start_vertex_start_times,
-    start_vertex_end_times,
-    start_vertex_label_offsets,
-    num_starts,
-    fan_out,
-    fan_out_size,
-    FIXED_WINDOW,
-    CUGRAPH_NEIGHBOR_SELECTION_FIRST,
-    expected_edges,
-    sizeof(expected_edges) / sizeof(expected_edges[0]));
-}
-
-int test_mg_neighbor_sample_fixed_window_last(const cugraph_resource_handle_t* handle)
-{
-  size_t num_edges    = 3;
-  size_t fan_out_size = 2;
-  size_t num_starts   = 1;
-
-  vertex_t src[]                          = {0, 1, 1};
-  vertex_t dst[]                          = {1, 2, 3};
-  edge_t edge_ids[]                       = {0, 1, 2};
-  weight_t weight[]                       = {0.1, 0.2, 0.3};
-  int32_t edge_types[]                    = {0, 0, 0};
-  time_stamp_t edge_start_times[]         = {50, 30, 80};
-  time_stamp_t edge_end_times[]           = {51, 31, 81};
-  vertex_t start[]                        = {0};
-  time_stamp_t start_vertex_start_times[] = {10};
-  time_stamp_t start_vertex_end_times[]   = {100};
-  size_t start_vertex_label_offsets[]     = {0, 1};
-  int fan_out[]                           = {-1, 1};
-
-  expected_temporal_sample_edge_t expected_edges[] = {
-    {0, 1, 50, 0},
-    {1, 3, 80, 1},
-  };
-
-  return generic_neighbor_sample_expected_edges_test(
-    handle,
-    src,
-    dst,
-    weight,
-    edge_ids,
-    edge_types,
-    edge_start_times,
-    edge_end_times,
-    num_edges,
-    start,
-    start_vertex_start_times,
-    start_vertex_end_times,
-    start_vertex_label_offsets,
-    num_starts,
-    fan_out,
-    fan_out_size,
-    FIXED_WINDOW,
-    CUGRAPH_NEIGHBOR_SELECTION_LAST,
-    expected_edges,
-    sizeof(expected_edges) / sizeof(expected_edges[0]));
-}
-
 /******************************************************************************/
 
 int main(int argc, char** argv)
@@ -1201,11 +1015,7 @@ int main(int argc, char** argv)
   result |= RUN_MG_TEST(test_uniform_temporal_neighbor_sample, handle);
   result |= RUN_MG_TEST(test_uniform_temporal_neighbor_sample_time_window, handle);
   result |= RUN_MG_TEST(test_uniform_temporal_neighbor_from_alex, handle);
-  result |= RUN_MG_TEST(test_mg_neighbor_sample_first_single_hop, handle);
-  result |= RUN_MG_TEST(test_mg_neighbor_sample_last_single_hop, handle);
   result |= RUN_MG_TEST(test_mg_neighbor_sample_fixed_window_multihop, handle);
-  result |= RUN_MG_TEST(test_mg_neighbor_sample_fixed_window_first, handle);
-  result |= RUN_MG_TEST(test_mg_neighbor_sample_fixed_window_last, handle);
   // result |= RUN_MG_TEST(test_uniform_temporal_neighbor_sample_dedupe_sources, handle);
   // result |= RUN_MG_TEST(test_uniform_temporal_neighbor_sample_unique_sources, handle);
   // result |= RUN_MG_TEST(test_uniform_temporal_neighbor_sample_carry_over_sources, handle);

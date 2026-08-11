@@ -52,8 +52,8 @@ enum class temporal_sampling_comparison_t {
  */
 enum class neighbor_selection_t {
   RANDOM = 0, /** Random selection. Uniform if no bias view is supplied, biased otherwise. */
-  FIRST,      /** Deterministically select the earliest edges. */
-  LAST        /** Deterministically select the latest edges. */
+  FIRST,      /** Deterministically select the earliest edges. Not yet implemented. */
+  LAST        /** Deterministically select the latest edges. Not yet implemented. */
 };
 
 struct sampling_flags_t {
@@ -925,9 +925,9 @@ heterogeneous_biased_temporal_neighbor_sample(
  * contains one value per hop.
  *
  * RANDOM selection samples uniformly when @p edge_bias_view is absent and samples according to
- * the supplied biases when it is present. FIRST and LAST deterministically select the earliest or
- * latest eligible edges, respectively. FIRST and LAST require temporal sampling, do not accept a
- * bias view, and do not support sampling with replacement.
+ * the supplied biases when it is present. FIRST and LAST are reserved for deterministically
+ * selecting the earliest or latest eligible edges (temporal only; no bias; no with-replacement),
+ * but are not yet implemented.
  *
  * Sampling is temporal when @p temporal_sampling_comparison is specified; in that case
  * @p edge_start_time_view is required. FIXED_WINDOW applies each seed's original closed time window

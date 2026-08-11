@@ -181,59 +181,7 @@ void expect_edges(std::vector<expected_edge_t> actual, std::vector<expected_edge
 
 }  // namespace
 
-TEST(TemporalNeighborSamplingDeterministic, FirstSingleHop)
-{
-  raft::handle_t handle{};
-
-  auto [graph, edge_start_times, edge_end_times] =
-    make_temporal_graph(handle,
-                        /*srcs*/ {0, 0, 0},
-                        /*dsts*/ {1, 2, 3},
-                        /*start times*/ {10, 20, 30},
-                        std::vector<time_stamp_t>{11, 21, 31});
-
-  auto actual =
-    run_and_collect(handle,
-                    graph.view(),
-                    edge_start_times.view(),
-                    edge_end_times ? std::make_optional(edge_end_times->view()) : std::nullopt,
-                    /*starts*/ {0},
-                    std::vector<time_stamp_t>{0},
-                    std::vector<time_stamp_t>{100},
-                    /*fan_out*/ {1},
-                    cugraph::neighbor_selection_t::FIRST,
-                    cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING);
-
-  expect_edges(std::move(actual), {{0, 1, 10, 0}});
-}
-
-TEST(TemporalNeighborSamplingDeterministic, LastSingleHop)
-{
-  raft::handle_t handle{};
-
-  auto [graph, edge_start_times, edge_end_times] =
-    make_temporal_graph(handle,
-                        /*srcs*/ {0, 0, 0},
-                        /*dsts*/ {1, 2, 3},
-                        /*start times*/ {10, 20, 30},
-                        std::vector<time_stamp_t>{11, 21, 31});
-
-  auto actual =
-    run_and_collect(handle,
-                    graph.view(),
-                    edge_start_times.view(),
-                    edge_end_times ? std::make_optional(edge_end_times->view()) : std::nullopt,
-                    /*starts*/ {0},
-                    std::vector<time_stamp_t>{0},
-                    std::vector<time_stamp_t>{100},
-                    /*fan_out*/ {1},
-                    cugraph::neighbor_selection_t::LAST,
-                    cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING);
-
-  expect_edges(std::move(actual), {{0, 3, 30, 0}});
-}
-
-TEST(TemporalNeighborSamplingDeterministic, FixedWindowMultihop)
+TEST(TemporalNeighborSamplingFixedWindow, Multihop)
 {
   raft::handle_t handle{};
 
@@ -259,58 +207,6 @@ TEST(TemporalNeighborSamplingDeterministic, FixedWindowMultihop)
                     cugraph::temporal_sampling_comparison_t::FIXED_WINDOW);
 
   expect_edges(std::move(actual), {{0, 1, 50, 0}, {1, 2, 30, 1}, {1, 3, 80, 1}});
-}
-
-TEST(TemporalNeighborSamplingDeterministic, FixedWindowFirst)
-{
-  raft::handle_t handle{};
-
-  auto [graph, edge_start_times, edge_end_times] =
-    make_temporal_graph(handle,
-                        /*srcs*/ {0, 1, 1},
-                        /*dsts*/ {1, 2, 3},
-                        /*start times*/ {50, 30, 80},
-                        std::vector<time_stamp_t>{51, 31, 81});
-
-  auto actual =
-    run_and_collect(handle,
-                    graph.view(),
-                    edge_start_times.view(),
-                    edge_end_times ? std::make_optional(edge_end_times->view()) : std::nullopt,
-                    /*starts*/ {0},
-                    std::vector<time_stamp_t>{10},
-                    std::vector<time_stamp_t>{100},
-                    /*fan_out*/ {-1, 1},
-                    cugraph::neighbor_selection_t::FIRST,
-                    cugraph::temporal_sampling_comparison_t::FIXED_WINDOW);
-
-  expect_edges(std::move(actual), {{0, 1, 50, 0}, {1, 2, 30, 1}});
-}
-
-TEST(TemporalNeighborSamplingDeterministic, FixedWindowLast)
-{
-  raft::handle_t handle{};
-
-  auto [graph, edge_start_times, edge_end_times] =
-    make_temporal_graph(handle,
-                        /*srcs*/ {0, 1, 1},
-                        /*dsts*/ {1, 2, 3},
-                        /*start times*/ {50, 30, 80},
-                        std::vector<time_stamp_t>{51, 31, 81});
-
-  auto actual =
-    run_and_collect(handle,
-                    graph.view(),
-                    edge_start_times.view(),
-                    edge_end_times ? std::make_optional(edge_end_times->view()) : std::nullopt,
-                    /*starts*/ {0},
-                    std::vector<time_stamp_t>{10},
-                    std::vector<time_stamp_t>{100},
-                    /*fan_out*/ {-1, 1},
-                    cugraph::neighbor_selection_t::LAST,
-                    cugraph::temporal_sampling_comparison_t::FIXED_WINDOW);
-
-  expect_edges(std::move(actual), {{0, 1, 50, 0}, {1, 3, 80, 1}});
 }
 
 CUGRAPH_TEST_PROGRAM_MAIN()
