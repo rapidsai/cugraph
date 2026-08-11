@@ -116,7 +116,7 @@ outputs:
         - cuda-version =${{ cuda_version }}
         - librmm =${{ minor_version }}
         - libcuvs =${{ minor_version }}
-        - rapids-logger =0.2
+        - rapids-logger =0.3
         - cuda-cudart-dev
         - cuda-nvrtc-dev
         - libcublas-dev
@@ -232,7 +232,7 @@ outputs:
         - cuda-nvrtc-dev
         - nccl ${{ nccl_version }}
         - openmpi <5.0.3 # Required for building cpp-mgtests (multi-GPU tests)
-        - rapids-logger =0.2
+        - rapids-logger =0.3
       run:
         - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
         - ${{ pin_subpackage("libcugraph", exact=True) }}
