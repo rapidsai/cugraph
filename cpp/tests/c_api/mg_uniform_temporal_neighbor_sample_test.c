@@ -252,6 +252,7 @@ int generic_uniform_temporal_neighbor_sample_test(
   if (result != NULL) { cugraph_sample_result_free(result); }
   cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
+
   return test_ret_value;
 }
 
@@ -631,7 +632,8 @@ int compare_mg_temporal_neighbor_sample_to_expected(
   cugraph_type_erased_device_array_view_t* result_label_type_hop_offsets =
     cugraph_sample_result_get_label_type_hop_offsets(result);
 
-  size_t local_size  = cugraph_type_erased_device_array_view_size(result_srcs);
+  size_t local_size = cugraph_type_erased_device_array_view_size(result_srcs);
+
   size_t result_size = cugraph_test_device_gatherv_size(handle, result_srcs);
 
   vertex_t* h_srcs                 = (vertex_t*)malloc(local_size * sizeof(vertex_t));
@@ -870,7 +872,7 @@ int generic_neighbor_sample_expected_edges_test(
   }
 
   if (h_start_vertex_label_offsets != NULL) {
-    size_t local_label_offsets_size = (rank > 0) ? 0 : (num_start_vertices + 1);
+    size_t local_label_offsets_size = (rank > 0) ? 1 : (num_start_vertices + 1);
     ret_code                        = cugraph_type_erased_device_array_create(
       handle, local_label_offsets_size, SIZE_T, &d_start_label_offsets, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start_labels create failed.");
@@ -948,6 +950,7 @@ int generic_neighbor_sample_expected_edges_test(
   cugraph_rng_state_free(rng_state);
   cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
+
   return test_ret_value;
 }
 

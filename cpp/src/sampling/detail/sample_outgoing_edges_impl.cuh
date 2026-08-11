@@ -16,12 +16,14 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/partition_manager.hpp>
 #include <cugraph/prims/edge_bucket.cuh>
 #include <cugraph/prims/per_v_random_select_transform_outgoing_e.cuh>
 #include <cugraph/prims/transform_gather_e.cuh>
 #include <cugraph/prims/transform_reduce_e.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/sampling_functions.hpp>
+#include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/mask_utils.cuh>
@@ -52,6 +54,7 @@
 #include <thrust/unique.h>
 
 #include <limits>
+#include <numeric>
 #include <optional>
 #include <tuple>
 #include <type_traits>
@@ -775,16 +778,18 @@ rmm::device_uvector<time_stamp_t> lookup_temporal_bounds_for_active_majors(
 // disjoint-resample loop in sample_unvisited_outgoing_edges below.
 //
 // Gathers every currently-eligible (temporal-window and, if heterogeneous, type filtered)
-// outgoing edge for the active frontier via temporal_gather_one_hop_edgelist. That helper already
-// collects edges across minor_comm on MG (the frontier keys are majors, and the extraction prims
-// return every matching edge regardless of which minor_comm rank stores it), so the ranking below
-// operates on the full, globally-eligible edge set for each major -- not just this rank's local
-// partition. Edges to already-visited destinations are then dropped, and the survivors are
-// deterministically ranked within each (major[, label][, type]) group by (edge start time,
-// tie-break), keeping the first K. The tie-break prefers the multi-edge index (local offset among
-// parallel (src, dst) edges) when the graph is a multigraph -- needed anyway to identify which
-// parallel edge was selected for later property gather -- and always falls back to dst so the
-// order is a deterministic total order even when multiple destinations tie on time.
+// outgoing edge for the active frontier via temporal_gather_one_hop_edgelist. On MG that helper
+// returns only the edges stored in this rank's local edge partition(s) (extract_transform walks
+// local partitions after allgathering frontier keys across minor_comm). Before FIRST/LAST
+// truncation we therefore allgatherv the candidate edgelist across minor_comm so ranking sees the
+// full globally-eligible set for each major -- otherwise each rank would keep up to K from its
+// local subset and the concatenated sample would overshoot K. Edges to already-visited
+// destinations are dropped (visited minors are already unified on major_comm), survivors are
+// ranked within each (major[, label][, type]) group by (edge start time, tie-break), and the first
+// K are kept. After truncation, only edges whose major falls in this rank's local vertex partition
+// are retained so the identical post-allgather result is not duplicated across minor_comm. The
+// tie-break prefers the multi-edge index when the graph is a multigraph, and always falls back to
+// dst so the order is a deterministic total order even when multiple destinations tie on time.
 template <typename vertex_t, typename edge_t, typename tag_t, typename time_stamp_t, bool multi_gpu>
 std::tuple<std::optional<rmm::device_uvector<int32_t>>,
            rmm::device_uvector<vertex_t>,
@@ -944,6 +949,40 @@ call_ordered_select_unvisited_temporal_outgoing_e(
       *edge_type_view);
   }
 
+  // Consolidate candidates across minor_comm before FIRST/LAST truncation (see comment above).
+  // Use cugraph::device_allgatherv (not detail::device_allgatherv) so we do not hide the
+  // iterator-based overloads used by per_v_random_select via unqualified lookup in this namespace.
+  if constexpr (multi_gpu) {
+    auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    if (minor_comm.get_size() > 1) {
+      auto allgatherv_uvec = [&handle, &minor_comm](auto& vec) {
+        using T       = typename std::decay_t<decltype(vec)>::value_type;
+        auto rx_sizes = cugraph::host_scalar_allgather(minor_comm, vec.size(), handle.get_stream());
+        std::vector<size_t> rx_displs(static_cast<size_t>(minor_comm.get_size()));
+        std::partial_sum(rx_sizes.begin(), rx_sizes.end() - 1, rx_displs.begin() + 1);
+        rmm::device_uvector<T> gathered(std::reduce(rx_sizes.begin(), rx_sizes.end()),
+                                        handle.get_stream());
+        cugraph::device_allgatherv(
+          minor_comm,
+          vec.data(),
+          gathered.data(),
+          raft::host_span<size_t const>(rx_sizes.data(), rx_sizes.size()),
+          raft::host_span<size_t const>(rx_displs.data(), rx_displs.size()),
+          handle.get_stream());
+        vec = std::move(gathered);
+      };
+      allgatherv_uvec(result_majors);
+      allgatherv_uvec(result_minors);
+      allgatherv_uvec(edge_times);
+      if (result_labels) { allgatherv_uvec(*result_labels); }
+      if (num_types > 1) { allgatherv_uvec(edge_types); }
+      if (has_multi_index) {
+        allgatherv_uvec(std::get<rmm::device_uvector<edge_t>>(tmp_multi_edge_indices));
+      }
+    }
+  }
+  auto const n_ranked = result_majors.size();
+
   // Rank order (indices into the result_* / edge_times / edge_types arrays): ascending by
   // (major[, label][, type]), then by a monotonic time key (edge time for FIRST; max-time for
   // LAST so an ascending compare still prefers later edges), then by the deterministic
@@ -953,7 +992,7 @@ call_ordered_select_unvisited_temporal_outgoing_e(
   // Prefer a single ascending comparator over flipping `<`/`>`: DeviceMergeSort with a
   // greater-than time compare was observed to leave the CSR (earliest-first) order unchanged,
   // so LAST incorrectly returned the same edge as FIRST.
-  rmm::device_uvector<time_stamp_t> rank_times(n, handle.get_stream());
+  rmm::device_uvector<time_stamp_t> rank_times(n_ranked, handle.get_stream());
   if (select_earliest) {
     thrust::copy(
       handle.get_thrust_policy(), edge_times.begin(), edge_times.end(), rank_times.begin());
@@ -967,7 +1006,7 @@ call_ordered_select_unvisited_temporal_outgoing_e(
                       }));
   }
 
-  rmm::device_uvector<size_t> order(n, handle.get_stream());
+  rmm::device_uvector<size_t> order(n_ranked, handle.get_stream());
   thrust::sequence(handle.get_thrust_policy(), order.begin(), order.end(), size_t{0});
   {
     vertex_t const* d_majors    = result_majors.data();
@@ -995,11 +1034,12 @@ call_ordered_select_unvisited_temporal_outgoing_e(
                    }));
   }
 
-  rmm::device_uvector<vertex_t> sorted_majors(n, handle.get_stream());
-  rmm::device_uvector<vertex_t> sorted_minors(n, handle.get_stream());
-  rmm::device_uvector<int32_t> sorted_labels(active_major_labels ? n : size_t{0},
+  rmm::device_uvector<vertex_t> sorted_majors(n_ranked, handle.get_stream());
+  rmm::device_uvector<vertex_t> sorted_minors(n_ranked, handle.get_stream());
+  rmm::device_uvector<int32_t> sorted_labels(active_major_labels ? n_ranked : size_t{0},
                                              handle.get_stream());
-  rmm::device_uvector<edge_type_t> sorted_types(num_types > 1 ? n : size_t{0}, handle.get_stream());
+  rmm::device_uvector<edge_type_t> sorted_types(num_types > 1 ? n_ranked : size_t{0},
+                                                handle.get_stream());
   arithmetic_device_uvector_t sorted_multi_index{std::monostate{}};
 
   thrust::gather(handle.get_thrust_policy(),
@@ -1027,7 +1067,7 @@ call_ordered_select_unvisited_temporal_outgoing_e(
                    sorted_types.begin());
   }
   if (has_multi_index) {
-    rmm::device_uvector<edge_t> tmp(n, handle.get_stream());
+    rmm::device_uvector<edge_t> tmp(n_ranked, handle.get_stream());
     thrust::gather(handle.get_thrust_policy(),
                    order.begin(),
                    order.end(),
@@ -1038,7 +1078,7 @@ call_ordered_select_unvisited_temporal_outgoing_e(
 
   // Rank within each (major[, label][, type]) group (0-based, in the order established above) and
   // keep only the first K of that group's K value.
-  rmm::device_uvector<size_t> position_in_group(n, handle.get_stream());
+  rmm::device_uvector<size_t> position_in_group(n_ranked, handle.get_stream());
   {
     vertex_t const* d_majors   = sorted_majors.data();
     int32_t const* d_labels    = active_major_labels ? sorted_labels.data() : nullptr;
@@ -1046,7 +1086,7 @@ call_ordered_select_unvisited_temporal_outgoing_e(
 
     thrust::exclusive_scan_by_key(handle.get_thrust_policy(),
                                   thrust::make_counting_iterator(size_t{0}),
-                                  thrust::make_counting_iterator(n),
+                                  thrust::make_counting_iterator(n_ranked),
                                   thrust::make_constant_iterator(size_t{1}),
                                   position_in_group.begin(),
                                   size_t{0},
@@ -1063,7 +1103,7 @@ call_ordered_select_unvisited_temporal_outgoing_e(
   raft::update_device(d_Ks.data(), Ks.data(), Ks.size(), handle.get_stream());
 
   auto [keep_count, marked_entries] = mark_entries(
-    n,
+    n_ranked,
     cuda::proclaim_return_type<bool>([position = position_in_group.data(),
                                       types    = num_types > 1 ? sorted_types.data() : nullptr,
                                       d_Ks     = d_Ks.data()] __device__(size_t i) {
@@ -1089,6 +1129,39 @@ call_ordered_select_unvisited_temporal_outgoing_e(
                           std::move(std::get<rmm::device_uvector<edge_t>>(sorted_multi_index)),
                           marked_entry_span,
                           keep_count);
+  }
+
+  // Drop edges for majors owned by other ranks (post-allgather results are identical on every
+  // minor_comm peer; only the vertex owner should emit them).
+  if constexpr (multi_gpu) {
+    auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    if (minor_comm.get_size() > 1) {
+      auto const v_first = graph_view.local_vertex_partition_range_first();
+      auto const v_last  = graph_view.local_vertex_partition_range_last();
+      auto [local_keep_count, local_marked] =
+        mark_entries(sorted_majors.size(),
+                     cuda::proclaim_return_type<bool>(
+                       [majors = sorted_majors.data(), v_first, v_last] __device__(size_t i) {
+                         return (majors[i] >= v_first) && (majors[i] < v_last);
+                       }),
+                     handle.get_stream());
+      raft::device_span<uint32_t const> local_span{local_marked.data(), local_marked.size()};
+      sorted_majors =
+        keep_marked_entries(handle, std::move(sorted_majors), local_span, local_keep_count);
+      sorted_minors =
+        keep_marked_entries(handle, std::move(sorted_minors), local_span, local_keep_count);
+      if (out_labels) {
+        *out_labels =
+          keep_marked_entries(handle, std::move(*out_labels), local_span, local_keep_count);
+      }
+      if (has_multi_index) {
+        sorted_multi_index =
+          keep_marked_entries(handle,
+                              std::move(std::get<rmm::device_uvector<edge_t>>(sorted_multi_index)),
+                              local_span,
+                              local_keep_count);
+      }
+    }
   }
 
   return std::make_tuple(std::move(out_labels),

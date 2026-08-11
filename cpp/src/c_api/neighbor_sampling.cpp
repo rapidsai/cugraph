@@ -144,6 +144,10 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
         renumbered_and_sorted_edge_id_renumber_map_label_type_offsets(std::nullopt);
 
       if (starting_vertex_label_offsets_ != nullptr) {
+        CUGRAPH_EXPECTS(starting_vertex_label_offsets_->size_ > 0,
+                        "Invalid input argument: starting_vertex_label_offsets must be non-empty "
+                        "(use a size-1 {0} array for zero local labels).");
+
         // Retrieve the start_vertex_labels
         start_vertex_labels = cugraph::detail::convert_starting_vertex_label_offsets_to_labels(
           handle_,

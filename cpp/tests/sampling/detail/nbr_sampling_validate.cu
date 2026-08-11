@@ -666,45 +666,89 @@ bool validate_disjoint_sampling(
   raft::device_span<vertex_t const> dsts,
   raft::device_span<vertex_t const> starting_vertices,
   std::optional<raft::device_span<size_t const>> label_offsets,
-  std::optional<raft::device_span<int32_t const>> starting_batch_numbers)
+  std::optional<raft::device_span<int32_t const>> starting_batch_numbers,
+  std::optional<raft::device_span<int32_t const>> edge_labels)
 {
+  if (srcs.size() != dsts.size()) { return false; }
+  if (label_offsets && edge_labels) { return false; }
+  if (edge_labels && edge_labels->size() != dsts.size()) { return false; }
+
   auto h_starting_vertices = cugraph::test::to_host(handle, starting_vertices);
-  auto h_srcs              = cugraph::test::to_host(handle, srcs);
   auto h_dsts              = cugraph::test::to_host(handle, dsts);
 
-  if (label_offsets) {
+  if (edge_labels) {
+    if (!starting_batch_numbers) { return false; }
     auto h_starting_batch_numbers = cugraph::test::to_host(handle, *starting_batch_numbers);
-    auto h_label_offsets          = cugraph::test::to_host(handle, *label_offsets);
+    auto h_edge_labels            = cugraph::test::to_host(handle, *edge_labels);
 
-    // Validate that no destination is duplicated within a batch
-    for (int32_t label_index = 0; label_index < (static_cast<int32_t>(h_label_offsets.size()) - 1);
-         ++label_index) {
-      auto start_index = h_label_offsets[label_index];
-      auto end_index   = h_label_offsets[label_index + 1];
+    if (h_starting_batch_numbers.size() != h_starting_vertices.size()) { return false; }
 
-      std::sort(h_dsts.begin() + start_index, h_dsts.begin() + end_index);
-      auto last = std::unique(h_dsts.begin() + start_index, h_dsts.begin() + end_index);
-      if (last != h_dsts.begin() + end_index) { return false; }
+    std::unordered_map<int32_t, std::vector<vertex_t>> dsts_by_label;
+    dsts_by_label.reserve(h_edge_labels.size());
+    for (size_t i = 0; i < h_edge_labels.size(); ++i) {
+      dsts_by_label[h_edge_labels[i]].push_back(h_dsts[i]);
+    }
 
-      // Now check that the source vertices for this batch are not in the destinations
+    for (auto& [label_index, batch_dsts] : dsts_by_label) {
+      auto batch_dsts_sorted = batch_dsts;
+      std::sort(batch_dsts_sorted.begin(), batch_dsts_sorted.end());
+      auto last = std::unique(batch_dsts_sorted.begin(), batch_dsts_sorted.end());
+      if (last != batch_dsts_sorted.end()) { return false; }
+
       for (size_t i = 0; i < h_starting_vertices.size(); ++i) {
         if (h_starting_batch_numbers[i] == label_index) {
           if (std::binary_search(
-                h_dsts.begin() + start_index, h_dsts.begin() + end_index, h_starting_vertices[i])) {
+                batch_dsts_sorted.begin(), batch_dsts_sorted.end(), h_starting_vertices[i])) {
+            return false;
+          }
+        }
+      }
+    }
+  } else if (label_offsets) {
+    if (!starting_batch_numbers) { return false; }
+    auto h_starting_batch_numbers = cugraph::test::to_host(handle, *starting_batch_numbers);
+    auto h_label_offsets          = cugraph::test::to_host(handle, *label_offsets);
+
+    if (h_starting_batch_numbers.size() != h_starting_vertices.size()) { return false; }
+    if (h_label_offsets.size() < 2) { return false; }
+    if (h_label_offsets.front() != size_t{0}) { return false; }
+    if (h_label_offsets.back() != h_dsts.size()) { return false; }
+    if (!std::is_sorted(h_label_offsets.begin(), h_label_offsets.end())) { return false; }
+
+    auto const num_labels = static_cast<int32_t>(h_label_offsets.size()) - 1;
+    for (size_t i = 0; i < h_starting_batch_numbers.size(); ++i) {
+      auto const batch = h_starting_batch_numbers[i];
+      if (batch < 0 || batch >= num_labels) { return false; }
+    }
+
+    for (int32_t label_index = 0; label_index < num_labels; ++label_index) {
+      auto start_index = h_label_offsets[static_cast<size_t>(label_index)];
+      auto end_index   = h_label_offsets[static_cast<size_t>(label_index) + 1];
+
+      std::sort(h_dsts.begin() + static_cast<std::ptrdiff_t>(start_index),
+                h_dsts.begin() + static_cast<std::ptrdiff_t>(end_index));
+      auto last = std::unique(h_dsts.begin() + static_cast<std::ptrdiff_t>(start_index),
+                              h_dsts.begin() + static_cast<std::ptrdiff_t>(end_index));
+      if (last != h_dsts.begin() + static_cast<std::ptrdiff_t>(end_index)) { return false; }
+
+      for (size_t i = 0; i < h_starting_vertices.size(); ++i) {
+        if (h_starting_batch_numbers[i] == label_index) {
+          if (std::binary_search(h_dsts.begin() + static_cast<std::ptrdiff_t>(start_index),
+                                 h_dsts.begin() + static_cast<std::ptrdiff_t>(end_index),
+                                 h_starting_vertices[i])) {
             return false;
           }
         }
       }
     }
   } else {
-    // Validate that no destination is duplicated
-    std::sort(h_dsts.begin(), h_dsts.end());
-    auto last = std::unique(h_dsts.begin(), h_dsts.end());
-    if (last != h_dsts.end()) { return false; }
+    auto h_dsts_sorted = h_dsts;
+    std::sort(h_dsts_sorted.begin(), h_dsts_sorted.end());
+    auto last = std::unique(h_dsts_sorted.begin(), h_dsts_sorted.end());
+    if (last != h_dsts_sorted.end()) { return false; }
 
-    // Now check that the source vertices for this batch are not in the destinations
     for (size_t i = 0; i < h_starting_vertices.size(); ++i) {
-      if (std::binary_search(h_dsts.begin(), h_dsts.end(), h_starting_vertices[i])) {
+      if (std::binary_search(h_dsts_sorted.begin(), h_dsts_sorted.end(), h_starting_vertices[i])) {
         return false;
       }
     }
@@ -718,6 +762,7 @@ template bool validate_disjoint_sampling(raft::handle_t const&,
                                          raft::device_span<int32_t const>,
                                          raft::device_span<int32_t const>,
                                          std::optional<raft::device_span<size_t const>>,
+                                         std::optional<raft::device_span<int32_t const>>,
                                          std::optional<raft::device_span<int32_t const>>);
 
 template bool validate_disjoint_sampling(raft::handle_t const&,
@@ -725,6 +770,7 @@ template bool validate_disjoint_sampling(raft::handle_t const&,
                                          raft::device_span<int64_t const>,
                                          raft::device_span<int64_t const>,
                                          std::optional<raft::device_span<size_t const>>,
+                                         std::optional<raft::device_span<int32_t const>>,
                                          std::optional<raft::device_span<int32_t const>>);
 
 }  // namespace test

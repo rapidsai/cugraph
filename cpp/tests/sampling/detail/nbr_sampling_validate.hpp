@@ -132,15 +132,21 @@ bool validate_sampling_empty_result(
  * @brief Validate disjoint sampling constraints.
  *
  * For disjoint sampling, batches (labels) of sources should expand without overlapping destinations
- * across batches for the same hop.
+ * within each batch.
+ *
+ * Label partitioning may be provided either as CSR-style @p label_offsets into the edge list, or as
+ * a per-edge @p edge_labels array (useful after MG gather, where edges are no longer label-sorted).
+ * At most one of @p label_offsets / @p edge_labels should be provided.
  */
 template <typename vertex_t>
-bool validate_disjoint_sampling(raft::handle_t const& handle,
-                                raft::device_span<vertex_t const> srcs,
-                                raft::device_span<vertex_t const> dsts,
-                                raft::device_span<vertex_t const> starting_vertices,
-                                std::optional<raft::device_span<size_t const>> label_offsets,
-                                std::optional<raft::device_span<int32_t const>> batch_numbers);
+bool validate_disjoint_sampling(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> srcs,
+  raft::device_span<vertex_t const> dsts,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<size_t const>> label_offsets,
+  std::optional<raft::device_span<int32_t const>> batch_numbers,
+  std::optional<raft::device_span<int32_t const>> edge_labels = std::nullopt);
 
 }  // namespace test
 }  // namespace cugraph
