@@ -71,6 +71,27 @@ bool validate_temporal_time_windows(
   cugraph::temporal_sampling_comparison_t temporal_sampling_comparison);
 
 /**
+ * @brief Validate fixed-window temporal sampling against each seed's original window.
+ *
+ * Unlike increasing/decreasing temporal sampling, the bounds never change as a sampled path
+ * advances. The validator reconstructs each label's sampled forest from its seeds, associates every
+ * reachable vertex with its seed's window, and checks every edge time against that same inclusive
+ * window. Label partitioning may use either output offsets or per-edge labels after an MG gather.
+ */
+template <typename vertex_t, typename time_stamp_t>
+bool validate_fixed_window_temporal_sampling(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> srcs,
+  raft::device_span<vertex_t const> dsts,
+  raft::device_span<time_stamp_t const> edge_times,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_start_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_end_times,
+  std::optional<raft::device_span<size_t const>> label_offsets,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+  std::optional<raft::device_span<int32_t const>> edge_labels);
+
+/**
  * @brief Validate that an empty sampling result was justified.
  *
  * Every other validator here checks that the edges which came back are legal, so all of them pass

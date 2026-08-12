@@ -625,6 +625,56 @@ template bool validate_temporal_time_windows(raft::handle_t const&,
                                              std::optional<raft::device_span<int32_t const>>,
                                              cugraph::temporal_sampling_comparison_t);
 
+template <typename vertex_t, typename time_stamp_t>
+bool validate_fixed_window_temporal_sampling(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> srcs,
+  raft::device_span<vertex_t const> dsts,
+  raft::device_span<time_stamp_t const> edge_times,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_start_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_end_times,
+  std::optional<raft::device_span<size_t const>> label_offsets,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+  std::optional<raft::device_span<int32_t const>> edge_labels)
+{
+  return validate_temporal_time_windows(handle,
+                                        srcs,
+                                        dsts,
+                                        edge_times,
+                                        starting_vertices,
+                                        starting_vertex_start_times,
+                                        starting_vertex_end_times,
+                                        label_offsets,
+                                        starting_vertex_labels,
+                                        edge_labels,
+                                        cugraph::temporal_sampling_comparison_t::FIXED_WINDOW);
+}
+
+template bool validate_fixed_window_temporal_sampling(
+  raft::handle_t const&,
+  raft::device_span<int32_t const>,
+  raft::device_span<int32_t const>,
+  raft::device_span<int32_t const>,
+  raft::device_span<int32_t const>,
+  std::optional<raft::device_span<int32_t const>>,
+  std::optional<raft::device_span<int32_t const>>,
+  std::optional<raft::device_span<size_t const>>,
+  std::optional<raft::device_span<int32_t const>>,
+  std::optional<raft::device_span<int32_t const>>);
+
+template bool validate_fixed_window_temporal_sampling(
+  raft::handle_t const&,
+  raft::device_span<int64_t const>,
+  raft::device_span<int64_t const>,
+  raft::device_span<int32_t const>,
+  raft::device_span<int64_t const>,
+  std::optional<raft::device_span<int32_t const>>,
+  std::optional<raft::device_span<int32_t const>>,
+  std::optional<raft::device_span<size_t const>>,
+  std::optional<raft::device_span<int32_t const>>,
+  std::optional<raft::device_span<int32_t const>>);
+
 template bool validate_sampling_empty_result(
   raft::handle_t const&,
   cugraph::graph_view_t<int32_t, int32_t, false, false> const&,
