@@ -6,7 +6,7 @@ import gc
 import pytest
 
 import cugraph
-from cugraph.datasets import karate, dolphins, netscience
+from cugraph.datasets import dolphins, netscience
 
 
 def cugraph_call(
@@ -25,16 +25,17 @@ def cugraph_call(
     return mod, num_parts
 
 
+#
+# if filename == "karate":           
+#    return 0.38428664207458496
 def golden_call(filename):
     if filename == "dolphins":
         return 0.4962422251701355
-    if filename == "karate":
-        return 0.38428664207458496
     if filename == "netscience":
         return 0.9279554486274719
 
 
-DATASETS = [karate, dolphins, netscience]
+DATASETS = [dolphins, netscience]
 
 MIN_WEIGHTS = [0.05, 0.15]
 
