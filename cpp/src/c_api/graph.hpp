@@ -24,6 +24,16 @@ struct data_type_id {
 };
 
 template <>
+struct data_type_id<int8_t> {
+  static const cugraph_data_type_id_t id{INT8};
+};
+
+template <>
+struct data_type_id<int16_t> {
+  static const cugraph_data_type_id_t id{INT16};
+};
+
+template <>
 struct data_type_id<int32_t> {
   static const cugraph_data_type_id_t id{INT32};
 };
@@ -41,6 +51,11 @@ struct data_type_id<float> {
 template <>
 struct data_type_id<double> {
   static const cugraph_data_type_id_t id{FLOAT64};
+};
+
+template <>
+struct data_type_id<size_t> {
+  static const cugraph_data_type_id_t id{SIZE_T};
 };
 
 struct cugraph_graph_t {

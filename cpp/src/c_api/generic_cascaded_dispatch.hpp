@@ -73,6 +73,14 @@ auto edge_time_type_dispatcher(cugraph_data_type_id_t edge_time_type,
                                functor_t& functor)
 {
   switch (edge_time_type) {
+    case cugraph_data_type_id_t::INT8: {
+      throw std::runtime_error(
+        "ERROR: Data type INT8 not allowed for edge time type (valid types: INT32, INT64).");
+    }
+    case cugraph_data_type_id_t::INT16: {
+      throw std::runtime_error(
+        "ERROR: Data type INT16 not allowed for edge time type (valid types: INT32, INT64).");
+    }
     case cugraph_data_type_id_t::INT32: {
       using time_stamp_t = int32_t;
       return transpose_dispatcher<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t>(
@@ -82,19 +90,19 @@ auto edge_time_type_dispatcher(cugraph_data_type_id_t edge_time_type,
       using time_stamp_t = int64_t;
       return transpose_dispatcher<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t>(
         store_transposed, multi_gpu, functor);
-      break;
     }
     case cugraph_data_type_id_t::FLOAT32: {
       throw std::runtime_error(
-        "ERROR: Data type FLOAT32 not allowed for edge type (valid types: INT32).");
-      break;
+        "ERROR: Data type FLOAT32 not allowed for edge time type (valid types: INT32, INT64).");
     }
     case cugraph_data_type_id_t::FLOAT64: {
       throw std::runtime_error(
-        "ERROR: Data type FLOAT64 not allowed for edge type (valid types: INT32).");
-      break;
+        "ERROR: Data type FLOAT64 not allowed for edge time type (valid types: INT32, INT64).");
     }
-
+    case cugraph_data_type_id_t::SIZE_T: {
+      throw std::runtime_error(
+        "ERROR: Data type SIZE_T not allowed for edge time type (valid types: INT32, INT64).");
+    }
     default: {
       std::stringstream ss;
       ss << "ERROR: Unknown type enum:" << static_cast<int>(edge_time_type);
@@ -115,6 +123,14 @@ auto edge_type_type_dispatcher(cugraph_data_type_id_t edge_type_type,
                                functor_t& functor)
 {
   switch (edge_type_type) {
+    case cugraph_data_type_id_t::INT8: {
+      throw std::runtime_error(
+        "ERROR: Data type INT8 not allowed for edge type (valid types: INT32).");
+    }
+    case cugraph_data_type_id_t::INT16: {
+      throw std::runtime_error(
+        "ERROR: Data type INT16 not allowed for edge type (valid types: INT32).");
+    }
     case cugraph_data_type_id_t::INT32: {
       using edge_type_t = int32_t;
       return edge_time_type_dispatcher<vertex_t, edge_t, weight_t, edge_type_t>(
@@ -123,19 +139,19 @@ auto edge_type_type_dispatcher(cugraph_data_type_id_t edge_type_type,
     case cugraph_data_type_id_t::INT64: {
       throw std::runtime_error(
         "ERROR: Data type INT64 not allowed for edge type (valid types: INT32).");
-      break;
     }
     case cugraph_data_type_id_t::FLOAT32: {
       throw std::runtime_error(
         "ERROR: Data type FLOAT32 not allowed for edge type (valid types: INT32).");
-      break;
     }
     case cugraph_data_type_id_t::FLOAT64: {
       throw std::runtime_error(
         "ERROR: Data type FLOAT64 not allowed for edge type (valid types: INT32).");
-      break;
     }
-
+    case cugraph_data_type_id_t::SIZE_T: {
+      throw std::runtime_error(
+        "ERROR: Data type SIZE_T not allowed for edge type (valid types: INT32).");
+    }
     default: {
       std::stringstream ss;
       ss << "ERROR: Unknown type enum:" << static_cast<int>(edge_type_type);
@@ -159,26 +175,36 @@ auto weight_dispatcher(cugraph_data_type_id_t weight_type,
                        functor_t& functor)
 {
   switch (weight_type) {
+    case cugraph_data_type_id_t::INT8: {
+      throw std::runtime_error(
+        "ERROR: Data type INT8 not allowed for weight type (valid types: FLOAT32, FLOAT64).");
+    }
+    case cugraph_data_type_id_t::INT16: {
+      throw std::runtime_error(
+        "ERROR: Data type INT16 not allowed for weight type (valid types: FLOAT32, FLOAT64).");
+    }
     case cugraph_data_type_id_t::INT32: {
-      using weight_t = int32_t;
-      return edge_type_type_dispatcher<vertex_t, edge_t, weight_t>(
-        edge_type_type, edge_time_type, store_transposed, multi_gpu, functor);
-    } break;
+      throw std::runtime_error(
+        "ERROR: Data type INT32 not allowed for weight type (valid types: FLOAT32, FLOAT64).");
+    }
     case cugraph_data_type_id_t::INT64: {
-      using weight_t = int64_t;
-      return edge_type_type_dispatcher<vertex_t, edge_t, weight_t>(
-        edge_type_type, edge_time_type, store_transposed, multi_gpu, functor);
-    } break;
+      throw std::runtime_error(
+        "ERROR: Data type INT64 not allowed for weight type (valid types: FLOAT32, FLOAT64).");
+    }
     case cugraph_data_type_id_t::FLOAT32: {
       using weight_t = float;
       return edge_type_type_dispatcher<vertex_t, edge_t, weight_t>(
         edge_type_type, edge_time_type, store_transposed, multi_gpu, functor);
-    } break;
+    }
     case cugraph_data_type_id_t::FLOAT64: {
       using weight_t = double;
       return edge_type_type_dispatcher<vertex_t, edge_t, weight_t>(
         edge_type_type, edge_time_type, store_transposed, multi_gpu, functor);
-    } break;
+    }
+    case cugraph_data_type_id_t::SIZE_T: {
+      throw std::runtime_error(
+        "ERROR: Data type SIZE_T not allowed for weight type (valid types: FLOAT32, FLOAT64).");
+    }
     default: {
       std::stringstream ss;
       ss << "ERROR: Unknown type enum:" << static_cast<int>(weight_type);
@@ -203,22 +229,36 @@ auto edge_dispatcher(cugraph_data_type_id_t edge_type,
                      functor_t& functor)
 {
   switch (edge_type) {
+    case cugraph_data_type_id_t::INT8: {
+      throw std::runtime_error(
+        "ERROR: Data type INT8 not allowed for edge type (valid types: INT32, INT64).");
+    }
+    case cugraph_data_type_id_t::INT16: {
+      throw std::runtime_error(
+        "ERROR: Data type INT16 not allowed for edge type (valid types: INT32, INT64).");
+    }
     case cugraph_data_type_id_t::INT32: {
       using edge_t = int32_t;
       return weight_dispatcher<vertex_t, edge_t>(
         weight_type, edge_type_type, edge_time_type, store_transposed, multi_gpu, functor);
-    } break;
+    }
     case cugraph_data_type_id_t::INT64: {
       using edge_t = int64_t;
       return weight_dispatcher<vertex_t, edge_t>(
         weight_type, edge_type_type, edge_time_type, store_transposed, multi_gpu, functor);
-    } break;
+    }
     case cugraph_data_type_id_t::FLOAT32: {
-      throw std::runtime_error("ERROR: FLOAT32 not supported for a vertex type");
-    } break;
+      throw std::runtime_error(
+        "ERROR: Data type FLOAT32 not allowed for edge type (valid types: INT32, INT64).");
+    }
     case cugraph_data_type_id_t::FLOAT64: {
-      throw std::runtime_error("ERROR: FLOAT64 not supported for a vertex type");
-    } break;
+      throw std::runtime_error(
+        "ERROR: Data type FLOAT64 not allowed for edge type (valid types: INT32, INT64).");
+    }
+    case cugraph_data_type_id_t::SIZE_T: {
+      throw std::runtime_error(
+        "ERROR: Data type SIZE_T not allowed for edge type (valid types: INT32, INT64).");
+    }
     default: {
       std::stringstream ss;
       ss << "ERROR: Unknown type enum:" << static_cast<int>(edge_type);
@@ -244,6 +284,14 @@ auto vertex_dispatcher(cugraph_data_type_id_t vertex_type,
                        functor_t& functor)
 {
   switch (vertex_type) {
+    case cugraph_data_type_id_t::INT8: {
+      throw std::runtime_error(
+        "ERROR: Data type INT8 not allowed for vertex type (valid types: INT32, INT64).");
+    }
+    case cugraph_data_type_id_t::INT16: {
+      throw std::runtime_error(
+        "ERROR: Data type INT16 not allowed for vertex type (valid types: INT32, INT64).");
+    }
     case cugraph_data_type_id_t::INT32: {
       using vertex_t = int32_t;
       return edge_dispatcher<vertex_t>(edge_type,
@@ -253,7 +301,7 @@ auto vertex_dispatcher(cugraph_data_type_id_t vertex_type,
                                        store_transposed,
                                        multi_gpu,
                                        functor);
-    } break;
+    }
     case cugraph_data_type_id_t::INT64: {
       using vertex_t = int64_t;
       return edge_dispatcher<vertex_t>(edge_type,
@@ -263,13 +311,19 @@ auto vertex_dispatcher(cugraph_data_type_id_t vertex_type,
                                        store_transposed,
                                        multi_gpu,
                                        functor);
-    } break;
+    }
     case cugraph_data_type_id_t::FLOAT32: {
-      throw std::runtime_error("ERROR: FLOAT32 not supported for a vertex type");
-    } break;
+      throw std::runtime_error(
+        "ERROR: Data type FLOAT32 not allowed for vertex type (valid types: INT32, INT64).");
+    }
     case cugraph_data_type_id_t::FLOAT64: {
-      throw std::runtime_error("ERROR: FLOAT64 not supported for a vertex type");
-    } break;
+      throw std::runtime_error(
+        "ERROR: Data type FLOAT64 not allowed for vertex type (valid types: INT32, INT64).");
+    }
+    case cugraph_data_type_id_t::SIZE_T: {
+      throw std::runtime_error(
+        "ERROR: Data type SIZE_T not allowed for vertex type (valid types: INT32, INT64).");
+    }
     default: {
       std::stringstream ss;
       ss << "ERROR: Unknown type enum:" << static_cast<int>(vertex_type);

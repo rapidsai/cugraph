@@ -23,7 +23,8 @@ edge_property_t<typename GraphViewType::edge_type, T> create_constant_edge_prope
  * @ingroup utility_wrappers_cpp
  * @brief    Cast the values of a cugraph_type_erased_device_array_view_t to the new type
  *
- * @tparam      new_type_t     type of the value to operate on. Must be either int32_t or int64_t.
+ * @tparam      new_type_t     type of the value to operate on. Must be an arithmetic type
+ *                             (int8_t, int16_t, int32_t, int64_t, float, double, or size_t).
  *
  * @param[out]  output      device span to update with new data type
  * @param[in]   input       cugraph_type_erased_device_array_view_t with initial data type

@@ -21,6 +21,8 @@ namespace mtmg {
 using arithmetic_host_vector_t = std::variant<std::monostate,
                                               std::vector<float>,
                                               std::vector<double>,
+                                              std::vector<int8_t>,
+                                              std::vector<int16_t>,
                                               std::vector<int32_t>,
                                               std::vector<int64_t>,
                                               std::vector<size_t>>;
@@ -28,6 +30,8 @@ using arithmetic_host_vector_t = std::variant<std::monostate,
 using arithmetic_const_host_span_t = std::variant<std::monostate,
                                                   raft::host_span<float const>,
                                                   raft::host_span<double const>,
+                                                  raft::host_span<int8_t const>,
+                                                  raft::host_span<int16_t const>,
                                                   raft::host_span<int32_t const>,
                                                   raft::host_span<int64_t const>,
                                                   raft::host_span<size_t const>>;
