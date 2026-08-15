@@ -15,6 +15,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/sampling_functions.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/thrust_wrappers/fill.hpp>
 #include <cugraph/vertex_partition_view.hpp>
 
@@ -189,6 +190,16 @@ neighbor_sample_impl(raft::handle_t const& handle,
   }
 
   for (size_t hop = 0; hop < num_hops; ++hop) {
+    {
+      size_t local_frontier_size = (hop == 0) ? starting_vertices.size() : frontier_vertices.size();
+      size_t frontier_size       = local_frontier_size;
+      if constexpr (multi_gpu) {
+        frontier_size = host_scalar_allreduce(
+          handle.get_comms(), local_frontier_size, raft::comms::op_t::SUM, handle.get_stream());
+      }
+      if (frontier_size == 0) { break; }
+    }
+
     std::optional<std::vector<size_t>> level_Ks{std::nullopt};
     std::unique_ptr<bool[]> gather_flags{};
     std::vector<raft::device_span<vertex_t const>> next_frontier_vertex_spans{};
