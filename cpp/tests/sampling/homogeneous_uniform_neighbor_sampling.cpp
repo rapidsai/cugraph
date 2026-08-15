@@ -150,14 +150,13 @@ class Tests_Homogeneous_Uniform_Neighbor_Sampling
         raft::host_span<int32_t const>(homogeneous_uniform_neighbor_sampling_usecase.fanout.data(),
                                        homogeneous_uniform_neighbor_sampling_usecase.fanout.size()),
         std::optional<int32_t>{std::nullopt},
-        cugraph::neighbor_selection_t::RANDOM,
-        std::optional<cugraph::temporal_sampling_comparison_t>{std::nullopt},
-        cugraph::sampling_flags_t{cugraph::prior_sources_behavior_t{0},
-                                  true,   // return_hops
-                                  false,  // dedupe_sources
-                                  homogeneous_uniform_neighbor_sampling_usecase.flag_replacement,
-                                  cugraph::temporal_sampling_comparison_t::STRICTLY_INCREASING,
-                                  homogeneous_uniform_neighbor_sampling_usecase.disjoint_sampling});
+        cugraph::sampling_options_t{
+          cugraph::prior_sources_behavior_t{0},
+          true,   // return_hops
+          false,  // dedupe_sources
+          homogeneous_uniform_neighbor_sampling_usecase.flag_replacement,
+          std::nullopt,  // non-temporal
+          homogeneous_uniform_neighbor_sampling_usecase.disjoint_sampling});
     EXPECT_FALSE(edge_start_time.has_value());
     EXPECT_FALSE(edge_end_time.has_value());
 

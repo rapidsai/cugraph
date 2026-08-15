@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "neighbor_sample_impl.cuh"
+#include "temporal_sampling_impl.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/export.hpp>
@@ -12,6 +12,120 @@
 #include <cstdint>
 
 namespace cugraph {
+
+// Definitions live in neighbor_sampling_*.cu; suppress hidden implicit
+// instantiations from specialized temporal wrappers in this TU.
+extern template std::tuple<rmm::device_uvector<int64_t>,
+                           rmm::device_uvector<int64_t>,
+                           std::optional<rmm::device_uvector<float>>,
+                           std::optional<rmm::device_uvector<int64_t>>,
+                           std::optional<rmm::device_uvector<int32_t>>,
+                           std::optional<rmm::device_uvector<int32_t>>,
+                           std::optional<rmm::device_uvector<int32_t>>,
+                           std::optional<rmm::device_uvector<int32_t>>,
+                           std::optional<rmm::device_uvector<size_t>>>
+neighbor_sample(raft::handle_t const& handle,
+                raft::random::RngState& rng_state,
+                graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+                std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
+                std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
+                std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_type_view,
+                std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_start_time_view,
+                std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_end_time_view,
+                std::optional<edge_property_view_t<int64_t, float const*>> edge_bias_view,
+                raft::device_span<int64_t const> starting_vertices,
+                std::optional<raft::device_span<int32_t const>> starting_vertex_start_times,
+                std::optional<raft::device_span<int32_t const>> starting_vertex_end_times,
+                std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+                std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
+                raft::host_span<int32_t const> fan_out,
+                std::optional<int32_t> num_edge_types,
+                sampling_options_t sampling_options,
+                bool do_expensive_check);
+
+extern template std::tuple<rmm::device_uvector<int64_t>,
+                           rmm::device_uvector<int64_t>,
+                           std::optional<rmm::device_uvector<float>>,
+                           std::optional<rmm::device_uvector<int64_t>>,
+                           std::optional<rmm::device_uvector<int32_t>>,
+                           std::optional<rmm::device_uvector<int64_t>>,
+                           std::optional<rmm::device_uvector<int64_t>>,
+                           std::optional<rmm::device_uvector<int32_t>>,
+                           std::optional<rmm::device_uvector<size_t>>>
+neighbor_sample(raft::handle_t const& handle,
+                raft::random::RngState& rng_state,
+                graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+                std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
+                std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
+                std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_type_view,
+                std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_start_time_view,
+                std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_end_time_view,
+                std::optional<edge_property_view_t<int64_t, float const*>> edge_bias_view,
+                raft::device_span<int64_t const> starting_vertices,
+                std::optional<raft::device_span<int64_t const>> starting_vertex_start_times,
+                std::optional<raft::device_span<int64_t const>> starting_vertex_end_times,
+                std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+                std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
+                raft::host_span<int32_t const> fan_out,
+                std::optional<int32_t> num_edge_types,
+                sampling_options_t sampling_options,
+                bool do_expensive_check);
+
+extern template std::tuple<rmm::device_uvector<int64_t>,
+                           rmm::device_uvector<int64_t>,
+                           std::optional<rmm::device_uvector<double>>,
+                           std::optional<rmm::device_uvector<int64_t>>,
+                           std::optional<rmm::device_uvector<int32_t>>,
+                           std::optional<rmm::device_uvector<int32_t>>,
+                           std::optional<rmm::device_uvector<int32_t>>,
+                           std::optional<rmm::device_uvector<int32_t>>,
+                           std::optional<rmm::device_uvector<size_t>>>
+neighbor_sample(raft::handle_t const& handle,
+                raft::random::RngState& rng_state,
+                graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+                std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
+                std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
+                std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_type_view,
+                std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_start_time_view,
+                std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_end_time_view,
+                std::optional<edge_property_view_t<int64_t, double const*>> edge_bias_view,
+                raft::device_span<int64_t const> starting_vertices,
+                std::optional<raft::device_span<int32_t const>> starting_vertex_start_times,
+                std::optional<raft::device_span<int32_t const>> starting_vertex_end_times,
+                std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+                std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
+                raft::host_span<int32_t const> fan_out,
+                std::optional<int32_t> num_edge_types,
+                sampling_options_t sampling_options,
+                bool do_expensive_check);
+
+extern template std::tuple<rmm::device_uvector<int64_t>,
+                           rmm::device_uvector<int64_t>,
+                           std::optional<rmm::device_uvector<double>>,
+                           std::optional<rmm::device_uvector<int64_t>>,
+                           std::optional<rmm::device_uvector<int32_t>>,
+                           std::optional<rmm::device_uvector<int64_t>>,
+                           std::optional<rmm::device_uvector<int64_t>>,
+                           std::optional<rmm::device_uvector<int32_t>>,
+                           std::optional<rmm::device_uvector<size_t>>>
+neighbor_sample(raft::handle_t const& handle,
+                raft::random::RngState& rng_state,
+                graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+                std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
+                std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
+                std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_type_view,
+                std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_start_time_view,
+                std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_end_time_view,
+                std::optional<edge_property_view_t<int64_t, double const*>> edge_bias_view,
+                raft::device_span<int64_t const> starting_vertices,
+                std::optional<raft::device_span<int64_t const>> starting_vertex_start_times,
+                std::optional<raft::device_span<int64_t const>> starting_vertex_end_times,
+                std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+                std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
+                raft::host_span<int32_t const> fan_out,
+                std::optional<int32_t> num_edge_types,
+                sampling_options_t sampling_options,
+                bool do_expensive_check);
 
 template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
                                    rmm::device_uvector<int64_t>,

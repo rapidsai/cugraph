@@ -198,7 +198,7 @@ typedef enum {
   MONOTONICALLY_DECREASING, /** Time monotonically decreasing (could have multiple edges with same
                                 time) */
   FIXED_WINDOW,             /** Apply the original per-seed time window at every hop */
-  LAST = FIXED_WINDOW       /** Deprecated alias for FIXED_WINDOW */
+  LAST                      /** Deprecated Value, we moved last-n to a different parameter */
 } cugraph_temporal_sampling_comparison_t;
 
 /**
@@ -206,10 +206,9 @@ typedef enum {
  */
 typedef enum {
   CUGRAPH_NEIGHBOR_SELECTION_RANDOM = 0, /** Uniform without biases, biased with biases */
-  CUGRAPH_NEIGHBOR_SELECTION_FIRST,      /** Deterministically select the earliest edges (not yet
-                                            implemented) */
-  CUGRAPH_NEIGHBOR_SELECTION_LAST        /** Deterministically select the latest edges (not yet
-                                            implemented) */
+  CUGRAPH_NEIGHBOR_SELECTION_LAST        /** Deterministically select the last-n edges based on the
+                                            ordering criteria defined in temporal_sampling_comparison (not
+                                            yet        implemented) */
 } cugraph_neighbor_selection_t;
 
 /**
@@ -332,6 +331,25 @@ CUGRAPH_EXPORT void cugraph_sampling_set_temporal_sampling_comparison(
 
 /**
  * @ingroup samplingC
+ * @brief Clear temporal sampling comparison, disabling temporal sampling.
+ *
+ * @param options - opaque pointer to the sampling options
+ */
+CUGRAPH_EXPORT void cugraph_sampling_clear_temporal_sampling_comparison(
+  cugraph_sampling_options_t* options);
+
+/**
+ * @ingroup samplingC
+ * @brief Set neighbor selection mode.
+ *
+ * @param options - opaque pointer to the sampling options
+ * @param selection - RANDOM or LAST
+ */
+CUGRAPH_EXPORT void cugraph_sampling_set_neighbor_selection(cugraph_sampling_options_t* options,
+                                                            cugraph_neighbor_selection_t selection);
+
+/**
+ * @ingroup samplingC
  * @brief   Set flag to perform disjoint sampling
  *
  * Note: This flag is not supported in the current implementation.
@@ -354,14 +372,14 @@ CUGRAPH_EXPORT void cugraph_sampling_options_free(cugraph_sampling_options_t* op
  * @brief Unified homogeneous/heterogeneous and temporal/non-temporal neighborhood sampling.
  *
  * RANDOM selection samples uniformly if @p edge_biases is NULL and samples according to
- * @p edge_biases otherwise. FIRST and LAST are reserved for deterministically selecting the
- * earliest or latest temporally eligible edges (requiring @p temporal_sampling_comparison), but
- * are not yet implemented.
+ * @p edge_biases otherwise. LAST is reserved for deterministically selecting the latest
+ * temporally eligible edges (requiring temporal sampling), but is not yet implemented.
  *
- * Sampling is non-temporal when @p temporal_sampling_comparison is NULL; all temporal arguments
- * must then be NULL. Sampling is homogeneous when @p num_edge_types is 1; otherwise
- * @p fan_out contains one value per (hop, edge type). When @p vertex_type_offsets is NULL,
- * all vertices are treated as a single vertex type.
+ * Sampling is non-temporal unless cugraph_sampling_set_temporal_sampling_comparison has been
+ * called on @p sampling_options; all temporal arguments must then be NULL. Sampling is
+ * homogeneous when @p num_edge_types is 1; otherwise @p fan_out contains one value per
+ * (hop, edge type). When @p vertex_type_offsets is NULL, all vertices are treated as a single
+ * vertex type.
  *
  * @param [in] handle Handle for accessing resources.
  * @param [in,out] rng_state State of the random number generator, updated for RANDOM selection.
@@ -375,10 +393,9 @@ CUGRAPH_EXPORT void cugraph_sampling_options_free(cugraph_sampling_options_t* op
  * processing.
  * @param [in] fan_out Host array defining fanout per hop (and per edge type when heterogeneous).
  * @param [in] num_edge_types Number of edge types. Use 1 for homogeneous sampling.
- * @param [in] neighbor_selection RANDOM, FIRST, or LAST.
- * @param [in] temporal_sampling_comparison Optional temporal comparison. NULL disables temporal
- * sampling.
- * @param [in] sampling_options Sampling options.
+ * @param [in] sampling_options Sampling options. Temporal sampling is enabled by
+ * cugraph_sampling_set_temporal_sampling_comparison; neighbor selection defaults to RANDOM and may
+ * be set with cugraph_sampling_set_neighbor_selection.
  * @param [in] do_expensive_check Whether to perform expensive input validation.
  * @param [out] result Sampling result.
  * @param [out] error Error details on failure.
@@ -396,8 +413,6 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_neighbor_sample(
   const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   int num_edge_types,
-  cugraph_neighbor_selection_t neighbor_selection,
-  const cugraph_temporal_sampling_comparison_t* temporal_sampling_comparison,
   const cugraph_sampling_options_t* sampling_options,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,

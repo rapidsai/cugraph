@@ -97,6 +97,26 @@ extern "C" void cugraph_sampling_set_temporal_sampling_comparison(
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
   internal_pointer->temporal_sampling_comparison_ = value;
+  internal_pointer->temporal_sampling_enabled_    = TRUE;
+}
+
+extern "C" void cugraph_sampling_clear_temporal_sampling_comparison(
+  cugraph_sampling_options_t* options)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
+  internal_pointer->temporal_sampling_enabled_ = FALSE;
+}
+
+extern "C" void cugraph_sampling_set_neighbor_selection(cugraph_sampling_options_t* options,
+                                                        cugraph_neighbor_selection_t selection)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
+  switch (selection) {
+    case CUGRAPH_NEIGHBOR_SELECTION_LAST:
+      internal_pointer->neighbor_selection_ = cugraph::neighbor_selection_t::LAST;
+      break;
+    default: internal_pointer->neighbor_selection_ = cugraph::neighbor_selection_t::RANDOM; break;
+  }
 }
 
 extern "C" void cugraph_sampling_set_disjoint_sampling(cugraph_sampling_options_t* options,

@@ -30,7 +30,7 @@ struct Fixed_Window_Temporal_Neighbor_Sampling_Usecase {
   cugraph::temporal_sampling_comparison_t temporal_sampling_comparison{
     cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING};
   bool check_correctness{true};
-  // FIRST and LAST are expected to fast-fail until the selection primitive is implemented.
+  // LAST are expected to fast-fail until the selection primitive is implemented.
   cugraph::neighbor_selection_t neighbor_selection{cugraph::neighbor_selection_t::RANDOM};
 };
 
@@ -252,7 +252,8 @@ class Tests_MGFixed_Window_Temporal_Neighbor_Sampling
 
     if (temporal_neighbor_sampling_usecase.neighbor_selection !=
         cugraph::neighbor_selection_t::RANDOM) {
-      // FIRST and LAST are declared in the public API but are not implemented yet.  The check is
+      sampling_flags.neighbor_selection = temporal_neighbor_sampling_usecase.neighbor_selection;
+      // LAST is declared in the public API but is not implemented yet.  The check is
       // local to each rank and runs before any collective, so every rank throws here.
       try {
         cugraph::neighbor_sample<vertex_t,
@@ -281,10 +282,8 @@ class Tests_MGFixed_Window_Temporal_Neighbor_Sampling
           raft::host_span<int32_t const>(temporal_neighbor_sampling_usecase.fanout.data(),
                                          temporal_neighbor_sampling_usecase.fanout.size()),
           std::nullopt,
-          temporal_neighbor_sampling_usecase.neighbor_selection,
-          std::make_optional(cugraph::temporal_sampling_comparison_t::FIXED_WINDOW),
           sampling_flags);
-        ADD_FAILURE() << "expected FIRST/LAST neighbor selection to fail as not implemented";
+        ADD_FAILURE() << "expected LAST neighbor selection to fail as not implemented";
       } catch (cugraph::logic_error const& e) {
         EXPECT_NE(std::string{e.what()}.find("not yet implemented"), std::string::npos)
           << "expected a not-implemented failure, got: " << e.what();
@@ -623,27 +622,16 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
   file_test_unimplemented_selection,
   Tests_MGFixed_Window_Temporal_Neighbor_Sampling_File,
-  ::testing::Combine(::testing::Values(
-                       Fixed_Window_Temporal_Neighbor_Sampling_Usecase{
-                         {4, -1, 10},
-                         128,
-                         false,
-                         false,
-                         true,
-                         true,
-                         cugraph::temporal_sampling_comparison_t::FIXED_WINDOW,
-                         false,
-                         cugraph::neighbor_selection_t::FIRST},
-                       Fixed_Window_Temporal_Neighbor_Sampling_Usecase{
-                         {4, -1, 10},
-                         128,
-                         false,
-                         false,
-                         true,
-                         true,
-                         cugraph::temporal_sampling_comparison_t::FIXED_WINDOW,
-                         false,
-                         cugraph::neighbor_selection_t::LAST}),
+  ::testing::Combine(::testing::Values(Fixed_Window_Temporal_Neighbor_Sampling_Usecase{
+                       {4, -1, 10},
+                       128,
+                       false,
+                       false,
+                       true,
+                       true,
+                       cugraph::temporal_sampling_comparison_t::FIXED_WINDOW,
+                       false,
+                       cugraph::neighbor_selection_t::LAST}),
                      ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

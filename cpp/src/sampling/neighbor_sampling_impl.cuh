@@ -530,6 +530,9 @@ homogeneous_uniform_neighbor_sample(
   std::optional<rmm::device_uvector<int32_t>> hops{std::nullopt};
   std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
 
+  // Specialized non-temporal APIs historically ignored sampling_flags.temporal_sampling_comparison;
+  // keep that behavior now that the field gates temporal mode.
+  sampling_flags.temporal_sampling_comparison = std::nullopt;
   std::tie(majors, minors, weights, edge_ids, edge_types, std::ignore, std::ignore, hops, offsets) =
     neighbor_sample<vertex_t,
                     edge_t,
@@ -553,8 +556,6 @@ homogeneous_uniform_neighbor_sample(
                                label_to_output_comm_rank,
                                fan_out,
                                std::nullopt,  // num_edge_types
-                               sampling_flags.neighbor_selection,
-                               std::nullopt,  // temporal_sampling_comparison
                                sampling_flags,
                                do_expensive_check);
 
@@ -605,6 +606,9 @@ heterogeneous_uniform_neighbor_sample(
   std::optional<rmm::device_uvector<int32_t>> hops{std::nullopt};
   std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
 
+  // Specialized non-temporal APIs historically ignored sampling_flags.temporal_sampling_comparison;
+  // keep that behavior now that the field gates temporal mode.
+  sampling_flags.temporal_sampling_comparison = std::nullopt;
   std::tie(majors, minors, weights, edge_ids, edge_types, std::ignore, std::ignore, hops, offsets) =
     neighbor_sample<vertex_t,
                     edge_t,
@@ -628,8 +632,6 @@ heterogeneous_uniform_neighbor_sample(
                                label_to_output_comm_rank,
                                fan_out,
                                std::make_optional(num_edge_types),
-                               sampling_flags.neighbor_selection,
-                               std::nullopt,  // temporal_sampling_comparison
                                sampling_flags,
                                do_expensive_check);
 
@@ -682,6 +684,9 @@ homogeneous_biased_neighbor_sample(
   std::optional<rmm::device_uvector<int32_t>> hops{std::nullopt};
   std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
 
+  // Specialized non-temporal APIs historically ignored sampling_flags.temporal_sampling_comparison;
+  // keep that behavior now that the field gates temporal mode.
+  sampling_flags.temporal_sampling_comparison = std::nullopt;
   std::tie(majors, minors, weights, edge_ids, edge_types, std::ignore, std::ignore, hops, offsets) =
     neighbor_sample<vertex_t,
                     edge_t,
@@ -705,8 +710,6 @@ homogeneous_biased_neighbor_sample(
                                label_to_output_comm_rank,
                                fan_out,
                                std::nullopt,  // num_edge_types
-                               sampling_flags.neighbor_selection,
-                               std::nullopt,  // temporal_sampling_comparison
                                sampling_flags,
                                do_expensive_check);
 
@@ -760,6 +763,9 @@ heterogeneous_biased_neighbor_sample(
   std::optional<rmm::device_uvector<int32_t>> hops{std::nullopt};
   std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
 
+  // Specialized non-temporal APIs historically ignored sampling_flags.temporal_sampling_comparison;
+  // keep that behavior now that the field gates temporal mode.
+  sampling_flags.temporal_sampling_comparison = std::nullopt;
   std::tie(majors, minors, weights, edge_ids, edge_types, std::ignore, std::ignore, hops, offsets) =
     neighbor_sample<vertex_t,
                     edge_t,
@@ -783,8 +789,6 @@ heterogeneous_biased_neighbor_sample(
                                label_to_output_comm_rank,
                                fan_out,
                                std::make_optional(num_edge_types),
-                               sampling_flags.neighbor_selection,
-                               std::nullopt,  // temporal_sampling_comparison
                                sampling_flags,
                                do_expensive_check);
 

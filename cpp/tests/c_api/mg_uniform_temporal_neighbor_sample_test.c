@@ -172,6 +172,7 @@ int generic_uniform_temporal_neighbor_sample_test(
   cugraph_sampling_set_temporal_sampling_comparison(sampling_options, STRICTLY_INCREASING);
   // Temporal neighbor sampling requires disjoint sampling.
   cugraph_sampling_set_disjoint_sampling(sampling_options, TRUE);
+  cugraph_sampling_set_neighbor_selection(sampling_options, CUGRAPH_NEIGHBOR_SELECTION_RANDOM);
 
   ret_code = cugraph_homogeneous_uniform_temporal_neighbor_sample(handle,
                                                                   rng_state,
@@ -900,6 +901,7 @@ int generic_neighbor_sample_expected_edges_test(
   cugraph_sampling_set_renumber_results(sampling_options, FALSE);
   cugraph_sampling_set_temporal_sampling_comparison(sampling_options, temporal_sampling_comparison);
   cugraph_sampling_set_disjoint_sampling(sampling_options, TRUE);
+  cugraph_sampling_set_neighbor_selection(sampling_options, neighbor_selection);
 
   ret_code = cugraph_neighbor_sample(handle,
                                      rng_state,
@@ -912,8 +914,6 @@ int generic_neighbor_sample_expected_edges_test(
                                      NULL,
                                      h_fan_out_view,
                                      1,
-                                     neighbor_selection,
-                                     &temporal_sampling_comparison,
                                      sampling_options,
                                      FALSE,
                                      &result,

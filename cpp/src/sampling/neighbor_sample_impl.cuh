@@ -8,6 +8,7 @@
 #include "neighbor_sampling_impl.cuh"
 #include "temporal_sampling_impl.cuh"
 
+#include <cugraph/export.hpp>
 #include <cugraph/sampling_functions.hpp>
 
 #include <optional>
@@ -22,15 +23,15 @@ template <typename vertex_t,
           typename time_stamp_t,
           bool store_transposed,
           bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>,
-           std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<time_stamp_t>>,
-           std::optional<rmm::device_uvector<time_stamp_t>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<size_t>>>
+CUGRAPH_EXPORT std::tuple<rmm::device_uvector<vertex_t>,
+                          rmm::device_uvector<vertex_t>,
+                          std::optional<rmm::device_uvector<weight_t>>,
+                          std::optional<rmm::device_uvector<edge_t>>,
+                          std::optional<rmm::device_uvector<edge_type_t>>,
+                          std::optional<rmm::device_uvector<time_stamp_t>>,
+                          std::optional<rmm::device_uvector<time_stamp_t>>,
+                          std::optional<rmm::device_uvector<int32_t>>,
+                          std::optional<rmm::device_uvector<size_t>>>
 neighbor_sample(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
@@ -48,12 +49,11 @@ neighbor_sample(
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
   std::optional<edge_type_t> num_edge_types,
-  neighbor_selection_t neighbor_selection,
-  std::optional<temporal_sampling_comparison_t> temporal_sampling_comparison,
-  sampling_flags_t sampling_flags,
+  sampling_options_t sampling_options,
   bool do_expensive_check)
 {
-  auto const is_temporal = temporal_sampling_comparison.has_value();
+  auto const is_temporal        = sampling_options.temporal_sampling_comparison.has_value();
+  auto const neighbor_selection = sampling_options.neighbor_selection;
 
   CUGRAPH_EXPECTS(!num_edge_types || edge_type_view,
                   "edge_type_view is required when num_edge_types is specified.");
@@ -64,28 +64,24 @@ neighbor_sample(
                                   !starting_vertex_end_times),
                   "Temporal edge and seed time arguments require temporal_sampling_comparison.");
   CUGRAPH_EXPECTS(neighbor_selection == neighbor_selection_t::RANDOM || is_temporal,
-                  "FIRST and LAST neighbor selection require temporal sampling.");
+                  "LAST neighbor selection requires temporal sampling.");
   CUGRAPH_EXPECTS(neighbor_selection == neighbor_selection_t::RANDOM || !edge_bias_view,
-                  "FIRST and LAST neighbor selection do not accept edge biases.");
+                  "LAST neighbor selection does not accept edge biases.");
   CUGRAPH_EXPECTS(
-    neighbor_selection == neighbor_selection_t::RANDOM || !sampling_flags.with_replacement,
-    "FIRST and LAST neighbor selection do not support sampling with replacement.");
+    neighbor_selection == neighbor_selection_t::RANDOM || !sampling_options.with_replacement,
+    "LAST neighbor selection does not support sampling with replacement.");
   if (neighbor_selection != neighbor_selection_t::RANDOM) {
-    CUGRAPH_FAIL("FIRST and LAST neighbor selection are not yet implemented.");
+    CUGRAPH_FAIL("LAST neighbor selection is not yet implemented.");
   }
-  CUGRAPH_EXPECTS(!(sampling_flags.with_replacement && sampling_flags.disjoint_sampling),
+  CUGRAPH_EXPECTS(!(sampling_options.with_replacement && sampling_options.disjoint_sampling),
                   "Invalid input argument: disjoint sampling and sampling with replacement are "
                   "mutually exclusive.");
   CUGRAPH_EXPECTS(
-    !is_temporal || sampling_flags.disjoint_sampling,
+    !is_temporal || sampling_options.disjoint_sampling,
     "Invalid input argument: temporal neighbor sampling requires disjoint sampling; set "
-    "sampling_flags.disjoint_sampling to true.");
-
-  sampling_flags.neighbor_selection = neighbor_selection;
+    "sampling_options.disjoint_sampling to true.");
 
   if (is_temporal) {
-    sampling_flags.temporal_sampling_comparison = *temporal_sampling_comparison;
-
     return detail::temporal_neighbor_sample_impl<vertex_t,
                                                  edge_t,
                                                  weight_t,
@@ -107,7 +103,7 @@ neighbor_sample(
                                                            label_to_output_comm_rank,
                                                            fan_out,
                                                            num_edge_types,
-                                                           sampling_flags,
+                                                           sampling_options,
                                                            do_expensive_check);
   }
 
@@ -133,7 +129,7 @@ neighbor_sample(
       label_to_output_comm_rank,
       fan_out,
       num_edge_types,
-      sampling_flags,
+      sampling_options,
       do_expensive_check);
 
   return std::make_tuple(std::move(srcs),

@@ -523,13 +523,17 @@ temporal_neighbor_sample_impl(
     "Invalid input argument: temporal neighbor sampling requires disjoint sampling; set "
     "sampling_flags.disjoint_sampling to true.");
   CUGRAPH_EXPECTS(
-    (sampling_flags.neighbor_selection == neighbor_selection_t::RANDOM) ||
-      !sampling_flags.with_replacement,
-    "Invalid input argument: FIRST and LAST neighbor selection do not support sampling with "
-    "replacement.");
+    sampling_flags.temporal_sampling_comparison.has_value(),
+    "Invalid input argument: temporal neighbor sampling requires temporal_sampling_comparison.");
+  auto const temporal_sampling_comparison = *sampling_flags.temporal_sampling_comparison;
+
+  CUGRAPH_EXPECTS((sampling_flags.neighbor_selection == neighbor_selection_t::RANDOM) ||
+                    !sampling_flags.with_replacement,
+                  "Invalid input argument: LAST neighbor selection does not support sampling with "
+                  "replacement.");
   CUGRAPH_EXPECTS(
     (sampling_flags.neighbor_selection == neighbor_selection_t::RANDOM) || !edge_bias_view,
-    "Invalid input argument: FIRST and LAST neighbor selection do not accept edge "
+    "Invalid input argument: LAST neighbor selection does not accept edge "
     "biases.");
 
   validate_no_duplicate_seeds<vertex_t, label_t>(handle, starting_vertices, starting_vertex_labels);
@@ -558,7 +562,7 @@ temporal_neighbor_sample_impl(
                handle.get_stream());
   }
 
-  auto const decreasing = is_temporal_decreasing(sampling_flags.temporal_sampling_comparison);
+  auto const decreasing = is_temporal_decreasing(temporal_sampling_comparison);
   auto const initial_window_starts =
     decreasing ? starting_vertex_end_times : starting_vertex_start_times;
   auto const initial_window_ends =
@@ -681,8 +685,8 @@ temporal_neighbor_sample_impl(
     // FIXED_WINDOW re-derives each sampled edge's frontier window-start from the seed's original
     // bound (rather than the sampled edge's start time), so those lookups need storage of their
     // own; unlike the other modes' window starts, they are not spans into produced_edge_lists.
-    bool const fixed_window_starts = is_fixed_window(sampling_flags.temporal_sampling_comparison) &&
-                                     frontier_vertex_times.has_value();
+    bool const fixed_window_starts =
+      is_fixed_window(temporal_sampling_comparison) && frontier_vertex_times.has_value();
     std::vector<rmm::device_uvector<time_stamp_t>> next_frontier_window_start_vectors{};
     if (fixed_window_starts) { next_frontier_window_start_vectors.reserve(2); }
 
@@ -751,7 +755,7 @@ temporal_neighbor_sample_impl(
           std::move(*visited_minors),
           std::move(visited_minor_labels),
           sampling_flags.with_replacement,
-          sampling_flags.temporal_sampling_comparison,
+          temporal_sampling_comparison,
           sampling_flags.neighbor_selection);
       if (n_edge_props > 0) {
         std::tie(srcs, dsts, props) = gather_sampled_properties(handle,
@@ -850,7 +854,7 @@ temporal_neighbor_sample_impl(
           gather_flags_span,
           std::move(*visited_minors),
           std::move(visited_minor_labels),
-          sampling_flags.temporal_sampling_comparison,
+          temporal_sampling_comparison,
           do_expensive_check);
 
       // See the level_Ks branch above: publish next-hop frontier spans, then store the edge list.
@@ -919,11 +923,10 @@ temporal_neighbor_sample_impl(
                     [](auto span) { return span.size() > 0; })) {
       carry_over_window_starts =
         rmm::device_uvector<time_stamp_t>(frontier_vertices.size(), handle.get_stream());
-      cugraph::fill(
-        handle.get_thrust_policy(),
-        carry_over_window_starts->begin(),
-        carry_over_window_starts->end(),
-        unbounded_temporal_window_start<time_stamp_t>(sampling_flags.temporal_sampling_comparison));
+      cugraph::fill(handle.get_thrust_policy(),
+                    carry_over_window_starts->begin(),
+                    carry_over_window_starts->end(),
+                    unbounded_temporal_window_start<time_stamp_t>(temporal_sampling_comparison));
       sampled_src_window_starts = raft::device_span<time_stamp_t const>{
         carry_over_window_starts->data(), carry_over_window_starts->size()};
     }
@@ -936,8 +939,7 @@ temporal_neighbor_sample_impl(
         cugraph::fill(handle.get_thrust_policy(),
                       used_window_starts->begin() + old_size,
                       used_window_starts->end(),
-                      unbounded_temporal_window_start<time_stamp_t>(
-                        sampling_flags.temporal_sampling_comparison));
+                      unbounded_temporal_window_start<time_stamp_t>(temporal_sampling_comparison));
       }
     }
 
@@ -978,13 +980,12 @@ temporal_neighbor_sample_impl(
         sampling_flags.dedupe_sources,
         multi_gpu,
         do_expensive_check);
-    dedupe_temporal_frontier<vertex_t, time_stamp_t, label_t>(
-      handle,
-      frontier_vertices,
-      frontier_vertex_labels,
-      frontier_vertex_times,
-      frontier_vertex_window_ends,
-      sampling_flags.temporal_sampling_comparison);
+    dedupe_temporal_frontier<vertex_t, time_stamp_t, label_t>(handle,
+                                                              frontier_vertices,
+                                                              frontier_vertex_labels,
+                                                              frontier_vertex_times,
+                                                              frontier_vertex_window_ends,
+                                                              temporal_sampling_comparison);
   }
 
   // Assemble the output by concatenating every produced edge list, in order.
@@ -1090,6 +1091,12 @@ homogeneous_uniform_temporal_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
 {
+  // Specialized temporal APIs historically defaulted temporal_sampling_comparison to
+  // STRICTLY_INCREASING; keep that when the optional is unset.
+  if (!sampling_flags.temporal_sampling_comparison.has_value()) {
+    sampling_flags.temporal_sampling_comparison =
+      temporal_sampling_comparison_t::STRICTLY_INCREASING;
+  }
   return neighbor_sample<vertex_t,
                          edge_t,
                          weight_t,
@@ -1112,8 +1119,6 @@ homogeneous_uniform_temporal_neighbor_sample(
                                     label_to_output_comm_rank,
                                     fan_out,
                                     std::nullopt,  // num_edge_types
-                                    sampling_flags.neighbor_selection,
-                                    std::make_optional(sampling_flags.temporal_sampling_comparison),
                                     sampling_flags,
                                     do_expensive_check);
 }
@@ -1153,6 +1158,10 @@ heterogeneous_uniform_temporal_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
 {
+  if (!sampling_flags.temporal_sampling_comparison.has_value()) {
+    sampling_flags.temporal_sampling_comparison =
+      temporal_sampling_comparison_t::STRICTLY_INCREASING;
+  }
   return neighbor_sample<vertex_t,
                          edge_t,
                          weight_t,
@@ -1175,8 +1184,6 @@ heterogeneous_uniform_temporal_neighbor_sample(
                                     label_to_output_comm_rank,
                                     fan_out,
                                     std::make_optional(num_edge_types),
-                                    sampling_flags.neighbor_selection,
-                                    std::make_optional(sampling_flags.temporal_sampling_comparison),
                                     sampling_flags,
                                     do_expensive_check);
 }
@@ -1219,6 +1226,10 @@ homogeneous_biased_temporal_neighbor_sample(
 {
   static_assert(std::is_same_v<bias_t, weight_t>);
 
+  if (!sampling_flags.temporal_sampling_comparison.has_value()) {
+    sampling_flags.temporal_sampling_comparison =
+      temporal_sampling_comparison_t::STRICTLY_INCREASING;
+  }
   return neighbor_sample<vertex_t,
                          edge_t,
                          weight_t,
@@ -1241,8 +1252,6 @@ homogeneous_biased_temporal_neighbor_sample(
                                     label_to_output_comm_rank,
                                     fan_out,
                                     std::nullopt,  // num_edge_types
-                                    sampling_flags.neighbor_selection,
-                                    std::make_optional(sampling_flags.temporal_sampling_comparison),
                                     sampling_flags,
                                     do_expensive_check);
 }
@@ -1286,6 +1295,10 @@ heterogeneous_biased_temporal_neighbor_sample(
 {
   static_assert(std::is_same_v<bias_t, weight_t>);
 
+  if (!sampling_flags.temporal_sampling_comparison.has_value()) {
+    sampling_flags.temporal_sampling_comparison =
+      temporal_sampling_comparison_t::STRICTLY_INCREASING;
+  }
   return neighbor_sample<vertex_t,
                          edge_t,
                          weight_t,
@@ -1308,8 +1321,6 @@ heterogeneous_biased_temporal_neighbor_sample(
                                     label_to_output_comm_rank,
                                     fan_out,
                                     std::make_optional(num_edge_types),
-                                    sampling_flags.neighbor_selection,
-                                    std::make_optional(sampling_flags.temporal_sampling_comparison),
                                     sampling_flags,
                                     do_expensive_check);
 }

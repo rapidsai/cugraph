@@ -44,7 +44,7 @@ enum class temporal_sampling_comparison_t {
   MONOTONICALLY_DECREASING, /** Time monotonically decreasing (could have multiple edges with same
                                 time) */
   FIXED_WINDOW,             /** Apply the original per-seed time window at every hop */
-  LAST = FIXED_WINDOW       /** Deprecated alias for FIXED_WINDOW */
+  LAST                      /** Deprecated Value, we moved last-n to a different parameter */
 };
 
 /**
@@ -52,11 +52,18 @@ enum class temporal_sampling_comparison_t {
  */
 enum class neighbor_selection_t {
   RANDOM = 0, /** Random selection. Uniform if no bias view is supplied, biased otherwise. */
-  FIRST,      /** Deterministically select the earliest edges. Not yet implemented. */
-  LAST        /** Deterministically select the latest edges. Not yet implemented. */
+  LAST /** Deterministically select the latest edges based on the ordering criteria defined in
+          temporal_sampling_comparison. Not yet implemented. */
 };
 
-struct sampling_flags_t {
+/**
+ * @brief Options controlling neighborhood sampling behavior.
+ *
+ * Temporal sampling is enabled when @p temporal_sampling_comparison has a value; leave it
+ * unset for non-temporal sampling. Future sampling knobs should be added here so
+ * `neighbor_sample` can keep a stable parameter list.
+ */
+struct sampling_options_t {
   /**
    * Specifies how to handle prior sources. Default is DEFAULT.
    */
@@ -81,10 +88,10 @@ struct sampling_flags_t {
   bool with_replacement{true};
 
   /**
-   * Specifies how to handle temporal sampling. Default is STRICTLY_INCREASING.
+   * When set, enables temporal sampling with the given comparison mode. Default is unset
+   * (non-temporal).
    */
-  temporal_sampling_comparison_t temporal_sampling_comparison{
-    temporal_sampling_comparison_t::STRICTLY_INCREASING};
+  std::optional<temporal_sampling_comparison_t> temporal_sampling_comparison{std::nullopt};
 
   /**
    * Specifies if disjoint sampling should be enforced. Default is false.
@@ -96,6 +103,9 @@ struct sampling_flags_t {
    */
   neighbor_selection_t neighbor_selection{neighbor_selection_t::RANDOM};
 };
+
+/** @deprecated Use sampling_options_t. */
+using sampling_flags_t = sampling_options_t;
 
 /**
  * @ingroup sampling_functions_cpp
@@ -925,11 +935,10 @@ heterogeneous_biased_temporal_neighbor_sample(
  * contains one value per hop.
  *
  * RANDOM selection samples uniformly when @p edge_bias_view is absent and samples according to
- * the supplied biases when it is present. FIRST and LAST are reserved for deterministically
- * selecting the earliest or latest eligible edges (temporal only; no bias; no with-replacement),
- * but are not yet implemented.
+ * the supplied biases when it is present. LAST is reserved for deterministically selecting the
+ * latest eligible edges (temporal only; no bias; no with-replacement), but is not yet implemented.
  *
- * Sampling is temporal when @p temporal_sampling_comparison is specified; in that case
+ * Sampling is temporal when @p sampling_options.temporal_sampling_comparison is set; in that case
  * @p edge_start_time_view is required. FIXED_WINDOW applies each seed's original closed time window
  * at every hop, while the increasing and decreasing modes propagate sampled edge times as the next
  * frontier bound.
@@ -967,9 +976,7 @@ neighbor_sample(
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
   std::optional<edge_type_t> num_edge_types,
-  neighbor_selection_t neighbor_selection,
-  std::optional<temporal_sampling_comparison_t> temporal_sampling_comparison,
-  sampling_flags_t sampling_flags,
+  sampling_options_t sampling_options,
   bool do_expensive_check = false);
 
 /**

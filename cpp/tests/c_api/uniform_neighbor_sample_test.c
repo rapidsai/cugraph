@@ -128,8 +128,6 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
                                      NULL,
                                      h_fan_out_view,
                                      1,
-                                     CUGRAPH_NEIGHBOR_SELECTION_RANDOM,
-                                     NULL,
                                      sampling_options,
                                      FALSE,
                                      &result,
