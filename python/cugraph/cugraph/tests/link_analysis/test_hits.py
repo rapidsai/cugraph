@@ -91,7 +91,7 @@ def test_nx_hits(benchmark, input_combo):
 def test_hits(benchmark, input_expected_output):
     graph_file = input_expected_output["graph_file"]
 
-    G = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
+    G = graph_file.get_graph(create_using=cugraph.Graph(directed=True), store_transposed=True)
     cugraph_hits = benchmark(
         cugraph.hits, G, input_expected_output["max_iter"], input_expected_output["tol"]
     )

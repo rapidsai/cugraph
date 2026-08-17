@@ -172,7 +172,7 @@ def test_pagerank(
     cu_prsn = cudify(networkx_prsn)
 
     # cuGraph PageRank
-    G = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
+    G = graph_file.get_graph(create_using=cugraph.Graph(directed=True), store_transposed=True)
 
     if has_precomputed_vertex_out_weight == 1:
         df = G.view_edge_list()[["src", "wgt"]]
@@ -367,7 +367,7 @@ def test_pagerank_transposed_false():
 
 @pytest.mark.sg
 def test_pagerank_non_convergence():
-    G = karate.get_graph(create_using=cugraph.Graph(directed=True))
+    G = karate.get_graph(create_using=cugraph.Graph(directed=True), store_transposed=True)
 
     # Not enough allowed iterations, should not converge
     with pytest.raises(cugraph.exceptions.FailedToConvergeError):
