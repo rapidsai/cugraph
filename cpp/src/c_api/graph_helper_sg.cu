@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -35,6 +35,14 @@ template CUGRAPH_EXPORT rmm::device_uvector<int64_t> expand_sparse_offsets(
   int64_t base_vertex_id,
   rmm::cuda_stream_view const& stream);
 
+template CUGRAPH_EXPORT void copy_or_transform(raft::device_span<int8_t> output,
+                                               cugraph_type_erased_device_array_view_t const* input,
+                                               rmm::cuda_stream_view const& stream_view);
+
+template CUGRAPH_EXPORT void copy_or_transform(raft::device_span<int16_t> output,
+                                               cugraph_type_erased_device_array_view_t const* input,
+                                               rmm::cuda_stream_view const& stream_view);
+
 template CUGRAPH_EXPORT void copy_or_transform(raft::device_span<int32_t> output,
                                                cugraph_type_erased_device_array_view_t const* input,
                                                rmm::cuda_stream_view const& stream_view);
@@ -48,6 +56,10 @@ template CUGRAPH_EXPORT void copy_or_transform(raft::device_span<float> output,
                                                rmm::cuda_stream_view const& stream_view);
 
 template CUGRAPH_EXPORT void copy_or_transform(raft::device_span<double> output,
+                                               cugraph_type_erased_device_array_view_t const* input,
+                                               rmm::cuda_stream_view const& stream_view);
+
+template CUGRAPH_EXPORT void copy_or_transform(raft::device_span<size_t> output,
                                                cugraph_type_erased_device_array_view_t const* input,
                                                rmm::cuda_stream_view const& stream_view);
 
