@@ -806,6 +806,22 @@ extern "C" cugraph_error_code_t cugraph_test_host_gatherv_fill(
   auto& comm = raft_handle->get_comms();
 
   switch (input_type) {
+    case cugraph_data_type_id_t::INT8: {
+      auto tmp = cugraph::test::to_device(
+        *raft_handle,
+        raft::host_span<int8_t const>{reinterpret_cast<int8_t const*>(input), input_size});
+      tmp = cugraph::test::device_gatherv(*raft_handle, tmp.data(), tmp.size());
+      raft::update_host(
+        reinterpret_cast<int8_t*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
+    } break;
+    case cugraph_data_type_id_t::INT16: {
+      auto tmp = cugraph::test::to_device(
+        *raft_handle,
+        raft::host_span<int16_t const>{reinterpret_cast<int16_t const*>(input), input_size});
+      tmp = cugraph::test::device_gatherv(*raft_handle, tmp.data(), tmp.size());
+      raft::update_host(
+        reinterpret_cast<int16_t*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
+    } break;
     case cugraph_data_type_id_t::INT32: {
       auto tmp = cugraph::test::to_device(
         *raft_handle,
@@ -866,6 +882,22 @@ extern "C" cugraph_error_code_t cugraph_test_device_gatherv_fill(
   auto& comm = raft_handle->get_comms();
 
   switch (internal_array->type_) {
+    case cugraph_data_type_id_t::INT8: {
+      auto tmp = cugraph::test::device_gatherv(
+        *raft_handle,
+        raft::device_span<int8_t const>{internal_array->as_type<int8_t const>(),
+                                        internal_array->size_});
+      raft::update_host(
+        reinterpret_cast<int8_t*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
+    } break;
+    case cugraph_data_type_id_t::INT16: {
+      auto tmp = cugraph::test::device_gatherv(
+        *raft_handle,
+        raft::device_span<int16_t const>{internal_array->as_type<int16_t const>(),
+                                         internal_array->size_});
+      raft::update_host(
+        reinterpret_cast<int16_t*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
+    } break;
     case cugraph_data_type_id_t::INT32: {
       auto tmp = cugraph::test::device_gatherv(
         *raft_handle,
