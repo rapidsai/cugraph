@@ -62,6 +62,23 @@ def experimental_warning_wrapper(obj, obj_namespace_name=None):
 
         class WarningWrapperClass(obj):
             def __init__(self, *args, **kwargs):
+                """
+                Internal helper for  init  .
+
+                Parameters
+                ----------
+                self : object
+                    Input argument `self` passed to the backend algorithm.
+                args : object
+                    Input argument `args` passed to the backend algorithm.
+                kwargs : object
+                    Input argument `kwargs` passed to the backend algorithm.
+
+                Returns
+                -------
+                object
+                        Output value: WarningWrapperClass.
+                """
                 warnings.warn(warning_msg, PendingDeprecationWarning)
                 # call base class __init__ for python, but cython classes do
                 # not have a standard callable __init__ and assigning to self
@@ -83,6 +100,21 @@ def experimental_warning_wrapper(obj, obj_namespace_name=None):
     # match the incoming obj type.
     @functools.wraps(obj)
     def warning_wrapper_function(*args, **kwargs):
+        """
+        Execute warning wrapper function using the pylibcugraph backend.
+
+        Parameters
+        ----------
+        args : object
+            Input argument `args` passed to the backend algorithm.
+        kwargs : object
+            Input argument `kwargs` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: warning_wrapper_function.
+        """
         warnings.warn(warning_msg, PendingDeprecationWarning)
         return obj(*args, **kwargs)
 
@@ -139,6 +171,23 @@ def promoted_experimental_warning_wrapper(obj, obj_namespace_name=None):
 
         class WarningWrapperClass(obj):
             def __init__(self, *args, **kwargs):
+                """
+                Internal helper for  init  .
+
+                Parameters
+                ----------
+                self : object
+                    Input argument `self` passed to the backend algorithm.
+                args : object
+                    Input argument `args` passed to the backend algorithm.
+                kwargs : object
+                    Input argument `kwargs` passed to the backend algorithm.
+
+                Returns
+                -------
+                object
+                        Output value: WarningWrapperClass.
+                """
                 warnings.warn(warning_msg, DeprecationWarning)
                 # call base class __init__ for python, but cython classes do
                 # not have a standard callable __init__ and assigning to self
@@ -156,6 +205,21 @@ def promoted_experimental_warning_wrapper(obj, obj_namespace_name=None):
 
     @functools.wraps(obj)
     def warning_wrapper_function(*args, **kwargs):
+        """
+        Execute warning wrapper function using the pylibcugraph backend.
+
+        Parameters
+        ----------
+        args : object
+            Input argument `args` passed to the backend algorithm.
+        kwargs : object
+            Input argument `kwargs` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: warning_wrapper_function.
+        """
         warnings.warn(warning_msg, DeprecationWarning)
         return obj(*args, **kwargs)
 
@@ -202,6 +266,23 @@ def deprecated_warning_wrapper(obj, obj_namespace_name=None):
 
         class WarningWrapperClass(obj):
             def __init__(self, *args, **kwargs):
+                """
+                Internal helper for  init  .
+
+                Parameters
+                ----------
+                self : object
+                    Input argument `self` passed to the backend algorithm.
+                args : object
+                    Input argument `args` passed to the backend algorithm.
+                kwargs : object
+                    Input argument `kwargs` passed to the backend algorithm.
+
+                Returns
+                -------
+                object
+                        Output value: WarningWrapperClass.
+                """
                 warnings.warn(warning_msg, DeprecationWarning)
                 # call base class __init__ for python, but cython classes do
                 # not have a standard callable __init__ and assigning to self
@@ -219,6 +300,21 @@ def deprecated_warning_wrapper(obj, obj_namespace_name=None):
 
     @functools.wraps(obj)
     def warning_wrapper_function(*args, **kwargs):
+        """
+        Execute warning wrapper function using the pylibcugraph backend.
+
+        Parameters
+        ----------
+        args : object
+            Input argument `args` passed to the backend algorithm.
+        kwargs : object
+            Input argument `kwargs` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: warning_wrapper_function.
+        """
         warnings.warn(warning_msg, DeprecationWarning)
         return obj(*args, **kwargs)
 

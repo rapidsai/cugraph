@@ -112,6 +112,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
                 utilities/property_generator_utilities_mg.cu
                 utilities/debug_utilities_mg.cpp
                 sampling/random_walks_check_mg.cu
+                sampling/detail/nbr_sampling_validate_empty_result_mg.cu
                 c_api/mg_test_utils.cpp
                 )
 
@@ -817,6 +818,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
     # - MG PRIMS PER_V_RANDOM_SELECT_TRANSFORM_OUTGOING_E tests -----------------------------------
     ConfigureTestMG(MG_PER_V_RANDOM_SELECT_TRANSFORM_OUTGOING_E_TEST
                     prims/mg_per_v_random_select_transform_outgoing_e.cu)
+
+    ###############################################################################################
+    # - MG PRIMS PER_V_TOP_K_SELECT_TRANSFORM_OUTGOING_E tests ------------------------------------
+    ConfigureTestMG(MG_PER_V_TOP_K_SELECT_TRANSFORM_OUTGOING_E_TEST
+                    prims/mg_per_v_top_k_select_transform_outgoing_e.cu)
 
     ###############################################################################################
     # - MG PRIMS PER_V_PAIR_TRANSFORM_SRC_DST_NBR_INTERSECTION tests ------------------------------

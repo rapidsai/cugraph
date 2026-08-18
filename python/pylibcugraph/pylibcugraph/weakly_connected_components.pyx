@@ -48,6 +48,27 @@ from pylibcugraph.utils cimport (
 
 
 def _ensure_args(graph, offsets, indices, weights, labels):
+    """
+    Validate and normalize connected-components inputs before dispatching to the backend.
+
+    Parameters
+    ----------
+    graph : object
+        Input graph object on which the algorithm is executed.
+    offsets : object
+        Input argument `offsets` passed to the backend algorithm.
+    indices : object
+        Input argument `indices` passed to the backend algorithm.
+    weights : object
+        Input argument `weights` passed to the backend algorithm.
+    labels : object
+        Input argument `labels` passed to the backend algorithm.
+
+    Returns
+    -------
+    object
+            Output value: input_type.
+    """
     i = 0
     cdef cugraph_data_type_id_t offsets_type
     cdef cugraph_data_type_id_t indices_type

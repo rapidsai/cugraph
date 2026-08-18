@@ -206,6 +206,54 @@ cdef class SGGraph(_GPUGraph):
                   drop_multi_edges=False,
                   symmetrize=False):
 
+        """
+        Initialize this object and allocate its underlying native resources.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+        resource_handle : object
+            Handle to device resources used by the underlying C++ algorithm call.
+        graph_properties : object
+            Input argument `graph_properties` passed to the backend algorithm.
+        src_or_offset_array : object
+            Input argument `src_or_offset_array` passed to the backend algorithm.
+        dst_or_index_array : object
+            Input argument `dst_or_index_array` passed to the backend algorithm.
+        weight_array : object
+            Input argument `weight_array` passed to the backend algorithm.
+        store_transposed : object
+            Input argument `store_transposed` passed to the backend algorithm.
+        renumber : object
+            Input argument `renumber` passed to the backend algorithm.
+        do_expensive_check : object
+            If True, enable additional input validation checks before execution.
+        edge_id_array : object
+            Input argument `edge_id_array` passed to the backend algorithm.
+        edge_type_array : object
+            Input argument `edge_type_array` passed to the backend algorithm.
+        edge_start_time_array : object
+            Input argument `edge_start_time_array` passed to the backend algorithm.
+        edge_end_time_array : object
+            Input argument `edge_end_time_array` passed to the backend algorithm.
+        input_array_format : object
+            Input argument `input_array_format` passed to the backend algorithm.
+        vertices_array : object
+            Input argument `vertices_array` passed to the backend algorithm.
+        drop_self_loops : object
+            Input argument `drop_self_loops` passed to the backend algorithm.
+        drop_multi_edges : object
+            Input argument `drop_multi_edges` passed to the backend algorithm.
+        symmetrize : object
+            Input argument `symmetrize` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Algorithm result returned by the backend binding.
+        """
+
         # FIXME: add tests for these
         if not(isinstance(store_transposed, (int, bool))):
             raise TypeError("expected int or bool for store_transposed, got "
@@ -327,6 +375,19 @@ cdef class SGGraph(_GPUGraph):
             cugraph_type_erased_device_array_view_free(edge_type_view_ptr)
 
     def __dealloc__(self):
+        """
+        Release native resources owned by this object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Algorithm result returned by the backend binding.
+        """
         if self.c_graph_ptr is not NULL:
             cugraph_graph_free(self.c_graph_ptr)
 
@@ -426,6 +487,52 @@ cdef class MGGraph(_GPUGraph):
                   drop_self_loops=False,
                   drop_multi_edges=False,
                   symmetrize=False):
+
+        """
+        Initialize this object and allocate its underlying native resources.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+        resource_handle : object
+            Handle to device resources used by the underlying C++ algorithm call.
+        graph_properties : object
+            Input argument `graph_properties` passed to the backend algorithm.
+        src_array : object
+            Input argument `src_array` passed to the backend algorithm.
+        dst_array : object
+            Input argument `dst_array` passed to the backend algorithm.
+        weight_array : object
+            Input argument `weight_array` passed to the backend algorithm.
+        store_transposed : object
+            Input argument `store_transposed` passed to the backend algorithm.
+        do_expensive_check : object
+            If True, enable additional input validation checks before execution.
+        edge_id_array : object
+            Input argument `edge_id_array` passed to the backend algorithm.
+        edge_type_array : object
+            Input argument `edge_type_array` passed to the backend algorithm.
+        edge_start_time_array : object
+            Input argument `edge_start_time_array` passed to the backend algorithm.
+        edge_end_time_array : object
+            Input argument `edge_end_time_array` passed to the backend algorithm.
+        vertices_array : object
+            Input argument `vertices_array` passed to the backend algorithm.
+        num_arrays : object
+            Input argument `num_arrays` passed to the backend algorithm.
+        drop_self_loops : object
+            Input argument `drop_self_loops` passed to the backend algorithm.
+        drop_multi_edges : object
+            Input argument `drop_multi_edges` passed to the backend algorithm.
+        symmetrize : object
+            Input argument `symmetrize` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Algorithm result returned by the backend binding.
+        """
 
         if not(isinstance(store_transposed, (int, bool))):
             raise TypeError("expected int or bool for store_transposed, got "
@@ -616,5 +723,18 @@ cdef class MGGraph(_GPUGraph):
                 cugraph_type_erased_device_array_view_free(edge_end_time_view_ptr_ptr[i])
 
     def __dealloc__(self):
+        """
+        Release native resources owned by this object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Algorithm result returned by the backend binding.
+        """
         if self.c_graph_ptr is not NULL:
             cugraph_graph_free(self.c_graph_ptr)
