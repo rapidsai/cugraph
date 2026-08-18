@@ -19,6 +19,7 @@
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/thrust_wrappers/fill.hpp>
 #include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/vertex_partition_view.hpp>
@@ -615,6 +616,15 @@ temporal_neighbor_sample_impl(
   produced_edge_lists.reserve(num_hops * 2);  // at most a biased/uniform + a gather list per hop
 
   for (size_t hop = 0; hop < num_hops; ++hop) {
+    {
+      size_t frontier_size = frontier_vertices.size();
+      if constexpr (multi_gpu) {
+        frontier_size = host_scalar_allreduce(
+          handle.get_comms(), frontier_size, raft::comms::op_t::SUM, handle.get_stream());
+      }
+      if (frontier_size == 0) { break; }
+    }
+
     std::optional<std::vector<size_t>> level_Ks{std::nullopt};
     std::unique_ptr<bool[]> gather_flags{};
     std::vector<raft::device_span<vertex_t const>> next_frontier_vertex_spans{};
