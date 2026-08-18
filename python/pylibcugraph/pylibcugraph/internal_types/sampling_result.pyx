@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -48,11 +48,37 @@ cdef class SamplingResult:
     referencing.
     """
     def __cinit__(self):
+        """
+        Initialize this object and allocate its underlying native resources.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Algorithm result returned by the backend binding.
+        """
         # This SamplingResult instance owns sample_result_ptr now. It will be
         # freed when this instance is deleted (see __dealloc__())
         self.c_sample_result_ptr = NULL
 
     def __dealloc__(self):
+        """
+        Release native resources owned by this object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Algorithm result returned by the backend binding.
+        """
         if self.c_sample_result_ptr is not NULL:
             cugraph_sample_result_free(self.c_sample_result_ptr)
 
@@ -60,6 +86,19 @@ cdef class SamplingResult:
         self.c_sample_result_ptr = sample_result_ptr
 
     def get_major_offsets(self):
+        """
+        Return major offsets from this result object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: create_cupy_array_view_for_device_ptr(device_array_view_ptr,.
+        """
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
@@ -74,6 +113,19 @@ cdef class SamplingResult:
                                                      self)
 
     def get_majors(self):
+        """
+        Return majors from this result object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: create_cupy_array_view_for_device_ptr(device_array_view_ptr,.
+        """
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
@@ -87,6 +139,19 @@ cdef class SamplingResult:
                                                      self)
 
     def get_minors(self):
+        """
+        Return minors from this result object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: create_cupy_array_view_for_device_ptr(device_array_view_ptr,.
+        """
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
@@ -100,6 +165,19 @@ cdef class SamplingResult:
                                                      self)
 
     def get_sources(self):
+        """
+        Return sources from this result object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: create_cupy_array_view_for_device_ptr(device_array_view_ptr,.
+        """
         # Deprecated
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
@@ -114,6 +192,19 @@ cdef class SamplingResult:
                                                      self)
 
     def get_destinations(self):
+        """
+        Return destinations from this result object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: create_cupy_array_view_for_device_ptr(device_array_view_ptr,.
+        """
         # Deprecated
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
@@ -128,6 +219,19 @@ cdef class SamplingResult:
                                                      self)
 
     def get_edge_weights(self):
+        """
+        Return edge weights from this result object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: create_cupy_array_view_for_device_ptr(device_array_view_ptr,.
+        """
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
@@ -142,10 +246,36 @@ cdef class SamplingResult:
                                                      self)
 
     def get_indices(self):
+        """
+        Return indices from this result object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: self.get_edge_weights().
+        """
         # Deprecated
         return self.get_edge_weights()
 
     def get_edge_ids(self):
+        """
+        Return edge ids from this result object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: create_cupy_array_view_for_device_ptr(device_array_view_ptr,.
+        """
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
@@ -160,6 +290,19 @@ cdef class SamplingResult:
                                                      self)
 
     def get_edge_types(self):
+        """
+        Return edge types from this result object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: create_cupy_array_view_for_device_ptr(device_array_view_ptr,.
+        """
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
@@ -174,6 +317,19 @@ cdef class SamplingResult:
                                                      self)
 
     def get_edge_start_time(self):
+        """
+        Return edge start time from this result object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: create_cupy_array_view_for_device_ptr(device_array_view_ptr,.
+        """
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
@@ -188,6 +344,19 @@ cdef class SamplingResult:
                                                      self)
 
     def get_edge_end_time(self):
+        """
+        Return edge end time from this result object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: create_cupy_array_view_for_device_ptr(device_array_view_ptr,.
+        """
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
@@ -202,6 +371,19 @@ cdef class SamplingResult:
                                                      self)
 
     def get_batch_ids(self):
+        """
+        Return batch ids from this result object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: create_cupy_array_view_for_device_ptr(device_array_view_ptr,.
+        """
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
@@ -215,6 +397,19 @@ cdef class SamplingResult:
                                                      self)
 
     def get_label_hop_offsets(self):
+        """
+        Return label hop offsets from this result object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: create_cupy_array_view_for_device_ptr(device_array_view_ptr,.
+        """
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
@@ -228,6 +423,19 @@ cdef class SamplingResult:
                                                      self)
 
     def get_label_type_hop_offsets(self):
+        """
+        Return label type hop offsets from this result object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: create_cupy_array_view_for_device_ptr(device_array_view_ptr,.
+        """
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
@@ -242,6 +450,19 @@ cdef class SamplingResult:
 
     # Deprecated
     def get_offsets(self):
+        """
+        Return offsets from this result object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: create_cupy_array_view_for_device_ptr(device_array_view_ptr,.
+        """
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
@@ -256,6 +477,19 @@ cdef class SamplingResult:
 
     # Deprecated
     def get_hop_ids(self):
+        """
+        Return hop ids from this result object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: create_cupy_array_view_for_device_ptr(device_array_view_ptr,.
+        """
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
@@ -269,6 +503,19 @@ cdef class SamplingResult:
                                                      self)
 
     def get_renumber_map(self):
+        """
+        Return renumber map from this result object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: create_cupy_array_view_for_device_ptr(device_array_view_ptr,.
+        """
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
@@ -282,6 +529,19 @@ cdef class SamplingResult:
                                                      self)
 
     def get_renumber_map_offsets(self):
+        """
+        Return renumber map offsets from this result object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: create_cupy_array_view_for_device_ptr(device_array_view_ptr,.
+        """
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
@@ -296,6 +556,19 @@ cdef class SamplingResult:
 
 
     def get_edge_renumber_map(self):
+        """
+        Return edge renumber map from this result object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: create_cupy_array_view_for_device_ptr(device_array_view_ptr,.
+        """
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
@@ -309,6 +582,19 @@ cdef class SamplingResult:
                                                      self)
 
     def get_edge_renumber_map_offsets(self):
+        """
+        Return edge renumber map offsets from this result object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Output value: create_cupy_array_view_for_device_ptr(device_array_view_ptr,.
+        """
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")

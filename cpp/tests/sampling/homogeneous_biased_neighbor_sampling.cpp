@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -146,6 +146,15 @@ class Tests_Homogeneous_Biased_Neighbor_Sampling
     }
 
     if (homogeneous_biased_neighbor_sampling_usecase.check_correctness) {
+      //  Every check below only inspects the edges that came back, so they all pass trivially on an
+      //  empty result.  Check first that an empty result was actually justified.
+      ASSERT_TRUE(cugraph::test::validate_sampling_empty_result(
+        handle,
+        graph_view,
+        raft::device_span<vertex_t const>{random_sources.data(), random_sources.size()},
+        src_out.size(),
+        homogeneous_biased_neighbor_sampling_usecase.disjoint_sampling));
+
       //  First validate that the extracted edges are actually a subset of the
       //  edges in the input graph
       rmm::device_uvector<vertex_t> vertices(2 * src_out.size(), handle.get_stream());
