@@ -285,7 +285,7 @@ extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_ed
   const cugraph_sample_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
-  return internal_pointer->renumber_map_ == nullptr
+  return internal_pointer->edge_renumber_map_ == nullptr
            ? NULL
            : reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
                internal_pointer->edge_renumber_map_->view());
@@ -295,7 +295,7 @@ extern "C" cugraph_type_erased_device_array_view_t*
 cugraph_sample_result_get_edge_renumber_map_offsets(const cugraph_sample_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
-  return internal_pointer->renumber_map_ == nullptr
+  return internal_pointer->edge_renumber_map_offsets_ == nullptr
            ? NULL
            : reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
                internal_pointer->edge_renumber_map_offsets_->view());
