@@ -25,6 +25,7 @@ struct cugraph_sampling_options_t {
   cugraph_temporal_sampling_comparison_t temporal_sampling_comparison_{
     cugraph_temporal_sampling_comparison_t::STRICTLY_INCREASING};
   bool_t disjoint_sampling_{FALSE};
+  bool_t use_edge_weights_as_biases_{FALSE};
   cugraph::neighbor_selection_t neighbor_selection_{cugraph::neighbor_selection_t::RANDOM};
 };
 

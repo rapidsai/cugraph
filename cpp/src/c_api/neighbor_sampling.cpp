@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "c_api/sampling_common.hpp"
+
 #include <cugraph_c/sampling_algorithms.h>
 
 extern "C" cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
@@ -51,6 +53,10 @@ extern "C" cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
   cugraph_sample_result_t** result,
   cugraph_error_t** error)
 {
+  // Legacy biased entry points fall back to edge weights when edge_biases is NULL; set that
+  // on a copy so the caller's options are left untouched.
+  auto options_copy = *reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t const*>(options);
+  options_copy.use_edge_weights_as_biases_ = TRUE;
   return cugraph_neighbor_sample(handle,
                                  rng_state,
                                  graph,
@@ -62,7 +68,7 @@ extern "C" cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
                                  vertex_type_offsets,
                                  fan_out,
                                  num_edge_types,
-                                 options,
+                                 reinterpret_cast<cugraph_sampling_options_t const*>(&options_copy),
                                  do_expensive_check,
                                  result,
                                  error);
@@ -110,6 +116,10 @@ extern "C" cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
   cugraph_sample_result_t** result,
   cugraph_error_t** error)
 {
+  // Legacy biased entry points fall back to edge weights when edge_biases is NULL; set that
+  // on a copy so the caller's options are left untouched.
+  auto options_copy = *reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t const*>(options);
+  options_copy.use_edge_weights_as_biases_ = TRUE;
   return cugraph_neighbor_sample(handle,
                                  rng_state,
                                  graph,
@@ -121,7 +131,7 @@ extern "C" cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
                                  nullptr,
                                  fan_out,
                                  1,
-                                 options,
+                                 reinterpret_cast<cugraph_sampling_options_t const*>(&options_copy),
                                  do_expensive_check,
                                  result,
                                  error);

@@ -63,10 +63,11 @@ extern "C" cugraph_error_code_t cugraph_heterogeneous_biased_temporal_neighbor_s
   cugraph_sample_result_t** result,
   cugraph_error_t** error)
 {
-  // Legacy temporal entry points imply temporal mode; set it on a copy so the caller's
-  // options are left untouched.
+  // Legacy biased temporal entry points imply temporal mode and weight-as-bias fallback when
+  // edge_biases is NULL; set those on a copy so the caller's options are left untouched.
   auto options_copy = *reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t const*>(options);
-  options_copy.temporal_sampling_enabled_ = TRUE;
+  options_copy.temporal_sampling_enabled_  = TRUE;
+  options_copy.use_edge_weights_as_biases_ = TRUE;
   return cugraph_neighbor_sample(handle,
                                  rng_state,
                                  graph,
@@ -136,10 +137,11 @@ extern "C" cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor_sam
   cugraph_sample_result_t** result,
   cugraph_error_t** error)
 {
-  // Legacy temporal entry points imply temporal mode; set it on a copy so the caller's
-  // options are left untouched.
+  // Legacy biased temporal entry points imply temporal mode and weight-as-bias fallback when
+  // edge_biases is NULL; set those on a copy so the caller's options are left untouched.
   auto options_copy = *reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t const*>(options);
-  options_copy.temporal_sampling_enabled_ = TRUE;
+  options_copy.temporal_sampling_enabled_  = TRUE;
+  options_copy.use_edge_weights_as_biases_ = TRUE;
   return cugraph_neighbor_sample(handle,
                                  rng_state,
                                  graph,

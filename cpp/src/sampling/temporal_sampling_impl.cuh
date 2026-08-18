@@ -192,7 +192,7 @@ void dedupe_temporal_frontier(
                                 frontier_vertex_window_ends->begin()),
       thrust::make_zip_iterator(out_vertices.begin(), out_labels.begin()),
       thrust::make_zip_iterator(out_times.begin(), out_window_ends.begin()),
-      thrust::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
+      cuda::std::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
       reducer);
     auto const new_size = static_cast<size_t>(cuda::std::distance(
       thrust::make_zip_iterator(out_vertices.begin(), out_labels.begin()), ends.first));
@@ -226,7 +226,7 @@ void dedupe_temporal_frontier(
         frontier_vertex_times->begin(),
         thrust::make_zip_iterator(out_vertices.begin(), out_labels.begin()),
         out_times.begin(),
-        thrust::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
+        cuda::std::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
         keep_first_temporal_value_t{});
       new_size = static_cast<size_t>(cuda::std::distance(
         thrust::make_zip_iterator(out_vertices.begin(), out_labels.begin()), ends.first));
@@ -238,7 +238,7 @@ void dedupe_temporal_frontier(
         frontier_vertex_times->begin(),
         thrust::make_zip_iterator(out_vertices.begin(), out_labels.begin()),
         out_times.begin(),
-        thrust::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
+        cuda::std::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
         thrust::maximum<time_stamp_t>{});
       new_size = static_cast<size_t>(cuda::std::distance(
         thrust::make_zip_iterator(out_vertices.begin(), out_labels.begin()), ends.first));
@@ -250,7 +250,7 @@ void dedupe_temporal_frontier(
         frontier_vertex_times->begin(),
         thrust::make_zip_iterator(out_vertices.begin(), out_labels.begin()),
         out_times.begin(),
-        thrust::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
+        cuda::std::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
         thrust::minimum<time_stamp_t>{});
       new_size = static_cast<size_t>(cuda::std::distance(
         thrust::make_zip_iterator(out_vertices.begin(), out_labels.begin()), ends.first));
@@ -284,7 +284,7 @@ void dedupe_temporal_frontier(
                                                       frontier_vertex_window_ends->begin()),
                             out_vertices.begin(),
                             thrust::make_zip_iterator(out_times.begin(), out_window_ends.begin()),
-                            thrust::equal_to<vertex_t>{},
+                            cuda::std::equal_to<vertex_t>{},
                             reducer);
     auto const new_size =
       static_cast<size_t>(cuda::std::distance(out_vertices.begin(), ends.first));
@@ -312,7 +312,7 @@ void dedupe_temporal_frontier(
                                         frontier_vertex_times->begin(),
                                         out_vertices.begin(),
                                         out_times.begin(),
-                                        thrust::equal_to<vertex_t>{},
+                                        cuda::std::equal_to<vertex_t>{},
                                         keep_first_temporal_value_t{});
       new_size  = static_cast<size_t>(cuda::std::distance(out_vertices.begin(), ends.first));
     } else if (increasing) {
@@ -322,7 +322,7 @@ void dedupe_temporal_frontier(
                                         frontier_vertex_times->begin(),
                                         out_vertices.begin(),
                                         out_times.begin(),
-                                        thrust::equal_to<vertex_t>{},
+                                        cuda::std::equal_to<vertex_t>{},
                                         thrust::maximum<time_stamp_t>{});
       new_size  = static_cast<size_t>(cuda::std::distance(out_vertices.begin(), ends.first));
     } else {
@@ -332,7 +332,7 @@ void dedupe_temporal_frontier(
                                         frontier_vertex_times->begin(),
                                         out_vertices.begin(),
                                         out_times.begin(),
-                                        thrust::equal_to<vertex_t>{},
+                                        cuda::std::equal_to<vertex_t>{},
                                         thrust::minimum<time_stamp_t>{});
       new_size  = static_cast<size_t>(cuda::std::distance(out_vertices.begin(), ends.first));
     }

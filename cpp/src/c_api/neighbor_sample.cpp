@@ -346,9 +346,6 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
         }
       }
 
-      // FIXME: For biased sampling, the user should pass either biases or edge weights,
-      // otherwised throw an error and suggest the user to call uniform neighbor sample instead
-
       if (num_edge_types_ > 1) {
         CUGRAPH_EXPECTS(edge_types != nullptr,
                         "edge types are necessary for heterogeneous sampling.");
@@ -357,6 +354,10 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
       std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_bias_view{
         std::nullopt};
       if (is_biased_) {
+        CUGRAPH_EXPECTS(
+          (edge_biases != nullptr) || (edge_weights != nullptr),
+          "Biased sampling requires edge_biases or a weighted graph; use uniform sampling "
+          "instead if neither is available.");
         edge_bias_view =
           std::make_optional((edge_biases != nullptr) ? *edge_biases : edge_weights->view());
       }
@@ -856,7 +857,7 @@ extern "C" cugraph_error_code_t cugraph_neighbor_sample(
   auto options =
     *reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t const*>(sampling_options);
 
-  auto const is_biased   = edge_biases != nullptr;
+  auto const is_biased = (edge_biases != nullptr) || (options.use_edge_weights_as_biases_ == TRUE);
   auto const is_temporal = options.temporal_sampling_enabled_ == TRUE;
   CAPI_EXPECTS(
     is_temporal || (starting_vertex_start_times == nullptr && starting_vertex_end_times == nullptr),
@@ -928,6 +929,15 @@ extern "C" cugraph_error_code_t cugraph_neighbor_sample(
                CUGRAPH_INVALID_INPUT,
                "starting_vertex_end_times should have the same size as start_vertices",
                *error);
+
+  if (is_biased) {
+    CAPI_EXPECTS(
+      (edge_biases != nullptr) ||
+        (reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_weights_ != nullptr),
+      CUGRAPH_INVALID_INPUT,
+      "edge_biases is required if the graph is not weighted",
+      *error);
+  }
 
   if (is_temporal) {
     CAPI_EXPECTS(options.disjoint_sampling_ == TRUE,

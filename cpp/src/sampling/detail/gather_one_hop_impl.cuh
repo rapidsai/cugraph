@@ -584,7 +584,7 @@ temporal_gather_one_hop_edgelist(
           thrust::make_zip_iterator(kv_window_starts->begin(), kv_window_ends->begin()),
           thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()),
           thrust::make_zip_iterator(out_window_starts.begin(), out_window_ends.begin()),
-          thrust::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
+          cuda::std::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
           [fixed_window, increasing] __device__(cuda::std::tuple<time_stamp_t, time_stamp_t> a,
                                                 cuda::std::tuple<time_stamp_t, time_stamp_t> b) {
             if (fixed_window) { return a; }

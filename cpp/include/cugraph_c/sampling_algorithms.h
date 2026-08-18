@@ -362,6 +362,19 @@ CUGRAPH_EXPORT void cugraph_sampling_set_disjoint_sampling(cugraph_sampling_opti
 
 /**
  * @ingroup samplingC
+ * @brief When TRUE and edge_biases is NULL, biased sampling uses graph edge weights as biases.
+ *
+ * When FALSE (default), a NULL edge_biases argument means uniform RANDOM selection.
+ * Ignored when a non-NULL edge_biases view is provided to cugraph_neighbor_sample.
+ *
+ * @param options - opaque pointer to the sampling options
+ * @param value - Boolean value to assign to the option
+ */
+CUGRAPH_EXPORT void cugraph_sampling_set_use_edge_weights_as_biases(
+  cugraph_sampling_options_t* options, bool_t value);
+
+/**
+ * @ingroup samplingC
  * @brief     Free sampling options object
  *
  * @param [in]   options   Opaque pointer to sampling object
@@ -371,9 +384,11 @@ CUGRAPH_EXPORT void cugraph_sampling_options_free(cugraph_sampling_options_t* op
 /**
  * @brief Unified homogeneous/heterogeneous and temporal/non-temporal neighborhood sampling.
  *
- * RANDOM selection samples uniformly if @p edge_biases is NULL and samples according to
- * @p edge_biases otherwise. LAST is reserved for deterministically selecting the latest
- * temporally eligible edges (requiring temporal sampling), but is not yet implemented.
+ * RANDOM selection samples according to @p edge_biases when provided. If @p edge_biases is NULL,
+ * sampling is uniform unless cugraph_sampling_set_use_edge_weights_as_biases has been set, in which
+ * case graph edge weights are used as biases (the graph must be weighted). LAST is reserved for
+ * deterministically selecting the latest temporally eligible edges (requiring temporal sampling),
+ * but is not yet implemented.
  *
  * Sampling is non-temporal unless cugraph_sampling_set_temporal_sampling_comparison has been
  * called on @p sampling_options; all temporal arguments must then be NULL. Sampling is
@@ -384,7 +399,8 @@ CUGRAPH_EXPORT void cugraph_sampling_options_free(cugraph_sampling_options_t* op
  * @param [in] handle Handle for accessing resources.
  * @param [in,out] rng_state State of the random number generator, updated for RANDOM selection.
  * @param [in] graph Graph to sample. It may be transposed internally.
- * @param [in] edge_biases Optional edge biases. NULL means uniform RANDOM selection.
+ * @param [in] edge_biases Optional edge biases. NULL means uniform RANDOM selection unless
+ * cugraph_sampling_set_use_edge_weights_as_biases is TRUE.
  * @param [in] start_vertices Device array of starting vertices.
  * @param [in] starting_vertex_start_times Optional per-seed lower time-window bounds.
  * @param [in] starting_vertex_end_times Optional per-seed upper time-window bounds.

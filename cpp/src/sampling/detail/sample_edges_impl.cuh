@@ -206,7 +206,7 @@ struct temporal_side_table_window_reduce_t {
   }
 };
 
-// FIXED_WINDOW analogue of thrust::maximum / thrust::minimum used to dedupe scalar side-table
+// FIXED_WINDOW analogue of cuda::maximum / cuda::minimum used to dedupe scalar side-table
 // times: duplicate entries for the same key are expected to be identical, so keep the first.
 struct keep_first_temporal_value_t {
   template <typename time_stamp_t>
@@ -249,7 +249,7 @@ void dedupe_sorted_temporal_mg_side_table(
       thrust::make_zip_iterator(sorted_times.begin(), sorted_window_ends->begin()),
       thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()),
       thrust::make_zip_iterator(out_times.begin(), out_window_ends.begin()),
-      thrust::equal_to<cuda::std::tuple<vertex_t, int32_t>>{},
+      cuda::std::equal_to<cuda::std::tuple<vertex_t, int32_t>>{},
       reducer);
     auto const new_size = static_cast<size_t>(cuda::std::distance(
       thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()), ends.first));
@@ -276,7 +276,7 @@ void dedupe_sorted_temporal_mg_side_table(
         sorted_times.begin(),
         thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()),
         out_times.begin(),
-        thrust::equal_to<cuda::std::tuple<vertex_t, int32_t>>{},
+        cuda::std::equal_to<cuda::std::tuple<vertex_t, int32_t>>{},
         keep_first_temporal_value_t{});
       new_size = static_cast<size_t>(cuda::std::distance(
         thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()), ends.first));
@@ -288,7 +288,7 @@ void dedupe_sorted_temporal_mg_side_table(
         sorted_times.begin(),
         thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()),
         out_times.begin(),
-        thrust::equal_to<cuda::std::tuple<vertex_t, int32_t>>{},
+        cuda::std::equal_to<cuda::std::tuple<vertex_t, int32_t>>{},
         thrust::maximum<time_stamp_t>{});
       new_size = static_cast<size_t>(cuda::std::distance(
         thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()), ends.first));
@@ -300,7 +300,7 @@ void dedupe_sorted_temporal_mg_side_table(
         sorted_times.begin(),
         thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()),
         out_times.begin(),
-        thrust::equal_to<cuda::std::tuple<vertex_t, int32_t>>{},
+        cuda::std::equal_to<cuda::std::tuple<vertex_t, int32_t>>{},
         thrust::minimum<time_stamp_t>{});
       new_size = static_cast<size_t>(cuda::std::distance(
         thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()), ends.first));
@@ -325,7 +325,7 @@ void dedupe_sorted_temporal_mg_side_table(
       thrust::make_zip_iterator(sorted_times.begin(), sorted_window_ends->begin()),
       out_majors.begin(),
       thrust::make_zip_iterator(out_times.begin(), out_window_ends.begin()),
-      thrust::equal_to<vertex_t>{},
+      cuda::std::equal_to<vertex_t>{},
       reducer);
     auto const new_size = static_cast<size_t>(cuda::std::distance(out_majors.begin(), ends.first));
 
@@ -347,7 +347,7 @@ void dedupe_sorted_temporal_mg_side_table(
                                         sorted_times.begin(),
                                         out_majors.begin(),
                                         out_times.begin(),
-                                        thrust::equal_to<vertex_t>{},
+                                        cuda::std::equal_to<vertex_t>{},
                                         keep_first_temporal_value_t{});
       new_size  = static_cast<size_t>(cuda::std::distance(out_majors.begin(), ends.first));
     } else if (increasing) {
@@ -357,7 +357,7 @@ void dedupe_sorted_temporal_mg_side_table(
                                         sorted_times.begin(),
                                         out_majors.begin(),
                                         out_times.begin(),
-                                        thrust::equal_to<vertex_t>{},
+                                        cuda::std::equal_to<vertex_t>{},
                                         thrust::maximum<time_stamp_t>{});
       new_size  = static_cast<size_t>(cuda::std::distance(out_majors.begin(), ends.first));
     } else {
@@ -367,7 +367,7 @@ void dedupe_sorted_temporal_mg_side_table(
                                         sorted_times.begin(),
                                         out_majors.begin(),
                                         out_times.begin(),
-                                        thrust::equal_to<vertex_t>{},
+                                        cuda::std::equal_to<vertex_t>{},
                                         thrust::minimum<time_stamp_t>{});
       new_size  = static_cast<size_t>(cuda::std::distance(out_majors.begin(), ends.first));
     }

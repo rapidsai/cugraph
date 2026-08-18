@@ -200,9 +200,10 @@ set(CUGRAPH_COMMON_STRUCTURE_SOURCES
     src/structure/renumber_utils_common_v32_e32.cu
     src/structure/edge_partition_device_view_mask_degrees_common_v32_e32.cu
     src/structure/edge_partition_device_view_mask_degrees_common_v64_e64.cu
-    # MG graph_view_t (needed by gather_one_hop_common_* / sample_outgoing_edges_common_*).
-    # Keep self-contained in libcugraph_common.so so SG test binaries that do not link
-    # libcugraph_mg.so can still resolve local_edge_partition_* for multi_gpu=true.
+    # Build MG graph_view_t into libcugraph_common.so: sampling common TUs
+    # (gather_one_hop_common_* / sample_outgoing_edges_common_*) reference
+    # graph_view_t::local_edge_partition_* with multi_gpu=true. Keep those symbols
+    # defined here so SG test binaries that do not link libcugraph_mg.so can still resolve them.
     src/structure/graph_view_mg_v64_e64.cu
     src/structure/graph_view_mg_v32_e32.cu
 )

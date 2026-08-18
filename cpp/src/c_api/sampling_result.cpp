@@ -126,6 +126,13 @@ extern "C" void cugraph_sampling_set_disjoint_sampling(cugraph_sampling_options_
   internal_pointer->disjoint_sampling_ = value;
 }
 
+extern "C" void cugraph_sampling_set_use_edge_weights_as_biases(cugraph_sampling_options_t* options,
+                                                                bool_t value)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
+  internal_pointer->use_edge_weights_as_biases_ = value;
+}
+
 extern "C" void cugraph_sampling_options_free(cugraph_sampling_options_t* options)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);

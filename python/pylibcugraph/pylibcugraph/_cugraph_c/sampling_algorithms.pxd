@@ -41,6 +41,25 @@ from pylibcugraph._cugraph_c.properties cimport (
 cdef extern from "cugraph_c/sampling_algorithms.h":
     ###########################################################################
 
+    # unified neighbor sampling
+    cdef cugraph_error_code_t cugraph_neighbor_sample(
+        const cugraph_resource_handle_t* handle,
+        cugraph_rng_state_t* rng_state,
+        cugraph_graph_t* graph,
+        const cugraph_edge_property_view_t* edge_biases,
+        const cugraph_type_erased_device_array_view_t* start_vertices,
+        const cugraph_type_erased_device_array_view_t* starting_vertex_start_times,
+        const cugraph_type_erased_device_array_view_t* starting_vertex_end_times,
+        const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
+        const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
+        const cugraph_type_erased_host_array_view_t* fan_out,
+        int num_edge_types,
+        const cugraph_sampling_options_t* sampling_options,
+        bool_t do_expensive_check,
+        cugraph_sample_result_t** result,
+        cugraph_error_t** error
+    )
+
     # heterogeneous uniform neighbor sampling
     cdef cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
         const cugraph_resource_handle_t* handle,

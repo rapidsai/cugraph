@@ -1,5 +1,8 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
+#
+# Deprecated PLC temporal neighbor-sample APIs. Remove once those APIs are dropped.
+# Coverage for the unified neighbor_sample API lives in test_neighbor_sample.py.
 
 import numpy as np
 import cupy as cp
