@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -10,7 +10,8 @@ import networkx as nx
 import cugraph
 from cugraph.testing import utils
 
-from cugraph.datasets import  karate, polbooks 
+from cugraph.datasets import karate, polbooks
+
 TEST_DATASETS = [karate, polbooks]
 
 

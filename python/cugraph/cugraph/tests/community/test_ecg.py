@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -26,7 +26,7 @@ def cugraph_call(
 
 
 #
-# if filename == "karate":           
+# if filename == "karate":
 #    return 0.38428664207458496
 def golden_call(filename):
     if filename == "dolphins":

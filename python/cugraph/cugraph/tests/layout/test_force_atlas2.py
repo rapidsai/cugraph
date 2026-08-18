@@ -146,31 +146,31 @@ def compute_average_distance_from_center(
 DATASETS = [
     (karate, 0.70),
     (polbooks, 0.75),
-    #(dolphins, 0.66),
+    # (dolphins, 0.66),
     (netscience, 0.66),
-    #(dining_prefs, 0.4),
+    # (dining_prefs, 0.4),
 ]
 
 DATASETS2 = [
     (polbooks, 0.75),
-    #(dolphins, 0.66),
+    # (dolphins, 0.66),
     (netscience, 0.66),
 ]
 
 DATASETS_NOVERLAP = [
     (karate, 10.0, 100),
     (polbooks, 10.0, 200),
-    #(dolphins, 10.0, 110),
+    # (dolphins, 10.0, 110),
     (netscience, 5.0, 700),
-    #(dining_prefs, 10.0, 80),
+    # (dining_prefs, 10.0, 80),
 ]
 
 DATASETS_MOBILITY = [
     karate,
     polbooks,
-    #dolphins,
+    # dolphins,
     netscience,
-    #dining_prefs,
+    # dining_prefs,
 ]
 
 

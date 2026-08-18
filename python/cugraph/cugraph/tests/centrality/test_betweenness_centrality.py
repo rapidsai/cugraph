@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.:
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -10,7 +10,7 @@ import networkx as nx
 
 import cudf
 import cugraph
-from cugraph.datasets import karate_disjoint, netscience, polbooks, karate 
+from cugraph.datasets import karate_disjoint, netscience, polbooks, karate
 
 # =============================================================================
 # Parameters
@@ -27,7 +27,7 @@ DEFAULT_EPSILON = 0.0001
 SUBSET_SIZE_OPTIONS = [4, None]
 SUBSET_SEED_OPTIONS = [42]
 
-# NOTE: The output conversion is done after the centrality is computed. 
+# NOTE: The output conversion is done after the centrality is computed.
 RESULT_DTYPE_OPTIONS = [np.float32, np.float64]
 
 
@@ -366,7 +366,6 @@ def test_betweenness_centrality_return_dtypes(
         edgevals=edgevals,
     )
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
-
 
 
 @pytest.mark.sg

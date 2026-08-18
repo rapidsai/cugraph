@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -29,8 +29,10 @@ from cugraph.dask.traversal.bfs import convert_to_cudf
 from cugraph.dask.common.mg_utils import is_single_gpu
 
 # Data sets
-from cugraph.datasets import  karate, polbooks, dolphins, karate_asymmetric
+from cugraph.datasets import karate, polbooks, dolphins, karate_asymmetric
+
 TEST_DATASETS = [karate, polbooks]
+
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
@@ -902,9 +904,7 @@ def test_create_sg_graph(graph_file):
     start = cudf.Series([1], dtype="int32")
     start = G.lookup_internal_vertex_id(start)
 
-    res = pylibcugraph_bfs(
-        ResourceHandle(), G._plc_graph, start, False, 0, True, False
-    )
+    res = pylibcugraph_bfs(ResourceHandle(), G._plc_graph, start, False, 0, True, False)
 
     cdr = convert_to_cudf(res)
     cdr = G.unrenumber(cdr, column_name="vertex")
