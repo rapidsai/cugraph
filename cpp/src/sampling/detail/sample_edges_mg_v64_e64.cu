@@ -67,7 +67,8 @@ temporal_sample_edges_to_unvisited_neighbors(
   rmm::device_uvector<int64_t>&& visited_minors,
   std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
   bool with_replacement,
-  temporal_sampling_comparison_t temporal_sampling_comparison);
+  temporal_sampling_comparison_t temporal_sampling_comparison,
+  neighbor_selection_t neighbor_selection);
 
 template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
                                    rmm::device_uvector<int64_t>,
@@ -91,7 +92,8 @@ temporal_sample_edges_to_unvisited_neighbors(
   rmm::device_uvector<int64_t>&& visited_minors,
   std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
   bool with_replacement,
-  temporal_sampling_comparison_t temporal_sampling_comparison);
+  temporal_sampling_comparison_t temporal_sampling_comparison,
+  neighbor_selection_t neighbor_selection);
 
 }  // namespace detail
 }  // namespace cugraph

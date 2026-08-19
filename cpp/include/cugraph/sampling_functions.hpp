@@ -8,6 +8,7 @@
 #include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/src_dst_lookup_container.hpp>
+#include <cugraph/utilities/error.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -42,10 +43,27 @@ enum class temporal_sampling_comparison_t {
   STRICTLY_DECREASING,      /** Time strictly decreasing (each time is before the previous one) */
   MONOTONICALLY_DECREASING, /** Time monotonically decreasing (could have multiple edges with same
                                 time) */
-  LAST                      /** Support last n behavior */
+  FIXED_WINDOW,             /** Apply the original per-seed time window at every hop */
+  LAST                      /** Deprecated Value, we moved last-n to a different parameter */
 };
 
-struct sampling_flags_t {
+/**
+ * @brief Selects neighbors from the set that satisfies the sampling filters.
+ */
+enum class neighbor_selection_t {
+  RANDOM = 0, /** Random selection. Uniform if no bias view is supplied, biased otherwise. */
+  LAST /** Deterministically select the latest edges based on the ordering criteria defined in
+          temporal_sampling_comparison. Not yet implemented. */
+};
+
+/**
+ * @brief Options controlling neighborhood sampling behavior.
+ *
+ * Temporal sampling is enabled when @p temporal_sampling_comparison has a value; leave it
+ * unset for non-temporal sampling. Future sampling knobs should be added here so
+ * `neighbor_sample` can keep a stable parameter list.
+ */
+struct sampling_options_t {
   /**
    * Specifies how to handle prior sources. Default is DEFAULT.
    */
@@ -70,19 +88,28 @@ struct sampling_flags_t {
   bool with_replacement{true};
 
   /**
-   * Specifies how to handle temporal sampling. Default is STRICTLY_INCREASING.
+   * When set, enables temporal sampling with the given comparison mode. Default is unset
+   * (non-temporal).
    */
-  temporal_sampling_comparison_t temporal_sampling_comparison{
-    temporal_sampling_comparison_t::STRICTLY_INCREASING};
+  std::optional<temporal_sampling_comparison_t> temporal_sampling_comparison{std::nullopt};
 
   /**
    * Specifies if disjoint sampling should be enforced. Default is false.
    */
   bool disjoint_sampling{false};
+
+  /**
+   * Specifies how neighbors are selected from the eligible set. Default is RANDOM.
+   */
+  neighbor_selection_t neighbor_selection{neighbor_selection_t::RANDOM};
 };
+
+/** @deprecated Use sampling_options_t. */
+using sampling_flags_t = sampling_options_t;
 
 /**
  * @ingroup sampling_functions_cpp
+ * @deprecated Use neighbor_sample instead.
  * @brief Homogeneous Uniform Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
@@ -158,6 +185,7 @@ homogeneous_uniform_neighbor_sample(
 
 /**
  * @ingroup sampling_functions_cpp
+ * @deprecated Use neighbor_sample instead.
  * @brief Heterogeneous Uniform Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
@@ -238,6 +266,7 @@ heterogeneous_uniform_neighbor_sample(
 
 /**
  * @ingroup sampling_functions_cpp
+ * @deprecated Use neighbor_sample instead.
  * @brief Homogeneous Biased Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
@@ -320,6 +349,7 @@ homogeneous_biased_neighbor_sample(
 
 /**
  * @ingroup sampling_functions_cpp
+ * @deprecated Use neighbor_sample instead.
  * @brief Heterogeneous Biased Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
@@ -407,6 +437,7 @@ heterogeneous_biased_neighbor_sample(
 
 /**
  * @ingroup sampling_functions_cpp
+ * @deprecated Use neighbor_sample instead.
  * @brief Homogeneous Uniform Temporal Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
@@ -522,6 +553,7 @@ homogeneous_uniform_temporal_neighbor_sample(
 
 /**
  * @ingroup sampling_functions_cpp
+ * @deprecated Use neighbor_sample instead.
  * @brief Heterogeneous Uniform Temporal Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
@@ -642,6 +674,7 @@ heterogeneous_uniform_temporal_neighbor_sample(
 
 /**
  * @ingroup sampling_functions_cpp
+ * @deprecated Use neighbor_sample instead.
  * @brief Homogeneous Biased Temporal Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
@@ -764,6 +797,7 @@ homogeneous_biased_temporal_neighbor_sample(
 
 /**
  * @ingroup sampling_functions_cpp
+ * @deprecated Use neighbor_sample instead.
  * @brief Heterogeneous Biased Temporal Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
@@ -887,6 +921,62 @@ heterogeneous_biased_temporal_neighbor_sample(
   raft::host_span<int32_t const> fan_out,
   edge_type_t num_edge_types,
   sampling_flags_t sampling_flags,
+  bool do_expensive_check = false);
+
+/**
+ * @ingroup sampling_functions_cpp
+ * @brief Sample a homogeneous or heterogeneous neighborhood, optionally using temporal filters.
+ *
+ * This unified API replaces the homogeneous/heterogeneous, uniform/biased, and
+ * temporal/non-temporal entry-point matrix above.
+ *
+ * Sampling is heterogeneous when @p num_edge_types is specified; in that case @p edge_type_view
+ * is required and @p fan_out contains one value per (hop, edge type). Otherwise, @p fan_out
+ * contains one value per hop.
+ *
+ * RANDOM selection samples uniformly when @p edge_bias_view is absent and samples according to
+ * the supplied biases when it is present. LAST is reserved for deterministically selecting the
+ * latest eligible edges (temporal only; no bias; no with-replacement), but is not yet implemented.
+ *
+ * Sampling is temporal when @p sampling_options.temporal_sampling_comparison is set; in that case
+ * @p edge_start_time_view is required. FIXED_WINDOW applies each seed's original closed time window
+ * at every hop, while the increasing and decreasing modes propagate sampled edge times as the next
+ * frontier bound.
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename time_stamp_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
+           std::optional<rmm::device_uvector<int32_t>>,
+           std::optional<rmm::device_uvector<size_t>>>
+neighbor_sample(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
+  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+  std::optional<edge_property_view_t<edge_t, time_stamp_t const*>> edge_start_time_view,
+  std::optional<edge_property_view_t<edge_t, time_stamp_t const*>> edge_end_time_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_bias_view,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_start_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_end_times,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+  std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
+  raft::host_span<int32_t const> fan_out,
+  std::optional<edge_type_t> num_edge_types,
+  sampling_options_t sampling_options,
   bool do_expensive_check = false);
 
 /**

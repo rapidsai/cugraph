@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -117,16 +117,21 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
   cugraph_sampling_set_dedupe_sources(sampling_options, dedupe_sources);
   cugraph_sampling_set_renumber_results(sampling_options, renumber_results);
 
-  ret_code = cugraph_homogeneous_uniform_neighbor_sample(handle,
-                                                         rng_state,
-                                                         graph,
-                                                         d_start_view,
-                                                         d_start_label_offsets_view,
-                                                         h_fan_out_view,
-                                                         sampling_options,
-                                                         FALSE,
-                                                         &result,
-                                                         &ret_error);
+  ret_code = cugraph_neighbor_sample(handle,
+                                     rng_state,
+                                     graph,
+                                     NULL,
+                                     d_start_view,
+                                     NULL,
+                                     NULL,
+                                     d_start_label_offsets_view,
+                                     NULL,
+                                     h_fan_out_view,
+                                     1,
+                                     sampling_options,
+                                     FALSE,
+                                     &result,
+                                     &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "uniform_neighbor_sample failed.");
 
