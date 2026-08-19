@@ -314,7 +314,8 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                             edge_ids_property,
                                             edge_types_property,
                                             edge_start_times_property,
-                                            edge_end_times_property};
+                                            edge_end_times_property,
+                                            true};
 
       result_ = reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(result);
     }
