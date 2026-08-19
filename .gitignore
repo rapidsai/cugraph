@@ -44,6 +44,10 @@ _skbuild/
 cufile.log
 *.whl
 
+## Rust code
+rust/target/
+
+
 ## Patching
 *.diff
 *.orig
