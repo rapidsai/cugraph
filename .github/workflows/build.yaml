@@ -27,7 +27,7 @@ on:
         type: string
         default: nightly
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ inputs.build_type || 'branch' }}
   cancel-in-progress: true
 permissions: {}
 jobs:
