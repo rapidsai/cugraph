@@ -285,7 +285,7 @@ def heterogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle
     cdef cugraph_error_t* error_ptr
 
     assert_device_accessible(start_vertex_list, "start_vertex_list")
-    assert_device_accessible(starting_vertex_times, "starting_vertex_times", True)
+    assert_device_accessible(starting_vertex_start_times, "starting_vertex_start_times", True)
     assert_device_accessible(starting_vertex_label_offsets, "starting_vertex_label_offsets", True)
     assert_device_accessible(vertex_type_offsets, "vertex_type_offsets", True)
 
@@ -310,11 +310,7 @@ def heterogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle
     cdef cugraph_type_erased_device_array_view_t* starting_vertex_start_times_ptr = <cugraph_type_erased_device_array_view_t*>NULL
     if starting_vertex_start_times is not None:
         starting_vertex_start_times_ptr = \
-            cugraph_type_erased_device_array_view_create(
-                <void*>cai_starting_vertex_start_times_ptr,
-                len(starting_vertex_start_times),
-                get_c_type_from_numpy_type(starting_vertex_start_times.dtype)
-            )
+            create_cugraph_type_erased_device_array_view_from_py_obj(starting_vertex_start_times)
 
 
     cdef cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets_ptr = <cugraph_type_erased_device_array_view_t*>NULL
