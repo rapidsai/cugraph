@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # If libcugraph was installed as a wheel, we must request it to load the library
@@ -40,6 +40,9 @@ from pylibcugraph.bfs import bfs
 
 from pylibcugraph.homogeneous_uniform_neighbor_sample import (
     homogeneous_uniform_neighbor_sample,
+)
+from pylibcugraph.neighbor_sample import (
+    neighbor_sample,
 )
 from pylibcugraph.homogeneous_uniform_temporal_neighbor_sample import (
     homogeneous_uniform_temporal_neighbor_sample,

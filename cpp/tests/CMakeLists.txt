@@ -529,6 +529,13 @@ ConfigureTest(
         GPUS 1 PERCENT 75)
 
 ###################################################################################################
+# - TEMPORAL NBR SAMPLING fixed-window tests ------------------------------------------------------
+ConfigureTest(
+    TEMPORAL_NEIGHBOR_SAMPLING_FIXED_WINDOW_TEST
+    sampling/temporal_neighbor_sampling_fixed_window.cpp
+        GPUS 1 PERCENT 25)
+
+###################################################################################################
 # - SAMPLING_POST_PROCESSING tests ----------------------------------------------------------------
 ConfigureTest(SAMPLING_POST_PROCESSING_TEST sampling/sampling_post_processing_test.cpp)
 
@@ -863,6 +870,9 @@ if(BUILD_CUGRAPH_MG_TESTS)
     # - MG TEMPORAL NBR SAMPLING tests --------------------------------------------------------------
     ConfigureTestMG(
         MG_TEMPORAL_NEIGHBOR_SAMPLING_TEST sampling/mg_temporal_neighbor_sampling.cpp)
+    ConfigureTestMG(
+        MG_TEMPORAL_NEIGHBOR_SAMPLING_FIXED_WINDOW_TEST
+        sampling/mg_temporal_neighbor_sampling_fixed_window.cpp)
 
     ###################################################################################################
     # - NEGATIVE SAMPLING tests --------------------------------------------------------------------

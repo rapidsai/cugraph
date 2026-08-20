@@ -5067,6 +5067,12 @@ homogeneous_uniform_sample_and_compute_local_nbr_indices(
   }
   assert(minor_comm_size == graph_view.number_of_local_edge_partitions());
 
+  if (local_frontier_offsets.back() == 0) {
+    return std::make_tuple(rmm::device_uvector<edge_t>(0, handle.get_stream()),
+                           std::optional<rmm::device_uvector<size_t>>{std::nullopt},
+                           std::vector<size_t>(local_frontier_offsets.size(), size_t{0}));
+  }
+
   auto aggregate_local_frontier_major_first =
     thrust_tuple_get_or_identity<KeyIterator, 0>(aggregate_local_frontier_key_first);
 
@@ -5190,6 +5196,12 @@ heterogeneous_uniform_sample_and_compute_local_nbr_indices(
     minor_comm_size  = minor_comm.get_size();
   }
   assert(minor_comm_size == graph_view.number_of_local_edge_partitions());
+
+  if (local_frontier_offsets.back() == 0) {
+    return std::make_tuple(rmm::device_uvector<edge_t>(0, handle.get_stream()),
+                           std::optional<rmm::device_uvector<size_t>>{std::nullopt},
+                           std::vector<size_t>(local_frontier_offsets.size(), size_t{0}));
+  }
 
   auto num_edge_types = static_cast<edge_type_t>(Ks.size());
 
@@ -5528,6 +5540,12 @@ homogeneous_biased_sample_and_compute_local_nbr_indices(
   }
   assert(minor_comm_size == graph_view.number_of_local_edge_partitions());
 
+  if (local_frontier_offsets.back() == 0) {
+    return std::make_tuple(rmm::device_uvector<edge_t>(0, handle.get_stream()),
+                           std::optional<rmm::device_uvector<size_t>>{std::nullopt},
+                           std::vector<size_t>(local_frontier_offsets.size(), size_t{0}));
+  }
+
   auto edge_mask_view = graph_view.edge_mask_view();
 
   // 1. compute biases for unique keys (to reduce memory footprint)
@@ -5683,6 +5701,12 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
     minor_comm_size  = minor_comm.get_size();
   }
   assert(minor_comm_size == graph_view.number_of_local_edge_partitions());
+
+  if (local_frontier_offsets.back() == 0) {
+    return std::make_tuple(rmm::device_uvector<edge_t>(0, handle.get_stream()),
+                           std::optional<rmm::device_uvector<size_t>>{std::nullopt},
+                           std::vector<size_t>(local_frontier_offsets.size(), size_t{0}));
+  }
 
   auto num_edge_types = static_cast<edge_type_t>(Ks.size());
 

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -91,18 +91,26 @@ update_dst_visited_vertices_and_labels(
     new_samples.resize(n_keep, handle.get_stream());
   }
 
-  // 3) Aggregate new samples across minor_comm (unify per-minor partition)
+  // 3) Replicate the new samples over the GPUs sharing this GPU's edge partition minor range.
+  //
+  // The visited set is queried while walking local edge partitions, so each GPU must hold every
+  // visited vertex in [local_edge_partition_minor_range_first(),
+  // local_edge_partition_minor_range_last()) -- that range is vertex partitions
+  // [minor_comm_rank * major_comm_size, (minor_comm_rank + 1) * major_comm_size), which are owned
+  // by this GPU's major_comm peers (step 1 sent each sample to its vertex owner).  Gathering over
+  // minor_comm instead only looks correct when major_comm_size == 1; with a 2-D grid it drops the
+  // visited vertices owned by the major_comm peers and those destinations get sampled again.
   if constexpr (multi_gpu) {
-    auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
 
     new_samples =
       device_allgatherv(handle,
-                        minor_comm,
+                        major_comm,
                         raft::device_span<vertex_t const>{new_samples.data(), new_samples.size()});
     if (new_sample_labels) {
       new_sample_labels = device_allgatherv(
         handle,
-        minor_comm,
+        major_comm,
         raft::device_span<int32_t const>{new_sample_labels->data(), new_sample_labels->size()});
     }
   }

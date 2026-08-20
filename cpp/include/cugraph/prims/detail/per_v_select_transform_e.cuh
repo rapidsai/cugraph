@@ -585,6 +585,19 @@ per_v_select_transform_e(
   std::inclusive_scan(
     local_key_list_sizes.begin(), local_key_list_sizes.end(), local_key_list_offsets.begin() + 1);
 
+  // Empty frontier (after minor-comm size exchange): return immediately.
+  if (local_key_list_offsets.back() == 0) {
+    auto empty_results = allocate_dataframe_buffer<T>(0, handle.get_stream());
+    if (invalid_value) {
+      return std::make_tuple(std::nullopt, std::move(empty_results));
+    } else {
+      rmm::device_uvector<size_t> sample_offsets(size_t{1}, handle.get_stream());
+      sample_offsets.set_element_to_zero_async(size_t{0}, handle.get_stream());
+      return std::make_tuple(std::make_optional(std::move(sample_offsets)),
+                             std::move(empty_results));
+    }
+  }
+
   // 1. aggregate key_list
 
   std::optional<key_buffer_t> aggregate_local_key_list{std::nullopt};
