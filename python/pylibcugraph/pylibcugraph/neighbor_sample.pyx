@@ -63,8 +63,8 @@ from pylibcugraph.graphs cimport (
 )
 from pylibcugraph.utils cimport (
     assert_success,
-    assert_CAI_type,
-    assert_AI_type,
+    assert_device_accessible,
+    assert_host_accessible,
     get_c_type_from_numpy_type,
 )
 from pylibcugraph.internal_types.sampling_result cimport (
@@ -208,12 +208,12 @@ def neighbor_sample(ResourceHandle resource_handle,
     cdef cugraph_error_t* error_ptr
     cdef uintptr_t ai_fan_out_ptr
 
-    assert_CAI_type(start_vertex_list, "start_vertex_list")
-    assert_CAI_type(starting_vertex_start_times, "starting_vertex_start_times", True)
-    assert_CAI_type(starting_vertex_end_times, "starting_vertex_end_times", True)
-    assert_CAI_type(starting_vertex_label_offsets, "starting_vertex_label_offsets", True)
-    assert_CAI_type(vertex_type_offsets, "vertex_type_offsets", True)
-    assert_AI_type(h_fan_out, "h_fan_out")
+    assert_device_accessible(start_vertex_list, "start_vertex_list")
+    assert_device_accessible(starting_vertex_start_times, "starting_vertex_start_times", True)
+    assert_device_accessible(starting_vertex_end_times, "starting_vertex_end_times", True)
+    assert_device_accessible(starting_vertex_label_offsets, "starting_vertex_label_offsets", True)
+    assert_device_accessible(vertex_type_offsets, "vertex_type_offsets", True)
+    assert_host_accessible(h_fan_out, "h_fan_out")
 
     if starting_vertex_label_offsets is not None:
         last_elmnt_idx = len(starting_vertex_label_offsets) - 1
