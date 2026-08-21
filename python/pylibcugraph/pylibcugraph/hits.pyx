@@ -1,10 +1,8 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
 # cython: language_level = 3
-
-from libc.stdint cimport uintptr_t
 
 from pylibcugraph._cugraph_c.types cimport (
     bool_t,
@@ -18,7 +16,6 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
-    cugraph_type_erased_device_array_view_create,
     cugraph_type_erased_device_array_view_free,
 )
 from pylibcugraph._cugraph_c.graph cimport (
@@ -40,9 +37,10 @@ from pylibcugraph.graphs cimport (
 )
 from pylibcugraph.utils cimport (
     assert_success,
-    assert_CAI_type,
+    assert_device_accessible,
     copy_to_cupy_array,
-    get_c_type_from_numpy_type
+    get_c_type_from_numpy_type,
+    create_cugraph_type_erased_device_array_view_from_py_obj,
 )
 
 
@@ -103,9 +101,6 @@ def hits(ResourceHandle resource_handle,
 
     """
 
-    cdef uintptr_t cai_initial_hubs_guess_vertices_ptr = <uintptr_t>NULL
-    cdef uintptr_t cai_initial_hubs_guess_values_ptr = <uintptr_t>NULL
-
     cdef cugraph_type_erased_device_array_view_t* initial_hubs_guess_vertices_view_ptr = NULL
     cdef cugraph_type_erased_device_array_view_t* initial_hubs_guess_values_view_ptr = NULL
 
@@ -114,28 +109,20 @@ def hits(ResourceHandle resource_handle,
     # This is already True for cugraph HITS
 
     if initial_hubs_guess_vertices is not None:
-        assert_CAI_type(initial_hubs_guess_vertices, "initial_hubs_guess_vertices")
-
-        cai_initial_hubs_guess_vertices_ptr = \
-        initial_hubs_guess_vertices.__cuda_array_interface__["data"][0]
+        assert_device_accessible(initial_hubs_guess_vertices, "initial_hubs_guess_vertices")
 
         initial_hubs_guess_vertices_view_ptr = \
-            cugraph_type_erased_device_array_view_create(
-                <void*>cai_initial_hubs_guess_vertices_ptr,
-                len(initial_hubs_guess_vertices),
-                get_c_type_from_numpy_type(initial_hubs_guess_vertices.dtype))
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                initial_hubs_guess_vertices
+            )
 
     if initial_hubs_guess_values is not None:
-        assert_CAI_type(initial_hubs_guess_values, "initial_hubs_guess_values")
-
-        cai_initial_hubs_guess_values_ptr = \
-        initial_hubs_guess_values.__cuda_array_interface__["data"][0]
+        assert_device_accessible(initial_hubs_guess_values, "initial_hubs_guess_values")
 
         initial_hubs_guess_values_view_ptr = \
-            cugraph_type_erased_device_array_view_create(
-                <void*>cai_initial_hubs_guess_values_ptr,
-                len(initial_hubs_guess_values),
-                get_c_type_from_numpy_type(initial_hubs_guess_values.dtype))
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                initial_hubs_guess_values
+            )
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr

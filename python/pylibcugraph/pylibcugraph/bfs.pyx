@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -6,7 +6,6 @@
 
 import cupy
 
-from libc.stdint cimport uintptr_t
 from libc.stdint cimport int32_t
 from libc.limits cimport INT_MAX
 
@@ -22,7 +21,6 @@ from pylibcugraph._cugraph_c.algorithms cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
-    cugraph_type_erased_device_array_view_create,
 )
 from pylibcugraph._cugraph_c.types cimport (
     bool_t,
@@ -37,8 +35,9 @@ from pylibcugraph._cugraph_c.error cimport (
 from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
-    assert_CAI_type,
+    assert_device_accessible,
     get_c_type_from_numpy_type,
+    create_cugraph_type_erased_device_array_view_from_py_obj,
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
@@ -63,7 +62,7 @@ def bfs(ResourceHandle handle, _GPUGraph graph,
     graph: SGGraph or MGGraph
         The graph to operate upon
 
-    sources: cudf.Series
+    sources: device-accessible DLPack array
         The vertices to start the breadth-first search from.  Should
         match the numbering of the provided graph.  All workers must
         have a unique set of sources. Empty sets are allowed as long
@@ -134,7 +133,7 @@ def bfs(ResourceHandle handle, _GPUGraph graph,
     >>> })
     """
 
-    assert_CAI_type(sources, "sources")
+    assert_device_accessible(sources, "sources")
 
     # Check if sources are valid
     if not all(has_vertex(handle, graph, sources, do_expensive_check)):
@@ -151,14 +150,8 @@ def bfs(ResourceHandle handle, _GPUGraph graph,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    cdef uintptr_t cai_sources_ptr = \
-        sources.__cuda_array_interface__["data"][0]
-
     cdef cugraph_type_erased_device_array_view_t* sources_view_ptr = \
-        cugraph_type_erased_device_array_view_create(
-            <void*>cai_sources_ptr,
-            len(sources),
-            get_c_type_from_numpy_type(sources.dtype))
+        create_cugraph_type_erased_device_array_view_from_py_obj(sources)
 
     cdef cugraph_paths_result_t* result_ptr
 
