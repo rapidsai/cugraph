@@ -47,8 +47,9 @@ struct temporal_unvisited_params_t {
   cuda::std::optional<raft::device_span<time_stamp_t const>> active_major_window_ends;
   cuda::std::optional<raft::device_span<int32_t const>> active_major_labels;  // sorted parallel
   temporal_sampling_comparison_t temporal_sampling_comparison;
-  // RANDOM (default) reuses the existing per_v_random_select_transform_outgoing_e path below.
-  // FIRST/LAST are accepted at the API boundary but are not yet implemented.
+  // RANDOM (default) uses per_v_random_select_transform_outgoing_e.
+  // LAST uses per_v_top_k_select_transform_outgoing_e with last_n_time_bias
+  // (later edge times for increasing, earlier for decreasing).
   neighbor_selection_t neighbor_selection{neighbor_selection_t::RANDOM};
 };
 

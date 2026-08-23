@@ -160,13 +160,13 @@ void dedupe_temporal_frontier(
   std::optional<rmm::device_uvector<label_t>>& frontier_vertex_labels,
   std::optional<rmm::device_uvector<time_stamp_t>>& frontier_vertex_times,
   std::optional<rmm::device_uvector<time_stamp_t>>& frontier_vertex_window_ends,
-  temporal_sampling_comparison_t temporal_sampling_comparison)
+  temporal_sampling_comparison_t temporal_sampling_comparison,
+  bool fixed_window)
 {
   if (!frontier_vertex_times || frontier_vertices.size() < 2) { return; }
 
-  auto const n            = frontier_vertices.size();
-  bool const increasing   = !is_temporal_decreasing(temporal_sampling_comparison);
-  bool const fixed_window = is_fixed_window(temporal_sampling_comparison);
+  auto const n          = frontier_vertices.size();
+  bool const increasing = !is_temporal_decreasing(temporal_sampling_comparison);
 
   if (frontier_vertex_labels && frontier_vertex_window_ends) {
     rmm::device_uvector<vertex_t> out_vertices(n, handle.get_stream());
@@ -537,6 +537,15 @@ temporal_neighbor_sample_impl(
     "Invalid input argument: LAST neighbor selection does not accept edge "
     "biases.");
 
+  // FIXME: LAST ranks eligible edges by converting timestamps to double
+  // (detail::last_n_time_bias) so per_v_top_k_select_transform_outgoing_e can
+  // sort them. A double represents every integer in [-2^53, 2^53] exactly;
+  // larger magnitudes are monotonic but not strictly unique (unix-ns ~2^60 has
+  // ULP 128). int32_t and unix s/ms/us fall in the exact range. A wrong last-n
+  // SET is possible only when more than fanout K eligible times on one source
+  // sit in a non-unique double bucket at the end of the walk (latest times for
+  // increasing, earliest for decreasing).
+
   validate_no_duplicate_seeds<vertex_t, label_t>(handle, starting_vertices, starting_vertex_labels);
 
   // Get the number of hop.
@@ -696,7 +705,7 @@ temporal_neighbor_sample_impl(
     // bound (rather than the sampled edge's start time), so those lookups need storage of their
     // own; unlike the other modes' window starts, they are not spans into produced_edge_lists.
     bool const fixed_window_starts =
-      is_fixed_window(temporal_sampling_comparison) && frontier_vertex_times.has_value();
+      sampling_flags.fixed_window && frontier_vertex_times.has_value();
     std::vector<rmm::device_uvector<time_stamp_t>> next_frontier_window_start_vectors{};
     if (fixed_window_starts) { next_frontier_window_start_vectors.reserve(2); }
 
@@ -766,7 +775,8 @@ temporal_neighbor_sample_impl(
           std::move(visited_minor_labels),
           sampling_flags.with_replacement,
           temporal_sampling_comparison,
-          sampling_flags.neighbor_selection);
+          sampling_flags.neighbor_selection,
+          sampling_flags.fixed_window);
       if (n_edge_props > 0) {
         std::tie(srcs, dsts, props) = gather_sampled_properties(handle,
                                                                 graph_view,
@@ -865,6 +875,7 @@ temporal_neighbor_sample_impl(
           std::move(*visited_minors),
           std::move(visited_minor_labels),
           temporal_sampling_comparison,
+          sampling_flags.fixed_window,
           do_expensive_check);
 
       // See the level_Ks branch above: publish next-hop frontier spans, then store the edge list.
@@ -995,7 +1006,8 @@ temporal_neighbor_sample_impl(
                                                               frontier_vertex_labels,
                                                               frontier_vertex_times,
                                                               frontier_vertex_window_ends,
-                                                              temporal_sampling_comparison);
+                                                              temporal_sampling_comparison,
+                                                              sampling_flags.fixed_window);
   }
 
   // Assemble the output by concatenating every produced edge list, in order.

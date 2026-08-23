@@ -18,6 +18,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/edge_bucket.cuh>
 #include <cugraph/prims/per_v_random_select_transform_outgoing_e.cuh>
+#include <cugraph/prims/per_v_top_k_select_transform_outgoing_e.cuh>
 #include <cugraph/prims/transform_gather_e.cuh>
 #include <cugraph/prims/transform_reduce_e.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
@@ -149,14 +150,23 @@ struct sample_unvisited_edge_biases_op_t {
 
 // Combined temporal + unvisited bias operator.  Returns bias 0 (excluding the edge from selection)
 // when the destination minor has already been visited (per-label when labels are used) OR when the
-// edge fails the temporal window filter; otherwise returns the edge bias (1 when unbiased).
+// edge fails the temporal window filter.
+//
+// When last_n is false (RANDOM), an eligible edge returns the edge bias (1 when unbiased).
+// When last_n is true (LAST), an eligible edge returns last_n_time_bias so
+// per_v_top_k_select_transform_outgoing_e keeps the K latest edges in the
+// temporal_sampling_comparison rank order.  Instantiate with bias_t = last_n_bias_t.
 //
 // The per-source window bounds are looked up from spans keyed on the frontier entry.
 // Under always-disjoint sampling each vertex appears at most once per label in the frontier, so the
 // key is (major) when unlabeled and (major, label) when labeled; both are unique.  The side spans
 // must be sorted by that same key.
-template <typename vertex_t, typename bias_t, typename time_stamp_t>
+template <typename vertex_t, typename bias_t, typename time_stamp_t, bool last_n = false>
 struct sample_unvisited_temporal_edge_biases_op_t {
+  static_assert(!last_n || std::is_same_v<bias_t, last_n_bias_t>,
+                "LAST neighbor selection must use last_n_bias_t (double) so integer "
+                "timestamps up to 53 bits rank exactly.");
+
   temporal_sampling_comparison_t temporal_sampling_comparison{};
   raft::device_span<vertex_t const> active_majors{};  // sorted by (major[, label])
   // Parallel to active_majors when present. nullopt => unbounded via
@@ -255,7 +265,12 @@ struct sample_unvisited_temporal_edge_biases_op_t {
     auto const edge_time  = extract_edge_time(edge_property);
     auto const passes =
       passes_temporal_filter(temporal_sampling_comparison, major_time, window_end, edge_time);
-    return passes ? extract_edge_bias(edge_property) : bias_t{0};
+    if (!passes) { return bias_t{0}; }
+    if constexpr (last_n) {
+      return last_n_time_bias(edge_time, temporal_sampling_comparison);
+    } else {
+      return extract_edge_bias(edge_property);
+    }
   }
 
   // Labeled frontier (tag == int32 label): key is (major, label).
@@ -278,7 +293,12 @@ struct sample_unvisited_temporal_edge_biases_op_t {
     auto const edge_time  = extract_edge_time(edge_property);
     auto const passes =
       passes_temporal_filter(temporal_sampling_comparison, major_time, window_end, edge_time);
-    return passes ? extract_edge_bias(edge_property) : bias_t{0};
+    if (!passes) { return bias_t{0}; }
+    if constexpr (last_n) {
+      return last_n_time_bias(edge_time, temporal_sampling_comparison);
+    } else {
+      return extract_edge_bias(edge_property);
+    }
   }
 };
 
@@ -426,6 +446,131 @@ call_biased_per_v_random_select_transform_outgoing_e(
                            with_replacement,
                            std::optional<return_type>{std::nullopt},
                            false);
+  }
+
+  if (active_major_labels) {
+    labels =
+      rmm::device_uvector<int32_t>(offsets->back_element(handle.get_stream()), handle.get_stream());
+    auto num_segments = offsets->size() - size_t{1};
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      thrust::make_counting_iterator(size_t{0}),
+      thrust::make_counting_iterator(num_segments),
+      segmented_fill_t{*active_major_labels,
+                       raft::device_span<size_t const>{offsets->data(), offsets->size()},
+                       raft::device_span<int32_t>{labels->data(), labels->size()}});
+  }
+
+  return std::make_tuple(
+    std::move(labels), std::move(majors), std::move(minors), std::move(sampled_properties));
+}
+
+/**
+ * LAST analog of call_biased_per_v_random_select_transform_outgoing_e.  Selects the K highest-bias
+ * outgoing edges per (tagged-)vertex via per_v_top_k_select_transform_outgoing_e (no RNG, no
+ * replacement).  @p biases_op must return last_n_bias_t.
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename tag_t,
+          typename biases_view_t,
+          typename edge_type_t,
+          typename biases_op_t,
+          bool multi_gpu>
+std::tuple<std::optional<rmm::device_uvector<int32_t>>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           arithmetic_device_uvector_t>
+call_biased_per_v_top_k_select_transform_outgoing_e(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false> const& key_bucket_view,
+  biases_view_t edge_biases_view,
+  bool has_output_edge_properties,
+  biases_op_t biases_op,
+  std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+  raft::host_span<size_t const> Ks,
+  std::optional<raft::device_span<int32_t const>> active_major_labels)
+{
+  std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
+  std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
+  rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
+  arithmetic_device_uvector_t sampled_properties{std::monostate{}};
+
+  if (has_output_edge_properties && graph_view.is_multigraph()) {
+    edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle, graph_view);
+    using edges_op_t = sample_edges_op_t<vertex_t, edge_t>;
+    edges_op_t edges_op{};
+    using return_type = typename edges_op_t::return_type;
+
+    std::forward_as_tuple(offsets, std::tie(majors, minors, sampled_properties)) =
+      (Ks.size() == 1)
+        ? cugraph::per_v_top_k_select_transform_outgoing_e(handle,
+                                                           graph_view,
+                                                           key_bucket_view,
+                                                           edge_src_dummy_property_t{}.view(),
+                                                           edge_dst_dummy_property_t{}.view(),
+                                                           edge_biases_view,
+                                                           biases_op,
+                                                           edge_src_dummy_property_t{}.view(),
+                                                           edge_dst_dummy_property_t{}.view(),
+                                                           multi_index_property.view(),
+                                                           edges_op,
+                                                           Ks[0],
+                                                           std::optional<return_type>{std::nullopt},
+                                                           false)
+        : cugraph::per_v_top_k_select_transform_outgoing_e(handle,
+                                                           graph_view,
+                                                           key_bucket_view,
+                                                           edge_src_dummy_property_t{}.view(),
+                                                           edge_dst_dummy_property_t{}.view(),
+                                                           edge_biases_view,
+                                                           biases_op,
+                                                           edge_src_dummy_property_t{}.view(),
+                                                           edge_dst_dummy_property_t{}.view(),
+                                                           multi_index_property.view(),
+                                                           edges_op,
+                                                           *edge_type_view,
+                                                           Ks,
+                                                           std::optional<return_type>{std::nullopt},
+                                                           false);
+  } else {
+    using edges_op_t = sample_edges_op_t<vertex_t, cuda::std::nullopt_t>;
+    edges_op_t edges_op{};
+    using return_type = typename edges_op_t::return_type;
+
+    std::forward_as_tuple(offsets, std::tie(majors, minors)) =
+      (Ks.size() == 1)
+        ? cugraph::per_v_top_k_select_transform_outgoing_e(handle,
+                                                           graph_view,
+                                                           key_bucket_view,
+                                                           edge_src_dummy_property_t{}.view(),
+                                                           edge_dst_dummy_property_t{}.view(),
+                                                           edge_biases_view,
+                                                           biases_op,
+                                                           edge_src_dummy_property_t{}.view(),
+                                                           edge_dst_dummy_property_t{}.view(),
+                                                           cugraph::edge_dummy_property_view_t{},
+                                                           edges_op,
+                                                           Ks[0],
+                                                           std::optional<return_type>{std::nullopt},
+                                                           false)
+        : cugraph::per_v_top_k_select_transform_outgoing_e(handle,
+                                                           graph_view,
+                                                           key_bucket_view,
+                                                           edge_src_dummy_property_t{}.view(),
+                                                           edge_dst_dummy_property_t{}.view(),
+                                                           edge_biases_view,
+                                                           biases_op,
+                                                           edge_src_dummy_property_t{}.view(),
+                                                           edge_dst_dummy_property_t{}.view(),
+                                                           cugraph::edge_dummy_property_view_t{},
+                                                           edges_op,
+                                                           *edge_type_view,
+                                                           Ks,
+                                                           std::optional<return_type>{std::nullopt},
+                                                           false);
   }
 
   if (active_major_labels) {
@@ -808,10 +953,10 @@ sample_unvisited_outgoing_edges(
   if constexpr (is_temporal) {
     CUGRAPH_EXPECTS(
       (temporal_params.neighbor_selection == neighbor_selection_t::RANDOM) || !with_replacement,
-      "FIRST and LAST neighbor selection do not support sampling with replacement.");
+      "LAST neighbor selection does not support sampling with replacement.");
     CUGRAPH_EXPECTS(
       (temporal_params.neighbor_selection == neighbor_selection_t::RANDOM) || !edge_bias_view,
-      "FIRST and LAST neighbor selection do not accept edge biases.");
+      "LAST neighbor selection does not accept edge biases.");
   }
 
   rmm::device_uvector<vertex_t> result_majors(0, handle.get_stream());
@@ -965,7 +1110,29 @@ sample_unvisited_outgoing_edges(
               active_major_labels,
               with_replacement);
         } else {
-          CUGRAPH_FAIL("FIRST and LAST neighbor selection are not yet implemented.");
+          CUGRAPH_EXPECTS(temporal_params.neighbor_selection == neighbor_selection_t::LAST,
+                          "Unknown neighbor selection mode.");
+          std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
+            call_biased_per_v_top_k_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              active_bucket_view,
+              temporal_params.edge_time_view,
+              has_output_edge_properties,
+              sample_unvisited_temporal_edge_biases_op_t<vertex_t,
+                                                         last_n_bias_t,
+                                                         time_stamp_t,
+                                                         true>{
+                temporal_params.temporal_sampling_comparison,
+                temporal_params.active_majors,
+                temporal_params.active_major_window_starts,
+                temporal_params.active_major_window_ends,
+                temporal_params.active_major_labels,
+                visited_minors_span,
+                visited_minor_labels_span},
+              edge_type_filter,
+              Ks,
+              active_major_labels);
         }
       } else {
         std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
@@ -1008,10 +1175,41 @@ sample_unvisited_outgoing_edges(
       arithmetic_device_uvector_t types                  = std::move(sampled_types);
       std::optional<rmm::device_uvector<int32_t>> labels = std::move(sampled_labels);
 
-      rmm::device_uvector<float> random_numbers =
-        rmm::device_uvector<float>(majors.size(), handle.get_stream());
-      uniform_random_fill(
-        handle.get_stream(), random_numbers.data(), random_numbers.size(), 0.0f, 1.0f, rng_state);
+      rmm::device_uvector<double> order_keys(majors.size(), handle.get_stream());
+      bool last_n_order{false};
+      if constexpr (is_temporal) {
+        last_n_order = temporal_params.neighbor_selection == neighbor_selection_t::LAST;
+        if (last_n_order && (majors.size() > 0)) {
+          using time_stamp_t = typename temporal_params_t::time_type;
+          auto times =
+            gather_scalar_edge_property_for_edgelist<vertex_t, edge_t, time_stamp_t, multi_gpu>(
+              handle,
+              graph_view,
+              raft::device_span<vertex_t const>{majors.data(), majors.size()},
+              raft::device_span<vertex_t const>{minors.data(), minors.size()},
+              prop,
+              temporal_params.edge_time_view);
+          auto const comparison = temporal_params.temporal_sampling_comparison;
+          thrust::transform(handle.get_thrust_policy(),
+                            times.begin(),
+                            times.end(),
+                            order_keys.begin(),
+                            [comparison] __device__(time_stamp_t edge_time) {
+                              // Ascending sort then keep the first needed_count, so negate rank.
+                              return -last_n_time_bias(edge_time, comparison);
+                            });
+        }
+      }
+      if (!last_n_order) {
+        rmm::device_uvector<float> rng_draw(majors.size(), handle.get_stream());
+        uniform_random_fill(
+          handle.get_stream(), rng_draw.data(), rng_draw.size(), 0.0f, 1.0f, rng_state);
+        thrust::transform(handle.get_thrust_policy(),
+                          rng_draw.begin(),
+                          rng_draw.end(),
+                          order_keys.begin(),
+                          [] __device__(float x) { return static_cast<double>(x); });
+      }
 
       size_t keep_count{0};
       rmm::device_uvector<uint32_t> keep_flags(0, handle.get_stream());
@@ -1023,13 +1221,13 @@ sample_unvisited_outgoing_edges(
           thrust::sort_by_key(
             handle.get_thrust_policy(),
             thrust::make_zip_iterator(
-              labels->begin(), majors.begin(), type_vec.begin(), random_numbers.begin()),
+              labels->begin(), majors.begin(), type_vec.begin(), order_keys.begin()),
             thrust::make_zip_iterator(
-              labels->end(), majors.end(), type_vec.end(), random_numbers.end()),
+              labels->end(), majors.end(), type_vec.end(), order_keys.end()),
             minors.begin());
 
-          random_numbers.resize(0, handle.get_stream());
-          random_numbers.shrink_to_fit(handle.get_stream());
+          order_keys.resize(0, handle.get_stream());
+          order_keys.shrink_to_fit(handle.get_stream());
 
           std::tie(keep_count, keep_flags) = mark_entries(
             majors.size(),
@@ -1069,12 +1267,12 @@ sample_unvisited_outgoing_edges(
         } else {
           thrust::sort_by_key(
             handle.get_thrust_policy(),
-            thrust::make_zip_iterator(majors.begin(), type_vec.begin(), random_numbers.begin()),
-            thrust::make_zip_iterator(majors.end(), type_vec.end(), random_numbers.end()),
+            thrust::make_zip_iterator(majors.begin(), type_vec.begin(), order_keys.begin()),
+            thrust::make_zip_iterator(majors.end(), type_vec.end(), order_keys.end()),
             minors.begin());
 
-          random_numbers.resize(0, handle.get_stream());
-          random_numbers.shrink_to_fit(handle.get_stream());
+          order_keys.resize(0, handle.get_stream());
+          order_keys.shrink_to_fit(handle.get_stream());
 
           std::tie(keep_count, keep_flags) = mark_entries(
             majors.size(),
@@ -1113,12 +1311,12 @@ sample_unvisited_outgoing_edges(
         if (labels) {
           thrust::sort_by_key(
             handle.get_thrust_policy(),
-            thrust::make_zip_iterator(labels->begin(), majors.begin(), random_numbers.begin()),
-            thrust::make_zip_iterator(labels->end(), majors.end(), random_numbers.end()),
+            thrust::make_zip_iterator(labels->begin(), majors.begin(), order_keys.begin()),
+            thrust::make_zip_iterator(labels->end(), majors.end(), order_keys.end()),
             minors.begin());
 
-          random_numbers.resize(0, handle.get_stream());
-          random_numbers.shrink_to_fit(handle.get_stream());
+          order_keys.resize(0, handle.get_stream());
+          order_keys.shrink_to_fit(handle.get_stream());
 
           std::tie(keep_count, keep_flags) = mark_entries(
             majors.size(),
@@ -1155,12 +1353,12 @@ sample_unvisited_outgoing_edges(
 
         } else {
           thrust::sort_by_key(handle.get_thrust_policy(),
-                              thrust::make_zip_iterator(majors.begin(), random_numbers.begin()),
-                              thrust::make_zip_iterator(majors.end(), random_numbers.end()),
+                              thrust::make_zip_iterator(majors.begin(), order_keys.begin()),
+                              thrust::make_zip_iterator(majors.end(), order_keys.end()),
                               minors.begin());
 
-          random_numbers.resize(0, handle.get_stream());
-          random_numbers.shrink_to_fit(handle.get_stream());
+          order_keys.resize(0, handle.get_stream());
+          order_keys.shrink_to_fit(handle.get_stream());
 
           std::tie(keep_count, keep_flags) = mark_entries(
             majors.size(),

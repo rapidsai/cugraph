@@ -464,6 +464,7 @@ temporal_gather_one_hop_edgelist(
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::device_span<bool const>> gather_flags,
   temporal_sampling_comparison_t temporal_sampling_comparison,
+  bool fixed_window,
   bool do_expensive_check)
 {
   constexpr bool store_transposed = false;
@@ -566,12 +567,10 @@ temporal_gather_one_hop_edgelist(
           temporal_sampling_comparison ==
             temporal_sampling_comparison_t::MONOTONICALLY_INCREASING ||
           temporal_sampling_comparison == temporal_sampling_comparison_t::STRICTLY_INCREASING;
-        // FIXED_WINDOW keeps every seed's original window bounds fixed, so duplicate entries for
+        // fixed_window keeps every seed's original window bounds fixed, so duplicate entries for
         // the same key are expected to be identical; simply keep the first rather than taking a
-        // max/min extremum (which is otherwise wrong since FIXED_WINDOW is neither increasing nor
-        // decreasing).
-        bool const fixed_window = is_fixed_window(temporal_sampling_comparison);
-        auto const n            = kv_majors->size();
+        // max/min extremum.
+        auto const n = kv_majors->size();
         rmm::device_uvector<vertex_t> out_majors(n, handle.get_stream());
         rmm::device_uvector<label_t> out_labels(n, handle.get_stream());
         rmm::device_uvector<time_stamp_t> out_window_starts(n, handle.get_stream());
@@ -827,6 +826,7 @@ temporal_gather_one_hop_edgelist_to_unvisited_neighbors(
   rmm::device_uvector<vertex_t>&& visited_minors,
   std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
   temporal_sampling_comparison_t temporal_sampling_comparison,
+  bool fixed_window,
   bool do_expensive_check)
 {
   CUGRAPH_EXPECTS(active_major_labels.has_value() == visited_minor_labels.has_value(),
@@ -847,6 +847,7 @@ temporal_gather_one_hop_edgelist_to_unvisited_neighbors(
       active_major_labels,
       gather_flags,
       temporal_sampling_comparison,
+      fixed_window,
       do_expensive_check);
 
   // Drop edges whose destination has already been visited. Keep multi-edge indices

@@ -43,7 +43,6 @@ enum class temporal_sampling_comparison_t {
   STRICTLY_DECREASING,      /** Time strictly decreasing (each time is before the previous one) */
   MONOTONICALLY_DECREASING, /** Time monotonically decreasing (could have multiple edges with same
                                 time) */
-  FIXED_WINDOW,             /** Apply the original per-seed time window at every hop */
   LAST                      /** Deprecated Value, we moved last-n to a different parameter */
 };
 
@@ -52,8 +51,15 @@ enum class temporal_sampling_comparison_t {
  */
 enum class neighbor_selection_t {
   RANDOM = 0, /** Random selection. Uniform if no bias view is supplied, biased otherwise. */
-  LAST /** Deterministically select the latest edges based on the ordering criteria defined in
-          temporal_sampling_comparison. Not yet implemented. */
+  LAST        /** Deterministically select the last-n eligible edges (temporal only).
+                  Eligible edges are those that pass the temporal window and disjoint
+                  unvisited-destination filter. Among them, keep fanout K (per edge type
+                  when heterogeneous) ranked by edge start time: later times for
+                  STRICTLY_INCREASING and MONOTONICALLY_INCREASING; earlier
+                  times for STRICTLY_DECREASING and MONOTONICALLY_DECREASING. Does not
+                  accept edge biases or with_replacement. Equal timestamps (and 64-bit
+                  times that are not uniquely representable as double) may tie in
+                  arbitrary order. */
 };
 
 /**
@@ -100,8 +106,18 @@ struct sampling_options_t {
 
   /**
    * Specifies how neighbors are selected from the eligible set. Default is RANDOM.
+   * LAST ranks eligible temporal edges by start time (later for increasing, earlier
+   * for decreasing).
    */
   neighbor_selection_t neighbor_selection{neighbor_selection_t::RANDOM};
+
+  /**
+   * When true (temporal only), keep each seed's original time window at every hop
+   * instead of replacing the frontier bound with the sampled edge time.
+   * Orthogonal to temporal_sampling_comparison (increasing vs decreasing).
+   * Default is false.
+   */
+  bool fixed_window{false};
 };
 
 /** @deprecated Use sampling_options_t. */
@@ -935,13 +951,14 @@ heterogeneous_biased_temporal_neighbor_sample(
  * contains one value per hop.
  *
  * RANDOM selection samples uniformly when @p edge_bias_view is absent and samples according to
- * the supplied biases when it is present. LAST is reserved for deterministically selecting the
- * latest eligible edges (temporal only; no bias; no with-replacement), but is not yet implemented.
+ * the supplied biases when it is present. LAST deterministically selects the last-n eligible
+ * edges (temporal only; no bias; no with-replacement): later @p edge_start_time_view values for
+ * increasing comparisons, earlier values for decreasing comparisons.
  *
  * Sampling is temporal when @p sampling_options.temporal_sampling_comparison is set; in that case
- * @p edge_start_time_view is required. FIXED_WINDOW applies each seed's original closed time window
- * at every hop, while the increasing and decreasing modes propagate sampled edge times as the next
- * frontier bound.
+ * @p edge_start_time_view is required. When @p sampling_options.fixed_window is true, each seed's
+ * original time window is reapplied at every hop; otherwise increasing and decreasing modes
+ * propagate sampled edge times as the next frontier bound.
  */
 template <typename vertex_t,
           typename edge_t,
