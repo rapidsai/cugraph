@@ -465,7 +465,9 @@ class Tests_Fixed_Window_Temporal_Neighbor_Sampling
                   << src_out.size()
                   << " fanout_levels=" << temporal_neighbor_sampling_usecase.fanout.size()
                   << " comparison="
-                  << temporal_neighbor_sampling_usecase.temporal_sampling_comparison << '\n';
+                  << static_cast<int>(
+                       temporal_neighbor_sampling_usecase.temporal_sampling_comparison)
+                  << '\n';
         ASSERT_TRUE(cugraph::test::validate_last_n_selection(
           handle,
           graph_view,
