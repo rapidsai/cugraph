@@ -12,6 +12,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 #include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/utilities/thrust_wrappers/unique.hpp>
@@ -74,15 +75,32 @@ prepare_next_frontier(
     frontier_size += sampled_src_vertices.size();
   }
 
-  auto const has_sampled_dst_window_starts =
-    sampled_dst_vertex_window_start_spans &&
-    std::any_of(sampled_dst_vertex_window_start_spans->begin(),
-                sampled_dst_vertex_window_start_spans->end(),
-                [](auto span) { return span.size() > 0; });
-  auto const has_sampled_dst_window_ends =
+  auto has_sampled_dst_window_starts = sampled_dst_vertex_window_start_spans &&
+                                       std::any_of(sampled_dst_vertex_window_start_spans->begin(),
+                                                   sampled_dst_vertex_window_start_spans->end(),
+                                                   [](auto span) { return span.size() > 0; });
+  auto has_sampled_dst_window_ends =
     sampled_dst_vertex_window_end_spans && std::any_of(sampled_dst_vertex_window_end_spans->begin(),
                                                        sampled_dst_vertex_window_end_spans->end(),
                                                        [](auto span) { return span.size() > 0; });
+
+  // These flags decide which optional frontier columns exist, and those columns are shuffled with a
+  // per-column collective below.  A rank that sampled nothing this hop sees only empty spans, so
+  // without a global reduction it would shuffle fewer columns than its peers and deadlock.
+  if (multi_gpu) {
+    auto& comm = handle.get_comms();
+    has_sampled_dst_window_starts =
+      host_scalar_allreduce(comm,
+                            static_cast<int32_t>(has_sampled_dst_window_starts ? 1 : 0),
+                            raft::comms::op_t::MAX,
+                            handle.get_stream()) != 0;
+    has_sampled_dst_window_ends =
+      host_scalar_allreduce(comm,
+                            static_cast<int32_t>(has_sampled_dst_window_ends ? 1 : 0),
+                            raft::comms::op_t::MAX,
+                            handle.get_stream()) != 0;
+  }
+
   auto const carry_over = prior_sources_behavior == prior_sources_behavior_t::CARRY_OVER;
 
   CUGRAPH_EXPECTS(!carry_over || !has_sampled_dst_window_starts || sampled_src_vertex_window_starts,

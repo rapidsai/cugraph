@@ -40,11 +40,15 @@
 #include <thrust/distance.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
+#include <thrust/gather.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
+#include <thrust/scan.h>
+#include <thrust/sequence.h>
 #include <thrust/sort.h>
+#include <thrust/transform.h>
 #include <thrust/unique.h>
 
 #include <limits>
@@ -681,6 +685,90 @@ rmm::device_uvector<int32_t> gather_edge_types_for_sampled_edgelist(
   return edge_types;
 }
 
+// Gathers a single scalar edge property (e.g. edge start time, edge type) for the given
+// (major, minor[, multi-edge index]) edge list.  Unlike gather_edge_types_for_sampled_edgelist,
+// this also accepts a monostate multi-edge index (i.e. a non-multigraph edge list), matching the
+// "Filter by time" pattern used by temporal_gather_one_hop_edgelist.
+template <typename vertex_t, typename edge_t, typename T, bool multi_gpu>
+rmm::device_uvector<T> gather_scalar_edge_property_for_edgelist(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  raft::device_span<vertex_t const> majors,
+  raft::device_span<vertex_t const> minors,
+  arithmetic_device_uvector_t const& multi_edge_index,
+  edge_property_view_t<edge_t, T const*> prop_view)
+{
+  constexpr bool store_transposed = false;
+
+  rmm::device_uvector<T> values(majors.size(), handle.get_stream());
+
+  cugraph::edge_bucket_t<vertex_t, edge_t, !store_transposed, multi_gpu, false> edge_list(
+    handle, graph_view.is_multigraph());
+
+  edge_list.insert(
+    majors.begin(),
+    majors.end(),
+    minors.begin(),
+    std::holds_alternative<rmm::device_uvector<edge_t>>(multi_edge_index)
+      ? std::make_optional(std::get<rmm::device_uvector<edge_t>>(multi_edge_index).begin())
+      : std::nullopt);
+
+  cugraph::transform_gather_e(handle,
+                              graph_view,
+                              edge_list,
+                              edge_src_dummy_property_t{}.view(),
+                              edge_dst_dummy_property_t{}.view(),
+                              prop_view,
+                              return_edge_property_t{},
+                              values.begin());
+
+  return values;
+}
+
+// Looks up, for each (major[, label]) in the current (possibly carryover-shrunk) frontier, the
+// matching window bound from the pre-sorted, MG-allgathered temporal_params side table built once
+// (outside the disjoint-resample loop) by temporal_sample_edges_to_unvisited_neighbors.  Every
+// queried key is guaranteed present since the current frontier is always a subset of the frontier
+// used to build that table.
+template <typename vertex_t, typename time_stamp_t>
+rmm::device_uvector<time_stamp_t> lookup_temporal_bounds_for_active_majors(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> sorted_majors,
+  cuda::std::optional<raft::device_span<int32_t const>> sorted_labels,
+  raft::device_span<time_stamp_t const> sorted_values,
+  raft::device_span<vertex_t const> query_majors,
+  std::optional<raft::device_span<int32_t const>> query_labels)
+{
+  rmm::device_uvector<time_stamp_t> result(query_majors.size(), handle.get_stream());
+
+  if (query_labels) {
+    auto const labels  = *sorted_labels;
+    auto const qlabels = *query_labels;
+    thrust::transform(
+      handle.get_thrust_policy(),
+      thrust::make_counting_iterator(size_t{0}),
+      thrust::make_counting_iterator(query_majors.size()),
+      result.begin(),
+      [sorted_majors, labels, sorted_values, query_majors, qlabels] __device__(size_t i) {
+        size_t idx{};
+        try_find_temporal_key_index(sorted_majors, labels, query_majors[i], qlabels[i], idx);
+        return sorted_values[idx];
+      });
+  } else {
+    thrust::transform(handle.get_thrust_policy(),
+                      query_majors.begin(),
+                      query_majors.end(),
+                      result.begin(),
+                      [sorted_majors, sorted_values] __device__(vertex_t major) {
+                        size_t idx{};
+                        try_find_temporal_key_index(sorted_majors, major, idx);
+                        return sorted_values[idx];
+                      });
+  }
+
+  return result;
+}
+
 template <typename vertex_t,
           typename edge_t,
           typename tag_t,
@@ -715,6 +803,15 @@ sample_unvisited_outgoing_edges(
 
   if (Ks.size() > 1) {
     CUGRAPH_EXPECTS(edge_type_view.has_value(), "heterogeneous sampling requires edge_type_view.");
+  }
+
+  if constexpr (is_temporal) {
+    CUGRAPH_EXPECTS(
+      (temporal_params.neighbor_selection == neighbor_selection_t::RANDOM) || !with_replacement,
+      "FIRST and LAST neighbor selection do not support sampling with replacement.");
+    CUGRAPH_EXPECTS(
+      (temporal_params.neighbor_selection == neighbor_selection_t::RANDOM) || !edge_bias_view,
+      "FIRST and LAST neighbor selection do not accept edge biases.");
   }
 
   rmm::device_uvector<vertex_t> result_majors(0, handle.get_stream());
@@ -846,26 +943,30 @@ sample_unvisited_outgoing_edges(
       using bias_t = float;
       if constexpr (is_temporal) {
         using time_stamp_t = typename temporal_params_t::time_type;
-        std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
-          call_biased_per_v_random_select_transform_outgoing_e(
-            handle,
-            graph_view,
-            active_bucket_view,
-            temporal_params.edge_time_view,
-            has_output_edge_properties,
-            sample_unvisited_temporal_edge_biases_op_t<vertex_t, bias_t, time_stamp_t>{
-              temporal_params.temporal_sampling_comparison,
-              temporal_params.active_majors,
-              temporal_params.active_major_window_starts,
-              temporal_params.active_major_window_ends,
-              temporal_params.active_major_labels,
-              visited_minors_span,
-              visited_minor_labels_span},
-            edge_type_filter,
-            rng_state,
-            Ks,
-            active_major_labels,
-            with_replacement);
+        if (temporal_params.neighbor_selection == neighbor_selection_t::RANDOM) {
+          std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
+            call_biased_per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              active_bucket_view,
+              temporal_params.edge_time_view,
+              has_output_edge_properties,
+              sample_unvisited_temporal_edge_biases_op_t<vertex_t, bias_t, time_stamp_t>{
+                temporal_params.temporal_sampling_comparison,
+                temporal_params.active_majors,
+                temporal_params.active_major_window_starts,
+                temporal_params.active_major_window_ends,
+                temporal_params.active_major_labels,
+                visited_minors_span,
+                visited_minor_labels_span},
+              edge_type_filter,
+              rng_state,
+              Ks,
+              active_major_labels,
+              with_replacement);
+        } else {
+          CUGRAPH_FAIL("FIRST and LAST neighbor selection are not yet implemented.");
+        }
       } else {
         std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
           call_biased_per_v_random_select_transform_outgoing_e(
