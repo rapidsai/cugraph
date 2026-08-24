@@ -24,3 +24,4 @@ is_symmetric: true
 number_of_edges: 156
 number_of_nodes: 34
 url: https://data.rapids.ai/cugraph/datasets/karate.csv
+sha256: 4f0f2f55a69c5171ad36920a077f3e0c9cd1e8a5a3973e4fe39d6e929e3582ce
