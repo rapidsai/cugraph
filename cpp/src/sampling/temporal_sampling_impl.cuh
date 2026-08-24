@@ -809,6 +809,17 @@ temporal_neighbor_sample_impl(
           raft::device_span<time_stamp_t const>{next_frontier_window_start_vectors.back().data(),
                                                 next_frontier_window_start_vectors.back().size()});
       } else {
+        CUGRAPH_EXPECTS(
+          edge_start_time_prop_idx < props.size(),
+          "LAST/temporal level_Ks: edge_start_time_prop_idx %zu out of range (props.size()=%zu)",
+          edge_start_time_prop_idx,
+          props.size());
+        CUGRAPH_EXPECTS(std::holds_alternative<rmm::device_uvector<time_stamp_t>>(
+                          props[edge_start_time_prop_idx]),
+                        "LAST/temporal level_Ks: props[edge_start_time_prop_idx=%zu] expected "
+                        "rmm::device_uvector<time_stamp_t>, variant index %zu",
+                        edge_start_time_prop_idx,
+                        props[edge_start_time_prop_idx].index());
         auto const& edge_start_times =
           std::get<rmm::device_uvector<time_stamp_t>>(props[edge_start_time_prop_idx]);
         next_frontier_vertex_time_spans->push_back(
@@ -898,6 +909,17 @@ temporal_neighbor_sample_impl(
           raft::device_span<time_stamp_t const>{next_frontier_window_start_vectors.back().data(),
                                                 next_frontier_window_start_vectors.back().size()});
       } else {
+        CUGRAPH_EXPECTS(
+          edge_start_time_prop_idx < props.size(),
+          "LAST/temporal gather: edge_start_time_prop_idx %zu out of range (props.size()=%zu)",
+          edge_start_time_prop_idx,
+          props.size());
+        CUGRAPH_EXPECTS(std::holds_alternative<rmm::device_uvector<time_stamp_t>>(
+                          props[edge_start_time_prop_idx]),
+                        "LAST/temporal gather: props[edge_start_time_prop_idx=%zu] expected "
+                        "rmm::device_uvector<time_stamp_t>, variant index %zu",
+                        edge_start_time_prop_idx,
+                        props[edge_start_time_prop_idx].index());
         auto const& edge_start_times =
           std::get<rmm::device_uvector<time_stamp_t>>(props[edge_start_time_prop_idx]);
         next_frontier_vertex_time_spans->push_back(
@@ -1041,30 +1063,97 @@ temporal_neighbor_sample_impl(
                     : std::nullopt,
       label_to_output_comm_rank);
 
+  CUGRAPH_EXPECTS(std::holds_alternative<rmm::device_uvector<vertex_t>>(property_edges[0]),
+                  "LAST/temporal output: property_edges[0] expected rmm::device_uvector<vertex_t>, "
+                  "variant index %zu",
+                  property_edges[0].index());
+  CUGRAPH_EXPECTS(std::holds_alternative<rmm::device_uvector<vertex_t>>(property_edges[1]),
+                  "LAST/temporal output: property_edges[1] expected rmm::device_uvector<vertex_t>, "
+                  "variant index %zu",
+                  property_edges[1].index());
   result_srcs = std::move(std::get<rmm::device_uvector<vertex_t>>(property_edges[0]));
   result_dsts = std::move(std::get<rmm::device_uvector<vertex_t>>(property_edges[1]));
 
-  auto result_weights =
-    weight_prop_idx
-      ? std::make_optional(
-          std::move(std::get<rmm::device_uvector<weight_t>>(property_edges[2 + *weight_prop_idx])))
-      : std::nullopt;
-  auto result_edge_ids =
-    edge_id_prop_idx
-      ? std::make_optional(
-          std::move(std::get<rmm::device_uvector<edge_t>>(property_edges[2 + *edge_id_prop_idx])))
-      : std::nullopt;
-  auto result_edge_types =
-    edge_type_prop_idx ? std::make_optional(std::move(std::get<rmm::device_uvector<edge_type_t>>(
-                           property_edges[2 + *edge_type_prop_idx])))
-                       : std::nullopt;
+  auto result_weights    = weight_prop_idx ? std::make_optional([&]() {
+    auto const idx = 2 + *weight_prop_idx;
+    CUGRAPH_EXPECTS(
+      idx < property_edges.size(),
+      "LAST/temporal output: weight index %zu out of range (property_edges.size()=%zu)",
+      idx,
+      property_edges.size());
+    CUGRAPH_EXPECTS(
+      std::holds_alternative<rmm::device_uvector<weight_t>>(property_edges[idx]),
+      "LAST/temporal output: property_edges[%zu] expected rmm::device_uvector<weight_t>, "
+         "variant index %zu",
+      idx,
+      property_edges[idx].index());
+    return std::move(std::get<rmm::device_uvector<weight_t>>(property_edges[idx]));
+  }())
+                                           : std::nullopt;
+  auto result_edge_ids   = edge_id_prop_idx ? std::make_optional([&]() {
+    auto const idx = 2 + *edge_id_prop_idx;
+    CUGRAPH_EXPECTS(
+      idx < property_edges.size(),
+      "LAST/temporal output: edge_id index %zu out of range (property_edges.size()=%zu)",
+      idx,
+      property_edges.size());
+    CUGRAPH_EXPECTS(
+      std::holds_alternative<rmm::device_uvector<edge_t>>(property_edges[idx]),
+      "LAST/temporal output: property_edges[%zu] expected rmm::device_uvector<edge_t>, "
+        "variant index %zu",
+      idx,
+      property_edges[idx].index());
+    return std::move(std::get<rmm::device_uvector<edge_t>>(property_edges[idx]));
+  }())
+                                            : std::nullopt;
+  auto result_edge_types = edge_type_prop_idx ? std::make_optional([&]() {
+    auto const idx = 2 + *edge_type_prop_idx;
+    CUGRAPH_EXPECTS(
+      idx < property_edges.size(),
+      "LAST/temporal output: edge_type index %zu out of range (property_edges.size()=%zu)",
+      idx,
+      property_edges.size());
+    CUGRAPH_EXPECTS(
+      std::holds_alternative<rmm::device_uvector<edge_type_t>>(property_edges[idx]),
+      "LAST/temporal output: property_edges[%zu] expected rmm::device_uvector<edge_type_t>, "
+      "variant index %zu",
+      idx,
+      property_edges[idx].index());
+    return std::move(std::get<rmm::device_uvector<edge_type_t>>(property_edges[idx]));
+  }())
+                                              : std::nullopt;
+  {
+    auto const idx = 2 + edge_start_time_prop_idx;
+    CUGRAPH_EXPECTS(
+      idx < property_edges.size(),
+      "LAST/temporal output: edge_start_time index %zu out of range (property_edges.size()=%zu)",
+      idx,
+      property_edges.size());
+    CUGRAPH_EXPECTS(
+      std::holds_alternative<rmm::device_uvector<time_stamp_t>>(property_edges[idx]),
+      "LAST/temporal output: property_edges[%zu] expected rmm::device_uvector<time_stamp_t>, "
+      "variant index %zu",
+      idx,
+      property_edges[idx].index());
+  }
   auto result_edge_start_times = std::move(
     std::get<rmm::device_uvector<time_stamp_t>>(property_edges[2 + edge_start_time_prop_idx]));
-  auto result_edge_end_times =
-    edge_end_time_prop_idx
-      ? std::make_optional(std::move(
-          std::get<rmm::device_uvector<time_stamp_t>>(property_edges[2 + *edge_end_time_prop_idx])))
-      : std::nullopt;
+  auto result_edge_end_times = edge_end_time_prop_idx ? std::make_optional([&]() {
+    auto const idx = 2 + *edge_end_time_prop_idx;
+    CUGRAPH_EXPECTS(
+      idx < property_edges.size(),
+      "LAST/temporal output: edge_end_time index %zu out of range (property_edges.size()=%zu)",
+      idx,
+      property_edges.size());
+    CUGRAPH_EXPECTS(
+      std::holds_alternative<rmm::device_uvector<time_stamp_t>>(property_edges[idx]),
+      "LAST/temporal output: property_edges[%zu] expected rmm::device_uvector<time_stamp_t>, "
+      "variant index %zu",
+      idx,
+      property_edges[idx].index());
+    return std::move(std::get<rmm::device_uvector<time_stamp_t>>(property_edges[idx]));
+  }())
+                                                      : std::nullopt;
 
   return std::make_tuple(std::move(result_srcs),
                          std::move(result_dsts),

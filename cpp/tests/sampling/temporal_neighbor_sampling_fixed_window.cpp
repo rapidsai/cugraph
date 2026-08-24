@@ -13,6 +13,7 @@
 
 #include <gtest/gtest.h>
 
+#include <iostream>
 #include <ostream>
 #include <string>
 
@@ -358,7 +359,20 @@ class Tests_Fixed_Window_Temporal_Neighbor_Sampling
       hr_timer.display_and_clear(std::cout);
     }
 
+    if (temporal_neighbor_sampling_usecase.neighbor_selection ==
+        cugraph::neighbor_selection_t::LAST) {
+      std::cerr << "[LAST debug] temporal sampling returned: src_out.size()=" << src_out.size()
+                << " dst_out.size()=" << dst_out.size() << " edge_start_time="
+                << (edge_start_time ? std::to_string(edge_start_time->size()) : "nullopt")
+                << " hop=" << (hop ? std::to_string(hop->size()) : "nullopt")
+                << " offsets=" << (offsets ? std::to_string(offsets->size()) : "nullopt") << '\n';
+    }
+
     if (temporal_neighbor_sampling_usecase.check_correctness) {
+      if (temporal_neighbor_sampling_usecase.neighbor_selection ==
+          cugraph::neighbor_selection_t::LAST) {
+        std::cerr << "[LAST debug] starting check_correctness validations\n";
+      }
       //  Every check below only inspects the edges that came back, so they all pass trivially on an
       //  empty result.  Check first that an empty result was actually justified.
       ASSERT_TRUE(cugraph::test::validate_sampling_empty_result(
@@ -447,6 +461,11 @@ class Tests_Fixed_Window_Temporal_Neighbor_Sampling
           cugraph::neighbor_selection_t::LAST) {
         ASSERT_TRUE(offsets.has_value());
         ASSERT_TRUE(hop.has_value());
+        std::cerr << "[LAST debug] starting validate_last_n_selection: sampled_edges="
+                  << src_out.size()
+                  << " fanout_levels=" << temporal_neighbor_sampling_usecase.fanout.size()
+                  << " comparison="
+                  << temporal_neighbor_sampling_usecase.temporal_sampling_comparison << '\n';
         ASSERT_TRUE(cugraph::test::validate_last_n_selection(
           handle,
           graph_view,

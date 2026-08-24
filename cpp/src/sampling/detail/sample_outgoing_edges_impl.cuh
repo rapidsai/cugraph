@@ -803,7 +803,9 @@ rmm::device_uvector<int32_t> gather_edge_types_for_sampled_edgelist(
   arithmetic_device_uvector_t& multi_edge_index)
 {
   CUGRAPH_EXPECTS(std::holds_alternative<rmm::device_uvector<edge_t>>(multi_edge_index),
-                  "Multi-edge indices must be of type edge_t");
+                  "gather_edge_types_for_sampled_edgelist: multi_edge_index expected "
+                  "rmm::device_uvector<edge_t>, variant index %zu",
+                  multi_edge_index.index());
 
   using edge_type_t = int32_t;
 
@@ -850,13 +852,19 @@ rmm::device_uvector<T> gather_scalar_edge_property_for_edgelist(
   cugraph::edge_bucket_t<vertex_t, edge_t, !store_transposed, multi_gpu, false> edge_list(
     handle, graph_view.is_multigraph());
 
-  edge_list.insert(
-    majors.begin(),
-    majors.end(),
-    minors.begin(),
-    std::holds_alternative<rmm::device_uvector<edge_t>>(multi_edge_index)
-      ? std::make_optional(std::get<rmm::device_uvector<edge_t>>(multi_edge_index).begin())
-      : std::nullopt);
+  edge_list.insert(majors.begin(),
+                   majors.end(),
+                   minors.begin(),
+                   (std::holds_alternative<rmm::device_uvector<edge_t>>(multi_edge_index))
+                     ? std::make_optional([&]() {
+                         CUGRAPH_EXPECTS(
+                           std::holds_alternative<rmm::device_uvector<edge_t>>(multi_edge_index),
+                           "gather_scalar_edge_property_for_edgelist: multi_edge_index expected "
+                           "rmm::device_uvector<edge_t>, variant index %zu",
+                           multi_edge_index.index());
+                         return std::get<rmm::device_uvector<edge_t>>(multi_edge_index).begin();
+                       }())
+                     : std::nullopt);
 
   cugraph::transform_gather_e(handle,
                               graph_view,
@@ -1215,6 +1223,10 @@ sample_unvisited_outgoing_edges(
       rmm::device_uvector<uint32_t> keep_flags(0, handle.get_stream());
 
       if (carryover_frontier_types) {
+        CUGRAPH_EXPECTS(
+          std::holds_alternative<rmm::device_uvector<edge_type_t>>(types),
+          "LAST carryover: types expected rmm::device_uvector<edge_type_t>, variant index %zu",
+          types.index());
         auto& type_vec = std::get<rmm::device_uvector<edge_type_t>>(types);
 
         if (labels) {
@@ -1394,6 +1406,10 @@ sample_unvisited_outgoing_edges(
       majors = keep_marked_entries(handle, std::move(majors), keep_mask, keep_count);
       minors = keep_marked_entries(handle, std::move(minors), keep_mask, keep_count);
       if (carryover_frontier_types) {
+        CUGRAPH_EXPECTS(
+          std::holds_alternative<rmm::device_uvector<int32_t>>(types),
+          "LAST carryover keep: types expected rmm::device_uvector<int32_t>, variant index %zu",
+          types.index());
         types = arithmetic_device_uvector_t{keep_marked_entries(
           handle, std::move(std::get<rmm::device_uvector<int32_t>>(types)), keep_mask, keep_count)};
       }
@@ -1490,6 +1506,11 @@ sample_unvisited_outgoing_edges(
         }
         carryover_frontier_capacity = std::move(agg_counts);
       } else {
+        CUGRAPH_EXPECTS(
+          std::holds_alternative<rmm::device_uvector<edge_type_t>>(discarded_types),
+          "LAST carryover het: discarded_types expected rmm::device_uvector<edge_type_t>, "
+          "variant index %zu",
+          discarded_types.index());
         rmm::device_uvector<edge_type_t> types =
           std::get<rmm::device_uvector<edge_type_t>>(std::move(discarded_types));
 
@@ -1611,6 +1632,14 @@ sample_unvisited_outgoing_edges(
       if (std::holds_alternative<std::monostate>(result_properties)) {
         result_properties = std::move(sampled_property);
       } else {
+        CUGRAPH_EXPECTS(
+          std::holds_alternative<rmm::device_uvector<edge_t>>(result_properties),
+          "LAST append: result_properties expected rmm::device_uvector<edge_t>, variant index %zu",
+          result_properties.index());
+        CUGRAPH_EXPECTS(
+          std::holds_alternative<rmm::device_uvector<edge_t>>(sampled_property),
+          "LAST append: sampled_property expected rmm::device_uvector<edge_t>, variant index %zu",
+          sampled_property.index());
         auto& result_properties_ref = std::get<rmm::device_uvector<edge_t>>(result_properties);
         auto& sampled_property_ref  = std::get<rmm::device_uvector<edge_t>>(sampled_property);
         result_properties_ref.resize(result_properties_ref.size() + sampled_property_ref.size(),

@@ -663,6 +663,10 @@ bool validate_last_n_selection(
   cugraph::temporal_sampling_comparison_t temporal_sampling_comparison,
   bool fixed_window)
 {
+  std::cerr << "[LAST debug] validate_last_n_selection entered: sampled_edges="
+            << sampled_srcs.size() << " fanout_levels=" << fanout.size()
+            << " fixed_window=" << fixed_window << '\n';
+
   if ((sampled_srcs.size() != sampled_dsts.size()) ||
       (sampled_srcs.size() != sampled_edge_times.size()) ||
       (sampled_srcs.size() != sampled_hops.size()) || fanout.empty() ||
@@ -759,6 +763,8 @@ bool validate_last_n_selection(
       rmm::device_uvector<vertex_t> candidate_srcs(0, handle.get_stream());
       rmm::device_uvector<vertex_t> candidate_dsts(0, handle.get_stream());
       std::optional<rmm::device_uvector<double>> candidate_times{std::nullopt};
+      std::cerr << "[LAST debug] validate_last_n_selection: calling neighbor_sample for hop=" << hop
+                << " label=" << label << " frontier_size=" << h_frontier_vertices.size() << '\n';
       std::tie(candidate_srcs,
                candidate_dsts,
                candidate_times,
@@ -789,6 +795,9 @@ bool validate_last_n_selection(
           false);
 
       if (!candidate_times) { return false; }
+      std::cerr << "[LAST debug] validate_last_n_selection: neighbor_sample returned "
+                << candidate_srcs.size() << " candidate edges for hop=" << hop << " label=" << label
+                << '\n';
       cugraph::sort(handle.get_thrust_policy(),
                     thrust::make_zip_iterator(
                       candidate_srcs.begin(), candidate_times->begin(), candidate_dsts.begin()),
