@@ -415,8 +415,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
     auto edge_buffer =
       allocate_dataframe_buffer<cuda::std::tuple<vertex_t, vertex_t>>(0, handle.get_stream());
-    size_t initial_num_edge_inserts{0};
-    rmm::device_scalar<size_t> num_edge_inserts(initial_num_edge_inserts, handle.get_stream());
+    rmm::device_scalar<size_t> num_edge_inserts(handle.get_stream());
+    num_edge_inserts.set_value_to_zero_async(handle.get_stream());
 
     // 2-3. run BFS or multi-root expansion
 
