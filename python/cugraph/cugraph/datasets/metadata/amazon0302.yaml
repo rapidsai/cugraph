@@ -24,3 +24,4 @@ is_symmetric: false
 number_of_edges: 1234877
 number_of_nodes: 262111
 url: https://snap.stanford.edu/data/amazon0302.txt.gz
+sha256: 5f1071ac04203b1bc8fc4af5fb473818a180ff1b97e3d7bd716d789801d1f2a3
