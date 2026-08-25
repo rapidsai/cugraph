@@ -753,6 +753,9 @@ bool validate_last_n_selection(
         h_frontier_vertices.push_back(entry.first);
       }
 
+      // Match sampler semantics: an empty frontier ends the walk for this label.
+      if (h_frontier_vertices.empty()) { continue; }
+
       rmm::device_uvector<vertex_t> d_frontier_vertices(h_frontier_vertices.size(),
                                                         handle.get_stream());
       raft::update_device(d_frontier_vertices.data(),
