@@ -316,7 +316,6 @@ edge_t count_edge_partition_multi_edges(
   if (segment_offsets) {
     edge_t initial_count{0};
     rmm::device_scalar<edge_t> count(initial_count, handle.get_stream());
-    handle.sync_stream();
     // FIXME: we may further improve performance by 1) concurrently running kernels on different
     // segments; 2) individually tuning block sizes for different segments; and 3) adding one more
     // segment for very high degree vertices and running segmented reduction
@@ -701,7 +700,6 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
   auto it = thrust::max_element(handle.get_thrust_policy(), in_degrees.begin(), in_degrees.end());
   edge_t initial_value{0};
   rmm::device_scalar<edge_t> ret(initial_value, handle.get_stream());
-  handle.sync_stream();
   device_allreduce(handle.get_comms(),
                    it != in_degrees.end() ? it : ret.data(),
                    ret.data(),
@@ -731,7 +729,6 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
   auto it = thrust::max_element(handle.get_thrust_policy(), out_degrees.begin(), out_degrees.end());
   edge_t initial_value{0};
   rmm::device_scalar<edge_t> ret(initial_value, handle.get_stream());
-  handle.sync_stream();
   device_allreduce(handle.get_comms(),
                    it != out_degrees.end() ? it : ret.data(),
                    ret.data(),
