@@ -167,9 +167,8 @@ generate<GraphViewType, property_t>::unique_edge_property(raft::handle_t const& 
     CUGRAPH_EXPECTS(
       graph_view.compute_number_of_edges(handle) <= std::numeric_limits<property_t>::max(),
       "std::numeric_limits<property_t>::max() is smaller than the number of edges.");
-    property_t initial_counter{0};
-    rmm::device_scalar<property_t> counter(initial_counter, handle.get_stream());
-    handle.sync_stream();
+    rmm::device_scalar<property_t> counter(handle.get_stream());
+    counter.set_value_to_zero_async(handle.get_stream());
     cugraph::transform_e(
       handle,
       graph_view,

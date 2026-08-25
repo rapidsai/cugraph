@@ -187,9 +187,7 @@ void device_bcast_vertex_list(
     assert((comm.get_rank() != root) || (std::get<0>(v_list).size() == tmp_bitmap.size()));
     device_bcast(
       comm, std::get<0>(v_list).data(), tmp_bitmap.data(), tmp_bitmap.size(), root, stream_view);
-    size_t initial_dummy{0};
-    rmm::device_scalar<size_t> dummy(initial_dummy, stream_view);  // we already know the count
-    stream_view.synchronize();
+    rmm::device_scalar<size_t> dummy(stream_view);  // we already know the count
     detail::copy_if_nosync(
       thrust::make_counting_iterator(vertex_range_first),
       thrust::make_counting_iterator(vertex_range_last),
