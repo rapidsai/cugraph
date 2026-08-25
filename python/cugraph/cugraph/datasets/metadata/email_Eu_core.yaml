@@ -27,3 +27,4 @@ is_symmetric: false
 number_of_edges: 25571
 number_of_nodes: 1005
 url: https://data.rapids.ai/cugraph/datasets/email-Eu-core.csv
+sha256: 08f43790f1693742ae4944ea3c815cbd5e1e0517c5cef6fe16cf503deaaa8efe
