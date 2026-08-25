@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -557,7 +557,9 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                                     raft::device_span<T const> majors,
                                                     rmm::cuda_stream_view stream) const
   {
-    rmm::device_scalar<size_t> count(size_t{0}, stream);
+    size_t initial_count{0};
+    rmm::device_scalar<size_t> count(initial_count, stream);
+    stream.synchronize();
     detail::compute_number_of_edges_with_mask_async_mg(
       cuda::std::optional<uint32_t const*>{edge_mask.data()},
       majors,
@@ -575,7 +577,9 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                     std::tuple<vertex_t, vertex_t> vertex_partition_range,
                                     rmm::cuda_stream_view stream) const
   {
-    rmm::device_scalar<size_t> count(size_t{0}, stream);
+    size_t initial_count{0};
+    rmm::device_scalar<size_t> count(initial_count, stream);
+    stream.synchronize();
     detail::compute_number_of_edges_with_mask_async_mg(
       cuda::std::optional<uint32_t const*>{edge_mask.data()},
       vertex_partition_range,
@@ -593,7 +597,9 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                     majors_from_offsets_t<uint32_t, vertex_t> majors,
                                     rmm::cuda_stream_view stream) const
   {
-    rmm::device_scalar<size_t> count(size_t{0}, stream);
+    size_t initial_count{0};
+    rmm::device_scalar<size_t> count(initial_count, stream);
+    stream.synchronize();
     detail::compute_number_of_edges_with_mask_async_mg(
       cuda::std::optional<uint32_t const*>{edge_mask.data()},
       majors,
@@ -613,7 +619,9 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                                     MajorIterator major_last,
                                                     rmm::cuda_stream_view stream) const
   {
-    rmm::device_scalar<size_t> count(size_t{0}, stream);
+    size_t initial_count{0};
+    rmm::device_scalar<size_t> count(initial_count, stream);
+    stream.synchronize();
     detail::compute_number_of_edges_with_mask_async_mg(
       cuda::std::optional<uint32_t const*>{edge_mask.data()},
       major_first,
@@ -631,7 +639,9 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   __host__ size_t compute_number_of_edges(raft::device_span<T const> majors,
                                           rmm::cuda_stream_view stream) const
   {
-    rmm::device_scalar<size_t> count(size_t{0}, stream);
+    size_t initial_count{0};
+    rmm::device_scalar<size_t> count(initial_count, stream);
+    stream.synchronize();
     compute_number_of_edges_async(majors, raft::device_span<size_t>{count.data(), 1}, stream);
     return count.value(stream);
   }
@@ -639,7 +649,9 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   __host__ size_t compute_number_of_edges(std::tuple<vertex_t, vertex_t> vertex_partition_range,
                                           rmm::cuda_stream_view stream) const
   {
-    rmm::device_scalar<size_t> count(size_t{0}, stream);
+    size_t initial_count{0};
+    rmm::device_scalar<size_t> count(initial_count, stream);
+    stream.synchronize();
     compute_number_of_edges_async(
       vertex_partition_range, raft::device_span<size_t>{count.data(), 1}, stream);
     return count.value(stream);
@@ -648,7 +660,9 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   __host__ size_t compute_number_of_edges(majors_from_offsets_t<uint32_t, vertex_t> majors,
                                           rmm::cuda_stream_view stream) const
   {
-    rmm::device_scalar<size_t> count(size_t{0}, stream);
+    size_t initial_count{0};
+    rmm::device_scalar<size_t> count(initial_count, stream);
+    stream.synchronize();
     detail::compute_number_of_edges_with_mask_async_mg(cuda::std::nullopt,
                                                        majors,
                                                        raft::device_span<size_t>{count.data(), 1},
@@ -666,7 +680,9 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                           MajorIterator major_last,
                                           rmm::cuda_stream_view stream) const
   {
-    rmm::device_scalar<size_t> count(size_t{0}, stream);
+    size_t initial_count{0};
+    rmm::device_scalar<size_t> count(initial_count, stream);
+    stream.synchronize();
     compute_number_of_edges_async(
       major_first, major_last, raft::device_span<size_t>{count.data(), 1}, stream);
     return count.value(stream);
@@ -996,7 +1012,9 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                                     raft::device_span<T const> majors,
                                                     rmm::cuda_stream_view stream) const
   {
-    rmm::device_scalar<size_t> count(size_t{0}, stream);
+    size_t initial_count{0};
+    rmm::device_scalar<size_t> count(initial_count, stream);
+    stream.synchronize();
     compute_number_of_edges_with_mask_async(
       edge_mask, majors, raft::device_span<size_t>{count.data(), 1}, stream);
     return count.value(stream);
@@ -1007,7 +1025,9 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                     std::tuple<vertex_t, vertex_t> vertex_partition_range,
                                     rmm::cuda_stream_view stream) const
   {
-    rmm::device_scalar<size_t> count(size_t{0}, stream);
+    size_t initial_count{0};
+    rmm::device_scalar<size_t> count(initial_count, stream);
+    stream.synchronize();
     compute_number_of_edges_with_mask_async(
       edge_mask, vertex_partition_range, raft::device_span<size_t>{count.data(), 1}, stream);
     return count.value(stream);
@@ -1020,7 +1040,9 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                                     MajorIterator major_last,
                                                     rmm::cuda_stream_view stream) const
   {
-    rmm::device_scalar<size_t> count(size_t{0}, stream);
+    size_t initial_count{0};
+    rmm::device_scalar<size_t> count(initial_count, stream);
+    stream.synchronize();
     compute_number_of_edges_with_mask_async(
       edge_mask, major_first, major_last, raft::device_span<size_t>{count.data(), 1}, stream);
     return count.value(stream);
@@ -1030,7 +1052,9 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   __host__ size_t compute_number_of_edges(raft::device_span<T const> majors,
                                           rmm::cuda_stream_view stream) const
   {
-    rmm::device_scalar<size_t> count(size_t{0}, stream);
+    size_t initial_count{0};
+    rmm::device_scalar<size_t> count(initial_count, stream);
+    stream.synchronize();
     compute_number_of_edges_async(majors, raft::device_span<size_t>{count.data(), 1}, stream);
     return count.value(stream);
   }
@@ -1038,7 +1062,9 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   __host__ size_t compute_number_of_edges(std::tuple<vertex_t, vertex_t> vertex_partition_range,
                                           rmm::cuda_stream_view stream) const
   {
-    rmm::device_scalar<size_t> count(size_t{0}, stream);
+    size_t initial_count{0};
+    rmm::device_scalar<size_t> count(initial_count, stream);
+    stream.synchronize();
     compute_number_of_edges_async(
       vertex_partition_range, raft::device_span<size_t>{count.data(), 1}, stream);
     return count.value(stream);
@@ -1050,7 +1076,9 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                           MajorIterator major_last,
                                           rmm::cuda_stream_view stream) const
   {
-    rmm::device_scalar<size_t> count(size_t{0}, stream);
+    size_t initial_count{0};
+    rmm::device_scalar<size_t> count(initial_count, stream);
+    stream.synchronize();
     compute_number_of_edges_async(
       major_first, major_last, raft::device_span<size_t>{count.data(), 1}, stream);
     return count.value(stream);

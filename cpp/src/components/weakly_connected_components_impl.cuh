@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -415,7 +415,9 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
     auto edge_buffer =
       allocate_dataframe_buffer<cuda::std::tuple<vertex_t, vertex_t>>(0, handle.get_stream());
-    rmm::device_scalar<size_t> num_edge_inserts(size_t{0}, handle.get_stream());
+    size_t initial_num_edge_inserts{0};
+    rmm::device_scalar<size_t> num_edge_inserts(initial_num_edge_inserts, handle.get_stream());
+    handle.sync_stream();
 
     // 2-3. run BFS or multi-root expansion
 
