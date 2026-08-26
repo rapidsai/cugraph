@@ -107,6 +107,10 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
       mg_graph_view.in_local_vertex_partition_range_nocheck(source)
         ? std::make_optional<rmm::device_scalar<vertex_t>>(source, handle_->get_stream())
         : std::nullopt;
+    if (d_mg_source) {
+      handle_->sync_stream();  // before source goes out-of-scope (async H2D copy from device_scalar
+                               // ctor)
+    }
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

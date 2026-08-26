@@ -140,6 +140,8 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
 
     vertex_t const source{static_cast<vertex_t>(bfs_usecase.source)};
     rmm::device_scalar<vertex_t> const d_source(source, handle.get_stream());
+    handle
+      .sync_stream();  // before source goes out-of-scope (async H2D copy from device_scalar ctor)
 
     cugraph::bfs(handle,
                  graph_view,
