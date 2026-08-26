@@ -59,4 +59,3 @@ knowledge_base:
     filePatterns:
       - "cpp/REVIEW_GUIDELINES.md"
       - "python/REVIEW_GUIDELINES.md"
-
