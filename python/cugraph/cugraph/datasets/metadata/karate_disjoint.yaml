@@ -24,3 +24,4 @@ is_symmetric: true
 number_of_edges: 312
 number_of_nodes: 68
 url: https://data.rapids.ai/cugraph/datasets/karate-disjoint.csv
+sha256: 188bfe7746765d4550f103376c39f9020a025b3aa55c17981337bf982f86d7ab

@@ -24,3 +24,4 @@ is_symmetric: true
 number_of_edges: 57515616
 number_of_nodes: 1139905
 url: https://data.rapids.ai/cugraph/datasets/hollywood.csv
+sha256: ae2cba0792c410c3e7339940d590da81293476c1cbe85651e41566ca2f837aa9

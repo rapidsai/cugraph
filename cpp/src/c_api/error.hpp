@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -8,13 +8,13 @@
 
 #include <string>
 
-#define CAPI_EXPECTS(STATEMENT, ERROR_CODE, ERROR_MESSAGE, ERROR_OBJECT)                        \
-  {                                                                                             \
-    if (!(STATEMENT)) {                                                                         \
-      (ERROR_OBJECT) =                                                                          \
-        reinterpret_cast<cugraph_error_t*>(new cugraph::c_api::cugraph_error_t{ERROR_MESSAGE}); \
-      return (ERROR_CODE);                                                                      \
-    }                                                                                           \
+#define CAPI_EXPECTS(STATEMENT, ERROR_CODE, ERROR_MESSAGE, ERROR_OBJECT)                          \
+  {                                                                                               \
+    if (!(STATEMENT)) {                                                                           \
+      (ERROR_OBJECT) =                                                                            \
+        reinterpret_cast<::cugraph_error_t*>(new cugraph::c_api::cugraph_error_t{ERROR_MESSAGE}); \
+      return (ERROR_CODE);                                                                        \
+    }                                                                                             \
   }
 
 namespace cugraph {

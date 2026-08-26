@@ -26,6 +26,21 @@ __host__ __device__ inline bool is_temporal_decreasing(
          temporal_sampling_comparison == temporal_sampling_comparison_t::MONOTONICALLY_DECREASING;
 }
 
+__host__ __device__ inline bool is_fixed_window(
+  temporal_sampling_comparison_t temporal_sampling_comparison)
+{
+  return temporal_sampling_comparison == temporal_sampling_comparison_t::FIXED_WINDOW;
+}
+
+// Increasing/decreasing walks tighten the frontier window-start to the most recently sampled
+// edge's time at every hop.  FIXED_WINDOW instead keeps applying each seed's original window-start
+// at every hop, so it must never be replaced by a sampled edge time.
+__host__ __device__ inline bool propagates_sampled_edge_times_as_window_start(
+  temporal_sampling_comparison_t temporal_sampling_comparison)
+{
+  return !is_fixed_window(temporal_sampling_comparison);
+}
+
 // Sentinel for an absent / unbounded frontier time.
 // Increasing walks treat window_start as a lower bound (window_start <= edge_time) => lowest().
 // Decreasing walks treat window_start as an upper bound (window_start >= edge_time) => max().
@@ -66,6 +81,8 @@ __host__ __device__ inline bool passes_temporal_filter(
       return (key_time > edge_time) && (edge_time >= window_end);
     case temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
       return (key_time >= edge_time) && (edge_time >= window_end);
+    case temporal_sampling_comparison_t::FIXED_WINDOW:
+      return (key_time <= edge_time) && (edge_time <= window_end);
   }
   return false;
 }
