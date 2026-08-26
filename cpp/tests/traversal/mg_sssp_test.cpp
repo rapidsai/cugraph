@@ -131,7 +131,8 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
 
       vertex_t sg_source{static_cast<vertex_t>(sssp_usecase.source)};
       rmm::device_scalar<vertex_t> d_sg_source(sg_source, handle_->get_stream());
-      handle_->sync_stream();
+      handle_->sync_stream();  // before sg_source goes out-of-scope (async H2D copy from
+                               // device_scalar ctor)
 
       cugraph::unrenumber_int_vertices<vertex_t, true>(
         *handle_,
