@@ -22,3 +22,4 @@ is_symmetric: true
 number_of_edges: 9
 number_of_nodes: 10
 url: https://data.rapids.ai/cugraph/datasets/small_line.csv
+sha256: e8bfa11ec11db4fcd6ab5b4bb70f59429f86859c187874c690c1a10a532f3abf

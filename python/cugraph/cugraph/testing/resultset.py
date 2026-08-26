@@ -1,15 +1,14 @@
-# SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-import warnings
 import tarfile
-import urllib.request
 
 import cudf
 from cugraph.datasets.dataset import (
     DefaultDownloadDir,
     default_download_dir,
 )
+from cugraph.datasets.download_utils import download_file, safe_extractall
 
 
 class Resultset:
@@ -36,6 +35,9 @@ class Resultset:
 
 
 _resultsets = {}
+
+RESULTSET_DOWNLOAD_URL = "https://data.rapids.ai/cugraph/results/resultsets.tar.gz"
+RESULTSET_SHA256 = "f170f03167fc6ffef9e227fca77117785ced2794c31d4605834d2c8f76e827ca"
 
 
 def get_resultset(resultset_name, **kwargs):
@@ -93,15 +95,18 @@ def load_resultset(resultset_name, resultset_download_url, sep=" "):
         compressed_file_path = compressed_file_dir / "resultsets.tar.gz"
         if not curr_resultset_download_dir.exists():
             curr_resultset_download_dir.mkdir(parents=True, exist_ok=True)
-        if not compressed_file_path.exists():
-            urllib.request.urlretrieve(resultset_download_url, compressed_file_path)
-        tar = tarfile.open(str(compressed_file_path), "r:gz")
-        # TODO: pass filter="fully_trusted" when minimum supported Python version >=3.12
-        #  ref: https://docs.python.org/3/library/tarfile.html#tarfile-extraction-filter
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=DeprecationWarning)
-            tar.extractall(str(curr_resultset_download_dir))
-        tar.close()
+        expected_sha256 = (
+            RESULTSET_SHA256
+            if resultset_download_url == RESULTSET_DOWNLOAD_URL
+            else None
+        )
+        download_file(
+            resultset_download_url,
+            compressed_file_path,
+            expected_sha256=expected_sha256,
+        )
+        with tarfile.open(str(compressed_file_path), "r:gz") as tar:
+            safe_extractall(tar, str(curr_resultset_download_dir))
 
     with open(mapping_file_path) as mapping_file:
         for line in mapping_file.readlines():
