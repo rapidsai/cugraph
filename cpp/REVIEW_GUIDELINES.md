@@ -1,10 +1,10 @@
-# AI Code Review Guidelines - cuDF C++/CUDA
+# AI Code Review Guidelines - cuGraph C++/CUDA
 
 **Role**: Act as a principal engineer with 10+ years experience in GPU computing, Modern C++, and high-performance data processing. Strongly prefer modern C++ and established CUDA/C++ library algorithms over raw loops. Focus ONLY on CRITICAL and HIGH issues.
 
 **Target**: Sub-3% false positive rate. Be direct, concise, minimal.
 
-**Context**: cuDF C++ layer (libcudf) provides GPU-accelerated DataFrame operations using CUDA, with dependencies on RMM, libcudacxx, thrust, and CUB. The authoritative reference for libcudf conventions is `cpp/doxygen/developer_guide/DEVELOPER_GUIDE.md`.
+**Context**: cuGraph C++ layer (libcugraph) provides GPU-accelerated Graph operations using CUDA, with dependencies on RMM, thrust, and CUB.
 
 ## IGNORE These Issues
 
@@ -26,14 +26,13 @@
 - Off-by-one errors in index arithmetic or kernel launch bounds
 - Incorrect null handling for fixed-width columns (null values are undefined, must not be read)
 - Accessing offsets child of an empty string or list column
-- Nested type columns (LIST, STRUCT) not sanitized (libcudf expects sanitized null masks)
-- Incorrect use of `cudf::size_type` (signed 32-bit) for sizes
+- Nested type columns (LIST, STRUCT) not sanitized (libcugraph expects sanitized null masks)
+- Incorrect use of `cugraph::size_type` (signed 32-bit) for sizes
 - Offsets must be `int32_t` or `int64_t` as appropriate; only `int32_t` for LIST offsets
-- Using `a.type() == b.type()` instead of `cudf::have_same_types()` for data type comparison
 
 ### Device Code Errors
-- Use of relaxed constexpr in device code — `--expt-relaxed-constexpr` is **not** enabled; every `constexpr` function callable from device code must be explicitly annotated `__device__` or `CUDF_HOST_DEVICE`
-- Using `std::` type traits, algorithms, or constexpr functions instead of `cuda::std::` in `__device__` / `CUDF_HOST_DEVICE` code and in templates instantiated in device code (e.g., must use `cuda::std::is_void_v<T>`, `cuda::std::min`, `cuda::std::numeric_limits<T>`)
+- Use of relaxed constexpr in device code — `--expt-relaxed-constexpr` is **not** enabled; every `constexpr` function callable from device code must be explicitly annotated `__device__` or `CUGRAPH_HOST_DEVICE`
+- Using `std::` type traits, algorithms, or constexpr functions instead of `cuda::std::` in `__device__` / `CUGRAPH_HOST_DEVICE` code and in templates instantiated in device code (e.g., must use `cuda::std::is_void_v<T>`, `cuda::std::min`, `cuda::std::numeric_limits<T>`)
 - Extended `__device__` lambdas passed to device algorithms should declare their return type, preferably with a trailing `-> T` (fall back to `cuda::proclaim_return_type<T>(...)`). Some host-side APIs (e.g. CUB `DeviceSelect`, transform iterators) query the return type in host code and fail to compile without it; declaring it uniformly avoids surprises as APIs change
 
 ### Resource Management
@@ -44,7 +43,7 @@
 
 ### API Breaking Changes
 - C++ API changes without proper deprecation warnings
-- Changes to data structures exposed in public headers (`cpp/include/cudf/`, `cpp/include/nvtext/`)
+- Changes to data structures exposed in public headers (`cpp/include/cugraph/`, `cpp/include/nvtext/`)
 - Missing `[[deprecated]]` attribute, `@deprecated` doxygen tag, or PR labels ("deprecation" / "breaking")
 
 ## HIGH Issues (Comment if Substantial)
@@ -58,21 +57,21 @@
 - Excessive memory allocations in hot paths
 - Warp divergence in compute-heavy kernels
 - Shared memory bank conflicts
-- Host-side compute-intensive algorithms not using `cudf::detail::host_worker_pool()`
+- Host-side compute-intensive algorithms not using `cugraph::detail::host_worker_pool()`
 
 ### Memory Management Violations
 - Returned memory not using the passed-in memory resource (MR)
-- Temporary memory not using `cudf::get_current_device_resource_ref()`
-- Using `thrust::device_vector` or `rmm::device_scalar<T>` instead of `rmm::device_uvector` or `cudf::detail::device_scalar<T>`
-- Using raw `cudaMemcpyAsync` instead of `cudf::detail::cuda_memcpy_async` / `memcpy_async` / `memcpy_batch_async`
-- Using `cudf::detail::make_host_vector{,_async}` instead of `cudf::detail::make_pinned_vector{,_async}` for small H2D/D2H transfers
+- Temporary memory not using `cugraph::get_current_device_resource_ref()`
+- Using `thrust::device_vector` or `rmm::device_scalar<T>` instead of `rmm::device_uvector` or `cugraph::detail::device_scalar<T>`
+- Using raw `cudaMemcpyAsync` instead of `cugraph::detail::cuda_memcpy_async` / `memcpy_async` / `memcpy_batch_async`
+- Using `cugraph::detail::make_host_vector{,_async}` instead of `cugraph::detail::make_pinned_vector{,_async}` for small H2D/D2H transfers
 - Async memcpy staging buffers that don't outlive the copy
 
 ### API & Design
 - Stream and MR not as last two parameters (stream before MR); public APIs must have defaults, detail APIs must not
-- Missing `CUDF_FUNC_RANGE()` in public functions before delegating to `detail::`
-- Missing `CUDF_EXPORT` on public API functions in `cpp/include/cudf/`
-- `CUDF_EXPECTS` condition with side effects (must be a pure predicate)
+- Missing `CUGRAPH_FUNC_RANGE()` in public functions before delegating to `detail::`
+- Missing `CUGRAPH_EXPORT` on public API functions in `cpp/include/cugraph/`
+- `CUGRAPH_EXPECTS` condition with side effects (must be a pure predicate)
 - Functions defined in headers that are neither templated nor `inline` device functions
 - Anonymous namespaces in headers (must only be in single-TU `.cpp`/`.cu` files)
 - Owning vectors passed by copy/reference instead of being moved (transferring ownership)
@@ -85,15 +84,15 @@
 - Operations incorrectly ordered on different streams without events or explicit dependencies
 
 ### Type Dispatch Patterns
-- New dispatch functors using `CUDF_ENABLE_IF` instead of C++20 `requires` clauses
-- Unsupported type overloads not calling `CUDF_FAIL` or `CUDF_UNREACHABLE`
+- New dispatch functors using `CUGRAPH_ENABLE_IF` instead of C++20 `requires` clauses
+- Unsupported type overloads not calling `CUGRAPH_FAIL` or `CUGRAPH_UNREACHABLE`
 - Missing `static constexpr bool is_supported()` helper where useful
 
 ### Test Quality
 - Tests missing edge cases: empty input, null values, sliced columns, boundary sizes, multi-block sizes
 - String tests missing non-ASCII UTF-8 characters
 - Decimal types in `FixedWidthTypes` but not `NumericTypes` — verify correct type list usage
-- Tests not using `#include <cudf_test/cudf_gtest.hpp>` (never raw `gtest/gtest.h`)
+- Tests not using `#include <cugraph_test/cugraph_gtest.hpp>` (never raw `gtest/gtest.h`)
 - Test code not in the global namespace
 - Benchmarks not using NVBench (not Google Benchmark)
 - **Using external datasets** (tests must not depend on external resources)
@@ -113,7 +112,7 @@
 - Prefer `cuda::std` / libcudacxx utilities in device-callable code and C++ standard library algorithms for host-only code
 - Prefer kernel fusion when multiple outputs depend on the same input traversal
 - Treat each kernel launch and memory pass as expensive; minimize redundant global memory reads and writes when operations can be combined without sacrificing clarity or reuse
-- Treat custom kernels and raw loops as justified only when existing CUB, Thrust, STL, or libcudf utilities cannot express the operation without a correctness or substantial performance cost
+- Treat custom kernels and raw loops as justified only when existing CUB, Thrust, STL, or libcugraph utilities cannot express the operation without a correctness or substantial performance cost
 
 ## Quality Threshold
 
@@ -142,7 +141,7 @@ Why: Subsequent operations assume success, causing silent corruption
 
 Suggested fix:
 myKernel<<<grid, block, 0, stream.value()>>>(args);
-CUDF_CUDA_TRY(cudaGetLastError());
+CUGRAPH_CUDA_TRY(cudaGetLastError());
 ```
 
 **CRITICAL** (null handling):
@@ -169,12 +168,12 @@ Suggested fix:
 ```
 HIGH: Temporary allocation using passed-in MR
 
-Issue: Temporary buffer allocated with mr parameter instead of cudf::get_current_device_resource_ref()
+Issue: Temporary buffer allocated with mr parameter instead of cugraph::get_current_device_resource_ref()
 Why: Passed-in MR is for returned memory only; temporaries should use current device resource
 
 Suggested fix:
 - rmm::device_uvector<int32_t> temp(size, stream, mr);
-+ rmm::device_uvector<int32_t> temp(size, stream, cudf::get_current_device_resource_ref());
++ rmm::device_uvector<int32_t> temp(size, stream, cugraph::get_current_device_resource_ref());
 ```
 
 **HIGH** (performance):
@@ -204,17 +203,17 @@ Suggested fix:
 ## C++/CUDA-Specific Considerations
 
 **Error Handling**:
-- Use cuDF macros: `CUDF_EXPECTS`, `CUDF_FAIL`, `CUDF_UNREACHABLE`
-- `CUDF_EXPECTS` condition must be a pure predicate with no side effects
-- Use `CUDF_CUDA_TRY` for CUDA API calls; `CUDF_CUDA_TRY_NO_THROW` in destructors
+- Use cugraph macros: `CUGRAPH_EXPECTS`, `CUGRAPH_FAIL`, `CUGRAPH_UNREACHABLE`
+- `CUGRAPH_EXPECTS` condition must be a pure predicate with no side effects
+- Use `CUGRAPH_CUDA_TRY` for CUDA API calls; `CUGRAPH_CUDA_TRY_NO_THROW` in destructors
 - Every CUDA call must have error checking (kernel launches, memory ops, sync)
 
 **Memory Management**:
 - Use `rmm::device_uvector` for typed device memory (not `thrust::device_vector`)
-- Use `cudf::detail::device_scalar<T>` (not `rmm::device_scalar<T>`)
-- Returned memory uses the passed-in MR; temporary memory uses `cudf::get_current_device_resource_ref()`
-- Use `cudf::detail::cuda_memcpy_async` / `memcpy_async` / `memcpy_batch_async` (not raw `cudaMemcpyAsync`)
-- Prefer `cudf::detail::make_pinned_vector{,_async}` over `make_host_vector{,_async}` for small H2D/D2H transfers
+- Use `cugraph::detail::device_scalar<T>` (not `rmm::device_scalar<T>`)
+- Returned memory uses the passed-in MR; temporary memory uses `cugraph::get_current_device_resource_ref()`
+- Use `cugraph::detail::cuda_memcpy_async` / `memcpy_async` / `memcpy_batch_async` (not raw `cudaMemcpyAsync`)
+- Prefer `cugraph::detail::make_pinned_vector{,_async}` over `make_host_vector{,_async}` for small H2D/D2H transfers
 - Prefer `span` versions of constructors for `make_pinned_vector{,_async}` and `make_host_vector{,_async}`
 - Use `host_span`/`device_span`; no owning vectors passed by copy/reference unless explicitly moved
 - Prefer span parameters over pointer + size/length pairs (e.g. `T const* data, size_t size`)
@@ -228,21 +227,21 @@ Suggested fix:
 - Use `rmm::exec_policy_nosync(stream)` for all Thrust device execution
 
 **CUDA Kernels**:
-- Use `CUDF_KERNEL` macro (not raw `__global__`), preferably with `__launch_bounds__`
+- Use `CUGRAPH_KERNEL` macro (not raw `__global__`), preferably with `__launch_bounds__`
 - Use `cuda::std::` types/algorithms in device code (`cuda::std::min`, `cuda::std::pair`, etc.)
 - Use `cuda::make_constant_iterator` over `thrust::make_constant_iterator` for device-side constant iterators
 - Use `cuda::proclaim_return_type<T>(lambda)` when passing device lambdas to `make_counting_transform_iterator`
 - Prefer modern CUDA C++ primitives: `cuda::std::popcount` over `__popc`, `cg::thread_block::thread_rank()` over `threadIdx.x`
 
-**Public API** (`cpp/include/cudf/`, `cpp/include/nvtext/`):
-- Functions must have `CUDF_EXPORT`
+**Public API** (`cpp/include/cugraph/`, `cpp/include/nvtext/`):
+- Functions must have `cugraph_EXPORT`
 - Doxygen documentation required (`@brief`, `@param`, `@return`, `@throw`, `@tparam`)
-- Public functions: `CUDF_FUNC_RANGE()` then delegate to `detail::` (trivial functions may skip)
+- Public functions: `CUGRAPH_FUNC_RANGE()` then delegate to `detail::` (trivial functions may skip)
 - API changes require deprecation warnings (`[[deprecated]]`, `@deprecated`, PR labels)
 - Use `[[nodiscard]]` on side-effect-free functions with non-void return
 
 **C++ Style**:
-- Prefer C++20 `requires` clauses over `CUDF_ENABLE_IF` for type-gating dispatch functors
+- Prefer C++20 `requires` clauses over `CUGRAPH_ENABLE_IF` for type-gating dispatch functors
 - Use CUB (most preferred)/Thrust/STL algorithms over raw loops and raw kernels
 - Use modern C++20: `concepts`, `std::ranges`, `std::transform` over manual implementations
 - Use `static_assert` with clear messages to prevent template misuse
@@ -251,5 +250,5 @@ Suggested fix:
 ---
 
 **Remember**: Focus on correctness and safety. Catch real bugs (crashes, wrong results, leaks),
-ignore style preferences. For cuDF C++: null handling, device code correctness, and memory resource
+ignore style preferences. For cugraph C++: null handling, device code correctness, and memory resource
 usage are paramount.

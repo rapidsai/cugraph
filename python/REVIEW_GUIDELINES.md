@@ -1,10 +1,10 @@
-# AI Code Review Guidelines - cuDF Python
+# AI Code Review Guidelines - cuGraph Python
 
 **Role**: Act as a principal engineer with 10+ years experience in Python systems programming and GPU-accelerated data processing. Focus ONLY on CRITICAL and HIGH issues.
 
 **Target**: Sub-3% false positive rate. Be direct, concise, minimal.
 
-**Context**: cuDF Python layer provides GPU-accelerated DataFrame operations with a pandas-compatible API. The Python codebase includes multiple packages: cudf (high-level API), pylibcudf (Cython bindings to libcudf), cudf_polars (Polars GPU executor), dask_cudf (Dask integration), cudf_kafka, and custreamz.
+**Context**: cuGraph Python layer provides GPU-accelerated graph operations. The Python codebase includes multiple packages: cugraph (high-level API) and pylibcugraph (Cython bindings to libcugraph).
 
 ## IGNORE These Issues
 
@@ -20,7 +20,7 @@
 - Memory leaks from improper resource management
 - Use-after-free scenarios in device memory handling
 - Incorrect lifetime management of memory resources
-- Cython memory management errors in pylibcudf (missing `del`, incorrect reference counting)
+- Cython memory management errors in pylibcugraph (missing `del`, incorrect reference counting)
 - Incorrect ownership semantics between Python and C++ layers
 
 ### API Breaking Changes
@@ -32,8 +32,7 @@
 ### Algorithm Correctness
 - Logic errors producing wrong results
 - Silent data corruption from type coercion
-- Incorrect null/NA handling (cuDF uses nullable dtypes throughout)
-- cudf_polars: Incorrect Polars IR translation producing wrong results on GPU
+- Incorrect null/NA handling (cuGraph uses nullable dtypes throughout)
 
 ### Integration Errors
 - Incorrect handling of `__cuda_array_interface__` (CuPy, PyTorch interop)
@@ -56,26 +55,11 @@
 - Missing size/type checks
 - Not handling edge cases (empty DataFrames, all-null columns)
 
-### pylibcudf (Cython Bindings)
+### pylibcugraph (Cython Bindings)
 - Incorrect Cython object lifetime management
-- Exceptions not handled correctly across Python/C++ boundary (missing `+libcudf_exception_handler` if not `noexcept`)
 - Cython binding of a C++ function declaring `noexcept` when the C++ function can raise exceptions
 - Incorrect GIL handling for CUDA operations
 - Cython bindings not matching the C++ API
-- Using pylibcudf or Polars APIs that require pyarrow (like `to_arrow`) when cudf_polars containers should be used instead
-
-### cudf_polars (Polars GPU Executor)
-- Missing coverage of Polars expression types (silent fallback to CPU without warning)
-- Incorrect GPU executor fallback logic
-- IR nodes not properly translated
-- Stream argument not explicitly passed to a pylibcudf API
-- `asyncio.Task`s not explicitly canceled in a finally block upon failure
-- rapidsmpf `Channel`s not eventually entering the `shutdown_on_error` context manager
-
-### dask_cudf
-- Dask DataFrame API compatibility issues
-- Serialization/deserialization errors for GPU objects
-- Incorrect partition handling
 
 ### Test Quality
 - Missing edge case coverage (empty, all-null, single-element, mixed types)
@@ -141,17 +125,9 @@ Why: Breaks existing user code
 Consider: Add deprecation warning for one release cycle before removal
 ```
 
-**CRITICAL** (cudf_polars correctness):
-```
-CRITICAL: Incorrect IR translation for GroupBy aggregation
-
-Issue: sum() aggregation not handling null values correctly in GPU executor
-Why: Produces wrong results compared to Polars CPU execution
-```
-
 **HIGH** (Cython):
 ```
-HIGH: Missing GIL release in pylibcudf
+HIGH: Missing GIL release in pylibcugraph
 
 Issue: GIL held during long-running CUDA kernel call
 Why: Blocks all Python threads unnecessarily
@@ -185,16 +161,16 @@ Why: Can cause cryptic CUDA errors or silent data corruption
 
 ## Package-Specific Considerations
 
-### pylibcudf (Cython Bindings)
+### pylibcugraph (Cython Bindings)
 
 **Memory Management**:
 - Handle exceptions correctly across Python/C++ boundary
 - Cython bindings must match the C++ API signatures and semantics
 
 **GIL and CUDA Locks**:
-- Long-running libcudf calls should run inside `with nogil:` after all Python object conversion and validation is complete
+- Long-running libcugraph calls should run inside `with nogil:` after all Python object conversion and validation is complete
 - Do not access Python objects, call Python callbacks, or allocate Python-owned objects inside `with nogil:` blocks
-- Do not hold Python-level locks while entering `with nogil:` libcudf calls that may allocate device memory or synchronize CUDA work
+- Do not hold Python-level locks while entering `with nogil:` libcugraph calls that may allocate device memory or synchronize CUDA work
 - Watch for lock-order inversions where one path holds the GIL while waiting for CUDA/RMM state and another path holds CUDA/RMM state while trying to reacquire the GIL
 - If a binding must reacquire the GIL after launching CUDA work, verify the CUDA work is ordered on the provided stream and no Python-visible object can observe partially completed device state
 
@@ -203,39 +179,14 @@ Why: Can cause cryptic CUDA errors or silent data corruption
 - Handle different array types (CuPy, Numba DeviceNDArray)
 - Preserve array attributes where appropriate
 
-### cudf (High-Level API)
-
-**pandas Compatibility**:
-- API should match pandas behavior where documented
-- Differences from pandas must be documented
-- Nullable dtypes used throughout (not numpy masked arrays)
-
+### cugraph (High-Level API)
 **Type System**:
-- Proper handling of cuDF-specific types (decimal, struct, list)
+- Proper handling of cugraph-specific types (Graph, MultiGraph)
 - Type promotion rules match expected behavior
 - Categorical handling consistent with pandas
 
-### cudf_polars (Polars GPU Executor)
-
-**IR Translation**:
-- All Polars IR nodes must be correctly translated to GPU operations
-- Unsupported operations must fall back to CPU cleanly (not silently produce wrong results)
-- No Cython in this package (pure Python)
-
-**Testing**:
-- Tests should verify GPU results match Polars CPU results
-- Cover all supported expression types
-- Test fallback behavior for unsupported operations
-
-### dask_cudf (Dask Integration)
-
-**Compatibility**:
-- Must work with Dask DataFrame API
-- Serialization of GPU objects must be correct
-- Partition operations must preserve data integrity
 
 ---
 
 **Remember**: Focus on correctness and API compatibility. Catch real bugs (leaks, crashes, wrong
-results, API breaks), ignore style preferences. For cuDF Python: null handling, memory safety, and
-pandas API compatibility are paramount.
+results, API breaks), ignore style preferences. For cuGraph Python: null handling, memory safety.
