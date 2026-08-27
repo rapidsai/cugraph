@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -167,7 +167,8 @@ generate<GraphViewType, property_t>::unique_edge_property(raft::handle_t const& 
     CUGRAPH_EXPECTS(
       graph_view.compute_number_of_edges(handle) <= std::numeric_limits<property_t>::max(),
       "std::numeric_limits<property_t>::max() is smaller than the number of edges.");
-    rmm::device_scalar<property_t> counter(property_t{0}, handle.get_stream());
+    rmm::device_scalar<property_t> counter(handle.get_stream());
+    counter.set_value_to_zero_async(handle.get_stream());
     cugraph::transform_e(
       handle,
       graph_view,
