@@ -183,9 +183,10 @@ def neighbor_sample(ResourceHandle resource_handle,
         supported from pylibcugraph. Defaults to False (uniform).
 
     neighbor_selection: str (Optional)
-        'random' (default) or 'last'. 'last' keeps the fanout-K eligible
-        edges with the latest start time for increasing comparisons, or
-        the earliest start time for decreasing comparisons. Requires
+        'random' (default) or 'last'. Matches PyG temporal_strategy='last': among
+        temporally eligible edges, keep fanout-K ranked by start time along the walk
+        implied by temporal_sampling_comparison — later times for increasing modes,
+        earliest times for decreasing modes (last in decreasing time order). Requires
         temporal sampling, no edge biases, and with_replacement=False.
 
     fixed_window: bool (Optional)

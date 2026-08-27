@@ -52,14 +52,16 @@ enum class temporal_sampling_comparison_t {
 enum class neighbor_selection_t {
   RANDOM = 0, /** Random selection. Uniform if no bias view is supplied, biased otherwise. */
   LAST        /** Deterministically select the last-n eligible edges (temporal only).
-                  Eligible edges are those that pass the temporal window and disjoint
-                  unvisited-destination filter. Among them, keep fanout K (per edge type
-                  when heterogeneous) ranked by edge start time: later times for
-                  STRICTLY_INCREASING and MONOTONICALLY_INCREASING; earlier
-                  times for STRICTLY_DECREASING and MONOTONICALLY_DECREASING. Does not
-                  accept edge biases or with_replacement. Equal timestamps (and 64-bit
-                  times that are not uniquely representable as double) may tie in
-                  arbitrary order. */
+                  Named to match PyTorch Geometric's temporal_strategy='last'. "Last" is
+                  relative to the temporal walk order in @p temporal_sampling_comparison,
+                  not unconditionally the latest timestamp: among edges that pass the
+                  temporal window and disjoint unvisited-destination filter, keep fanout K
+                  (per edge type when heterogeneous) ranked by edge start time — later
+                  times for STRICTLY_INCREASING and MONOTONICALLY_INCREASING (same as PyG);
+                  earlier times for STRICTLY_DECREASING and MONOTONICALLY_DECREASING (the
+                  last elements in decreasing time order). Does not accept edge biases or
+                  with_replacement. Equal timestamps (and 64-bit times that are not uniquely
+                  representable as double) may tie in arbitrary order. */
 };
 
 /**
@@ -106,8 +108,9 @@ struct sampling_options_t {
 
   /**
    * Specifies how neighbors are selected from the eligible set. Default is RANDOM.
-   * LAST ranks eligible temporal edges by start time (later for increasing, earlier
-   * for decreasing).
+   * LAST (PyG temporal_strategy='last') keeps fanout-K edges ranked by start time
+   * along the walk implied by @p temporal_sampling_comparison: later times for
+   * increasing modes, earlier times (last in decreasing order) for decreasing modes.
    */
   neighbor_selection_t neighbor_selection{neighbor_selection_t::RANDOM};
 
@@ -951,9 +954,11 @@ heterogeneous_biased_temporal_neighbor_sample(
  * contains one value per hop.
  *
  * RANDOM selection samples uniformly when @p edge_bias_view is absent and samples according to
- * the supplied biases when it is present. LAST deterministically selects the last-n eligible
- * edges (temporal only; no bias; no with-replacement): later @p edge_start_time_view values for
- * increasing comparisons, earlier values for decreasing comparisons.
+ * the supplied biases when it is present. LAST (PyG temporal_strategy='last') deterministically
+ * selects the last-n eligible edges along the temporal walk order (temporal only; no bias;
+ * no with-replacement): later @p edge_start_time_view values for increasing comparisons,
+ * earlier values for decreasing comparisons (last in decreasing time order, not latest
+ * timestamp).
  *
  * Sampling is temporal when @p sampling_options.temporal_sampling_comparison is set; in that case
  * @p edge_start_time_view is required. When @p sampling_options.fixed_window is true, each seed's

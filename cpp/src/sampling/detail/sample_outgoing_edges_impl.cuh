@@ -835,36 +835,32 @@ rmm::device_uvector<int32_t> gather_edge_types_for_sampled_edgelist(
 // Gathers a single scalar edge property (e.g. edge start time, edge type) for the given
 // (major, minor[, multi-edge index]) edge list.  Unlike gather_edge_types_for_sampled_edgelist,
 // this also accepts a monostate multi-edge index (i.e. a non-multigraph edge list), matching the
-// "Filter by time" pattern used by temporal_gather_one_hop_edgelist.
+// "Filter by time" pattern used by temporal_gather_one_hop_edgelist.  Takes ownership of the
+// edgelist vectors and returns them after gathering so callers avoid an insert copy.
 template <typename vertex_t, typename edge_t, typename T, bool multi_gpu>
-rmm::device_uvector<T> gather_scalar_edge_property_for_edgelist(
+std::tuple<rmm::device_uvector<T>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           arithmetic_device_uvector_t>
+gather_scalar_edge_property_for_edgelist(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  raft::device_span<vertex_t const> majors,
-  raft::device_span<vertex_t const> minors,
-  arithmetic_device_uvector_t const& multi_edge_index,
+  rmm::device_uvector<vertex_t>&& majors,
+  rmm::device_uvector<vertex_t>&& minors,
+  arithmetic_device_uvector_t&& multi_edge_index,
   edge_property_view_t<edge_t, T const*> prop_view)
 {
   constexpr bool store_transposed = false;
 
   rmm::device_uvector<T> values(majors.size(), handle.get_stream());
 
-  cugraph::edge_bucket_t<vertex_t, edge_t, !store_transposed, multi_gpu, false> edge_list(
-    handle, graph_view.is_multigraph());
+  std::optional<rmm::device_uvector<edge_t>> multi_indices{std::nullopt};
+  if (std::holds_alternative<rmm::device_uvector<edge_t>>(multi_edge_index)) {
+    multi_indices = std::move(std::get<rmm::device_uvector<edge_t>>(multi_edge_index));
+  }
 
-  edge_list.insert(majors.begin(),
-                   majors.end(),
-                   minors.begin(),
-                   (std::holds_alternative<rmm::device_uvector<edge_t>>(multi_edge_index))
-                     ? std::make_optional([&]() {
-                         CUGRAPH_EXPECTS(
-                           std::holds_alternative<rmm::device_uvector<edge_t>>(multi_edge_index),
-                           "gather_scalar_edge_property_for_edgelist: multi_edge_index expected "
-                           "rmm::device_uvector<edge_t>, variant index %zu",
-                           multi_edge_index.index());
-                         return std::get<rmm::device_uvector<edge_t>>(multi_edge_index).begin();
-                       }())
-                     : std::nullopt);
+  cugraph::edge_bucket_t<vertex_t, edge_t, !store_transposed, multi_gpu, false> edge_list(
+    handle, std::move(majors), std::move(minors), std::move(multi_indices));
 
   cugraph::transform_gather_e(handle,
                               graph_view,
@@ -875,7 +871,16 @@ rmm::device_uvector<T> gather_scalar_edge_property_for_edgelist(
                               return_edge_property_t{},
                               values.begin());
 
-  return values;
+  std::optional<rmm::device_uvector<edge_t>> out_multi_indices;
+  std::tie(majors, minors, out_multi_indices) = edge_list.take_edgelist();
+
+  arithmetic_device_uvector_t out_multi_edge_index{std::monostate{}};
+  if (out_multi_indices) {
+    out_multi_edge_index = arithmetic_device_uvector_t{std::move(*out_multi_indices)};
+  }
+
+  return std::make_tuple(
+    std::move(values), std::move(majors), std::move(minors), std::move(out_multi_edge_index));
 }
 
 // Looks up, for each (major[, label]) in the current (possibly carryover-shrunk) frontier, the
@@ -1189,13 +1194,14 @@ sample_unvisited_outgoing_edges(
         last_n_order = temporal_params.neighbor_selection == neighbor_selection_t::LAST;
         if (last_n_order && (majors.size() > 0)) {
           using time_stamp_t = typename temporal_params_t::time_type;
-          auto times =
+          rmm::device_uvector<time_stamp_t> times(0, handle.get_stream());
+          std::tie(times, majors, minors, prop) =
             gather_scalar_edge_property_for_edgelist<vertex_t, edge_t, time_stamp_t, multi_gpu>(
               handle,
               graph_view,
-              raft::device_span<vertex_t const>{majors.data(), majors.size()},
-              raft::device_span<vertex_t const>{minors.data(), minors.size()},
-              prop,
+              std::move(majors),
+              std::move(minors),
+              std::move(prop),
               temporal_params.edge_time_view);
           auto const comparison = temporal_params.temporal_sampling_comparison;
           thrust::transform(handle.get_thrust_policy(),

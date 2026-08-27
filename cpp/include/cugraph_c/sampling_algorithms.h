@@ -206,10 +206,13 @@ typedef enum {
 typedef enum {
   CUGRAPH_NEIGHBOR_SELECTION_RANDOM = 0, /** Uniform without biases, biased with biases */
   CUGRAPH_NEIGHBOR_SELECTION_LAST        /** Deterministically select the last-n eligible
-                                            edges (temporal only). Later edge times for
-                                            increasing comparisons, earlier times for
-                                            decreasing. No edge biases and no
-                                            with-replacement. */
+                                            edges (temporal only). Matches PyG
+                                            temporal_strategy='last': rank by edge start
+                                            time along the walk in
+                                            temporal_sampling_comparison — later times for
+                                            increasing modes, earlier times (last in
+                                            decreasing order) for decreasing modes. No edge
+                                            biases and no with-replacement. */
 } cugraph_neighbor_selection_t;
 
 /**
@@ -404,10 +407,11 @@ CUGRAPH_EXPORT void cugraph_sampling_options_free(cugraph_sampling_options_t* op
  *
  * RANDOM selection samples according to @p edge_biases when provided. If @p edge_biases is NULL,
  * sampling is uniform unless cugraph_sampling_set_use_edge_weights_as_biases has been set, in which
- * case graph edge weights are used as biases (the graph must be weighted). LAST deterministically
- * selects the last-n temporally eligible edges (later times for increasing,
- * earlier times for decreasing). LAST requires temporal sampling, rejects edge biases, and
- * rejects with-replacement.
+ * case graph edge weights are used as biases (the graph must be weighted). LAST (PyG
+ * temporal_strategy='last') deterministically selects the last-n temporally eligible edges
+ * along the walk order: later times for increasing comparisons, earlier times (last in
+ * decreasing order) for decreasing comparisons. LAST requires temporal sampling, ignores
+ * edge biases, and rejects with-replacement.
  *
  * Sampling is non-temporal unless cugraph_sampling_set_temporal_sampling_comparison has been
  * called on @p sampling_options; all temporal arguments must then be NULL. When temporal,
