@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -104,8 +104,8 @@ class Tests_ExtractBfsPaths
     rmm::device_uvector<vertex_t> d_predecessors(graph_view.number_of_vertices(),
                                                  handle.get_stream());
 
-    rmm::device_scalar<vertex_t> const d_source(extract_bfs_paths_usecase.source,
-                                                handle.get_stream());
+    vertex_t const source{static_cast<vertex_t>(extract_bfs_paths_usecase.source)};
+    rmm::device_scalar<vertex_t> const d_source(source, handle.get_stream());
 
     cugraph::bfs(handle,
                  graph_view,
