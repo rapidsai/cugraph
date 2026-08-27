@@ -24,11 +24,7 @@
 ### Algorithm Correctness
 - Logic errors producing wrong results
 - Off-by-one errors in index arithmetic or kernel launch bounds
-- Incorrect null handling for fixed-width columns (null values are undefined, must not be read)
-- Accessing offsets child of an empty string or list column
-- Nested type columns (LIST, STRUCT) not sanitized (libcugraph expects sanitized null masks)
-- Incorrect use of `cugraph::size_type` (signed 32-bit) for sizes
-- Offsets must be `int32_t` or `int64_t` as appropriate; only `int32_t` for LIST offsets
+
 
 ### Device Code Errors
 - Use of relaxed constexpr in device code — `--expt-relaxed-constexpr` is **not** enabled; every `constexpr` function callable from device code must be explicitly annotated `__device__` or `CUGRAPH_HOST_DEVICE`
@@ -54,15 +50,9 @@
 - Multiple levels of `type_dispatcher` (avoid when possible)
 - Raw loops or raw kernels where CUB/Thrust/STL algorithms suffice
 - Suboptimal memory access patterns (non-coalesced, strided, unaligned)
-- Excessive memory allocations in hot paths
-- Warp divergence in compute-heavy kernels
-- Shared memory bank conflicts
-- Host-side compute-intensive algorithms not using `cugraph::detail::host_worker_pool()`
+
 
 ### Memory Management Violations
-- Returned memory not using the passed-in memory resource (MR)
-- Temporary memory not using `cugraph::get_current_device_resource_ref()`
-- Using `thrust::device_vector` or `rmm::device_scalar<T>` instead of `rmm::device_uvector` or `cugraph::detail::device_scalar<T>`
 - Using raw `cudaMemcpyAsync` instead of `cugraph::detail::cuda_memcpy_async` / `memcpy_async` / `memcpy_batch_async`
 - Using `cugraph::detail::make_host_vector{,_async}` instead of `cugraph::detail::make_pinned_vector{,_async}` for small H2D/D2H transfers
 - Async memcpy staging buffers that don't outlive the copy
@@ -84,17 +74,12 @@
 - Operations incorrectly ordered on different streams without events or explicit dependencies
 
 ### Type Dispatch Patterns
-- New dispatch functors using `CUGRAPH_ENABLE_IF` instead of C++20 `requires` clauses
 - Unsupported type overloads not calling `CUGRAPH_FAIL` or `CUGRAPH_UNREACHABLE`
 - Missing `static constexpr bool is_supported()` helper where useful
 
 ### Test Quality
-- Tests missing edge cases: empty input, null values, sliced columns, boundary sizes, multi-block sizes
-- String tests missing non-ASCII UTF-8 characters
-- Decimal types in `FixedWidthTypes` but not `NumericTypes` — verify correct type list usage
-- Tests not using `#include <cugraph_test/cugraph_gtest.hpp>` (never raw `gtest/gtest.h`)
+- Tests missing edge cases: empty input, null values, boundary sizes
 - Test code not in the global namespace
-- Benchmarks not using NVBench (not Google Benchmark)
 - **Using external datasets** (tests must not depend on external resources)
 
 ## MEDIUM Issues (Comment Selectively)
@@ -141,16 +126,11 @@ Why: Subsequent operations assume success, causing silent corruption
 
 Suggested fix:
 myKernel<<<grid, block, 0, stream.value()>>>(args);
-CUGRAPH_CUDA_TRY(cudaGetLastError());
+RAFT_CUDA_TRY(cudaGetLastError());
 ```
 
 **CRITICAL** (null handling):
-```
-CRITICAL: Reading null values of fixed-width column
 
-Issue: Accessing element values without checking null mask
-Why: Null values of fixed-width columns are undefined; reading them is undefined behavior
-```
 
 **CRITICAL** (device code with std::):
 ```
@@ -205,15 +185,10 @@ Suggested fix:
 **Error Handling**:
 - Use cugraph macros: `CUGRAPH_EXPECTS`, `CUGRAPH_FAIL`, `CUGRAPH_UNREACHABLE`
 - `CUGRAPH_EXPECTS` condition must be a pure predicate with no side effects
-- Use `CUGRAPH_CUDA_TRY` for CUDA API calls; `CUGRAPH_CUDA_TRY_NO_THROW` in destructors
+- Use `RAFT_CUDA_TRY` for CUDA API calls; `RAFT_CUDA_TRY_NO_THROW` in destructors
 - Every CUDA call must have error checking (kernel launches, memory ops, sync)
 
 **Memory Management**:
-- Use `rmm::device_uvector` for typed device memory (not `thrust::device_vector`)
-- Use `cugraph::detail::device_scalar<T>` (not `rmm::device_scalar<T>`)
-- Returned memory uses the passed-in MR; temporary memory uses `cugraph::get_current_device_resource_ref()`
-- Use `cugraph::detail::cuda_memcpy_async` / `memcpy_async` / `memcpy_batch_async` (not raw `cudaMemcpyAsync`)
-- Prefer `cugraph::detail::make_pinned_vector{,_async}` over `make_host_vector{,_async}` for small H2D/D2H transfers
 - Prefer `span` versions of constructors for `make_pinned_vector{,_async}` and `make_host_vector{,_async}`
 - Use `host_span`/`device_span`; no owning vectors passed by copy/reference unless explicitly moved
 - Prefer span parameters over pointer + size/length pairs (e.g. `T const* data, size_t size`)
@@ -227,21 +202,18 @@ Suggested fix:
 - Use `rmm::exec_policy_nosync(stream)` for all Thrust device execution
 
 **CUDA Kernels**:
-- Use `CUGRAPH_KERNEL` macro (not raw `__global__`), preferably with `__launch_bounds__`
 - Use `cuda::std::` types/algorithms in device code (`cuda::std::min`, `cuda::std::pair`, etc.)
 - Use `cuda::make_constant_iterator` over `thrust::make_constant_iterator` for device-side constant iterators
 - Use `cuda::proclaim_return_type<T>(lambda)` when passing device lambdas to `make_counting_transform_iterator`
 - Prefer modern CUDA C++ primitives: `cuda::std::popcount` over `__popc`, `cg::thread_block::thread_rank()` over `threadIdx.x`
 
 **Public API** (`cpp/include/cugraph/`, `cpp/include/nvtext/`):
-- Functions must have `cugraph_EXPORT`
+- Functions must have `CUGRAPH_EXPORT`
 - Doxygen documentation required (`@brief`, `@param`, `@return`, `@throw`, `@tparam`)
-- Public functions: `CUGRAPH_FUNC_RANGE()` then delegate to `detail::` (trivial functions may skip)
 - API changes require deprecation warnings (`[[deprecated]]`, `@deprecated`, PR labels)
 - Use `[[nodiscard]]` on side-effect-free functions with non-void return
 
 **C++ Style**:
-- Prefer C++20 `requires` clauses over `CUGRAPH_ENABLE_IF` for type-gating dispatch functors
 - Use CUB (most preferred)/Thrust/STL algorithms over raw loops and raw kernels
 - Use modern C++20: `concepts`, `std::ranges`, `std::transform` over manual implementations
 - Use `static_assert` with clear messages to prevent template misuse
