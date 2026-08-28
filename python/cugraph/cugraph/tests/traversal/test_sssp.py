@@ -355,9 +355,7 @@ def test_sssp_edgevals_nonnative_inputs(
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("source", SOURCES)
-def test_sssp_data_type_conversion(
-    load_traversal_results, graph_file, source
-):
+def test_sssp_data_type_conversion(load_traversal_results, graph_file, source):
     dataset_path = graph_file.get_path()
     dataset_name = graph_file.metadata["name"]
     cu_M = utils.read_csv_file(dataset_path)
