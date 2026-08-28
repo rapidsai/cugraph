@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -27,6 +27,7 @@
 #include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/count.h>
 #include <thrust/fill.h>
 
@@ -950,7 +951,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
             auto loop_stream =
               stream_pool_indices
                 ? handle.get_stream_from_stream_pool((*stream_pool_indices)[i % stream_pool_size])
-                : handle.get_stream();
+                : static_cast<cuda::stream_ref>(handle.get_stream());
 
             std::optional<rmm::device_uvector<vertex_t>> rx_vertices{std::nullopt};
             if (v_list_bitmap_size) {

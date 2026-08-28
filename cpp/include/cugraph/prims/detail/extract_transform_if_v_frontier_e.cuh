@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -38,6 +38,7 @@
 #include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -557,7 +558,7 @@ void extract_transform_if_v_frontier_e_edge_partition(
       auto exec_stream = edge_partition_stream_pool_indices
                            ? handle.get_stream_from_stream_pool(
                                (*edge_partition_stream_pool_indices)[0 % stream_pool_size])
-                           : handle.get_stream();
+                           : static_cast<cuda::stream_ref>(handle.get_stream());
 
       raft::grid_1d_thread_t update_grid((*high_segment_edge_count),
                                          extract_transform_if_v_frontier_e_kernel_block_size,
@@ -582,7 +583,7 @@ void extract_transform_if_v_frontier_e_edge_partition(
       auto exec_stream = edge_partition_stream_pool_indices
                            ? handle.get_stream_from_stream_pool(
                                (*edge_partition_stream_pool_indices)[1 % stream_pool_size])
-                           : handle.get_stream();
+                           : static_cast<cuda::stream_ref>(handle.get_stream());
       raft::grid_1d_warp_t update_grid((*key_segment_offsets)[2] - (*key_segment_offsets)[1],
                                        extract_transform_if_v_frontier_e_kernel_block_size,
                                        handle.get_device_properties().maxGridSize[0]);
@@ -605,7 +606,7 @@ void extract_transform_if_v_frontier_e_edge_partition(
       auto exec_stream = edge_partition_stream_pool_indices
                            ? handle.get_stream_from_stream_pool(
                                (*edge_partition_stream_pool_indices)[2 % stream_pool_size])
-                           : handle.get_stream();
+                           : static_cast<cuda::stream_ref>(handle.get_stream());
       raft::grid_1d_thread_t update_grid((*key_segment_offsets)[3] - (*key_segment_offsets)[2],
                                          extract_transform_if_v_frontier_e_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
@@ -629,7 +630,7 @@ void extract_transform_if_v_frontier_e_edge_partition(
       auto exec_stream = edge_partition_stream_pool_indices
                            ? handle.get_stream_from_stream_pool(
                                (*edge_partition_stream_pool_indices)[3 % stream_pool_size])
-                           : handle.get_stream();
+                           : static_cast<cuda::stream_ref>(handle.get_stream());
       raft::grid_1d_thread_t update_grid((*key_segment_offsets)[4] - (*key_segment_offsets)[3],
                                          extract_transform_if_v_frontier_e_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
@@ -652,7 +653,7 @@ void extract_transform_if_v_frontier_e_edge_partition(
     auto exec_stream = edge_partition_stream_pool_indices
                          ? handle.get_stream_from_stream_pool(
                              (*edge_partition_stream_pool_indices)[0 % stream_pool_size])
-                         : handle.get_stream();
+                         : static_cast<cuda::stream_ref>(handle.get_stream());
 
     auto frontier_size = static_cast<size_t>(
       cuda::std::distance(edge_partition_frontier_key_first, edge_partition_frontier_key_last));
@@ -1324,7 +1325,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
             auto loop_stream =
               loop_stream_pool_indices
                 ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
-                : handle.get_stream();
+                : static_cast<cuda::stream_ref>(handle.get_stream());
 
             std::variant<rmm::device_uvector<uint32_t>, rmm::device_uvector<vertex_t>> keys =
               rmm::device_uvector<uint32_t>(0, loop_stream);
@@ -1428,7 +1429,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
           auto partition_idx = i + j;
           auto loop_stream   = loop_stream_pool_indices
                                  ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
-                                 : handle.get_stream();
+                                 : static_cast<cuda::stream_ref>(handle.get_stream());
 
           if ((static_cast<int>(partition_idx) != minor_comm_rank) && nonzero_key_lists[j]) {
             auto edge_partition =
@@ -1524,7 +1525,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
     for (size_t j = 0; j < loop_count; ++j) {
       auto loop_stream = loop_stream_pool_indices
                            ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
-                           : handle.get_stream();
+                           : static_cast<cuda::stream_ref>(handle.get_stream());
 
       output_key_buffers.push_back(allocate_optional_dataframe_buffer<output_key_t>(
         edge_partition_max_push_counts[j], loop_stream));
@@ -1547,7 +1548,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
         auto partition_idx = i + j;
         auto loop_stream   = loop_stream_pool_indices
                                ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
-                               : handle.get_stream();
+                               : static_cast<cuda::stream_ref>(handle.get_stream());
 
         auto edge_partition =
           edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
@@ -1766,7 +1767,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
     for (size_t j = 0; j < loop_count; ++j) {
       auto loop_stream = loop_stream_pool_indices
                            ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
-                           : handle.get_stream();
+                           : static_cast<cuda::stream_ref>(handle.get_stream());
 
       auto tmp_buffer_size = h_counts[j];
       if (tmp_buffer_size > 0) {
@@ -1820,7 +1821,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
     for (size_t i = 0; i < key_buffers.size(); ++i) {
       auto loop_stream = loop_stream_pool_indices
                            ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[i])
-                           : handle.get_stream();
+                           : static_cast<cuda::stream_ref>(handle.get_stream());
       if constexpr (!std::is_same_v<output_key_t, void>) {
         thrust::copy(
           rmm::exec_policy_nosync(loop_stream),
