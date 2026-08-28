@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -10,6 +10,8 @@
 #include <raft/core/handle.hpp>
 
 #include <rmm/exec_policy.hpp>
+
+#include <cuda/stream>
 
 namespace CUGRAPH_EXPORT cugraph {
 namespace mtmg {
@@ -51,11 +53,11 @@ class handle_t {
    *
    * @return cuda stream
    */
-  rmm::cuda_stream_view get_stream() const
+  cuda::stream_ref get_stream() const
   {
     return raft_handle_.is_stream_pool_initialized()
              ? raft_handle_.get_stream_from_stream_pool(thread_rank_)
-             : raft_handle_.get_stream();
+             : static_cast<cuda::stream_ref>(raft_handle_.get_stream());
   }
 
   /**
