@@ -7,8 +7,7 @@
 **Context**: cuGraph Python layer provides GPU-accelerated graph operations. The Python codebase includes multiple packages: cugraph (high-level API) and pylibcugraph (Cython bindings to libcugraph).
 
 ## IGNORE These Issues
-
-- Style/formatting (pre-commit hooks handle this via ruff)
+- Style/formatting (pre-commit hooks handle this)
 - Minor naming preferences (unless truly misleading)
 - Personal taste on implementation (unless impacts maintainability)
 - Nits that don't affect functionality
@@ -53,7 +52,7 @@
 
 ### Input Validation
 - Missing size/type checks
-- Not handling edge cases (empty DataFrames, all-null columns)
+- Not handling edge cases (empty DataFrames, empty Graph)
 
 ### pylibcugraph (Cython Bindings)
 - Incorrect Cython object lifetime management
@@ -73,18 +72,16 @@
 - New public API not added to docs
 
 ## MEDIUM Issues (Comment Selectively)
-
-- Edge cases not handled (empty DataFrames, single-element Series)
+- Edge cases not handled (empty DataFrames, empty Graph)
 - Missing input validation for edge cases
 - Deprecated API usage
 - Minor inefficiencies in non-critical code paths
 
 ## Review Protocol
-
 1. **Memory safety**: Resource cleanup correct? Lifetime management?
 2. **API stability**: Breaking changes to Python APIs?
 3. **Algorithm correctness**: Correct results? Null handling? Edge cases?
-4. **Integration**: CuPy/Numba compatibility maintained?
+4. **Integration**: cuDF/CuPy/Numba compatibility maintained?
 5. **Input validation**: Size/type checks present?
 6. **Documentation**: Public API documented?
 7. **Ask, don't tell**: "Have you considered X?" not "You should do X"
@@ -99,7 +96,6 @@ Before commenting, ask:
 **If no to any: Skip the comment.**
 
 ## Output Format
-
 - Use severity labels: CRITICAL, HIGH, MEDIUM
 - Be concise: One-line issue summary + one-line impact
 - Provide code suggestions when you have concrete fixes
@@ -119,7 +115,7 @@ Why: Causes GPU OOM on repeated operations
 ```
 CRITICAL: Removing public method without deprecation
 
-Issue: DataFrame.to_gpu_matrix() removed without deprecation warning
+Issue: cugraph.to_pandas_edgelist() removed without deprecation warning
 Why: Breaks existing user code
 
 Consider: Add deprecation warning for one release cycle before removal
