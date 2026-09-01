@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -61,6 +61,14 @@ struct sample_edges_op_t {
     vertex_t, vertex_t dst, cuda::std::nullopt_t, cuda::std::nullopt_t, W w) const
   {
     return cuda::std::make_tuple(dst, w);
+  }
+};
+
+template <typename vertex_t>
+struct is_invalid_vertex_op_t {
+  __device__ bool operator()(auto dst) const
+  {
+    return dst == cugraph::invalid_vertex_id<vertex_t>::value;
   }
 };
 
@@ -691,30 +699,26 @@ random_walk_impl(raft::handle_t const& handle,
                                                       current_position.begin(),
                                                       previous_vertices->begin());
 
-          compacted_length = cuda::std::distance(
-            input_iter,
-            thrust::remove_if(handle.get_thrust_policy(),
-                              input_iter,
-                              input_iter + current_vertices.size(),
-                              current_vertices.begin(),
-                              [] __device__(auto dst) {
-                                return (dst == cugraph::invalid_vertex_id<vertex_t>::value);
-                              }));
+          compacted_length =
+            cuda::std::distance(input_iter,
+                                thrust::remove_if(handle.get_thrust_policy(),
+                                                  input_iter,
+                                                  input_iter + current_vertices.size(),
+                                                  current_vertices.begin(),
+                                                  is_invalid_vertex_op_t<vertex_t>{}));
         } else {
           auto input_iter = thrust::make_zip_iterator(current_vertices.begin(),
                                                       new_weights->begin(),
                                                       current_gpu.begin(),
                                                       current_position.begin());
 
-          compacted_length = cuda::std::distance(
-            input_iter,
-            thrust::remove_if(handle.get_thrust_policy(),
-                              input_iter,
-                              input_iter + current_vertices.size(),
-                              current_vertices.begin(),
-                              [] __device__(auto dst) {
-                                return (dst == cugraph::invalid_vertex_id<vertex_t>::value);
-                              }));
+          compacted_length =
+            cuda::std::distance(input_iter,
+                                thrust::remove_if(handle.get_thrust_policy(),
+                                                  input_iter,
+                                                  input_iter + current_vertices.size(),
+                                                  current_vertices.begin(),
+                                                  is_invalid_vertex_op_t<vertex_t>{}));
         }
       } else {
         if (previous_vertices) {
@@ -723,28 +727,24 @@ random_walk_impl(raft::handle_t const& handle,
                                                       current_position.begin(),
                                                       previous_vertices->begin());
 
-          compacted_length = cuda::std::distance(
-            input_iter,
-            thrust::remove_if(handle.get_thrust_policy(),
-                              input_iter,
-                              input_iter + current_vertices.size(),
-                              current_vertices.begin(),
-                              [] __device__(auto dst) {
-                                return (dst == cugraph::invalid_vertex_id<vertex_t>::value);
-                              }));
+          compacted_length =
+            cuda::std::distance(input_iter,
+                                thrust::remove_if(handle.get_thrust_policy(),
+                                                  input_iter,
+                                                  input_iter + current_vertices.size(),
+                                                  current_vertices.begin(),
+                                                  is_invalid_vertex_op_t<vertex_t>{}));
         } else {
           auto input_iter = thrust::make_zip_iterator(
             current_vertices.begin(), current_gpu.begin(), current_position.begin());
 
-          compacted_length = cuda::std::distance(
-            input_iter,
-            thrust::remove_if(handle.get_thrust_policy(),
-                              input_iter,
-                              input_iter + current_vertices.size(),
-                              current_vertices.begin(),
-                              [] __device__(auto dst) {
-                                return (dst == cugraph::invalid_vertex_id<vertex_t>::value);
-                              }));
+          compacted_length =
+            cuda::std::distance(input_iter,
+                                thrust::remove_if(handle.get_thrust_policy(),
+                                                  input_iter,
+                                                  input_iter + current_vertices.size(),
+                                                  current_vertices.begin(),
+                                                  is_invalid_vertex_op_t<vertex_t>{}));
         }
       }
     } else {
@@ -755,56 +755,48 @@ random_walk_impl(raft::handle_t const& handle,
                                                       current_position.begin(),
                                                       previous_vertices->begin());
 
-          compacted_length = cuda::std::distance(
-            input_iter,
-            thrust::remove_if(handle.get_thrust_policy(),
-                              input_iter,
-                              input_iter + current_vertices.size(),
-                              current_vertices.begin(),
-                              [] __device__(auto dst) {
-                                return (dst == cugraph::invalid_vertex_id<vertex_t>::value);
-                              }));
+          compacted_length =
+            cuda::std::distance(input_iter,
+                                thrust::remove_if(handle.get_thrust_policy(),
+                                                  input_iter,
+                                                  input_iter + current_vertices.size(),
+                                                  current_vertices.begin(),
+                                                  is_invalid_vertex_op_t<vertex_t>{}));
         } else {
           auto input_iter = thrust::make_zip_iterator(
             current_vertices.begin(), new_weights->begin(), current_position.begin());
 
-          compacted_length = cuda::std::distance(
-            input_iter,
-            thrust::remove_if(handle.get_thrust_policy(),
-                              input_iter,
-                              input_iter + current_vertices.size(),
-                              current_vertices.begin(),
-                              [] __device__(auto dst) {
-                                return (dst == cugraph::invalid_vertex_id<vertex_t>::value);
-                              }));
+          compacted_length =
+            cuda::std::distance(input_iter,
+                                thrust::remove_if(handle.get_thrust_policy(),
+                                                  input_iter,
+                                                  input_iter + current_vertices.size(),
+                                                  current_vertices.begin(),
+                                                  is_invalid_vertex_op_t<vertex_t>{}));
         }
       } else {
         if (previous_vertices) {
           auto input_iter = thrust::make_zip_iterator(
             current_vertices.begin(), current_position.begin(), previous_vertices->begin());
 
-          compacted_length = cuda::std::distance(
-            input_iter,
-            thrust::remove_if(handle.get_thrust_policy(),
-                              input_iter,
-                              input_iter + current_vertices.size(),
-                              current_vertices.begin(),
-                              [] __device__(auto dst) {
-                                return (dst == cugraph::invalid_vertex_id<vertex_t>::value);
-                              }));
+          compacted_length =
+            cuda::std::distance(input_iter,
+                                thrust::remove_if(handle.get_thrust_policy(),
+                                                  input_iter,
+                                                  input_iter + current_vertices.size(),
+                                                  current_vertices.begin(),
+                                                  is_invalid_vertex_op_t<vertex_t>{}));
         } else {
           auto input_iter =
             thrust::make_zip_iterator(current_vertices.begin(), current_position.begin());
 
-          compacted_length = cuda::std::distance(
-            input_iter,
-            thrust::remove_if(handle.get_thrust_policy(),
-                              input_iter,
-                              input_iter + current_vertices.size(),
-                              current_vertices.begin(),
-                              [] __device__(auto dst) {
-                                return (dst == cugraph::invalid_vertex_id<vertex_t>::value);
-                              }));
+          compacted_length =
+            cuda::std::distance(input_iter,
+                                thrust::remove_if(handle.get_thrust_policy(),
+                                                  input_iter,
+                                                  input_iter + current_vertices.size(),
+                                                  current_vertices.begin(),
+                                                  is_invalid_vertex_op_t<vertex_t>{}));
         }
       }
     }
