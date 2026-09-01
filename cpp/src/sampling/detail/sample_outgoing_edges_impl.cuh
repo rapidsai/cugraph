@@ -296,6 +296,89 @@ struct segmented_fill_t {
   }
 };
 
+// Shared mark_entries predicate for carryover-frontier resampling in
+// sample_unvisited_outgoing_edges.  Named functors deduplicate across template instantiations.
+template <typename vertex_t, typename label_t, typename edge_type_t>
+struct carryover_capacity_filter_op_t {
+  size_t majors_size{};
+  vertex_t const* d_majors{};
+  cuda::std::optional<label_t const*> d_labels{};
+  cuda::std::optional<edge_type_t const*> d_types{};
+  size_t carry_frontier_size{};
+  vertex_t const* carry_frontier_majors{};
+  cuda::std::optional<label_t const*> carry_frontier_labels{};
+  cuda::std::optional<edge_type_t const*> carry_frontier_types{};
+  size_t const* carry_frontier_capacity{};
+
+  __device__ bool operator()(size_t i) const
+  {
+    if (d_labels && d_types) {
+      auto const d_label_ptr          = *d_labels;
+      auto const d_type_ptr           = *d_types;
+      auto const carry_frontier_label = *carry_frontier_labels;
+      auto const carry_frontier_type  = *carry_frontier_types;
+      auto const key = cuda::std::make_tuple(d_label_ptr[i], d_majors[i], d_type_ptr[i]);
+      auto const carry_frontier_begin =
+        thrust::make_zip_iterator(carry_frontier_label, carry_frontier_majors, carry_frontier_type);
+      auto const lb = thrust::lower_bound(
+        thrust::seq, carry_frontier_begin, carry_frontier_begin + carry_frontier_size, key);
+      auto const pos = cuda::std::distance(carry_frontier_begin, lb);
+      if ((pos == carry_frontier_size) || (*lb != key)) { return false; }
+
+      auto const needed_count = carry_frontier_capacity[pos];
+      auto const d_begin      = thrust::make_zip_iterator(d_label_ptr, d_majors, d_type_ptr);
+      auto const lb2 = thrust::lower_bound(thrust::seq, d_begin, d_begin + majors_size, key);
+      auto const position_count = (i - cuda::std::distance(d_begin, lb2));
+      return position_count < needed_count;
+    }
+    if (d_types) {
+      auto const d_type_ptr          = *d_types;
+      auto const carry_frontier_type = *carry_frontier_types;
+      auto const key                 = cuda::std::make_tuple(d_majors[i], d_type_ptr[i]);
+      auto const carry_frontier_begin =
+        thrust::make_zip_iterator(carry_frontier_majors, carry_frontier_type);
+      auto const lb = thrust::lower_bound(
+        thrust::seq, carry_frontier_begin, carry_frontier_begin + carry_frontier_size, key);
+      auto const pos = cuda::std::distance(carry_frontier_begin, lb);
+      if ((pos == carry_frontier_size) || (*lb != key)) { return false; }
+
+      auto const needed_count = carry_frontier_capacity[pos];
+      auto const d_begin      = thrust::make_zip_iterator(d_majors, d_type_ptr);
+      auto const lb2 = thrust::lower_bound(thrust::seq, d_begin, d_begin + majors_size, key);
+      auto const position_count = (i - cuda::std::distance(d_begin, lb2));
+      return position_count < needed_count;
+    }
+    if (d_labels) {
+      auto const d_label_ptr          = *d_labels;
+      auto const carry_frontier_label = *carry_frontier_labels;
+      auto const key                  = cuda::std::make_tuple(d_label_ptr[i], d_majors[i]);
+      auto const carry_frontier_begin =
+        thrust::make_zip_iterator(carry_frontier_label, carry_frontier_majors);
+      auto const lb = thrust::lower_bound(
+        thrust::seq, carry_frontier_begin, carry_frontier_begin + carry_frontier_size, key);
+      auto const pos = cuda::std::distance(carry_frontier_begin, lb);
+      if ((pos == carry_frontier_size) || (*lb != key)) { return false; }
+
+      auto const needed_count = carry_frontier_capacity[pos];
+      auto const d_begin      = thrust::make_zip_iterator(d_label_ptr, d_majors);
+      auto const lb2 = thrust::lower_bound(thrust::seq, d_begin, d_begin + majors_size, key);
+      auto const position_count = (i - cuda::std::distance(d_begin, lb2));
+      return position_count < needed_count;
+    }
+
+    auto const key = d_majors[i];
+    auto const lb  = thrust::lower_bound(
+      thrust::seq, carry_frontier_majors, carry_frontier_majors + carry_frontier_size, key);
+    auto const pos = cuda::std::distance(carry_frontier_majors, lb);
+    if ((pos == carry_frontier_size) || (*lb != key)) { return false; }
+
+    auto const needed_count = carry_frontier_capacity[pos];
+    auto const lb2 = thrust::lower_bound(thrust::seq, d_majors, d_majors + majors_size, key);
+    auto const position_count = (i - cuda::std::distance(d_majors, lb2));
+    return position_count < needed_count;
+  }
+};
+
 /**
  * Helper function for random sampling of outgoing edges with a custom bias operator, used in
  * homogeneous and heterogeneous sampling functions.
@@ -1031,40 +1114,20 @@ sample_unvisited_outgoing_edges(
           random_numbers.resize(0, handle.get_stream());
           random_numbers.shrink_to_fit(handle.get_stream());
 
-          std::tie(keep_count, keep_flags) = mark_entries(
-            majors.size(),
-            cuda::proclaim_return_type<bool>(
-              [majors_size             = majors.size(),
-               d_labels                = labels->data(),
-               d_majors                = majors.data(),
-               d_types                 = type_vec.data(),
-               carry_frontier_size     = carryover_frontier_majors.size(),
-               carry_frontier_labels   = carryover_frontier_labels->data(),
-               carry_frontier_majors   = carryover_frontier_majors.data(),
-               carry_frontier_types    = carryover_frontier_types->data(),
-               carry_frontier_capacity = carryover_frontier_capacity.data()] __device__(size_t i) {
-                auto key = cuda::std::make_tuple(d_labels[i], d_majors[i], d_types[i]);
-                auto carry_frontier_begin = thrust::make_zip_iterator(
-                  carry_frontier_labels, carry_frontier_majors, carry_frontier_types);
-                auto lb = thrust::lower_bound(thrust::seq,
-                                              carry_frontier_begin,
-                                              carry_frontier_begin + carry_frontier_size,
-                                              key);
-
-                auto pos = cuda::std::distance(carry_frontier_begin, lb);
-
-                if ((pos == carry_frontier_size) || (*lb != key)) { return false; }
-
-                auto needed_count = carry_frontier_capacity[pos];
-
-                auto d_begin = thrust::make_zip_iterator(d_labels, d_majors, d_types);
-                auto lb2 = thrust::lower_bound(thrust::seq, d_begin, d_begin + majors_size, key);
-
-                auto position_count = (i - cuda::std::distance(d_begin, lb2));
-                return position_count < needed_count;
-              }),
-            handle.get_stream(),
-            std::nullopt);
+          std::tie(keep_count, keep_flags) =
+            mark_entries(majors.size(),
+                         carryover_capacity_filter_op_t<vertex_t, int32_t, edge_type_t>{
+                           majors.size(),
+                           majors.data(),
+                           labels->data(),
+                           type_vec.data(),
+                           carryover_frontier_majors.size(),
+                           carryover_frontier_majors.data(),
+                           carryover_frontier_labels->data(),
+                           carryover_frontier_types->data(),
+                           carryover_frontier_capacity.data()},
+                         handle.get_stream(),
+                         std::nullopt);
 
         } else {
           thrust::sort_by_key(
@@ -1076,38 +1139,20 @@ sample_unvisited_outgoing_edges(
           random_numbers.resize(0, handle.get_stream());
           random_numbers.shrink_to_fit(handle.get_stream());
 
-          std::tie(keep_count, keep_flags) = mark_entries(
-            majors.size(),
-            cuda::proclaim_return_type<bool>(
-              [majors_size             = majors.size(),
-               d_majors                = majors.data(),
-               d_types                 = type_vec.data(),
-               carry_frontier_size     = carryover_frontier_majors.size(),
-               carry_frontier_majors   = carryover_frontier_majors.data(),
-               carry_frontier_types    = carryover_frontier_types->data(),
-               carry_frontier_capacity = carryover_frontier_capacity.data()] __device__(size_t i) {
-                auto key = cuda::std::make_tuple(d_majors[i], d_types[i]);
-                auto carry_frontier_begin =
-                  thrust::make_zip_iterator(carry_frontier_majors, carry_frontier_types);
-                auto lb = thrust::lower_bound(thrust::seq,
-                                              carry_frontier_begin,
-                                              carry_frontier_begin + carry_frontier_size,
-                                              key);
-
-                auto pos = cuda::std::distance(carry_frontier_begin, lb);
-
-                if ((pos == carry_frontier_size) || (*lb != key)) { return false; }
-
-                auto needed_count = carry_frontier_capacity[pos];
-
-                auto d_begin = thrust::make_zip_iterator(d_majors, d_types);
-                auto lb2 = thrust::lower_bound(thrust::seq, d_begin, d_begin + majors_size, key);
-
-                auto position_count = (i - cuda::std::distance(d_begin, lb2));
-                return position_count < needed_count;
-              }),
-            handle.get_stream(),
-            std::nullopt);
+          std::tie(keep_count, keep_flags) =
+            mark_entries(majors.size(),
+                         carryover_capacity_filter_op_t<vertex_t, int32_t, edge_type_t>{
+                           majors.size(),
+                           majors.data(),
+                           cuda::std::nullopt,
+                           type_vec.data(),
+                           carryover_frontier_majors.size(),
+                           carryover_frontier_majors.data(),
+                           cuda::std::nullopt,
+                           carryover_frontier_types->data(),
+                           carryover_frontier_capacity.data()},
+                         handle.get_stream(),
+                         std::nullopt);
         }
       } else {
         if (labels) {
@@ -1120,38 +1165,20 @@ sample_unvisited_outgoing_edges(
           random_numbers.resize(0, handle.get_stream());
           random_numbers.shrink_to_fit(handle.get_stream());
 
-          std::tie(keep_count, keep_flags) = mark_entries(
-            majors.size(),
-            cuda::proclaim_return_type<bool>(
-              [majors_size             = majors.size(),
-               d_labels                = labels->data(),
-               d_majors                = majors.data(),
-               carry_frontier_size     = carryover_frontier_majors.size(),
-               carry_frontier_labels   = carryover_frontier_labels->data(),
-               carry_frontier_majors   = carryover_frontier_majors.data(),
-               carry_frontier_capacity = carryover_frontier_capacity.data()] __device__(size_t i) {
-                auto key = cuda::std::make_tuple(d_labels[i], d_majors[i]);
-                auto carry_frontier_begin =
-                  thrust::make_zip_iterator(carry_frontier_labels, carry_frontier_majors);
-                auto lb = thrust::lower_bound(thrust::seq,
-                                              carry_frontier_begin,
-                                              carry_frontier_begin + carry_frontier_size,
-                                              key);
-
-                auto pos = cuda::std::distance(carry_frontier_begin, lb);
-
-                if ((pos == carry_frontier_size) || (*lb != key)) { return false; }
-
-                auto needed_count = carry_frontier_capacity[pos];
-
-                auto d_begin = thrust::make_zip_iterator(d_labels, d_majors);
-                auto lb2 = thrust::lower_bound(thrust::seq, d_begin, d_begin + majors_size, key);
-
-                auto position_count = (i - cuda::std::distance(d_begin, lb2));
-                return position_count < needed_count;
-              }),
-            handle.get_stream(),
-            std::nullopt);
+          std::tie(keep_count, keep_flags) =
+            mark_entries(majors.size(),
+                         carryover_capacity_filter_op_t<vertex_t, int32_t, edge_type_t>{
+                           majors.size(),
+                           majors.data(),
+                           labels->data(),
+                           cuda::std::nullopt,
+                           carryover_frontier_majors.size(),
+                           carryover_frontier_majors.data(),
+                           carryover_frontier_labels->data(),
+                           cuda::std::nullopt,
+                           carryover_frontier_capacity.data()},
+                         handle.get_stream(),
+                         std::nullopt);
 
         } else {
           thrust::sort_by_key(handle.get_thrust_policy(),
@@ -1162,33 +1189,20 @@ sample_unvisited_outgoing_edges(
           random_numbers.resize(0, handle.get_stream());
           random_numbers.shrink_to_fit(handle.get_stream());
 
-          std::tie(keep_count, keep_flags) = mark_entries(
-            majors.size(),
-            cuda::proclaim_return_type<bool>(
-              [majors_size             = majors.size(),
-               d_majors                = majors.data(),
-               carry_frontier_size     = carryover_frontier_majors.size(),
-               carry_frontier_majors   = carryover_frontier_majors.data(),
-               carry_frontier_capacity = carryover_frontier_capacity.data()] __device__(size_t i) {
-                auto key = d_majors[i];
-                auto lb  = thrust::lower_bound(thrust::seq,
-                                              carry_frontier_majors,
-                                              carry_frontier_majors + carry_frontier_size,
-                                              key);
-
-                auto pos = cuda::std::distance(carry_frontier_majors, lb);
-
-                if ((pos == carry_frontier_size) || (*lb != key)) { return false; }
-
-                auto needed_count = carry_frontier_capacity[pos];
-
-                auto lb2 = thrust::lower_bound(thrust::seq, d_majors, d_majors + majors_size, key);
-
-                auto position_count = (i - cuda::std::distance(d_majors, lb2));
-                return position_count < needed_count;
-              }),
-            handle.get_stream(),
-            std::nullopt);
+          std::tie(keep_count, keep_flags) =
+            mark_entries(majors.size(),
+                         carryover_capacity_filter_op_t<vertex_t, int32_t, edge_type_t>{
+                           majors.size(),
+                           majors.data(),
+                           cuda::std::nullopt,
+                           cuda::std::nullopt,
+                           carryover_frontier_majors.size(),
+                           carryover_frontier_majors.data(),
+                           cuda::std::nullopt,
+                           cuda::std::nullopt,
+                           carryover_frontier_capacity.data()},
+                         handle.get_stream(),
+                         std::nullopt);
         }
       }
 
