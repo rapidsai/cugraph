@@ -101,6 +101,109 @@ struct return_edges_op {
   }
 };
 
+template <typename vertex_t>
+struct unvisited_minor_filter_op_t {
+  vertex_t const* minors{};
+  vertex_t const* visited_minors{};
+  size_t visited_minors_size{};
+
+  __device__ bool operator()(size_t index) const
+  {
+    return !thrust::binary_search(
+      thrust::seq, visited_minors, visited_minors + visited_minors_size, minors[index]);
+  }
+};
+
+template <typename vertex_t, typename label_t>
+struct unvisited_labeled_minor_filter_op_t {
+  vertex_t const* minors{};
+  label_t const* labels{};
+  vertex_t const* visited_minors{};
+  label_t const* visited_labels{};
+  size_t visited_minors_size{};
+
+  __device__ bool operator()(size_t index) const
+  {
+    auto const visited_begin = thrust::make_zip_iterator(visited_minors, visited_labels);
+    return !thrust::binary_search(thrust::seq,
+                                  visited_begin,
+                                  visited_begin + visited_minors_size,
+                                  cuda::std::make_tuple(minors[index], labels[index]));
+  }
+};
+
+template <typename vertex_t, typename time_stamp_t, typename label_t>
+struct temporal_edge_filter_kv_op_t {
+  temporal_sampling_comparison_t temporal_sampling_comparison{};
+  time_stamp_t const* edge_times{};
+  vertex_t const* srcs{};
+  label_t const* src_labels{};
+  raft::device_span<vertex_t const> window_majors{};
+  raft::device_span<label_t const> window_labels{};
+  cuda::std::optional<raft::device_span<time_stamp_t const>> window_starts{};
+  time_stamp_t const* window_ends{};
+
+  __device__ bool operator()(size_t index) const
+  {
+    auto const edge_time = edge_times[index];
+    size_t window_idx{};
+    if (!try_find_temporal_key_index(
+          window_majors, window_labels, srcs[index], src_labels[index], window_idx)) {
+      return false;
+    }
+    return passes_temporal_filter(
+      temporal_sampling_comparison,
+      window_starts ? (*window_starts)[window_idx]
+                    : unbounded_temporal_window_start<time_stamp_t>(temporal_sampling_comparison),
+      window_ends[window_idx],
+      edge_time);
+  }
+};
+
+template <typename time_stamp_t>
+struct temporal_edge_filter_per_edge_op_t {
+  temporal_sampling_comparison_t temporal_sampling_comparison{};
+  time_stamp_t const* edge_times{};
+  time_stamp_t const* per_edge_window_starts{};
+  time_stamp_t const* per_edge_window_ends{};
+
+  __device__ bool operator()(size_t index) const
+  {
+    auto const edge_time = edge_times[index];
+    auto const key_time =
+      per_edge_window_starts
+        ? per_edge_window_starts[index]
+        : unbounded_temporal_window_start<time_stamp_t>(temporal_sampling_comparison);
+    auto const window_end =
+      per_edge_window_ends
+        ? per_edge_window_ends[index]
+        : unbounded_temporal_window_end<time_stamp_t>(temporal_sampling_comparison);
+    return passes_temporal_filter(temporal_sampling_comparison, key_time, window_end, edge_time);
+  }
+};
+
+struct edge_type_gather_filter_op_t {
+  int32_t const* edge_types{};
+  bool const* gather_flags{};
+
+  __device__ bool operator()(size_t index) const { return gather_flags[edge_types[index]]; }
+};
+
+template <typename time_stamp_t>
+struct temporal_window_reduce_op_t {
+  bool fixed_window{};
+  bool increasing{};
+
+  __device__ cuda::std::tuple<time_stamp_t, time_stamp_t> operator()(
+    cuda::std::tuple<time_stamp_t, time_stamp_t> a,
+    cuda::std::tuple<time_stamp_t, time_stamp_t> b) const
+  {
+    if (fixed_window) { return a; }
+    if (increasing) { return cuda::std::get<0>(a) >= cuda::std::get<0>(b) ? a : b; }
+    return cuda::std::get<0>(a) <= cuda::std::get<0>(b) ? a : b;
+  }
+};
+
 template <typename vertex_t, typename edge_t, typename tag_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
@@ -245,12 +348,10 @@ filter_edge_by_type(raft::handle_t const& handle,
                               return_edge_property_t{},
                               edge_type.begin());
 
-  auto [keep_count, marked_entries] = mark_entries(
-    edge_type.size(),
-    [d_edge_type = edge_type.data(), gather_flags] __device__(auto idx) {
-      return gather_flags[d_edge_type[idx]];
-    },
-    handle.get_stream());
+  auto [keep_count, marked_entries] =
+    mark_entries(edge_type.size(),
+                 edge_type_gather_filter_op_t{edge_type.data(), gather_flags.data()},
+                 handle.get_stream());
 
   raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(), marked_entries.size()};
 
@@ -372,27 +473,16 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
       visited_minor_labels
         ? mark_entries(
             result_minors.size(),
-            [minors              = result_minors.data(),
-             labels              = result_labels->data(),
-             visited_minors      = visited_minors.data(),
-             visited_labels      = visited_minor_labels->data(),
-             visited_minors_size = visited_minors.size()] __device__(auto index) {
-              auto iter_begin = thrust::make_zip_iterator(visited_minors, visited_labels);
-              return !thrust::binary_search(thrust::seq,
-                                            iter_begin,
-                                            iter_begin + visited_minors_size,
-                                            cuda::std::make_tuple(minors[index], labels[index]));
-            },
+            unvisited_labeled_minor_filter_op_t<vertex_t, int32_t>{result_minors.data(),
+                                                                   result_labels->data(),
+                                                                   visited_minors.data(),
+                                                                   visited_minor_labels->data(),
+                                                                   visited_minors.size()},
             handle.get_stream())
-        : mark_entries(
-            result_minors.size(),
-            [minors              = result_minors.data(),
-             visited_minors      = visited_minors.data(),
-             visited_minors_size = visited_minors.size()] __device__(auto index) {
-              return !thrust::binary_search(
-                thrust::seq, visited_minors, visited_minors + visited_minors_size, minors[index]);
-            },
-            handle.get_stream());
+        : mark_entries(result_minors.size(),
+                       unvisited_minor_filter_op_t<vertex_t>{
+                         result_minors.data(), visited_minors.data(), visited_minors.size()},
+                       handle.get_stream());
 
     raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(),
                                                         marked_entries.size()};
@@ -585,12 +675,7 @@ temporal_gather_one_hop_edgelist(
           thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()),
           thrust::make_zip_iterator(out_window_starts.begin(), out_window_ends.begin()),
           cuda::std::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
-          [fixed_window, increasing] __device__(cuda::std::tuple<time_stamp_t, time_stamp_t> a,
-                                                cuda::std::tuple<time_stamp_t, time_stamp_t> b) {
-            if (fixed_window) { return a; }
-            if (increasing) { return cuda::std::get<0>(a) >= cuda::std::get<0>(b) ? a : b; }
-            return cuda::std::get<0>(a) <= cuda::std::get<0>(b) ? a : b;
-          });
+          temporal_window_reduce_op_t<time_stamp_t>{fixed_window, increasing});
         auto const new_size = static_cast<size_t>(cuda::std::distance(
           thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()), ends.first));
 
@@ -714,53 +799,25 @@ temporal_gather_one_hop_edgelist(
       edge_src_labels
         ? mark_entries(
             edge_times.size(),
-            [temporal_sampling_comparison,
-             d_tmp        = edge_times.data(),
-             d_srcs       = result_majors.data(),
-             d_src_labels = edge_src_labels->data(),
-             window_majors =
-               raft::device_span<vertex_t const>{kv_majors->data(), kv_majors->size()},
-             window_labels = raft::device_span<label_t const>{kv_labels->data(), kv_labels->size()},
-             window_starts = kv_window_starts
-                               ? cuda::std::make_optional(raft::device_span<time_stamp_t const>{
+            temporal_edge_filter_kv_op_t<vertex_t, time_stamp_t, label_t>{
+              temporal_sampling_comparison,
+              edge_times.data(),
+              result_majors.data(),
+              edge_src_labels->data(),
+              raft::device_span<vertex_t const>{kv_majors->data(), kv_majors->size()},
+              raft::device_span<label_t const>{kv_labels->data(), kv_labels->size()},
+              kv_window_starts ? cuda::std::make_optional(raft::device_span<time_stamp_t const>{
                                    kv_window_starts->data(), kv_window_starts->size()})
                                : cuda::std::nullopt,
-             window_ends   = kv_window_ends->data()] __device__(auto index) {
-              auto const edge_time = d_tmp[index];
-              size_t window_idx{};
-              if (!try_find_temporal_key_index(
-                    window_majors, window_labels, d_srcs[index], d_src_labels[index], window_idx)) {
-                return false;
-              }
-              return passes_temporal_filter(
-                temporal_sampling_comparison,
-                window_starts
-                  ? (*window_starts)[window_idx]
-                  : unbounded_temporal_window_start<time_stamp_t>(temporal_sampling_comparison),
-                window_ends[window_idx],
-                edge_time);
-            },
+              kv_window_ends->data()},
             handle.get_stream())
-        : mark_entries(
-            edge_times.size(),
-            [temporal_sampling_comparison,
-             d_tmp              = edge_times.data(),
-             d_tmp_window_start = tmp_window_starts ? tmp_window_starts->data() : nullptr,
-             d_tmp_window_end =
-               tmp_window_ends ? tmp_window_ends->data() : nullptr] __device__(auto index) {
-              auto const edge_time = d_tmp[index];
-              auto const key_time =
-                d_tmp_window_start
-                  ? d_tmp_window_start[index]
-                  : unbounded_temporal_window_start<time_stamp_t>(temporal_sampling_comparison);
-              auto const window_end =
-                d_tmp_window_end
-                  ? d_tmp_window_end[index]
-                  : unbounded_temporal_window_end<time_stamp_t>(temporal_sampling_comparison);
-              return passes_temporal_filter(
-                temporal_sampling_comparison, key_time, window_end, edge_time);
-            },
-            handle.get_stream());
+        : mark_entries(edge_times.size(),
+                       temporal_edge_filter_per_edge_op_t<time_stamp_t>{
+                         temporal_sampling_comparison,
+                         edge_times.data(),
+                         tmp_window_starts ? tmp_window_starts->data() : nullptr,
+                         tmp_window_ends ? tmp_window_ends->data() : nullptr},
+                       handle.get_stream());
 
     raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(),
                                                         marked_entries.size()};
@@ -857,27 +914,16 @@ temporal_gather_one_hop_edgelist_to_unvisited_neighbors(
       visited_minor_labels
         ? mark_entries(
             result_minors.size(),
-            [minors              = result_minors.data(),
-             labels              = result_labels->data(),
-             visited_minors      = visited_minors.data(),
-             visited_labels      = visited_minor_labels->data(),
-             visited_minors_size = visited_minors.size()] __device__(auto index) {
-              auto iter_begin = thrust::make_zip_iterator(visited_minors, visited_labels);
-              return !thrust::binary_search(thrust::seq,
-                                            iter_begin,
-                                            iter_begin + visited_minors_size,
-                                            cuda::std::make_tuple(minors[index], labels[index]));
-            },
+            unvisited_labeled_minor_filter_op_t<vertex_t, int32_t>{result_minors.data(),
+                                                                   result_labels->data(),
+                                                                   visited_minors.data(),
+                                                                   visited_minor_labels->data(),
+                                                                   visited_minors.size()},
             handle.get_stream())
-        : mark_entries(
-            result_minors.size(),
-            [minors              = result_minors.data(),
-             visited_minors      = visited_minors.data(),
-             visited_minors_size = visited_minors.size()] __device__(auto index) {
-              return !thrust::binary_search(
-                thrust::seq, visited_minors, visited_minors + visited_minors_size, minors[index]);
-            },
-            handle.get_stream());
+        : mark_entries(result_minors.size(),
+                       unvisited_minor_filter_op_t<vertex_t>{
+                         result_minors.data(), visited_minors.data(), visited_minors.size()},
+                       handle.get_stream());
 
     raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(),
                                                         marked_entries.size()};
