@@ -33,7 +33,7 @@ struct optional_dataframe_buffer_iterator_value_type_t<
 };
 
 template <typename T>
-auto allocate_optional_dataframe_buffer(size_t size, rmm::cuda_stream_view stream)
+auto allocate_optional_dataframe_buffer(size_t size, cuda::stream_ref stream)
 {
   if constexpr (std::is_same_v<T, void>) {
     return std::byte{0};  // dummy
@@ -44,7 +44,7 @@ auto allocate_optional_dataframe_buffer(size_t size, rmm::cuda_stream_view strea
 
 template <typename T>
 struct optional_dataframe_buffer_type {
-  using type = decltype(allocate_optional_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}));
+  using type = decltype(allocate_optional_dataframe_buffer<T>(size_t{0}, cuda::stream_ref{}));
 };
 
 template <typename T>
@@ -98,7 +98,7 @@ template <typename T>
 void reserve_optional_dataframe_buffer(
   optional_dataframe_buffer_type_t<T>& optional_dataframe_buffer,
   size_t new_buffer_capacity,
-  rmm::cuda_stream_view stream_view)
+  cuda::stream_ref stream_view)
 {
   if constexpr (std::is_same_v<T, void>) {
     return;
@@ -111,7 +111,7 @@ template <typename T>
 void resize_optional_dataframe_buffer(
   optional_dataframe_buffer_type_t<T>& optional_dataframe_buffer,
   size_t new_buffer_size,
-  rmm::cuda_stream_view stream_view)
+  cuda::stream_ref stream_view)
 {
   if constexpr (std::is_same_v<T, void>) {
     return;
@@ -122,7 +122,7 @@ void resize_optional_dataframe_buffer(
 
 template <typename T>
 void shrink_to_fit_optional_dataframe_buffer(
-  optional_dataframe_buffer_type_t<T>& optional_dataframe_buffer, rmm::cuda_stream_view stream_view)
+  optional_dataframe_buffer_type_t<T>& optional_dataframe_buffer, cuda::stream_ref stream_view)
 {
   if constexpr (std::is_same_v<T, void>) {
     return;

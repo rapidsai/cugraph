@@ -56,7 +56,7 @@ inline std::tuple<std::vector<size_t>,
 compute_tx_rx_counts_displs_ranks(raft::comms::comms_t const& comm,
                                   raft::device_span<size_t const> d_tx_value_counts,
                                   bool drop_empty_ranks,
-                                  rmm::cuda_stream_view stream_view)
+                                  cuda::stream_ref stream_view)
 {
   auto const comm_size = comm.get_size();
 
@@ -139,7 +139,7 @@ template <typename TxValueIterator>
 auto shuffle_values(raft::comms::comms_t const& comm,
                     TxValueIterator tx_value_first,
                     raft::device_span<size_t const> d_tx_value_counts,
-                    rmm::cuda_stream_view stream_view,
+                    cuda::stream_ref stream_view,
                     std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   using value_t = typename thrust::iterator_traits<TxValueIterator>::value_type;
@@ -188,7 +188,7 @@ template <typename TxValueIterator>
 auto shuffle_values(raft::comms::comms_t const& comm,
                     TxValueIterator tx_value_first,
                     raft::host_span<size_t const> tx_value_counts,
-                    rmm::cuda_stream_view stream_view,
+                    cuda::stream_ref stream_view,
                     std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   using value_t = typename thrust::iterator_traits<TxValueIterator>::value_type;
@@ -217,7 +217,7 @@ auto shuffle_values(
   raft::host_span<size_t const> tx_value_counts,
   size_t alignment,  // # elements
   std::optional<typename thrust::iterator_traits<TxValueIterator>::value_type> fill_value,
-  rmm::cuda_stream_view stream_view,
+  cuda::stream_ref stream_view,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   using value_t = typename thrust::iterator_traits<TxValueIterator>::value_type;
@@ -364,7 +364,7 @@ auto shuffle_and_unique_segment_sorted_values(
                                     // tx_value_counts[i], where i = [0, comm_size); and bettter be
                                     // unique to reduce communication volume
   raft::host_span<size_t const> tx_value_counts,
-  rmm::cuda_stream_view stream_view,
+  cuda::stream_ref stream_view,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   using value_t = typename thrust::iterator_traits<TxValueIterator>::value_type;
@@ -469,7 +469,7 @@ auto groupby_gpu_id_and_shuffle_values(
   ValueIterator tx_value_first /* [INOUT */,
   ValueIterator tx_value_last /* [INOUT */,
   ValueToGPUIdOp value_to_gpu_id_op,
-  rmm::cuda_stream_view stream_view,
+  cuda::stream_ref stream_view,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   using value_t = typename thrust::iterator_traits<ValueIterator>::value_type;
@@ -536,7 +536,7 @@ auto groupby_gpu_id_and_shuffle_kv_pairs(
   KeyIterator tx_key_last /* [INOUT */,
   ValueIterator tx_value_first /* [INOUT */,
   KeyToGPUIdOp key_to_gpu_id_op,
-  rmm::cuda_stream_view stream_view,
+  cuda::stream_ref stream_view,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   using key_t   = typename thrust::iterator_traits<KeyIterator>::value_type;

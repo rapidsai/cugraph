@@ -50,7 +50,7 @@ void barnes_hut(raft::handle_t const& handle,
                 bool verbose                                  = false,
                 internals::GraphBasedDimRedCallback* callback = nullptr)
 {
-  rmm::cuda_stream_view stream_view(handle.get_stream());
+  cuda::stream_ref stream_view(handle.get_stream());
   const edge_t e   = graph.number_of_edges;
   const vertex_t n = graph.number_of_vertices;
 

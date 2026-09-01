@@ -896,7 +896,7 @@ void copy_valid_offset_value_pairs(
     raft::device_span<typename thrust::iterator_traits<OutputOffsetIterator>::value_type const>>
     hypersparse_key_offsets,
   typename thrust::iterator_traits<OutputValueIterator>::value_type invalid_value,
-  rmm::cuda_stream_view stream)
+  cuda::stream_ref stream)
 {
   using offset_t = std::decay_t<typename thrust::iterator_traits<OutputOffsetIterator>::value_type>;
   using value_t  = std::decay_t<typename thrust::iterator_traits<OutputValueIterator>::value_type>;

@@ -25,7 +25,7 @@ template CUGRAPH_EXPORT __host__ rmm::device_uvector<edge_t> compute_local_degre
   cuda::std::optional<uint32_t const*> edge_mask,
   raft::device_span<vertex_t const> majors,
   raft::device_span<edge_t const> offsets,
-  rmm::cuda_stream_view stream);
+  cuda::stream_ref stream);
 
 template CUGRAPH_EXPORT __host__ rmm::device_uvector<edge_t> compute_local_degrees_with_mask_mg(
   cuda::std::optional<uint32_t const*> edge_mask,
@@ -34,14 +34,14 @@ template CUGRAPH_EXPORT __host__ rmm::device_uvector<edge_t> compute_local_degre
   vertex_t major_range_first,
   cuda::std::optional<vertex_t> major_hypersparse_first,
   raft::device_span<edge_t const> offsets,
-  rmm::cuda_stream_view stream);
+  cuda::stream_ref stream);
 
 template CUGRAPH_EXPORT __host__ void compute_number_of_edges_with_mask_async_sg(
   cuda::std::optional<uint32_t const*> edge_mask,
   raft::device_span<vertex_t const> majors,
   raft::device_span<size_t> count,
   raft::device_span<edge_t const> offsets,
-  rmm::cuda_stream_view stream);
+  cuda::stream_ref stream);
 
 template CUGRAPH_EXPORT __host__ void compute_number_of_edges_with_mask_async_mg<vertex_t, edge_t>(
   cuda::std::optional<uint32_t const*> edge_mask,
@@ -51,7 +51,7 @@ template CUGRAPH_EXPORT __host__ void compute_number_of_edges_with_mask_async_mg
   vertex_t major_range_first,
   cuda::std::optional<vertex_t> major_hypersparse_first,
   raft::device_span<edge_t const> offsets,
-  rmm::cuda_stream_view stream);
+  cuda::stream_ref stream);
 
 }  // namespace detail
 }  // namespace cugraph
