@@ -44,7 +44,7 @@ struct cugraph_type_erased_device_array_t {
   cugraph_type_erased_device_array_t(size_t size,
                                      size_t num_bytes,
                                      cugraph_data_type_id_t type,
-                                     rmm::cuda_stream_view const& stream_view)
+                                     cuda::stream_ref const& stream_view)
     : size_(size), data_(num_bytes, stream_view), type_(type)
   {
   }

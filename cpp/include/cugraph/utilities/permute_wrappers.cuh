@@ -32,13 +32,13 @@ template <typename T>
 void permute_in_place_impl(T* first,
                            std::size_t const* map_first,
                            std::size_t num_elements,
-                           rmm::cuda_stream_view stream_view);
+                           cuda::stream_ref stream_view);
 
 template <typename Iterator>
 void permute_scalar_in_place(Iterator first,
                              std::size_t const* map_first,
                              std::size_t num_elements,
-                             rmm::cuda_stream_view stream_view)
+                             cuda::stream_ref stream_view)
 {
   if constexpr (scatter_supported_scalar_value_v<iterator_value_t<Iterator>>) {
     permute_in_place_impl(first, map_first, num_elements, stream_view);
@@ -58,7 +58,7 @@ struct permute_zip_in_place_split_impl {
   static void run(ZipIterator first,
                   ZipIterator last,
                   std::size_t const* map_first,
-                  rmm::cuda_stream_view stream_view)
+                  cuda::stream_ref stream_view)
   {
     auto const num_elements = static_cast<std::size_t>(cuda::std::distance(first, last));
     permute_scalar_in_place(
@@ -70,12 +70,14 @@ struct permute_zip_in_place_split_impl {
 
 template <typename ZipIterator, std::size_t I>
 struct permute_zip_in_place_split_impl<ZipIterator, I, I> {
-  static void run(ZipIterator, ZipIterator, std::size_t const*, rmm::cuda_stream_view) {}
+  static void run(ZipIterator, ZipIterator, std::size_t const*, cuda::stream_ref) {}
 };
 
 template <typename Iterator>
-std::enable_if_t<is_permute_zip_iterator_v<Iterator>> permute_in_place(
-  Iterator first, Iterator last, std::size_t const* map_first, rmm::cuda_stream_view stream_view)
+std::enable_if_t<is_permute_zip_iterator_v<Iterator>> permute_in_place(Iterator first,
+                                                                       Iterator last,
+                                                                       std::size_t const* map_first,
+                                                                       cuda::stream_ref stream_view)
 {
   permute_zip_in_place_split_impl<Iterator, 0, permute_zip_iterator_arity_v<Iterator>>::run(
     first, last, map_first, stream_view);
@@ -83,7 +85,7 @@ std::enable_if_t<is_permute_zip_iterator_v<Iterator>> permute_in_place(
 
 template <typename Iterator>
 std::enable_if_t<!is_permute_zip_iterator_v<Iterator>> permute_in_place(
-  Iterator first, Iterator last, std::size_t const* map_first, rmm::cuda_stream_view stream_view)
+  Iterator first, Iterator last, std::size_t const* map_first, cuda::stream_ref stream_view)
 {
   auto const num_elements = static_cast<std::size_t>(cuda::std::distance(first, last));
   permute_scalar_in_place(first, map_first, num_elements, stream_view);

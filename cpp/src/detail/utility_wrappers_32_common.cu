@@ -28,14 +28,14 @@
 namespace cugraph {
 namespace detail {
 
-template CUGRAPH_EXPORT void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
+template CUGRAPH_EXPORT void uniform_random_fill(cuda::stream_ref const& stream_view,
                                                  int32_t* d_value,
                                                  size_t size,
                                                  int32_t min_value,
                                                  int32_t max_value,
                                                  raft::random::RngState& rng_state);
 
-template CUGRAPH_EXPORT void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
+template CUGRAPH_EXPORT void uniform_random_fill(cuda::stream_ref const& stream_view,
                                                  float* d_value,
                                                  size_t size,
                                                  float min_value,
@@ -44,14 +44,14 @@ template CUGRAPH_EXPORT void uniform_random_fill(rmm::cuda_stream_view const& st
 
 template CUGRAPH_EXPORT void transform_increment_ints(raft::device_span<int32_t> values,
                                                       int32_t value,
-                                                      rmm::cuda_stream_view const& stream_view);
+                                                      cuda::stream_ref const& stream_view);
 
 template CUGRAPH_EXPORT void transform_not_equal(raft::device_span<int32_t> values,
                                                  raft::device_span<bool> result,
                                                  int32_t compare,
-                                                 rmm::cuda_stream_view const& stream_view);
+                                                 cuda::stream_ref const& stream_view);
 
-template CUGRAPH_EXPORT int32_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
+template CUGRAPH_EXPORT int32_t compute_maximum_vertex_id(cuda::stream_ref const& stream_view,
                                                           int32_t const* d_edgelist_srcs,
                                                           int32_t const* d_edgelist_dsts,
                                                           size_t num_edges);

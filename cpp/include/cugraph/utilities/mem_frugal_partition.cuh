@@ -27,7 +27,7 @@ ValueIterator mem_frugal_partition(
   ValueIterator value_last,
   ValueToGroupIdOp value_to_group_id_op,
   int pivot,  // group id less than pivot goes to the first partition
-  rmm::cuda_stream_view stream_view,
+  cuda::stream_ref stream_view,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
@@ -64,7 +64,7 @@ std::tuple<KeyIterator, ValueIterator> mem_frugal_partition(
   ValueIterator value_first,
   KeyToGroupIdOp key_to_group_id_op,
   int pivot,  // group Id less than pivot goes to the first partition
-  rmm::cuda_stream_view stream_view,
+  cuda::stream_ref stream_view,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),

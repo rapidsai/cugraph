@@ -47,7 +47,7 @@ class host_staging_buffer_manager {
   }
 
   template <typename T>
-  static rmm::device_uvector<T> allocate_staging_buffer(size_t size, rmm::cuda_stream_view stream)
+  static rmm::device_uvector<T> allocate_staging_buffer(size_t size, cuda::stream_ref stream)
   {
     auto& s = state();
     return rmm::device_uvector<T>(size, stream, *s.pinned_pool_mr);

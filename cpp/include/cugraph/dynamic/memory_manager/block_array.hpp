@@ -31,7 +31,7 @@ class block_array_t {
 
   using buffer_type = dataframe_buffer_type_t<T>;
 
-  block_array_t(size_t elements_per_block, size_t num_blocks, rmm::cuda_stream_view stream)
+  block_array_t(size_t elements_per_block, size_t num_blocks, cuda::stream_ref stream)
     : bit_tree_(elements_per_block, num_blocks),
       block_storage_(allocate_dataframe_buffer<T>(num_blocks * elements_per_block, stream))
   {

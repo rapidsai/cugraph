@@ -54,7 +54,7 @@ void copy_if_nosync(InputIterator input_first,
                     FlagIterator flag_first,
                     OutputIterator output_first,
                     raft::device_span<size_t> count /* size = 1 */,
-                    rmm::cuda_stream_view stream_view)
+                    cuda::stream_ref stream_view)
 {
   CUGRAPH_EXPECTS(
     static_cast<size_t>(cuda::std::distance(input_first, input_last)) <=
@@ -92,7 +92,7 @@ void count_nosync(InputIterator input_first,
                   InputIterator input_last,
                   raft::device_span<size_t> count /* size = 1 */,
                   typename thrust::iterator_traits<InputIterator>::value_type value,
-                  rmm::cuda_stream_view stream_view)
+                  cuda::stream_ref stream_view)
 {
   CUGRAPH_EXPECTS(
     static_cast<size_t>(cuda::std::distance(input_first, input_last)) <=
@@ -121,7 +121,7 @@ void sum_nosync(
   InputIterator input_first,
   InputIterator input_last,
   raft::device_span<typename thrust::iterator_traits<InputIterator>::value_type> sum /* size = 1 */,
-  rmm::cuda_stream_view stream_view)
+  cuda::stream_ref stream_view)
 {
   CUGRAPH_EXPECTS(
     static_cast<size_t>(cuda::std::distance(input_first, input_last)) <=

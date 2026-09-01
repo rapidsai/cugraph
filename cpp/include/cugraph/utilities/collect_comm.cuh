@@ -51,7 +51,7 @@ void find_values_for_collect_keys(
   ValueIterator collect_value_first,
   typename KVStoreViewType::key_type invalid_key,
   typename KVStoreViewType::value_type invalid_value,
-  rmm::cuda_stream_view stream_view)
+  cuda::stream_ref stream_view)
 {
   using key_t   = typename KVStoreViewType::key_type;
   using value_t = typename KVStoreViewType::value_type;
@@ -109,7 +109,7 @@ collect_values_for_unique_keys(
   KVStoreViewType kv_store_view,
   rmm::device_uvector<typename KVStoreViewType::key_type>&& collect_unique_keys,
   KeyToCommRankOp key_to_comm_rank_op,
-  rmm::cuda_stream_view stream_view)
+  cuda::stream_ref stream_view)
 {
   using key_t   = typename KVStoreViewType::key_type;
   using value_t = typename KVStoreViewType::value_type;
@@ -147,7 +147,7 @@ dataframe_buffer_type_t<typename KVStoreViewType::value_type> collect_values_for
   KeyIterator collect_key_first,
   KeyIterator collect_key_last,
   KeyToCommRankOp key_to_comm_rank_op,
-  rmm::cuda_stream_view stream_view)
+  cuda::stream_ref stream_view)
 {
   using key_t = typename KVStoreViewType::key_type;
   static_assert(std::is_same_v<typename thrust::iterator_traits<KeyIterator>::value_type, key_t>);
