@@ -54,7 +54,6 @@
 
 ### Memory Management Violations
 - Using raw `cudaMemcpyAsync` instead of `cugraph::detail::cuda_memcpy_async` / `memcpy_async` / `memcpy_batch_async`
-- Using `cugraph::detail::make_host_vector{,_async}` instead of `cugraph::detail::make_pinned_vector{,_async}` for small H2D/D2H transfers
 - Async memcpy staging buffers that don't outlive the copy
 
 ### API & Design
