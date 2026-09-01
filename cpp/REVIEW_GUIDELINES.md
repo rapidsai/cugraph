@@ -4,7 +4,7 @@
 
 **Target**: Sub-3% false positive rate. Be direct, concise, minimal.
 
-**Context**: cuGraph C++ layer (libcugraph) provides GPU-accelerated Graph operations using CUDA, with dependencies on RMM, thrust, and CUB.
+**Context**: cuGraph C++ layer (libcugraph) provides GPU-accelerated Graph operations using CUDA, with dependencies on RMM, raft, thrust, and CUB.
 
 ## IGNORE These Issues
 
@@ -39,15 +39,14 @@
 
 ### API Breaking Changes
 - C++ API changes without proper deprecation warnings
-- Changes to data structures exposed in public headers (`cpp/include/cugraph/`, `cpp/include/nvtext/`)
+- Changes to data structures exposed in public headers (`cpp/include/cugraph/`, `cpp/include/cugraph_c/`)
 - Missing `[[deprecated]]` attribute, `@deprecated` doxygen tag, or PR labels ("deprecation" / "breaking")
 
 ## HIGH Issues (Comment if Substantial)
 
 ### Performance Issues
 - Unnecessary host-device synchronization blocking GPU pipeline
-- Missing `rmm::exec_policy_nosync(stream)` for Thrust device execution
-- Multiple levels of `type_dispatcher` (avoid when possible)
+- Missing `rmm::exec_policy_nosync(stream)` or handle.get_thrust_policy()or handle.get_thrust_policy() or handle.get_thrust_policy()
 - Raw loops or raw kernels where CUB/Thrust/STL algorithms suffice
 - Suboptimal memory access patterns (non-coalesced, strided, unaligned)
 
@@ -64,13 +63,11 @@
 - Functions defined in headers that are neither templated nor `inline` device functions
 - Anonymous namespaces in headers (must only be in single-TU `.cpp`/`.cu` files)
 - Owning vectors passed by copy/reference instead of being moved (transferring ownership)
-- Missing `[[nodiscard]]` on side-effect-free functions returning non-void results
+- Missing `[[handle]]` on side-effect-free functions returning non-void results
 
 ### Concurrency & Stream Safety
 - Stream and MR parameters not propagated across all internal APIs
 - Implicit CUDA default stream use outside tests, benchmarks, and public API default parameters
-- Unnecessary `cudaDeviceSynchronize()`; use `stream.synchronize()` when synchronization is required
-- Operations incorrectly ordered on different streams without events or explicit dependencies
 
 ### Type Dispatch Patterns
 - Unsupported type overloads not calling `CUGRAPH_FAIL` or `CUGRAPH_UNREACHABLE`
