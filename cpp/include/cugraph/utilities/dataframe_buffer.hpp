@@ -25,7 +25,7 @@ template <typename TupleType, size_t... Is>
 auto allocate_dataframe_buffer_tuple_impl(
   std::index_sequence<Is...>,
   size_t buffer_size,
-  rmm::cuda_stream_view stream_view,
+  cuda::stream_ref stream_view,
   rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource_ref())
 {
   return std::make_tuple(
@@ -64,7 +64,7 @@ template <
   typename std::enable_if_t<std::is_same_v<T, std::byte> || std::is_arithmetic_v<T>>* = nullptr>
 auto allocate_dataframe_buffer(
   size_t buffer_size,
-  rmm::cuda_stream_view stream_view,
+  cuda::stream_ref stream_view,
   rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource_ref())
 {
   return rmm::device_uvector<T>(buffer_size, stream_view, mr);
@@ -73,7 +73,7 @@ auto allocate_dataframe_buffer(
 template <typename T, typename std::enable_if_t<is_thrust_tuple_of_arithmetic<T>::value>* = nullptr>
 auto allocate_dataframe_buffer(
   size_t buffer_size,
-  rmm::cuda_stream_view stream_view,
+  cuda::stream_ref stream_view,
   rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource_ref())
 {
   size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
@@ -83,7 +83,7 @@ auto allocate_dataframe_buffer(
 
 template <typename T>
 struct dataframe_buffer_type {
-  using type = decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}));
+  using type = decltype(allocate_dataframe_buffer<T>(size_t{0}, cuda::stream_ref{}));
 };
 
 template <typename T>
@@ -92,7 +92,7 @@ using dataframe_buffer_type_t = typename dataframe_buffer_type<T>::type;
 template <typename T>
 std::optional<dataframe_buffer_type_t<T>> try_allocate_dataframe_buffer(
   size_t buffer_size,
-  rmm::cuda_stream_view stream_view,
+  cuda::stream_ref stream_view,
   rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource_ref())
 {
   try {
@@ -134,7 +134,7 @@ using dataframe_buffer_const_iterator_type_t =
 template <typename BufferType>
 void reserve_dataframe_buffer(BufferType& buffer,
                               size_t new_buffer_capacity,
-                              rmm::cuda_stream_view stream_view)
+                              cuda::stream_ref stream_view)
 {
   static_assert(is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value ||
                 is_arithmetic_vector<std::remove_cv_t<BufferType>, rmm::device_uvector>::value ||
@@ -151,7 +151,7 @@ void reserve_dataframe_buffer(BufferType& buffer,
 template <typename BufferType>
 void resize_dataframe_buffer(BufferType& buffer,
                              size_t new_buffer_size,
-                             rmm::cuda_stream_view stream_view)
+                             cuda::stream_ref stream_view)
 {
   static_assert(is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value ||
                 is_arithmetic_vector<std::remove_cv_t<BufferType>, rmm::device_uvector>::value ||
@@ -166,7 +166,7 @@ void resize_dataframe_buffer(BufferType& buffer,
 }
 
 template <typename BufferType>
-void shrink_to_fit_dataframe_buffer(BufferType& buffer, rmm::cuda_stream_view stream_view)
+void shrink_to_fit_dataframe_buffer(BufferType& buffer, cuda::stream_ref stream_view)
 {
   static_assert(is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value ||
                 is_arithmetic_vector<std::remove_cv_t<BufferType>, rmm::device_uvector>::value ||

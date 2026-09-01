@@ -65,7 +65,7 @@ class handle_t {
    *
    * @param stream  Which stream to synchronize (defaults to the stream for this handle)
    */
-  void sync_stream(rmm::cuda_stream_view stream) const { raft_handle_.sync_stream(stream); }
+  void sync_stream(cuda::stream_ref stream) const { raft_handle_.sync_stream(stream); }
 
   /**
    * @brief Sync on the cuda stream for this handle
@@ -84,7 +84,7 @@ class handle_t {
    *
    * @return exec policy using the current stream
    */
-  rmm::exec_policy get_thrust_policy(rmm::cuda_stream_view stream) const
+  rmm::exec_policy get_thrust_policy(cuda::stream_ref stream) const
   {
     return rmm::exec_policy(stream);
   }

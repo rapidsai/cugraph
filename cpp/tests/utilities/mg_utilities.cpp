@@ -54,7 +54,7 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle(size_t pool_size)
   return std::move(handle);
 }
 
-void enforce_p2p_initialization(raft::comms::comms_t const& comm, rmm::cuda_stream_view stream)
+void enforce_p2p_initialization(raft::comms::comms_t const& comm, cuda::stream_ref stream)
 {
   auto const comm_size = comm.get_size();
 

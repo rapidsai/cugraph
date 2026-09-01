@@ -28,7 +28,7 @@ rmm::device_uvector<size_t> compute_partition_scatter_map_impl(
   offset_t const* intra_partition_displs,
   size_t const* group_displacements,
   size_t num_elements,
-  rmm::cuda_stream_view stream_view)
+  cuda::stream_ref stream_view)
 {
   rmm::device_uvector<size_t> scatter_map(num_elements, stream_view);
   thrust::transform(
@@ -51,7 +51,7 @@ rmm::device_uvector<size_t> compute_partition_scatter_map_impl(
                                                       offset_t const* intra_partition_displs, \
                                                       size_t const* group_displacements,      \
                                                       size_t num_elements,                    \
-                                                      rmm::cuda_stream_view stream_view)
+                                                      cuda::stream_ref stream_view)
 
 CUGRAPH_PARTITION_SCATTER_MAP_INST(std::uint8_t, std::uint32_t);
 CUGRAPH_PARTITION_SCATTER_MAP_INST(int, std::size_t);

@@ -26,7 +26,7 @@ template <typename vertex_t, typename edge_t>
 void degree_from_offsets(vertex_t number_of_vertices,
                          edge_t const* offsets,
                          edge_t* degree,
-                         rmm::cuda_stream_view stream_view)
+                         cuda::stream_ref stream_view)
 {
   // Computes out-degree for x = 0 and x = 2
   thrust::for_each(
@@ -42,7 +42,7 @@ void degree_from_vertex_ids(const raft::handle_t* handle,
                             edge_t number_of_edges,
                             vertex_t const* indices,
                             edge_t* degree,
-                            rmm::cuda_stream_view stream_view)
+                            cuda::stream_ref stream_view)
 {
   thrust::for_each(
     rmm::exec_policy(stream_view),
@@ -75,7 +75,7 @@ template <typename VT, typename ET, typename WT>
 void GraphCompressedSparseBaseView<VT, ET, WT>::get_source_indices(VT* src_indices) const
 {
   CUGRAPH_EXPECTS(offsets != nullptr, "No graph specified");
-  rmm::cuda_stream_view stream_view;
+  cuda::stream_ref stream_view;
 
   raft::device_span<VT> indices_span(src_indices, GraphViewBase<VT, ET, WT>::number_of_edges);
 
@@ -145,7 +145,7 @@ void GraphCompressedSparseBaseView<VT, ET, WT>::degree(ET* degree, DegreeDirecti
   //        (e.g. if you have a CSC and you want in-degree (x=1) then pass
   //        the offsets/indices and request an out-degree (x=2))
   //
-  rmm::cuda_stream_view stream_view;
+  cuda::stream_ref stream_view;
 
   if (direction != DegreeDirection::IN) {
     if ((GraphViewBase<VT, ET, WT>::handle != nullptr) &&

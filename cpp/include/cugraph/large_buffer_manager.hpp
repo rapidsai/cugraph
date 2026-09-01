@@ -52,15 +52,14 @@ enum class large_buffer_type_t { MEMORY, STORAGE, NUM_TYPES };
 class large_buffer_manager {
  public:
   template <typename T>
-  static dataframe_buffer_type_t<T> allocate_memory_buffer(size_t size,
-                                                           rmm::cuda_stream_view stream)
+  static dataframe_buffer_type_t<T> allocate_memory_buffer(size_t size, cuda::stream_ref stream)
   {
     CUGRAPH_EXPECTS(memory_buffer_initialized(), "large memory buffer resource is not set.");
     return allocate_dataframe_buffer<T>(size, stream, memory_buffer_resource()->get());
   }
 
   template <typename T>
-  static storage_buffer_t<T> allocate_storage_buffer(size_t, rmm::cuda_stream_view)
+  static storage_buffer_t<T> allocate_storage_buffer(size_t, cuda::stream_ref)
   {
     CUGRAPH_EXPECTS(storage_buffer_initialized(), "large storage buffer resource is not set.");
     return storage_buffer_t<T>();
