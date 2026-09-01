@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -614,24 +614,26 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
             get_dataframe_buffer_begin(aggregate_value_buffer));
       }
     } else {
-      raft::grid_1d_thread_t update_grid(
-        (local_frontier_offsets[i + 1] - local_frontier_offsets[i]),
-        detail::transform_v_frontier_e_kernel_block_size,
-        handle.get_device_properties().maxGridSize[0]);
+      auto frontier_size = local_frontier_offsets[i + 1] - local_frontier_offsets[i];
+      if (frontier_size > 0) {
+        raft::grid_1d_thread_t update_grid(frontier_size,
+                                           detail::transform_v_frontier_e_kernel_block_size,
+                                           handle.get_device_properties().maxGridSize[0]);
 
-      detail::transform_v_frontier_e_hypersparse_or_low_degree<false, GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
-          edge_partition,
-          edge_partition_frontier_key_first,
-          thrust::make_counting_iterator(size_t{0}),
-          thrust::make_counting_iterator(local_frontier_offsets[i + 1] - local_frontier_offsets[i]),
-          edge_partition_src_value_input,
-          edge_partition_dst_value_input,
-          edge_partition_e_value_input,
-          edge_partition_e_mask,
-          edge_partition_frontier_local_degree_offsets,
-          e_op,
-          get_dataframe_buffer_begin(aggregate_value_buffer));
+        detail::transform_v_frontier_e_hypersparse_or_low_degree<false, GraphViewType>
+          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+            edge_partition,
+            edge_partition_frontier_key_first,
+            thrust::make_counting_iterator(size_t{0}),
+            thrust::make_counting_iterator(frontier_size),
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
+            edge_partition_e_value_input,
+            edge_partition_e_mask,
+            edge_partition_frontier_local_degree_offsets,
+            e_op,
+            get_dataframe_buffer_begin(aggregate_value_buffer));
+      }
     }
   }
 

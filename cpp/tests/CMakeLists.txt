@@ -529,6 +529,13 @@ ConfigureTest(
         GPUS 1 PERCENT 75)
 
 ###################################################################################################
+# - TEMPORAL NBR SAMPLING fixed-window tests ------------------------------------------------------
+ConfigureTest(
+    TEMPORAL_NEIGHBOR_SAMPLING_FIXED_WINDOW_TEST
+    sampling/temporal_neighbor_sampling_fixed_window.cpp
+        GPUS 1 PERCENT 25)
+
+###################################################################################################
 # - SAMPLING_POST_PROCESSING tests ----------------------------------------------------------------
 ConfigureTest(SAMPLING_POST_PROCESSING_TEST sampling/sampling_post_processing_test.cpp)
 
@@ -820,6 +827,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
                     prims/mg_per_v_random_select_transform_outgoing_e.cu)
 
     ###############################################################################################
+    # - MG PRIMS PER_V_TOP_K_SELECT_TRANSFORM_OUTGOING_E tests ------------------------------------
+    ConfigureTestMG(MG_PER_V_TOP_K_SELECT_TRANSFORM_OUTGOING_E_TEST
+                    prims/mg_per_v_top_k_select_transform_outgoing_e.cu)
+
+    ###############################################################################################
     # - MG PRIMS PER_V_PAIR_TRANSFORM_SRC_DST_NBR_INTERSECTION tests ------------------------------
     ConfigureTestMG(MG_PER_V_PAIR_TRANSFORM_SRC_DST_NBR_INTERSECTION_TEST
                     prims/mg_per_v_pair_transform_src_dst_nbr_intersection.cu)
@@ -858,6 +870,9 @@ if(BUILD_CUGRAPH_MG_TESTS)
     # - MG TEMPORAL NBR SAMPLING tests --------------------------------------------------------------
     ConfigureTestMG(
         MG_TEMPORAL_NEIGHBOR_SAMPLING_TEST sampling/mg_temporal_neighbor_sampling.cpp)
+    ConfigureTestMG(
+        MG_TEMPORAL_NEIGHBOR_SAMPLING_FIXED_WINDOW_TEST
+        sampling/mg_temporal_neighbor_sampling_fixed_window.cpp)
 
     ###################################################################################################
     # - NEGATIVE SAMPLING tests --------------------------------------------------------------------

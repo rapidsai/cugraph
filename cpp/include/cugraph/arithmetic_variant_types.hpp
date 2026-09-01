@@ -13,28 +13,36 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cstdint>
 #include <variant>
 #include <vector>
 
 namespace CUGRAPH_EXPORT cugraph {
 
-using arithmetic_type_t = std::variant<std::monostate, float, double, int32_t, int64_t, size_t>;
+using arithmetic_type_t =
+  std::variant<std::monostate, float, double, int8_t, int16_t, int32_t, int64_t, size_t>;
 
 using arithmetic_device_uvector_t    = std::variant<std::monostate,
                                                     rmm::device_uvector<float>,
                                                     rmm::device_uvector<double>,
+                                                    rmm::device_uvector<int8_t>,
+                                                    rmm::device_uvector<int16_t>,
                                                     rmm::device_uvector<int32_t>,
                                                     rmm::device_uvector<int64_t>,
                                                     rmm::device_uvector<size_t>>;
 using arithmetic_device_span_t       = std::variant<std::monostate,
                                                     raft::device_span<float>,
                                                     raft::device_span<double>,
+                                                    raft::device_span<int8_t>,
+                                                    raft::device_span<int16_t>,
                                                     raft::device_span<int32_t>,
                                                     raft::device_span<int64_t>,
                                                     raft::device_span<size_t>>;
 using const_arithmetic_device_span_t = std::variant<std::monostate,
                                                     raft::device_span<float const>,
                                                     raft::device_span<double const>,
+                                                    raft::device_span<int8_t const>,
+                                                    raft::device_span<int16_t const>,
                                                     raft::device_span<int32_t const>,
                                                     raft::device_span<int64_t const>,
                                                     raft::device_span<size_t const>>;
@@ -43,6 +51,8 @@ template <typename edge_t>
 using edge_arithmetic_property_t = std::variant<std::monostate,
                                                 cugraph::edge_property_t<edge_t, float>,
                                                 cugraph::edge_property_t<edge_t, double>,
+                                                cugraph::edge_property_t<edge_t, int8_t>,
+                                                cugraph::edge_property_t<edge_t, int16_t>,
                                                 cugraph::edge_property_t<edge_t, int32_t>,
                                                 cugraph::edge_property_t<edge_t, int64_t>,
                                                 cugraph::edge_property_t<edge_t, size_t>>;
@@ -52,6 +62,8 @@ using edge_arithmetic_property_view_t =
   std::variant<std::monostate,
                cugraph::edge_property_view_t<edge_t, float const*>,
                cugraph::edge_property_view_t<edge_t, double const*>,
+               cugraph::edge_property_view_t<edge_t, int8_t const*>,
+               cugraph::edge_property_view_t<edge_t, int16_t const*>,
                cugraph::edge_property_view_t<edge_t, int32_t const*>,
                cugraph::edge_property_view_t<edge_t, int64_t const*>,
                cugraph::edge_property_view_t<edge_t, size_t const*>>;
@@ -61,6 +73,8 @@ using edge_arithmetic_property_mutable_view_t =
   std::variant<std::monostate,
                cugraph::edge_property_view_t<edge_t, float*>,
                cugraph::edge_property_view_t<edge_t, double*>,
+               cugraph::edge_property_view_t<edge_t, int8_t*>,
+               cugraph::edge_property_view_t<edge_t, int16_t*>,
                cugraph::edge_property_view_t<edge_t, int32_t*>,
                cugraph::edge_property_view_t<edge_t, int64_t*>,
                cugraph::edge_property_view_t<edge_t, size_t*>>;
@@ -74,6 +88,8 @@ auto variant_type_dispatch(dispatched_type_t& property, func_t func)
     case 3: return func(std::get<3>(property));
     case 4: return func(std::get<4>(property));
     case 5: return func(std::get<5>(property));
+    case 6: return func(std::get<6>(property));
+    case 7: return func(std::get<7>(property));
     default: CUGRAPH_FAIL("Variant not initialized");
   }
 }

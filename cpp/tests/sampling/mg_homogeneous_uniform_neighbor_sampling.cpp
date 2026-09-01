@@ -6,6 +6,7 @@
 #include "detail/nbr_sampling_validate.hpp"
 #include "detail/shuffle_wrappers.hpp"
 #include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
 #include "utilities/property_generator_utilities.hpp"
@@ -261,11 +262,23 @@ class Tests_MGHomogeneous_Uniform_Neighbor_Sampling
               raft::device_span<weight_t const>{wgt_compare->data(), wgt_compare->size()}))
           : std::nullopt;
 
-      // Gather offsets and batch numbers to rank 0 for disjoint validation
-      auto mg_aggregate_offsets =
-        offsets ? std::make_optional(cugraph::test::device_gatherv(
-                    *handle_, raft::device_span<size_t const>{offsets->data(), offsets->size()}))
-                : std::nullopt;
+      // Expand local label offsets to per-edge labels, then gather. Naively gatherv'ing the
+      // offset arrays concatenates per-rank CSR tables and does not index the gathered edgelist.
+      std::optional<rmm::device_uvector<int32_t>> mg_edge_labels{std::nullopt};
+      if (offsets) {
+        auto h_offsets = cugraph::test::to_host(*handle_, *offsets);
+        std::vector<int32_t> h_edge_labels(src_out.size());
+        for (size_t label = 0; label + 1 < h_offsets.size(); ++label) {
+          std::fill(h_edge_labels.begin() + static_cast<std::ptrdiff_t>(h_offsets[label]),
+                    h_edge_labels.begin() + static_cast<std::ptrdiff_t>(h_offsets[label + 1]),
+                    static_cast<int32_t>(label));
+        }
+        rmm::device_uvector<int32_t> edge_labels(h_edge_labels.size(), handle_->get_stream());
+        raft::update_device(
+          edge_labels.data(), h_edge_labels.data(), h_edge_labels.size(), handle_->get_stream());
+        mg_edge_labels = cugraph::test::device_gatherv(
+          *handle_, raft::device_span<int32_t const>{edge_labels.data(), edge_labels.size()});
+      }
       auto mg_start_batch_numbers = cugraph::test::device_gatherv(
         *handle_, raft::device_span<int32_t const>{batch_number.data(), batch_number.size()});
 
@@ -292,11 +305,12 @@ class Tests_MGHomogeneous_Uniform_Neighbor_Sampling
             raft::device_span<vertex_t const>{mg_aggregate_src.data(), mg_aggregate_src.size()},
             raft::device_span<vertex_t const>{mg_aggregate_dst.data(), mg_aggregate_dst.size()},
             raft::device_span<vertex_t const>{mg_start_src.data(), mg_start_src.size()},
-            mg_aggregate_offsets ? std::make_optional(raft::device_span<size_t const>{
-                                     mg_aggregate_offsets->data(), mg_aggregate_offsets->size()})
-                                 : std::nullopt,
+            std::nullopt,
             std::make_optional(raft::device_span<int32_t const>{mg_start_batch_numbers.data(),
-                                                                mg_start_batch_numbers.size()})));
+                                                                mg_start_batch_numbers.size()}),
+            mg_edge_labels ? std::make_optional(raft::device_span<int32_t const>{
+                               mg_edge_labels->data(), mg_edge_labels->size()})
+                           : std::nullopt));
         }
 
         if (random_sources.size() < 100) {

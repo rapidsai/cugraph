@@ -9,6 +9,7 @@
 #include "c_api/array.hpp"
 #include "c_api/resource_handle.hpp"
 #include "c_api/sampling_common.hpp"
+#include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 
@@ -19,11 +20,16 @@
 #include <raft/core/device_span.hpp>
 #include <raft/core/host_span.hpp>
 
+#include <rmm/cuda_stream.hpp>
+#include <rmm/cuda_stream_pool.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/mr/per_device_resource.hpp>
 
 #include <cuda_runtime.h>
 
 #include <cstdio>
+#include <ctime>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -107,9 +113,16 @@ extern "C" void* create_mg_raft_handle(int argc, char** argv)
   C_MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));
   C_MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));
   C_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
+  // Bind the rank to its GPU before creating the RMM pool so the pool is
+  // allocated on the intended device (matches CUGRAPH_MG_TEST_PROGRAM_MAIN).
   C_CUDA_TRY(cudaSetDevice(comm_rank % num_gpus_per_node));
 
-  raft::handle_t* handle = new raft::handle_t{};
+  rmm::mr::set_current_device_resource(cugraph::test::create_memory_resource("pool"));
+
+  // Match initialize_mg_handle: per-thread default stream + stream pool.
+  constexpr size_t stream_pool_size = 8;  // default CUDA_DEVICE_MAX_CONNECTIONS
+  raft::handle_t* handle            = new raft::handle_t{
+    rmm::cuda_stream_per_thread, std::make_shared<rmm::cuda_stream_pool>(stream_pool_size)};
   raft::comms::initialize_mpi_comms(handle, MPI_COMM_WORLD);
 
 #if 1
@@ -130,6 +143,7 @@ extern "C" void free_mg_raft_handle(void* raft_handle)
 {
   raft::handle_t* handle = reinterpret_cast<raft::handle_t*>(raft_handle);
   delete handle;
+  rmm::mr::reset_current_device_resource();
 
   C_MPI_TRY(MPI_Finalize());
 }
@@ -792,6 +806,22 @@ extern "C" cugraph_error_code_t cugraph_test_host_gatherv_fill(
   auto& comm = raft_handle->get_comms();
 
   switch (input_type) {
+    case cugraph_data_type_id_t::INT8: {
+      auto tmp = cugraph::test::to_device(
+        *raft_handle,
+        raft::host_span<int8_t const>{reinterpret_cast<int8_t const*>(input), input_size});
+      tmp = cugraph::test::device_gatherv(*raft_handle, tmp.data(), tmp.size());
+      raft::update_host(
+        reinterpret_cast<int8_t*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
+    } break;
+    case cugraph_data_type_id_t::INT16: {
+      auto tmp = cugraph::test::to_device(
+        *raft_handle,
+        raft::host_span<int16_t const>{reinterpret_cast<int16_t const*>(input), input_size});
+      tmp = cugraph::test::device_gatherv(*raft_handle, tmp.data(), tmp.size());
+      raft::update_host(
+        reinterpret_cast<int16_t*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
+    } break;
     case cugraph_data_type_id_t::INT32: {
       auto tmp = cugraph::test::to_device(
         *raft_handle,
@@ -852,6 +882,22 @@ extern "C" cugraph_error_code_t cugraph_test_device_gatherv_fill(
   auto& comm = raft_handle->get_comms();
 
   switch (internal_array->type_) {
+    case cugraph_data_type_id_t::INT8: {
+      auto tmp = cugraph::test::device_gatherv(
+        *raft_handle,
+        raft::device_span<int8_t const>{internal_array->as_type<int8_t const>(),
+                                        internal_array->size_});
+      raft::update_host(
+        reinterpret_cast<int8_t*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
+    } break;
+    case cugraph_data_type_id_t::INT16: {
+      auto tmp = cugraph::test::device_gatherv(
+        *raft_handle,
+        raft::device_span<int16_t const>{internal_array->as_type<int16_t const>(),
+                                         internal_array->size_});
+      raft::update_host(
+        reinterpret_cast<int16_t*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
+    } break;
     case cugraph_data_type_id_t::INT32: {
       auto tmp = cugraph::test::device_gatherv(
         *raft_handle,
