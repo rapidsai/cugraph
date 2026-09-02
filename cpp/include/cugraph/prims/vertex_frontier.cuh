@@ -27,6 +27,7 @@
 #include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/fill.h>

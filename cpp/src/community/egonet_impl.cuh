@@ -17,7 +17,6 @@
 #endif
 #include <cugraph/utilities/thrust_wrappers/fill.hpp>
 
-#include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_vector.hpp>
 #include <rmm/exec_policy.hpp>
 

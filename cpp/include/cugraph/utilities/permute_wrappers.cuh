@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -9,10 +9,10 @@
 #include <cugraph/utilities/iterator_utils.hpp>
 #include <cugraph/utilities/thrust_wrappers/scatter.hpp>
 
-#include <rmm/cuda_stream_view.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/copy.h>
 
 #include <cstddef>

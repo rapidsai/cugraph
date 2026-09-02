@@ -17,6 +17,7 @@
 #include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/iterator>
+#include <cuda/stream>
 #include <thrust/copy.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/tabulate.h>

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -17,6 +17,7 @@
 #include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/count.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>

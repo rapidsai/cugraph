@@ -7,6 +7,8 @@
 
 #include <cugraph/export.hpp>
 
+#include <cuda/stream>
+
 namespace cugraph {
 namespace c_api {
 

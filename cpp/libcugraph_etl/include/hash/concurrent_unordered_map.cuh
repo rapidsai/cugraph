@@ -13,12 +13,12 @@
 #include <cudf/hashing/detail/default_hash.cuh>
 #include <raft/util/cuda_rt_essentials.hpp>
 
-#include <rmm/cuda_stream_view.hpp>
 #include <rmm/mr/polymorphic_allocator.hpp>
 #include <rmm/prefetch.hpp>
 
 #include <cuda/atomic>
 #include <cuda/std/utility>
+#include <cuda/stream>
 
 #include <hash/helper_functions.cuh>
 #include <hash/managed.cuh>
