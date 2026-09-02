@@ -11,10 +11,10 @@
 #include <raft/core/handle.hpp>
 #include <raft/core/host_span.hpp>
 
-#include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/iterator/detail/any_assign.h>
 #include <thrust/memory.h>
 

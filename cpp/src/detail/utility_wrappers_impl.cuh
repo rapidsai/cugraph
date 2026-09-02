@@ -16,6 +16,7 @@
 #include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/count.h>
 #include <thrust/equal.h>
 #include <thrust/iterator/zip_iterator.h>

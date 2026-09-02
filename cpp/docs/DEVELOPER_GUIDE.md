@@ -173,7 +173,7 @@ Similar to a `rmm::device_vector`, allocates a contiguous set of elements in dev
 key differences:
 - As an optimization, elements are uninitialized and no synchronization occurs at construction.
 This limits the types `T` to trivially copyable types.
-- All operations are stream ordered (i.e., they accept a `cuda_stream_view` specifying the stream
+- All operations are stream ordered (i.e., they accept a `cuda::stream_ref` specifying the stream
 on which the operation is performed).
 
 ## Namespaces

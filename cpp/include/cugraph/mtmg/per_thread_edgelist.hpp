@@ -9,6 +9,8 @@
 #include <cugraph/mtmg/detail/device_shared_wrapper.hpp>
 #include <cugraph/mtmg/detail/per_device_edgelist.hpp>
 
+#include <cuda/stream>
+
 namespace CUGRAPH_EXPORT cugraph {
 namespace mtmg {
 

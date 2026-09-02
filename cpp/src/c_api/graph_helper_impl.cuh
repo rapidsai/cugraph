@@ -10,6 +10,7 @@
 #include <cugraph/utilities/misc_utils.cuh>
 
 #include <cuda/functional>
+#include <cuda/stream>
 
 namespace cugraph {
 namespace c_api {

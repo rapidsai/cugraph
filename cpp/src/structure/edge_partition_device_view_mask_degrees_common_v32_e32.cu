@@ -15,6 +15,8 @@
 #include <cugraph/export.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 
+#include <cuda/stream>
+
 namespace cugraph {
 namespace detail {
 

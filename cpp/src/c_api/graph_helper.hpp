@@ -7,6 +7,8 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/stream>
+
 namespace cugraph {
 namespace c_api {
 
