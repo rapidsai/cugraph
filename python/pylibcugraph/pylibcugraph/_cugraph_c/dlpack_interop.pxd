@@ -4,31 +4,35 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
-from libc.stdint cimport uint8_t, uint16_t
-
 from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_code_t,
     cugraph_error_t,
 )
-from pylibcugraph._cugraph_c.types cimport cugraph_data_type_id_t
+from pylibcugraph._cugraph_c.types cimport (
+    bool_t,
+    cugraph_data_type_id_t,
+)
 
-cdef extern from "dlpack/dlpack.h" nogil:
-    cdef enum DLDataTypeCode:
-        kDLInt
-        kDLUInt
-        kDLFloat
-        kDLBfloat
-        kDLComplex
-        kDLBool
+cdef extern from "cugraph_c/dlpack_interop.h" nogil:
+    cdef cugraph_error_code_t cugraph_dlpack_is_device_accessible(
+        const void* managed_tensor,
+        bool_t versioned,
+        bool_t* result,
+        cugraph_error_t** error,
+    )
 
-    ctypedef struct DLDataType:
-        uint8_t code
-        uint8_t bits
-        uint16_t lanes
+    cdef cugraph_error_code_t cugraph_dlpack_is_host_accessible(
+        const void* managed_tensor,
+        bool_t versioned,
+        bool_t* result,
+        cugraph_error_t** error,
+    )
 
-cdef extern from "cugraph_c/dlpack_interop.h":
-    cdef cugraph_error_code_t cugraph_data_type_id_from_dlpack(
-        const DLDataType* dlpack_dtype,
+    cdef cugraph_error_code_t cugraph_dlpack_get_array_info(
+        const void* managed_tensor,
+        bool_t versioned,
+        void** data,
+        size_t* size,
         cugraph_data_type_id_t* dtype,
         cugraph_error_t** error,
     )

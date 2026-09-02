@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -34,7 +34,7 @@ from pylibcugraph.graphs cimport (
 )
 from pylibcugraph.utils cimport (
     assert_success,
-    assert_CAI_type,
+    assert_device_accessible,
     copy_to_cupy_array,
     create_cugraph_type_erased_device_array_view_from_py_obj
 )
@@ -84,7 +84,7 @@ def has_vertex(ResourceHandle resource_handle,
         [ True  True  True False]
         """
 
-    assert_CAI_type(vertices, "vertices")
+    assert_device_accessible(vertices, "vertices")
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
