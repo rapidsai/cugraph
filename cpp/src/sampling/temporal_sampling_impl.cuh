@@ -537,14 +537,14 @@ temporal_neighbor_sample_impl(
     "Invalid input argument: LAST neighbor selection does not accept edge "
     "biases.");
 
-  // FIXME: LAST ranks eligible edges by converting timestamps to double
-  // (detail::last_n_time_bias) so per_v_top_k_select_transform_outgoing_e can
-  // sort them. A double represents every integer in [-2^53, 2^53] exactly;
-  // larger magnitudes are monotonic but not strictly unique (unix-ns ~2^60 has
-  // ULP 128). int32_t and unix s/ms/us fall in the exact range. A wrong last-n
-  // SET is possible only when more than fanout K eligible times on one source
-  // sit in a non-unique double bucket at the end of the walk (latest times for
-  // increasing, earliest for decreasing).
+  // LAST ranks eligible edges by converting timestamps to double bias values
+  // (detail::last_n_time_bias) for per_v_top_k_select_transform_outgoing_e.
+  // int32 timestamps rank exactly over the full signed range. int64 timestamps
+  // rank exactly on [-2^52, 2^52 - 1] (typical unix seconds/milliseconds/microseconds);
+  // beyond that, biases remain strictly positive and order-preserving but may tie
+  // (e.g. nanosecond timestamps or very negative times), so LAST still returns
+  // fanout edges but the chosen set can be wrong when more than fanout K eligible
+  // edges on one source share the same bias bucket. Equal timestamps always tie.
 
   validate_no_duplicate_seeds<vertex_t, label_t>(handle, starting_vertices, starting_vertex_labels);
 

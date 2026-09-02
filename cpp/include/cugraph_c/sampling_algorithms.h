@@ -212,7 +212,14 @@ typedef enum {
                                             temporal_sampling_comparison — later times for
                                             increasing modes, earlier times (last in
                                             decreasing order) for decreasing modes. No edge
-                                            biases and no with-replacement. */
+                                            biases and no with-replacement. int32 start times
+                                            rank exactly over the full signed range; int64
+                                            ranks exactly on [-2^52, 2^52 - 1]. Beyond that,
+                                            int64 ordering is preserved but values may tie,
+                                            so fanout edges are still returned yet the chosen
+                                            set may be wrong when more than fanout K eligible
+                                            edges on one source share the same rank. Equal
+                                            timestamps always tie. */
 } cugraph_neighbor_selection_t;
 
 /**
@@ -411,7 +418,12 @@ CUGRAPH_EXPORT void cugraph_sampling_options_free(cugraph_sampling_options_t* op
  * temporal_strategy='last') deterministically selects the last-n temporally eligible edges
  * along the walk order: later times for increasing comparisons, earlier times (last in
  * decreasing order) for decreasing comparisons. LAST requires temporal sampling, ignores
- * edge biases, and rejects with-replacement.
+ * edge biases, and rejects with-replacement. int32 start times rank exactly over the full
+ * signed range; int64 ranks exactly on [-2^52, 2^52 - 1] (typical unix
+ * seconds/milliseconds/microseconds). Beyond that, int64 ordering is preserved but values
+ * may tie, so fanout edges are still returned yet the chosen set may be wrong when more
+ * than fanout K eligible edges on one source share the same rank. Equal timestamps always
+ * tie.
  *
  * Sampling is non-temporal unless cugraph_sampling_set_temporal_sampling_comparison has been
  * called on @p sampling_options; all temporal arguments must then be NULL. When temporal,

@@ -187,7 +187,12 @@ def neighbor_sample(ResourceHandle resource_handle,
         temporally eligible edges, keep fanout-K ranked by start time along the walk
         implied by temporal_sampling_comparison — later times for increasing modes,
         earliest times for decreasing modes (last in decreasing time order). Requires
-        temporal sampling, no edge biases, and with_replacement=False.
+        temporal sampling, no edge biases, and with_replacement=False. int32 start
+        times rank exactly over the full signed range; int64 ranks exactly on
+        [-2^52, 2^52 - 1] (typical unix seconds/milliseconds/microseconds). Beyond
+        that, int64 ordering is preserved but values may tie, so fanout edges are still
+        returned yet the chosen set may be wrong when more than fanout K eligible edges
+        on one source share the same rank. Equal timestamps always tie.
 
     fixed_window: bool (Optional)
         If True (temporal only), keep each seed's original time window at

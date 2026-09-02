@@ -60,8 +60,13 @@ enum class neighbor_selection_t {
                   times for STRICTLY_INCREASING and MONOTONICALLY_INCREASING (same as PyG);
                   earlier times for STRICTLY_DECREASING and MONOTONICALLY_DECREASING (the
                   last elements in decreasing time order). Does not accept edge biases or
-                  with_replacement. Equal timestamps (and 64-bit times that are not uniquely
-                  representable as double) may tie in arbitrary order. */
+                  with_replacement. Start times are ranked via double conversion: int32
+                  ranks exactly over the full signed range; int64 ranks exactly on
+                  [-2^52, 2^52 - 1] (typical unix seconds/milliseconds/microseconds).
+                  Beyond that, ordering is preserved but values may tie, so fanout edges
+                  are still returned yet the chosen set may be wrong when more than fanout
+                  K eligible edges on one source share the same rank. Equal timestamps
+                  always tie. */
 };
 
 /**
@@ -111,6 +116,9 @@ struct sampling_options_t {
    * LAST (PyG temporal_strategy='last') keeps fanout-K edges ranked by start time
    * along the walk implied by @p temporal_sampling_comparison: later times for
    * increasing modes, earlier times (last in decreasing order) for decreasing modes.
+   * int32 start times rank exactly over the full signed range; int64 ranks exactly
+   * on [-2^52, 2^52 - 1]. Outside that int64 range, ordering is preserved but ties
+   * are possible (see neighbor_selection_t::LAST).
    */
   neighbor_selection_t neighbor_selection{neighbor_selection_t::RANDOM};
 
@@ -958,7 +966,11 @@ heterogeneous_biased_temporal_neighbor_sample(
  * selects the last-n eligible edges along the temporal walk order (temporal only; no bias;
  * no with-replacement): later @p edge_start_time_view values for increasing comparisons,
  * earlier values for decreasing comparisons (last in decreasing time order, not latest
- * timestamp).
+ * timestamp). int32 start times rank exactly over the full signed range; int64 ranks exactly
+ * on [-2^52, 2^52 - 1] (typical unix seconds/milliseconds/microseconds). Beyond that, int64
+ * ordering is preserved but values may tie, so fanout edges are still returned yet the
+ * chosen set may be wrong when more than fanout K eligible edges on one source share the
+ * same rank. Equal timestamps always tie.
  *
  * Sampling is temporal when @p sampling_options.temporal_sampling_comparison is set; in that case
  * @p edge_start_time_view is required. When @p sampling_options.fixed_window is true, each seed's

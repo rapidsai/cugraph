@@ -124,17 +124,22 @@ __device__ inline bool try_find_temporal_key_index(raft::device_span<vertex_t co
 //   STRICTLY_DECREASING / MONOTONICALLY_DECREASING
 //       earlier edge_start_time ranks higher
 //
-// Ties (equal timestamps, or 64-bit times that collapse under double rounding)
-// have arbitrary order; per_v_top_k_select_transform_outgoing_e does not
-// provide a secondary key.
+// Ties (equal timestamps, or int64 magnitudes outside the exact core that collapse
+// under double rounding) have arbitrary order; per_v_top_k_select_transform_outgoing_e
+// does not provide a secondary key.
 //
 // The top-k primitive selects the highest strictly-positive bias and treats
 // bias 0 as "not selectable".  last_n_time_bias therefore maps an eligible
 // timestamp to (0, +inf) with that rank order.  The return type is
 // last_n_bias_t (double): float cannot uniquely represent int32 times.
 //
-// Exactness of last_n_time_bias: integer times with |t| <= 2^53 rank exactly;
-// see the FIXME in temporal_sampling_impl.cuh for the int64 / unix-ns case.
+// Exactness of last_n_time_bias:
+//   int32: all values rank exactly (signed offset lands in [1, 2^32]).
+//   int64: t in [-2^52, 2^52 - 1] ranks exactly (~4.5e15; covers unix s/ms/us).
+//     Timestamps outside that core use monotonic outer bands that stay strictly
+//     positive (large negative t in (0, 1), large positive t above the core) so
+//     LAST still returns fanout edges, but ordering among colliding timestamps
+//     is arbitrary.  See temporal_sampling_impl.cuh.
 //
 // LAST does not use caller edge biases and does not support with_replacement.
 
@@ -148,9 +153,11 @@ inline constexpr bool last_n_time_bias_is_exact_v =
 // Strictly positive bias for an *eligible* edge.  Callers must still return
 // bias 0 when the edge is visited or outside the temporal window.
 //
-// Signed times are XOR'd onto unsigned so integer order is preserved, then
-// inverted for decreasing walks so earlier times rank higher.  +1 so a valid
-// edge never produces 0, which the top-k primitive excludes.
+// int32: cast, optional (max - t) for decreasing, 2^31 offset, +1.
+// int64: three bands on the (possibly inverted) rank key:
+//   core [-2^52, 2^52 - 1]: t + 2^52 + 1 (exact, bias in [1, 2^53])
+//   large t >= 2^52:        (t - 2^52 + 1) * 2^54 (monotonic, bias > 2^53)
+//   large t <= -2^52 - 1:   (t - INT64_MIN + 1) / 2^63 (monotonic, bias in (0, 1))
 template <typename time_stamp_t>
 __device__ inline last_n_bias_t last_n_time_bias(
   time_stamp_t edge_time, temporal_sampling_comparison_t temporal_sampling_comparison)
@@ -158,26 +165,35 @@ __device__ inline last_n_bias_t last_n_time_bias(
   static_assert(std::is_integral_v<time_stamp_t> && !std::is_same_v<time_stamp_t, bool>,
                 "LAST neighbor selection requires an integral timestamp type.");
 
-  uint64_t rank{};
-  if constexpr (std::is_signed_v<time_stamp_t>) {
-    using unsigned_t = std::make_unsigned_t<time_stamp_t>;
-    auto const u     = static_cast<unsigned_t>(edge_time);
-    auto const sign  = static_cast<unsigned_t>(unsigned_t{1} << (sizeof(time_stamp_t) * 8 - 1));
-    rank             = static_cast<uint64_t>(u ^ sign);
-  } else {
-    rank = static_cast<uint64_t>(edge_time);
-  }
-
-  if (is_temporal_decreasing(temporal_sampling_comparison)) {
-    if constexpr (sizeof(time_stamp_t) < sizeof(uint64_t)) {
-      auto const mask = (uint64_t{1} << (sizeof(time_stamp_t) * 8)) - uint64_t{1};
-      rank            = (~rank) & mask;
-    } else {
-      rank = ~rank;
+  if constexpr (sizeof(time_stamp_t) >= sizeof(int64_t) && std::is_signed_v<time_stamp_t>) {
+    int64_t rank_key = static_cast<int64_t>(edge_time);
+    if (is_temporal_decreasing(temporal_sampling_comparison)) {
+      rank_key = std::numeric_limits<int64_t>::max() - rank_key;
     }
-  }
 
-  return static_cast<last_n_bias_t>(rank) + last_n_bias_t{1};
+    constexpr int64_t k_exact_lo = -(int64_t{1} << 52);
+    constexpr int64_t k_exact_hi = (int64_t{1} << 52) - 1;
+
+    if (rank_key >= k_exact_lo && rank_key <= k_exact_hi) {
+      return static_cast<last_n_bias_t>(rank_key) + static_cast<last_n_bias_t>(uint64_t{1} << 52) +
+             last_n_bias_t{1};
+    }
+    if (rank_key >= (int64_t{1} << 52)) {
+      return (static_cast<last_n_bias_t>(rank_key - (int64_t{1} << 52)) + last_n_bias_t{1}) *
+             static_cast<last_n_bias_t>(uint64_t{1} << 54);
+    }
+    auto const idx = static_cast<last_n_bias_t>(rank_key - std::numeric_limits<int64_t>::min());
+    return (idx + last_n_bias_t{1}) / static_cast<last_n_bias_t>(uint64_t{1} << 63);
+  } else {
+    last_n_bias_t rank = static_cast<last_n_bias_t>(edge_time);
+    if (is_temporal_decreasing(temporal_sampling_comparison)) {
+      rank = static_cast<last_n_bias_t>(std::numeric_limits<time_stamp_t>::max() - edge_time);
+    }
+    if constexpr (std::is_signed_v<time_stamp_t>) {
+      rank += static_cast<last_n_bias_t>(uint64_t{1} << (sizeof(time_stamp_t) * 8 - 1));
+    }
+    return rank + last_n_bias_t{1};
+  }
 }
 
 }  // namespace detail
