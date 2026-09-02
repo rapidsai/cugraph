@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "edge_partition_device_view_impl.cuh"
@@ -7,6 +7,8 @@
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/export.hpp>
 #include <cugraph/utilities/device_functors.cuh>
+
+#include <cuda/stream>
 
 namespace cugraph {
 namespace detail {

@@ -15,6 +15,8 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/stream>
+
 namespace CUGRAPH_EXPORT cugraph {
 namespace mtmg {
 

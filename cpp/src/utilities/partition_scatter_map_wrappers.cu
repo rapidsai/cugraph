@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Explicit instantiations for cugraph/utilities/partition_scatter_map_wrappers.cuh.
@@ -13,6 +13,7 @@
 
 #include <cuda/functional>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
 

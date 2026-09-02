@@ -10,12 +10,12 @@
 #include <raft/core/handle.hpp>
 #include <raft/util/integer_utils.hpp>
 
-#include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <cub/cub.cuh>
 #include <cuda/std/iterator>
+#include <cuda/stream>
 
 #include <numeric>
 #include <vector>

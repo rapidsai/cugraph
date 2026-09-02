@@ -13,6 +13,7 @@
 #include <cuda/atomic>
 #include <cuda/std/functional>
 #include <cuda/std/iterator>
+#include <cuda/stream>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/iterator/iterator_traits.h>
