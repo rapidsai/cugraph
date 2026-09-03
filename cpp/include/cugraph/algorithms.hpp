@@ -1788,13 +1788,17 @@ rmm::device_uvector<vertex_t> strongly_connected_components(
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object. Must be directed (asymmetric).
  * @param seed_vertices If specified, only cycles that contain at least one vertex in this list
- * are returned.
+ * are returned. @p seed_vertices must be sorted in ascending order. In multi-GPU, if @p
+ * seed_vertices is provided on one GPU, it must be provided on every GPU; pass an empty span
+ * (not `std::nullopt`) if this GPU has no seed vertices. The aggregate number of seed vertices
+ * over all GPUs must be greater than 0.
  * @param length_bound Maximum cycle length to enumerate. Cycles exceeding this length won't be
  * returned.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return Tuple of two arrays: cycle vertices and offsets.  The size of the offset array is the
- * number of cycles + 1. The i'th and (i+1)'th elements of the offset array demarcates the beginning
- * (inclusive) and end (exclusive) of the i'th cycle vertices, respectively.
+ * @return Tuple of two arrays: cycle vertices and offsets. Vertices of each cycle are listed in
+ * cyclic order. The size of the offset array is the number of cycles + 1 (in multi-GPU, the number
+ * of cycles stored in this GPU + 1). The i'th and (i+1)'th elements of the offset array demarcate
+ * the beginning (inclusive) and end (exclusive) of the i'th cycle on this GPU, respectively.
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<size_t>> simple_cycles(
