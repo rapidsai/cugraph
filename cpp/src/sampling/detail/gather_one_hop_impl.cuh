@@ -464,6 +464,7 @@ temporal_gather_one_hop_edgelist(
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::device_span<bool const>> gather_flags,
   temporal_sampling_comparison_t temporal_sampling_comparison,
+  bool fixed_window,
   bool do_expensive_check)
 {
   constexpr bool store_transposed = false;
@@ -566,44 +567,31 @@ temporal_gather_one_hop_edgelist(
           temporal_sampling_comparison ==
             temporal_sampling_comparison_t::MONOTONICALLY_INCREASING ||
           temporal_sampling_comparison == temporal_sampling_comparison_t::STRICTLY_INCREASING;
+        // fixed_window keeps every seed's original window bounds fixed, so duplicate entries for
+        // the same key are expected to be identical; simply keep the first rather than taking a
+        // max/min extremum.
         auto const n = kv_majors->size();
         rmm::device_uvector<vertex_t> out_majors(n, handle.get_stream());
         rmm::device_uvector<label_t> out_labels(n, handle.get_stream());
         rmm::device_uvector<time_stamp_t> out_window_starts(n, handle.get_stream());
         rmm::device_uvector<time_stamp_t> out_window_ends(n, handle.get_stream());
 
-        size_t new_size{};
-        if (increasing) {
-          auto ends = thrust::reduce_by_key(
-            handle.get_thrust_policy(),
-            thrust::make_zip_iterator(kv_majors->begin(), kv_labels->begin()),
-            thrust::make_zip_iterator(kv_majors->end(), kv_labels->end()),
-            thrust::make_zip_iterator(kv_window_starts->begin(), kv_window_ends->begin()),
-            thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()),
-            thrust::make_zip_iterator(out_window_starts.begin(), out_window_ends.begin()),
-            thrust::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
-            [] __device__(cuda::std::tuple<time_stamp_t, time_stamp_t> a,
-                          cuda::std::tuple<time_stamp_t, time_stamp_t> b) {
-              return cuda::std::get<0>(a) >= cuda::std::get<0>(b) ? a : b;
-            });
-          new_size = static_cast<size_t>(cuda::std::distance(
-            thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()), ends.first));
-        } else {
-          auto ends = thrust::reduce_by_key(
-            handle.get_thrust_policy(),
-            thrust::make_zip_iterator(kv_majors->begin(), kv_labels->begin()),
-            thrust::make_zip_iterator(kv_majors->end(), kv_labels->end()),
-            thrust::make_zip_iterator(kv_window_starts->begin(), kv_window_ends->begin()),
-            thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()),
-            thrust::make_zip_iterator(out_window_starts.begin(), out_window_ends.begin()),
-            thrust::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
-            [] __device__(cuda::std::tuple<time_stamp_t, time_stamp_t> a,
-                          cuda::std::tuple<time_stamp_t, time_stamp_t> b) {
-              return cuda::std::get<0>(a) <= cuda::std::get<0>(b) ? a : b;
-            });
-          new_size = static_cast<size_t>(cuda::std::distance(
-            thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()), ends.first));
-        }
+        auto ends = thrust::reduce_by_key(
+          handle.get_thrust_policy(),
+          thrust::make_zip_iterator(kv_majors->begin(), kv_labels->begin()),
+          thrust::make_zip_iterator(kv_majors->end(), kv_labels->end()),
+          thrust::make_zip_iterator(kv_window_starts->begin(), kv_window_ends->begin()),
+          thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()),
+          thrust::make_zip_iterator(out_window_starts.begin(), out_window_ends.begin()),
+          cuda::std::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
+          [fixed_window, increasing] __device__(cuda::std::tuple<time_stamp_t, time_stamp_t> a,
+                                                cuda::std::tuple<time_stamp_t, time_stamp_t> b) {
+            if (fixed_window) { return a; }
+            if (increasing) { return cuda::std::get<0>(a) >= cuda::std::get<0>(b) ? a : b; }
+            return cuda::std::get<0>(a) <= cuda::std::get<0>(b) ? a : b;
+          });
+        auto const new_size = static_cast<size_t>(cuda::std::distance(
+          thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()), ends.first));
 
         kv_majors        = std::move(out_majors);
         kv_labels        = std::move(out_labels);
@@ -838,6 +826,7 @@ temporal_gather_one_hop_edgelist_to_unvisited_neighbors(
   rmm::device_uvector<vertex_t>&& visited_minors,
   std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
   temporal_sampling_comparison_t temporal_sampling_comparison,
+  bool fixed_window,
   bool do_expensive_check)
 {
   CUGRAPH_EXPECTS(active_major_labels.has_value() == visited_minor_labels.has_value(),
@@ -858,6 +847,7 @@ temporal_gather_one_hop_edgelist_to_unvisited_neighbors(
       active_major_labels,
       gather_flags,
       temporal_sampling_comparison,
+      fixed_window,
       do_expensive_check);
 
   // Drop edges whose destination has already been visited. Keep multi-edge indices

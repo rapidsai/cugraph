@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -8,6 +8,7 @@
 #include "sampling/detail/sampling_utils.hpp"
 
 #include <cugraph/export.hpp>
+#include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/utilities/thrust_wrappers/fill.hpp>
 #include <cugraph/utilities/thrust_wrappers/scatter.hpp>
@@ -20,6 +21,10 @@ namespace detail {
 CUGRAPH_EXPORT rmm::device_uvector<int32_t> convert_starting_vertex_label_offsets_to_labels(
   raft::handle_t const& handle, raft::device_span<size_t const> starting_vertex_label_offsets)
 {
+  CUGRAPH_EXPECTS(starting_vertex_label_offsets.size() > 0,
+                  "Invalid input argument: starting_vertex_label_offsets must be non-empty "
+                  "(use a size-1 {0} array for zero local labels).");
+
   return expand_sparse_offsets(starting_vertex_label_offsets, int32_t{0}, handle.get_stream());
 }
 

@@ -19,6 +19,7 @@
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/thrust_wrappers/fill.hpp>
 #include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/vertex_partition_view.hpp>
@@ -45,6 +46,7 @@
 #include <memory>
 #include <optional>
 #include <tuple>
+#include <type_traits>
 #include <vector>
 
 namespace cugraph {
@@ -122,15 +124,29 @@ void validate_no_duplicate_seeds(
 
 struct temporal_time_window_reduce_t {
   bool increasing{};
+  // FIXED_WINDOW keeps every seed's original (window_start, window_end) fixed, so duplicate
+  // entries for the same key are expected to carry identical values; simply keep the first.
+  bool fixed_window{};
   template <typename time_stamp_t>
   __device__ cuda::std::tuple<time_stamp_t, time_stamp_t> operator()(
     cuda::std::tuple<time_stamp_t, time_stamp_t> a,
     cuda::std::tuple<time_stamp_t, time_stamp_t> b) const
   {
+    if (fixed_window) { return a; }
     auto const time_a = cuda::std::get<0>(a);
     auto const time_b = cuda::std::get<0>(b);
     if (increasing) { return time_a >= time_b ? a : b; }
     return time_a <= time_b ? a : b;
+  }
+};
+
+// FIXED_WINDOW analogue of thrust::maximum / thrust::minimum used to dedupe scalar frontier times:
+// duplicate entries for the same key are expected to be identical, so keep the first.
+struct keep_first_temporal_value_t {
+  template <typename time_stamp_t>
+  __device__ time_stamp_t operator()(time_stamp_t a, time_stamp_t const&) const
+  {
+    return a;
   }
 };
 
@@ -144,7 +160,8 @@ void dedupe_temporal_frontier(
   std::optional<rmm::device_uvector<label_t>>& frontier_vertex_labels,
   std::optional<rmm::device_uvector<time_stamp_t>>& frontier_vertex_times,
   std::optional<rmm::device_uvector<time_stamp_t>>& frontier_vertex_window_ends,
-  temporal_sampling_comparison_t temporal_sampling_comparison)
+  temporal_sampling_comparison_t temporal_sampling_comparison,
+  bool fixed_window)
 {
   if (!frontier_vertex_times || frontier_vertices.size() < 2) { return; }
 
@@ -167,7 +184,7 @@ void dedupe_temporal_frontier(
                                             frontier_vertex_times->end(),
                                             frontier_vertex_window_ends->end()));
 
-    temporal_time_window_reduce_t reducer{increasing};
+    temporal_time_window_reduce_t reducer{increasing, fixed_window};
     auto ends = thrust::reduce_by_key(
       handle.get_thrust_policy(),
       thrust::make_zip_iterator(frontier_vertices.begin(), frontier_vertex_labels->begin()),
@@ -176,7 +193,7 @@ void dedupe_temporal_frontier(
                                 frontier_vertex_window_ends->begin()),
       thrust::make_zip_iterator(out_vertices.begin(), out_labels.begin()),
       thrust::make_zip_iterator(out_times.begin(), out_window_ends.begin()),
-      thrust::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
+      cuda::std::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
       reducer);
     auto const new_size = static_cast<size_t>(cuda::std::distance(
       thrust::make_zip_iterator(out_vertices.begin(), out_labels.begin()), ends.first));
@@ -202,7 +219,7 @@ void dedupe_temporal_frontier(
         frontier_vertices.end(), frontier_vertex_labels->end(), frontier_vertex_times->end()));
 
     size_t new_size{};
-    if (increasing) {
+    if (fixed_window) {
       auto ends = thrust::reduce_by_key(
         handle.get_thrust_policy(),
         thrust::make_zip_iterator(frontier_vertices.begin(), frontier_vertex_labels->begin()),
@@ -210,7 +227,19 @@ void dedupe_temporal_frontier(
         frontier_vertex_times->begin(),
         thrust::make_zip_iterator(out_vertices.begin(), out_labels.begin()),
         out_times.begin(),
-        thrust::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
+        cuda::std::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
+        keep_first_temporal_value_t{});
+      new_size = static_cast<size_t>(cuda::std::distance(
+        thrust::make_zip_iterator(out_vertices.begin(), out_labels.begin()), ends.first));
+    } else if (increasing) {
+      auto ends = thrust::reduce_by_key(
+        handle.get_thrust_policy(),
+        thrust::make_zip_iterator(frontier_vertices.begin(), frontier_vertex_labels->begin()),
+        thrust::make_zip_iterator(frontier_vertices.end(), frontier_vertex_labels->end()),
+        frontier_vertex_times->begin(),
+        thrust::make_zip_iterator(out_vertices.begin(), out_labels.begin()),
+        out_times.begin(),
+        cuda::std::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
         thrust::maximum<time_stamp_t>{});
       new_size = static_cast<size_t>(cuda::std::distance(
         thrust::make_zip_iterator(out_vertices.begin(), out_labels.begin()), ends.first));
@@ -222,7 +251,7 @@ void dedupe_temporal_frontier(
         frontier_vertex_times->begin(),
         thrust::make_zip_iterator(out_vertices.begin(), out_labels.begin()),
         out_times.begin(),
-        thrust::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
+        cuda::std::equal_to<cuda::std::tuple<vertex_t, label_t>>{},
         thrust::minimum<time_stamp_t>{});
       new_size = static_cast<size_t>(cuda::std::distance(
         thrust::make_zip_iterator(out_vertices.begin(), out_labels.begin()), ends.first));
@@ -247,7 +276,7 @@ void dedupe_temporal_frontier(
       thrust::make_zip_iterator(
         frontier_vertices.end(), frontier_vertex_times->end(), frontier_vertex_window_ends->end()));
 
-    temporal_time_window_reduce_t reducer{increasing};
+    temporal_time_window_reduce_t reducer{increasing, fixed_window};
     auto ends =
       thrust::reduce_by_key(handle.get_thrust_policy(),
                             frontier_vertices.begin(),
@@ -256,7 +285,7 @@ void dedupe_temporal_frontier(
                                                       frontier_vertex_window_ends->begin()),
                             out_vertices.begin(),
                             thrust::make_zip_iterator(out_times.begin(), out_window_ends.begin()),
-                            thrust::equal_to<vertex_t>{},
+                            cuda::std::equal_to<vertex_t>{},
                             reducer);
     auto const new_size =
       static_cast<size_t>(cuda::std::distance(out_vertices.begin(), ends.first));
@@ -277,14 +306,24 @@ void dedupe_temporal_frontier(
       thrust::make_zip_iterator(frontier_vertices.end(), frontier_vertex_times->end()));
 
     size_t new_size{};
-    if (increasing) {
+    if (fixed_window) {
       auto ends = thrust::reduce_by_key(handle.get_thrust_policy(),
                                         frontier_vertices.begin(),
                                         frontier_vertices.end(),
                                         frontier_vertex_times->begin(),
                                         out_vertices.begin(),
                                         out_times.begin(),
-                                        thrust::equal_to<vertex_t>{},
+                                        cuda::std::equal_to<vertex_t>{},
+                                        keep_first_temporal_value_t{});
+      new_size  = static_cast<size_t>(cuda::std::distance(out_vertices.begin(), ends.first));
+    } else if (increasing) {
+      auto ends = thrust::reduce_by_key(handle.get_thrust_policy(),
+                                        frontier_vertices.begin(),
+                                        frontier_vertices.end(),
+                                        frontier_vertex_times->begin(),
+                                        out_vertices.begin(),
+                                        out_times.begin(),
+                                        cuda::std::equal_to<vertex_t>{},
                                         thrust::maximum<time_stamp_t>{});
       new_size  = static_cast<size_t>(cuda::std::distance(out_vertices.begin(), ends.first));
     } else {
@@ -294,7 +333,7 @@ void dedupe_temporal_frontier(
                                         frontier_vertex_times->begin(),
                                         out_vertices.begin(),
                                         out_times.begin(),
-                                        thrust::equal_to<vertex_t>{},
+                                        cuda::std::equal_to<vertex_t>{},
                                         thrust::minimum<time_stamp_t>{});
       new_size  = static_cast<size_t>(cuda::std::distance(out_vertices.begin(), ends.first));
     }
@@ -306,33 +345,32 @@ void dedupe_temporal_frontier(
   }
 }
 
-// Propagate the per-seed window-end bound from the current frontier to each sampled edge by looking
-// it up from the source vertex.  Under always-disjoint temporal sampling each vertex appears at
-// most once per label in the frontier, so the key is (src) when unlabeled and (src, label) when
-// labeled; both are unique, making the lookup unambiguous.
+// Propagate a per-seed frontier time bound (window-end for all modes, or window-start under
+// FIXED_WINDOW) from the current frontier to each sampled edge by looking it up from the source
+// vertex.  Under always-disjoint temporal sampling each vertex appears at most once per label in
+// the frontier, so the key is (src) when unlabeled and (src, label) when labeled; both are unique,
+// making the lookup unambiguous.
 template <typename vertex_t, typename time_stamp_t, typename label_t>
-rmm::device_uvector<time_stamp_t> lookup_src_window_ends_from_frontier(
+rmm::device_uvector<time_stamp_t> lookup_src_time_from_frontier(
   raft::handle_t const& handle,
   raft::device_span<vertex_t const> frontier_vertices,
   std::optional<raft::device_span<label_t const>> frontier_labels,
-  raft::device_span<time_stamp_t const> frontier_window_ends,
+  raft::device_span<time_stamp_t const> frontier_times,
   raft::device_span<vertex_t const> srcs,
   std::optional<raft::device_span<label_t const>> src_labels)
 {
   auto const n = frontier_vertices.size();
 
   rmm::device_uvector<vertex_t> sorted_vertices(n, handle.get_stream());
-  rmm::device_uvector<time_stamp_t> sorted_window_ends(n, handle.get_stream());
+  rmm::device_uvector<time_stamp_t> sorted_times(n, handle.get_stream());
   thrust::copy(handle.get_thrust_policy(),
                frontier_vertices.begin(),
                frontier_vertices.end(),
                sorted_vertices.begin());
-  thrust::copy(handle.get_thrust_policy(),
-               frontier_window_ends.begin(),
-               frontier_window_ends.end(),
-               sorted_window_ends.begin());
+  thrust::copy(
+    handle.get_thrust_policy(), frontier_times.begin(), frontier_times.end(), sorted_times.begin());
 
-  rmm::device_uvector<time_stamp_t> edge_window_ends(srcs.size(), handle.get_stream());
+  rmm::device_uvector<time_stamp_t> edge_times(srcs.size(), handle.get_stream());
 
   if (frontier_labels) {
     rmm::device_uvector<label_t> sorted_labels(n, handle.get_stream());
@@ -341,49 +379,49 @@ rmm::device_uvector<time_stamp_t> lookup_src_window_ends_from_frontier(
                  frontier_labels->end(),
                  sorted_labels.begin());
 
-    // (vertex, label) is unique so sorting the full tuple (which also carries the window-end) still
+    // (vertex, label) is unique so sorting the full tuple (which also carries the time) still
     // orders by the key.
-    cugraph::sort(handle.get_thrust_policy(),
-                  thrust::make_zip_iterator(
-                    sorted_vertices.begin(), sorted_labels.begin(), sorted_window_ends.begin()),
-                  thrust::make_zip_iterator(
-                    sorted_vertices.end(), sorted_labels.end(), sorted_window_ends.end()));
+    cugraph::sort(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(
+        sorted_vertices.begin(), sorted_labels.begin(), sorted_times.begin()),
+      thrust::make_zip_iterator(sorted_vertices.end(), sorted_labels.end(), sorted_times.end()));
 
     thrust::transform(
       handle.get_thrust_policy(),
       thrust::make_counting_iterator<size_t>(0),
       thrust::make_counting_iterator<size_t>(srcs.size()),
-      edge_window_ends.begin(),
-      [sorted_vertices    = sorted_vertices.data(),
-       sorted_labels      = sorted_labels.data(),
-       sorted_window_ends = sorted_window_ends.data(),
-       srcs               = srcs.data(),
-       src_labels         = src_labels->data(),
-       num                = n] __device__(size_t idx) {
+      edge_times.begin(),
+      [sorted_vertices = sorted_vertices.data(),
+       sorted_labels   = sorted_labels.data(),
+       sorted_times    = sorted_times.data(),
+       srcs            = srcs.data(),
+       src_labels      = src_labels->data(),
+       num             = n] __device__(size_t idx) {
         auto begin = thrust::make_zip_iterator(sorted_vertices, sorted_labels);
         auto it    = thrust::lower_bound(
           thrust::seq, begin, begin + num, cuda::std::make_tuple(srcs[idx], src_labels[idx]));
-        return sorted_window_ends[static_cast<size_t>(cuda::std::distance(begin, it))];
+        return sorted_times[static_cast<size_t>(cuda::std::distance(begin, it))];
       });
   } else {
     cugraph::sort(handle.get_thrust_policy(),
-                  thrust::make_zip_iterator(sorted_vertices.begin(), sorted_window_ends.begin()),
-                  thrust::make_zip_iterator(sorted_vertices.end(), sorted_window_ends.end()));
+                  thrust::make_zip_iterator(sorted_vertices.begin(), sorted_times.begin()),
+                  thrust::make_zip_iterator(sorted_vertices.end(), sorted_times.end()));
 
     thrust::transform(handle.get_thrust_policy(),
                       srcs.begin(),
                       srcs.end(),
-                      edge_window_ends.begin(),
-                      [sorted_vertices    = sorted_vertices.data(),
-                       sorted_window_ends = sorted_window_ends.data(),
-                       num                = n] __device__(vertex_t src) {
+                      edge_times.begin(),
+                      [sorted_vertices = sorted_vertices.data(),
+                       sorted_times    = sorted_times.data(),
+                       num             = n] __device__(vertex_t src) {
                         auto it = thrust::lower_bound(
                           thrust::seq, sorted_vertices, sorted_vertices + num, src);
-                        return sorted_window_ends[static_cast<size_t>(it - sorted_vertices)];
+                        return sorted_times[static_cast<size_t>(it - sorted_vertices)];
                       });
   }
 
-  return edge_window_ends;
+  return edge_times;
 }
 
 template <typename vertex_t,
@@ -485,6 +523,28 @@ temporal_neighbor_sample_impl(
     sampling_flags.disjoint_sampling,
     "Invalid input argument: temporal neighbor sampling requires disjoint sampling; set "
     "sampling_flags.disjoint_sampling to true.");
+  CUGRAPH_EXPECTS(
+    sampling_flags.temporal_sampling_comparison.has_value(),
+    "Invalid input argument: temporal neighbor sampling requires temporal_sampling_comparison.");
+  auto const temporal_sampling_comparison = *sampling_flags.temporal_sampling_comparison;
+
+  CUGRAPH_EXPECTS((sampling_flags.neighbor_selection == neighbor_selection_t::RANDOM) ||
+                    !sampling_flags.with_replacement,
+                  "Invalid input argument: LAST neighbor selection does not support sampling with "
+                  "replacement.");
+  CUGRAPH_EXPECTS(
+    (sampling_flags.neighbor_selection == neighbor_selection_t::RANDOM) || !edge_bias_view,
+    "Invalid input argument: LAST neighbor selection does not accept edge "
+    "biases.");
+
+  // LAST ranks eligible edges by converting timestamps to double bias values
+  // (detail::last_n_time_bias) for per_v_top_k_select_transform_outgoing_e.
+  // int32 timestamps rank exactly over the full signed range. int64 timestamps
+  // rank exactly on [-2^52, 2^52 - 1] (typical unix seconds/milliseconds/microseconds);
+  // beyond that, biases remain strictly positive and order-preserving but may tie
+  // (e.g. nanosecond timestamps or very negative times), so LAST still returns
+  // fanout edges but the chosen set can be wrong when more than fanout K eligible
+  // edges on one source share the same bias bucket. Equal timestamps always tie.
 
   validate_no_duplicate_seeds<vertex_t, label_t>(handle, starting_vertices, starting_vertex_labels);
 
@@ -512,7 +572,7 @@ temporal_neighbor_sample_impl(
                handle.get_stream());
   }
 
-  auto const decreasing = is_temporal_decreasing(sampling_flags.temporal_sampling_comparison);
+  auto const decreasing = is_temporal_decreasing(temporal_sampling_comparison);
   auto const initial_window_starts =
     decreasing ? starting_vertex_end_times : starting_vertex_start_times;
   auto const initial_window_ends =
@@ -615,6 +675,15 @@ temporal_neighbor_sample_impl(
   produced_edge_lists.reserve(num_hops * 2);  // at most a biased/uniform + a gather list per hop
 
   for (size_t hop = 0; hop < num_hops; ++hop) {
+    {
+      size_t frontier_size = frontier_vertices.size();
+      if constexpr (multi_gpu) {
+        frontier_size = host_scalar_allreduce(
+          handle.get_comms(), frontier_size, raft::comms::op_t::SUM, handle.get_stream());
+      }
+      if (frontier_size == 0) { break; }
+    }
+
     std::optional<std::vector<size_t>> level_Ks{std::nullopt};
     std::unique_ptr<bool[]> gather_flags{};
     std::vector<raft::device_span<vertex_t const>> next_frontier_vertex_spans{};
@@ -632,6 +701,13 @@ temporal_neighbor_sample_impl(
       // At most one push for the biased/uniform (level_Ks) branch and one for the gather branch.
       next_frontier_window_end_vectors.reserve(2);
     }
+    // FIXED_WINDOW re-derives each sampled edge's frontier window-start from the seed's original
+    // bound (rather than the sampled edge's start time), so those lookups need storage of their
+    // own; unlike the other modes' window starts, they are not spans into produced_edge_lists.
+    bool const fixed_window_starts =
+      sampling_flags.fixed_window && frontier_vertex_times.has_value();
+    std::vector<rmm::device_uvector<time_stamp_t>> next_frontier_window_start_vectors{};
+    if (fixed_window_starts) { next_frontier_window_start_vectors.reserve(2); }
 
     auto start_offset = hop * (num_edge_types ? *num_edge_types : edge_type_t{1});
     auto end_offset =
@@ -684,8 +760,8 @@ temporal_neighbor_sample_impl(
           graph_view,
           n_edge_props,
           edge_start_time_view,
-          edge_type_view
-            ? std::make_optional<edge_arithmetic_property_view_t<edge_t>>(*edge_type_view)
+          edge_type_filter_view
+            ? std::make_optional<edge_arithmetic_property_view_t<edge_t>>(*edge_type_filter_view)
             : std::nullopt,
           edge_bias_view
             ? std::make_optional<edge_arithmetic_property_view_t<edge_t>>(*edge_bias_view)
@@ -698,7 +774,9 @@ temporal_neighbor_sample_impl(
           std::move(*visited_minors),
           std::move(visited_minor_labels),
           sampling_flags.with_replacement,
-          sampling_flags.temporal_sampling_comparison);
+          temporal_sampling_comparison,
+          sampling_flags.neighbor_selection,
+          sampling_flags.fixed_window);
       if (n_edge_props > 0) {
         std::tie(srcs, dsts, props) = gather_sampled_properties(handle,
                                                                 graph_view,
@@ -714,7 +792,34 @@ temporal_neighbor_sample_impl(
       // span consumer) and the final output assembly.
       next_frontier_vertex_spans.push_back(
         raft::device_span<vertex_t const>{dsts.data(), dsts.size()});
-      {
+      if (fixed_window_starts) {
+        // FIXED_WINDOW never replaces a seed's window-start with a sampled edge time: look it up
+        // from the current frontier by (source[, label]) instead, same as the window-end lookup.
+        next_frontier_window_start_vectors.push_back(
+          lookup_src_time_from_frontier<vertex_t, time_stamp_t, label_t>(
+            handle,
+            active_majors,
+            active_labels,
+            *active_window_starts,
+            raft::device_span<vertex_t const>{srcs.data(), srcs.size()},
+            labels
+              ? std::make_optional(raft::device_span<label_t const>{labels->data(), labels->size()})
+              : std::nullopt));
+        next_frontier_vertex_time_spans->push_back(
+          raft::device_span<time_stamp_t const>{next_frontier_window_start_vectors.back().data(),
+                                                next_frontier_window_start_vectors.back().size()});
+      } else {
+        CUGRAPH_EXPECTS(
+          edge_start_time_prop_idx < props.size(),
+          "LAST/temporal level_Ks: edge_start_time_prop_idx %zu out of range (props.size()=%zu)",
+          edge_start_time_prop_idx,
+          props.size());
+        CUGRAPH_EXPECTS(std::holds_alternative<rmm::device_uvector<time_stamp_t>>(
+                          props[edge_start_time_prop_idx]),
+                        "LAST/temporal level_Ks: props[edge_start_time_prop_idx=%zu] expected "
+                        "rmm::device_uvector<time_stamp_t>, variant index %zu",
+                        edge_start_time_prop_idx,
+                        props[edge_start_time_prop_idx].index());
         auto const& edge_start_times =
           std::get<rmm::device_uvector<time_stamp_t>>(props[edge_start_time_prop_idx]);
         next_frontier_vertex_time_spans->push_back(
@@ -729,7 +834,7 @@ temporal_neighbor_sample_impl(
       // with the destination-vertex span recorded above.
       if (next_frontier_vertex_window_end_spans) {
         next_frontier_window_end_vectors.push_back(
-          lookup_src_window_ends_from_frontier<vertex_t, time_stamp_t, label_t>(
+          lookup_src_time_from_frontier<vertex_t, time_stamp_t, label_t>(
             handle,
             active_majors,
             active_labels,
@@ -780,13 +885,41 @@ temporal_neighbor_sample_impl(
           gather_flags_span,
           std::move(*visited_minors),
           std::move(visited_minor_labels),
-          sampling_flags.temporal_sampling_comparison,
+          temporal_sampling_comparison,
+          sampling_flags.fixed_window,
           do_expensive_check);
 
       // See the level_Ks branch above: publish next-hop frontier spans, then store the edge list.
       next_frontier_vertex_spans.push_back(
         raft::device_span<vertex_t const>{dsts.data(), dsts.size()});
-      {
+      if (fixed_window_starts) {
+        // FIXED_WINDOW never replaces a seed's window-start with a sampled edge time: look it up
+        // from the current frontier by (source[, label]) instead, same as the window-end lookup.
+        next_frontier_window_start_vectors.push_back(
+          lookup_src_time_from_frontier<vertex_t, time_stamp_t, label_t>(
+            handle,
+            active_majors,
+            active_labels,
+            *active_window_starts,
+            raft::device_span<vertex_t const>{srcs.data(), srcs.size()},
+            labels
+              ? std::make_optional(raft::device_span<label_t const>{labels->data(), labels->size()})
+              : std::nullopt));
+        next_frontier_vertex_time_spans->push_back(
+          raft::device_span<time_stamp_t const>{next_frontier_window_start_vectors.back().data(),
+                                                next_frontier_window_start_vectors.back().size()});
+      } else {
+        CUGRAPH_EXPECTS(
+          edge_start_time_prop_idx < props.size(),
+          "LAST/temporal gather: edge_start_time_prop_idx %zu out of range (props.size()=%zu)",
+          edge_start_time_prop_idx,
+          props.size());
+        CUGRAPH_EXPECTS(std::holds_alternative<rmm::device_uvector<time_stamp_t>>(
+                          props[edge_start_time_prop_idx]),
+                        "LAST/temporal gather: props[edge_start_time_prop_idx=%zu] expected "
+                        "rmm::device_uvector<time_stamp_t>, variant index %zu",
+                        edge_start_time_prop_idx,
+                        props[edge_start_time_prop_idx].index());
         auto const& edge_start_times =
           std::get<rmm::device_uvector<time_stamp_t>>(props[edge_start_time_prop_idx]);
         next_frontier_vertex_time_spans->push_back(
@@ -801,7 +934,7 @@ temporal_neighbor_sample_impl(
       // with the destination-vertex span recorded above.
       if (next_frontier_vertex_window_end_spans) {
         next_frontier_window_end_vectors.push_back(
-          lookup_src_window_ends_from_frontier<vertex_t, time_stamp_t, label_t>(
+          lookup_src_time_from_frontier<vertex_t, time_stamp_t, label_t>(
             handle,
             active_majors,
             active_labels,
@@ -833,11 +966,10 @@ temporal_neighbor_sample_impl(
                     [](auto span) { return span.size() > 0; })) {
       carry_over_window_starts =
         rmm::device_uvector<time_stamp_t>(frontier_vertices.size(), handle.get_stream());
-      cugraph::fill(
-        handle.get_thrust_policy(),
-        carry_over_window_starts->begin(),
-        carry_over_window_starts->end(),
-        unbounded_temporal_window_start<time_stamp_t>(sampling_flags.temporal_sampling_comparison));
+      cugraph::fill(handle.get_thrust_policy(),
+                    carry_over_window_starts->begin(),
+                    carry_over_window_starts->end(),
+                    unbounded_temporal_window_start<time_stamp_t>(temporal_sampling_comparison));
       sampled_src_window_starts = raft::device_span<time_stamp_t const>{
         carry_over_window_starts->data(), carry_over_window_starts->size()};
     }
@@ -850,8 +982,7 @@ temporal_neighbor_sample_impl(
         cugraph::fill(handle.get_thrust_policy(),
                       used_window_starts->begin() + old_size,
                       used_window_starts->end(),
-                      unbounded_temporal_window_start<time_stamp_t>(
-                        sampling_flags.temporal_sampling_comparison));
+                      unbounded_temporal_window_start<time_stamp_t>(temporal_sampling_comparison));
       }
     }
 
@@ -892,13 +1023,13 @@ temporal_neighbor_sample_impl(
         sampling_flags.dedupe_sources,
         multi_gpu,
         do_expensive_check);
-    dedupe_temporal_frontier<vertex_t, time_stamp_t, label_t>(
-      handle,
-      frontier_vertices,
-      frontier_vertex_labels,
-      frontier_vertex_times,
-      frontier_vertex_window_ends,
-      sampling_flags.temporal_sampling_comparison);
+    dedupe_temporal_frontier<vertex_t, time_stamp_t, label_t>(handle,
+                                                              frontier_vertices,
+                                                              frontier_vertex_labels,
+                                                              frontier_vertex_times,
+                                                              frontier_vertex_window_ends,
+                                                              temporal_sampling_comparison,
+                                                              sampling_flags.fixed_window);
   }
 
   // Assemble the output by concatenating every produced edge list, in order.
@@ -932,30 +1063,97 @@ temporal_neighbor_sample_impl(
                     : std::nullopt,
       label_to_output_comm_rank);
 
+  CUGRAPH_EXPECTS(std::holds_alternative<rmm::device_uvector<vertex_t>>(property_edges[0]),
+                  "LAST/temporal output: property_edges[0] expected rmm::device_uvector<vertex_t>, "
+                  "variant index %zu",
+                  property_edges[0].index());
+  CUGRAPH_EXPECTS(std::holds_alternative<rmm::device_uvector<vertex_t>>(property_edges[1]),
+                  "LAST/temporal output: property_edges[1] expected rmm::device_uvector<vertex_t>, "
+                  "variant index %zu",
+                  property_edges[1].index());
   result_srcs = std::move(std::get<rmm::device_uvector<vertex_t>>(property_edges[0]));
   result_dsts = std::move(std::get<rmm::device_uvector<vertex_t>>(property_edges[1]));
 
-  auto result_weights =
-    weight_prop_idx
-      ? std::make_optional(
-          std::move(std::get<rmm::device_uvector<weight_t>>(property_edges[2 + *weight_prop_idx])))
-      : std::nullopt;
-  auto result_edge_ids =
-    edge_id_prop_idx
-      ? std::make_optional(
-          std::move(std::get<rmm::device_uvector<edge_t>>(property_edges[2 + *edge_id_prop_idx])))
-      : std::nullopt;
-  auto result_edge_types =
-    edge_type_prop_idx ? std::make_optional(std::move(std::get<rmm::device_uvector<edge_type_t>>(
-                           property_edges[2 + *edge_type_prop_idx])))
-                       : std::nullopt;
+  auto result_weights    = weight_prop_idx ? std::make_optional([&]() {
+    auto const idx = 2 + *weight_prop_idx;
+    CUGRAPH_EXPECTS(
+      idx < property_edges.size(),
+      "LAST/temporal output: weight index %zu out of range (property_edges.size()=%zu)",
+      idx,
+      property_edges.size());
+    CUGRAPH_EXPECTS(
+      std::holds_alternative<rmm::device_uvector<weight_t>>(property_edges[idx]),
+      "LAST/temporal output: property_edges[%zu] expected rmm::device_uvector<weight_t>, "
+         "variant index %zu",
+      idx,
+      property_edges[idx].index());
+    return std::move(std::get<rmm::device_uvector<weight_t>>(property_edges[idx]));
+  }())
+                                           : std::nullopt;
+  auto result_edge_ids   = edge_id_prop_idx ? std::make_optional([&]() {
+    auto const idx = 2 + *edge_id_prop_idx;
+    CUGRAPH_EXPECTS(
+      idx < property_edges.size(),
+      "LAST/temporal output: edge_id index %zu out of range (property_edges.size()=%zu)",
+      idx,
+      property_edges.size());
+    CUGRAPH_EXPECTS(
+      std::holds_alternative<rmm::device_uvector<edge_t>>(property_edges[idx]),
+      "LAST/temporal output: property_edges[%zu] expected rmm::device_uvector<edge_t>, "
+        "variant index %zu",
+      idx,
+      property_edges[idx].index());
+    return std::move(std::get<rmm::device_uvector<edge_t>>(property_edges[idx]));
+  }())
+                                            : std::nullopt;
+  auto result_edge_types = edge_type_prop_idx ? std::make_optional([&]() {
+    auto const idx = 2 + *edge_type_prop_idx;
+    CUGRAPH_EXPECTS(
+      idx < property_edges.size(),
+      "LAST/temporal output: edge_type index %zu out of range (property_edges.size()=%zu)",
+      idx,
+      property_edges.size());
+    CUGRAPH_EXPECTS(
+      std::holds_alternative<rmm::device_uvector<edge_type_t>>(property_edges[idx]),
+      "LAST/temporal output: property_edges[%zu] expected rmm::device_uvector<edge_type_t>, "
+      "variant index %zu",
+      idx,
+      property_edges[idx].index());
+    return std::move(std::get<rmm::device_uvector<edge_type_t>>(property_edges[idx]));
+  }())
+                                              : std::nullopt;
+  {
+    auto const idx = 2 + edge_start_time_prop_idx;
+    CUGRAPH_EXPECTS(
+      idx < property_edges.size(),
+      "LAST/temporal output: edge_start_time index %zu out of range (property_edges.size()=%zu)",
+      idx,
+      property_edges.size());
+    CUGRAPH_EXPECTS(
+      std::holds_alternative<rmm::device_uvector<time_stamp_t>>(property_edges[idx]),
+      "LAST/temporal output: property_edges[%zu] expected rmm::device_uvector<time_stamp_t>, "
+      "variant index %zu",
+      idx,
+      property_edges[idx].index());
+  }
   auto result_edge_start_times = std::move(
     std::get<rmm::device_uvector<time_stamp_t>>(property_edges[2 + edge_start_time_prop_idx]));
-  auto result_edge_end_times =
-    edge_end_time_prop_idx
-      ? std::make_optional(std::move(
-          std::get<rmm::device_uvector<time_stamp_t>>(property_edges[2 + *edge_end_time_prop_idx])))
-      : std::nullopt;
+  auto result_edge_end_times = edge_end_time_prop_idx ? std::make_optional([&]() {
+    auto const idx = 2 + *edge_end_time_prop_idx;
+    CUGRAPH_EXPECTS(
+      idx < property_edges.size(),
+      "LAST/temporal output: edge_end_time index %zu out of range (property_edges.size()=%zu)",
+      idx,
+      property_edges.size());
+    CUGRAPH_EXPECTS(
+      std::holds_alternative<rmm::device_uvector<time_stamp_t>>(property_edges[idx]),
+      "LAST/temporal output: property_edges[%zu] expected rmm::device_uvector<time_stamp_t>, "
+      "variant index %zu",
+      idx,
+      property_edges[idx].index());
+    return std::move(std::get<rmm::device_uvector<time_stamp_t>>(property_edges[idx]));
+  }())
+                                                      : std::nullopt;
 
   return std::make_tuple(std::move(result_srcs),
                          std::move(result_dsts),
@@ -1004,36 +1202,36 @@ homogeneous_uniform_temporal_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
 {
-  using bias_t = weight_t;  // dummy
-
-  CUGRAPH_EXPECTS(!(sampling_flags.with_replacement && sampling_flags.disjoint_sampling),
-                  "Invalid input argument: disjoint sampling and sampling with replacement are "
-                  "mutually exclusive.");
-  CUGRAPH_EXPECTS(sampling_flags.disjoint_sampling,
-                  "Invalid input argument: temporal neighbor sampling requires disjoint sampling; "
-                  "set sampling_flags.disjoint_sampling to true.");
-  auto result = detail::
-    temporal_neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, bias_t>(
-      handle,
-      rng_state,
-      graph_view,
-      edge_weight_view,
-      edge_id_view,
-      edge_type_view,
-      edge_start_time_view,
-      edge_end_time_view,
-      std::optional<edge_property_view_t<edge_t, bias_t const*>>{
-        std::nullopt},  // Optional edge_bias_view
-      starting_vertices,
-      starting_vertex_start_times,
-      starting_vertex_end_times,
-      starting_vertex_labels,
-      label_to_output_comm_rank,
-      fan_out,
-      std::optional<edge_type_t>{std::nullopt},
-      sampling_flags,
-      do_expensive_check);
-  return result;
+  // Specialized temporal APIs historically defaulted temporal_sampling_comparison to
+  // STRICTLY_INCREASING; keep that when the optional is unset.
+  if (!sampling_flags.temporal_sampling_comparison.has_value()) {
+    sampling_flags.temporal_sampling_comparison =
+      temporal_sampling_comparison_t::STRICTLY_INCREASING;
+  }
+  return neighbor_sample<vertex_t,
+                         edge_t,
+                         weight_t,
+                         edge_type_t,
+                         time_stamp_t,
+                         store_transposed,
+                         multi_gpu>(handle,
+                                    rng_state,
+                                    graph_view,
+                                    edge_weight_view,
+                                    edge_id_view,
+                                    edge_type_view,
+                                    std::make_optional(edge_start_time_view),
+                                    edge_end_time_view,
+                                    std::nullopt,  // edge_bias_view
+                                    starting_vertices,
+                                    starting_vertex_start_times,
+                                    starting_vertex_end_times,
+                                    starting_vertex_labels,
+                                    label_to_output_comm_rank,
+                                    fan_out,
+                                    std::nullopt,  // num_edge_types
+                                    sampling_flags,
+                                    do_expensive_check);
 }
 
 template <typename vertex_t,
@@ -1071,35 +1269,34 @@ heterogeneous_uniform_temporal_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
 {
-  using bias_t = weight_t;  // dummy
-
-  CUGRAPH_EXPECTS(!(sampling_flags.with_replacement && sampling_flags.disjoint_sampling),
-                  "Invalid input argument: disjoint sampling and sampling with replacement are "
-                  "mutually exclusive.");
-  CUGRAPH_EXPECTS(sampling_flags.disjoint_sampling,
-                  "Invalid input argument: temporal neighbor sampling requires disjoint sampling; "
-                  "set sampling_flags.disjoint_sampling to true.");
-  return detail::
-    temporal_neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, bias_t>(
-      handle,
-      rng_state,
-      graph_view,
-      edge_weight_view,
-      edge_id_view,
-      std::make_optional(edge_type_view),
-      edge_start_time_view,
-      edge_end_time_view,
-      std::optional<edge_property_view_t<edge_t, bias_t const*>>{
-        std::nullopt},  // Optional edge_bias_view
-      starting_vertices,
-      starting_vertex_start_times,
-      starting_vertex_end_times,
-      starting_vertex_labels,
-      label_to_output_comm_rank,
-      fan_out,
-      std::optional<edge_type_t>{num_edge_types},
-      sampling_flags,
-      do_expensive_check);
+  if (!sampling_flags.temporal_sampling_comparison.has_value()) {
+    sampling_flags.temporal_sampling_comparison =
+      temporal_sampling_comparison_t::STRICTLY_INCREASING;
+  }
+  return neighbor_sample<vertex_t,
+                         edge_t,
+                         weight_t,
+                         edge_type_t,
+                         time_stamp_t,
+                         store_transposed,
+                         multi_gpu>(handle,
+                                    rng_state,
+                                    graph_view,
+                                    edge_weight_view,
+                                    edge_id_view,
+                                    std::make_optional(edge_type_view),
+                                    std::make_optional(edge_start_time_view),
+                                    edge_end_time_view,
+                                    std::nullopt,  // edge_bias_view
+                                    starting_vertices,
+                                    starting_vertex_start_times,
+                                    starting_vertex_end_times,
+                                    starting_vertex_labels,
+                                    label_to_output_comm_rank,
+                                    fan_out,
+                                    std::make_optional(num_edge_types),
+                                    sampling_flags,
+                                    do_expensive_check);
 }
 
 template <typename vertex_t,
@@ -1138,32 +1335,36 @@ homogeneous_biased_temporal_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(!(sampling_flags.with_replacement && sampling_flags.disjoint_sampling),
-                  "Invalid input argument: disjoint sampling and sampling with replacement are "
-                  "mutually exclusive.");
-  CUGRAPH_EXPECTS(sampling_flags.disjoint_sampling,
-                  "Invalid input argument: temporal neighbor sampling requires disjoint sampling; "
-                  "set sampling_flags.disjoint_sampling to true.");
-  return detail::
-    temporal_neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, bias_t>(
-      handle,
-      rng_state,
-      graph_view,
-      edge_weight_view,
-      edge_id_view,
-      edge_type_view,
-      edge_start_time_view,
-      edge_end_time_view,
-      std::make_optional(edge_bias_view),
-      starting_vertices,
-      starting_vertex_start_times,
-      starting_vertex_end_times,
-      starting_vertex_labels,
-      label_to_output_comm_rank,
-      fan_out,
-      std::optional<edge_type_t>{std::nullopt},
-      sampling_flags,
-      do_expensive_check);
+  static_assert(std::is_same_v<bias_t, weight_t>);
+
+  if (!sampling_flags.temporal_sampling_comparison.has_value()) {
+    sampling_flags.temporal_sampling_comparison =
+      temporal_sampling_comparison_t::STRICTLY_INCREASING;
+  }
+  return neighbor_sample<vertex_t,
+                         edge_t,
+                         weight_t,
+                         edge_type_t,
+                         time_stamp_t,
+                         store_transposed,
+                         multi_gpu>(handle,
+                                    rng_state,
+                                    graph_view,
+                                    edge_weight_view,
+                                    edge_id_view,
+                                    edge_type_view,
+                                    std::make_optional(edge_start_time_view),
+                                    edge_end_time_view,
+                                    std::make_optional(edge_bias_view),
+                                    starting_vertices,
+                                    starting_vertex_start_times,
+                                    starting_vertex_end_times,
+                                    starting_vertex_labels,
+                                    label_to_output_comm_rank,
+                                    fan_out,
+                                    std::nullopt,  // num_edge_types
+                                    sampling_flags,
+                                    do_expensive_check);
 }
 
 template <typename vertex_t,
@@ -1203,32 +1404,36 @@ heterogeneous_biased_temporal_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(!(sampling_flags.with_replacement && sampling_flags.disjoint_sampling),
-                  "Invalid input argument: disjoint sampling and sampling with replacement are "
-                  "mutually exclusive.");
-  CUGRAPH_EXPECTS(sampling_flags.disjoint_sampling,
-                  "Invalid input argument: temporal neighbor sampling requires disjoint sampling; "
-                  "set sampling_flags.disjoint_sampling to true.");
-  return detail::
-    temporal_neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, bias_t>(
-      handle,
-      rng_state,
-      graph_view,
-      edge_weight_view,
-      edge_id_view,
-      std::make_optional(edge_type_view),
-      edge_start_time_view,
-      edge_end_time_view,
-      std::make_optional(edge_bias_view),
-      starting_vertices,
-      starting_vertex_start_times,
-      starting_vertex_end_times,
-      starting_vertex_labels,
-      label_to_output_comm_rank,
-      fan_out,
-      std::optional<edge_type_t>{num_edge_types},
-      sampling_flags,
-      do_expensive_check);
+  static_assert(std::is_same_v<bias_t, weight_t>);
+
+  if (!sampling_flags.temporal_sampling_comparison.has_value()) {
+    sampling_flags.temporal_sampling_comparison =
+      temporal_sampling_comparison_t::STRICTLY_INCREASING;
+  }
+  return neighbor_sample<vertex_t,
+                         edge_t,
+                         weight_t,
+                         edge_type_t,
+                         time_stamp_t,
+                         store_transposed,
+                         multi_gpu>(handle,
+                                    rng_state,
+                                    graph_view,
+                                    edge_weight_view,
+                                    edge_id_view,
+                                    std::make_optional(edge_type_view),
+                                    std::make_optional(edge_start_time_view),
+                                    edge_end_time_view,
+                                    std::make_optional(edge_bias_view),
+                                    starting_vertices,
+                                    starting_vertex_start_times,
+                                    starting_vertex_end_times,
+                                    starting_vertex_labels,
+                                    label_to_output_comm_rank,
+                                    fan_out,
+                                    std::make_optional(num_edge_types),
+                                    sampling_flags,
+                                    do_expensive_check);
 }
 
 }  // namespace cugraph

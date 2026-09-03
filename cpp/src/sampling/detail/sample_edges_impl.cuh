@@ -7,6 +7,7 @@
 
 #include "sample_outgoing_edges.hpp"
 #include "sampling_utils.hpp"
+#include "temporal_sampling_utils.cuh"
 
 #include <cugraph/detail/device_comm_wrapper.hpp>
 #include <cugraph/edge_property.hpp>
@@ -189,15 +190,29 @@ namespace {
 
 struct temporal_side_table_window_reduce_t {
   bool increasing{};
+  // FIXED_WINDOW keeps every seed's original (window_start, window_end) fixed, so duplicate
+  // entries for the same key are expected to carry identical values; simply keep the first.
+  bool fixed_window{};
   template <typename time_stamp_t>
   __device__ cuda::std::tuple<time_stamp_t, time_stamp_t> operator()(
     cuda::std::tuple<time_stamp_t, time_stamp_t> a,
     cuda::std::tuple<time_stamp_t, time_stamp_t> b) const
   {
+    if (fixed_window) { return a; }
     auto const time_a = cuda::std::get<0>(a);
     auto const time_b = cuda::std::get<0>(b);
     if (increasing) { return time_a >= time_b ? a : b; }
     return time_a <= time_b ? a : b;
+  }
+};
+
+// FIXED_WINDOW analogue of cuda::maximum / cuda::minimum used to dedupe scalar side-table
+// times: duplicate entries for the same key are expected to be identical, so keep the first.
+struct keep_first_temporal_value_t {
+  template <typename time_stamp_t>
+  __device__ time_stamp_t operator()(time_stamp_t a, time_stamp_t const&) const
+  {
+    return a;
   }
 };
 
@@ -210,7 +225,8 @@ void dedupe_sorted_temporal_mg_side_table(
   rmm::device_uvector<time_stamp_t>& sorted_times,
   std::optional<rmm::device_uvector<time_stamp_t>>& sorted_window_ends,
   std::optional<rmm::device_uvector<int32_t>>& sorted_labels,
-  temporal_sampling_comparison_t temporal_sampling_comparison)
+  temporal_sampling_comparison_t temporal_sampling_comparison,
+  bool fixed_window)
 {
   auto const n = sorted_majors.size();
   if (n < 2) { return; }
@@ -225,7 +241,7 @@ void dedupe_sorted_temporal_mg_side_table(
     rmm::device_uvector<time_stamp_t> out_times(n, handle.get_stream());
     rmm::device_uvector<time_stamp_t> out_window_ends(n, handle.get_stream());
 
-    temporal_side_table_window_reduce_t reducer{increasing};
+    temporal_side_table_window_reduce_t reducer{increasing, fixed_window};
     auto ends = thrust::reduce_by_key(
       handle.get_thrust_policy(),
       thrust::make_zip_iterator(sorted_majors.begin(), sorted_labels->begin()),
@@ -233,7 +249,7 @@ void dedupe_sorted_temporal_mg_side_table(
       thrust::make_zip_iterator(sorted_times.begin(), sorted_window_ends->begin()),
       thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()),
       thrust::make_zip_iterator(out_times.begin(), out_window_ends.begin()),
-      thrust::equal_to<cuda::std::tuple<vertex_t, int32_t>>{},
+      cuda::std::equal_to<cuda::std::tuple<vertex_t, int32_t>>{},
       reducer);
     auto const new_size = static_cast<size_t>(cuda::std::distance(
       thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()), ends.first));
@@ -252,7 +268,7 @@ void dedupe_sorted_temporal_mg_side_table(
     rmm::device_uvector<time_stamp_t> out_times(n, handle.get_stream());
 
     size_t new_size{};
-    if (increasing) {
+    if (fixed_window) {
       auto ends = thrust::reduce_by_key(
         handle.get_thrust_policy(),
         thrust::make_zip_iterator(sorted_majors.begin(), sorted_labels->begin()),
@@ -260,7 +276,19 @@ void dedupe_sorted_temporal_mg_side_table(
         sorted_times.begin(),
         thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()),
         out_times.begin(),
-        thrust::equal_to<cuda::std::tuple<vertex_t, int32_t>>{},
+        cuda::std::equal_to<cuda::std::tuple<vertex_t, int32_t>>{},
+        keep_first_temporal_value_t{});
+      new_size = static_cast<size_t>(cuda::std::distance(
+        thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()), ends.first));
+    } else if (increasing) {
+      auto ends = thrust::reduce_by_key(
+        handle.get_thrust_policy(),
+        thrust::make_zip_iterator(sorted_majors.begin(), sorted_labels->begin()),
+        thrust::make_zip_iterator(sorted_majors.end(), sorted_labels->end()),
+        sorted_times.begin(),
+        thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()),
+        out_times.begin(),
+        cuda::std::equal_to<cuda::std::tuple<vertex_t, int32_t>>{},
         thrust::maximum<time_stamp_t>{});
       new_size = static_cast<size_t>(cuda::std::distance(
         thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()), ends.first));
@@ -272,7 +300,7 @@ void dedupe_sorted_temporal_mg_side_table(
         sorted_times.begin(),
         thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()),
         out_times.begin(),
-        thrust::equal_to<cuda::std::tuple<vertex_t, int32_t>>{},
+        cuda::std::equal_to<cuda::std::tuple<vertex_t, int32_t>>{},
         thrust::minimum<time_stamp_t>{});
       new_size = static_cast<size_t>(cuda::std::distance(
         thrust::make_zip_iterator(out_majors.begin(), out_labels.begin()), ends.first));
@@ -289,7 +317,7 @@ void dedupe_sorted_temporal_mg_side_table(
     rmm::device_uvector<time_stamp_t> out_times(n, handle.get_stream());
     rmm::device_uvector<time_stamp_t> out_window_ends(n, handle.get_stream());
 
-    temporal_side_table_window_reduce_t reducer{increasing};
+    temporal_side_table_window_reduce_t reducer{increasing, fixed_window};
     auto ends = thrust::reduce_by_key(
       handle.get_thrust_policy(),
       sorted_majors.begin(),
@@ -297,7 +325,7 @@ void dedupe_sorted_temporal_mg_side_table(
       thrust::make_zip_iterator(sorted_times.begin(), sorted_window_ends->begin()),
       out_majors.begin(),
       thrust::make_zip_iterator(out_times.begin(), out_window_ends.begin()),
-      thrust::equal_to<vertex_t>{},
+      cuda::std::equal_to<vertex_t>{},
       reducer);
     auto const new_size = static_cast<size_t>(cuda::std::distance(out_majors.begin(), ends.first));
 
@@ -312,14 +340,24 @@ void dedupe_sorted_temporal_mg_side_table(
     rmm::device_uvector<time_stamp_t> out_times(n, handle.get_stream());
 
     size_t new_size{};
-    if (increasing) {
+    if (fixed_window) {
       auto ends = thrust::reduce_by_key(handle.get_thrust_policy(),
                                         sorted_majors.begin(),
                                         sorted_majors.end(),
                                         sorted_times.begin(),
                                         out_majors.begin(),
                                         out_times.begin(),
-                                        thrust::equal_to<vertex_t>{},
+                                        cuda::std::equal_to<vertex_t>{},
+                                        keep_first_temporal_value_t{});
+      new_size  = static_cast<size_t>(cuda::std::distance(out_majors.begin(), ends.first));
+    } else if (increasing) {
+      auto ends = thrust::reduce_by_key(handle.get_thrust_policy(),
+                                        sorted_majors.begin(),
+                                        sorted_majors.end(),
+                                        sorted_times.begin(),
+                                        out_majors.begin(),
+                                        out_times.begin(),
+                                        cuda::std::equal_to<vertex_t>{},
                                         thrust::maximum<time_stamp_t>{});
       new_size  = static_cast<size_t>(cuda::std::distance(out_majors.begin(), ends.first));
     } else {
@@ -329,7 +367,7 @@ void dedupe_sorted_temporal_mg_side_table(
                                         sorted_times.begin(),
                                         out_majors.begin(),
                                         out_times.begin(),
-                                        thrust::equal_to<vertex_t>{},
+                                        cuda::std::equal_to<vertex_t>{},
                                         thrust::minimum<time_stamp_t>{});
       new_size  = static_cast<size_t>(cuda::std::distance(out_majors.begin(), ends.first));
     }
@@ -371,7 +409,9 @@ temporal_sample_edges_to_unvisited_neighbors(
   rmm::device_uvector<vertex_t>&& visited_minors,
   std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
   bool with_replacement,
-  temporal_sampling_comparison_t temporal_sampling_comparison)
+  temporal_sampling_comparison_t temporal_sampling_comparison,
+  neighbor_selection_t neighbor_selection,
+  bool fixed_window)
 {
   CUGRAPH_EXPECTS(Ks.size() >= 1, "Must specify non-zero value for Ks");
   CUGRAPH_EXPECTS((Ks.size() == 1) || edge_type_view,
@@ -381,6 +421,10 @@ temporal_sample_edges_to_unvisited_neighbors(
   CUGRAPH_EXPECTS(active_major_labels.has_value() == visited_minor_labels.has_value(),
                   "Active major labels and visited vertex labels must both be specified or both "
                   "be unspecified");
+  CUGRAPH_EXPECTS((neighbor_selection == neighbor_selection_t::RANDOM) || !with_replacement,
+                  "LAST neighbor selection does not support sampling with replacement.");
+  CUGRAPH_EXPECTS((neighbor_selection == neighbor_selection_t::RANDOM) || !edge_bias_view,
+                  "LAST neighbor selection does not accept edge biases.");
 
   // Build side spans sorted so the bias operator can recover (time, window_end) by (major[,
   // label]).  On MG, per_v_random_select_transform_outgoing_e allgathers frontier keys across
@@ -503,7 +547,8 @@ temporal_sample_edges_to_unvisited_neighbors(
                                                                    *sorted_times,
                                                                    sorted_window_ends,
                                                                    sorted_labels,
-                                                                   temporal_sampling_comparison);
+                                                                   temporal_sampling_comparison,
+                                                                   fixed_window);
     }
   }
 
@@ -519,7 +564,8 @@ temporal_sample_edges_to_unvisited_neighbors(
     sorted_labels ? cuda::std::make_optional(raft::device_span<int32_t const>{
                       sorted_labels->data(), sorted_labels->size()})
                   : cuda::std::nullopt,
-    temporal_sampling_comparison};
+    temporal_sampling_comparison,
+    neighbor_selection};
 
   rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
   rmm::device_uvector<vertex_t> minors(0, handle.get_stream());

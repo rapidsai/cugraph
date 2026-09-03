@@ -20,3 +20,4 @@ is_symmetric: false
 number_of_edges: 68993773
 number_of_nodes: 4847571
 url: https://data.rapids.ai/cugraph/datasets/soc-LiveJournal1.csv
+sha256: 110cc4463422334a4ca8a81ba2286d43ae5f1f7b6e8e66d35f042d804fa28c01

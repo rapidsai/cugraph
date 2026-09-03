@@ -21,3 +21,4 @@ is_symmetric: true
 number_of_edges: 42
 number_of_nodes: 26
 url: https://data.rapids.ai/cugraph/datasets/dining_prefs.csv
+sha256: b3ec19151370691f9f76bfeea301f9e19c9eb95f1d0a9b639f7bc3adc558da00

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -55,11 +55,11 @@ template <typename ExecutionPolicy,
           typename InputIterator,
           typename OutputIterator,
           std::enable_if_t<!is_thrust_zip_iterator_v<InputIterator>, bool> = true>
-OutputIterator gather_shift_left(ExecutionPolicy const& policy,
-                                 MapIterator map_first,
-                                 MapIterator map_last,
-                                 InputIterator input_first,
-                                 OutputIterator output_first)
+OutputIterator gather_shift_left_dispatch(ExecutionPolicy const& policy,
+                                          MapIterator map_first,
+                                          MapIterator map_last,
+                                          InputIterator input_first,
+                                          OutputIterator output_first)
 {
   if constexpr ((is_rmm_exec_policy_v<ExecutionPolicy> ||
                  is_rmm_exec_policy_nosync_v<ExecutionPolicy>) &&
@@ -87,7 +87,7 @@ struct gather_shift_left_zip_split_impl {
     auto const& input_tuple  = input_first.get_iterator_tuple();
     auto const& output_tuple = output_first.get_iterator_tuple();
 
-    gather_shift_left(
+    gather_shift_left_dispatch(
       policy, map_first, map_last, cuda::std::get<I>(input_tuple), cuda::std::get<I>(output_tuple));
     gather_shift_left_zip_split_impl<InputZipIterator,
                                      OutputZipIterator,
@@ -124,14 +124,14 @@ template <typename ExecutionPolicy,
           typename InputIterator,
           typename OutputIterator,
           std::enable_if_t<is_thrust_zip_iterator_v<InputIterator>, bool> = true>
-OutputIterator gather_shift_left(ExecutionPolicy const& policy,
-                                 MapIterator map_first,
-                                 MapIterator map_last,
-                                 InputIterator input_first,
-                                 OutputIterator output_first)
+OutputIterator gather_shift_left_dispatch(ExecutionPolicy const& policy,
+                                          MapIterator map_first,
+                                          MapIterator map_last,
+                                          InputIterator input_first,
+                                          OutputIterator output_first)
 {
   static_assert(is_thrust_zip_iterator_v<OutputIterator>,
-                "gather_shift_left zip overload requires a zip output iterator.");
+                "gather_shift_left_dispatch zip overload requires a zip output iterator.");
   if constexpr ((is_rmm_exec_policy_v<ExecutionPolicy> ||
                  is_rmm_exec_policy_nosync_v<ExecutionPolicy>) &&
                 is_shift_left_transform_map_iterator_v<MapIterator> &&
@@ -139,7 +139,7 @@ OutputIterator gather_shift_left(ExecutionPolicy const& policy,
                 std::is_same_v<std::remove_cv_t<InputIterator>, std::remove_cv_t<OutputIterator>>) {
     static_assert(cuda::std::tuple_size<typename InputIterator::iterator_tuple>::value ==
                     cuda::std::tuple_size<typename OutputIterator::iterator_tuple>::value,
-                  "gather_shift_left zip overload requires matching tuple arity.");
+                  "gather_shift_left_dispatch zip overload requires matching tuple arity.");
 
     constexpr std::size_t tuple_size =
       cuda::std::tuple_size<typename InputIterator::iterator_tuple>::value;
@@ -147,7 +147,7 @@ OutputIterator gather_shift_left(ExecutionPolicy const& policy,
     auto const& input_tuple  = input_first.get_iterator_tuple();
     auto const& output_tuple = output_first.get_iterator_tuple();
 
-    gather_shift_left(
+    gather_shift_left_dispatch(
       policy, map_first, map_last, cuda::std::get<0>(input_tuple), cuda::std::get<0>(output_tuple));
     if constexpr (tuple_size > 1) {
       gather_shift_left_zip_split_impl<InputIterator,
@@ -172,11 +172,11 @@ template <typename ExecutionPolicy,
           typename InputIterator,
           typename OutputIterator,
           std::enable_if_t<!is_thrust_zip_iterator_v<InputIterator>, bool> = true>
-OutputIterator gather(ExecutionPolicy const& policy,
-                      MapType const* map_first,
-                      MapType const* map_last,
-                      InputIterator input_first,
-                      OutputIterator output_first)
+OutputIterator gather_dispatch(ExecutionPolicy const& policy,
+                               MapType const* map_first,
+                               MapType const* map_last,
+                               InputIterator input_first,
+                               OutputIterator output_first)
 {
   if constexpr ((is_rmm_exec_policy_v<ExecutionPolicy> ||
                  is_rmm_exec_policy_nosync_v<ExecutionPolicy>) &&
@@ -204,7 +204,7 @@ struct gather_zip_split_impl {
     auto const& input_tuple  = input_first.get_iterator_tuple();
     auto const& output_tuple = output_first.get_iterator_tuple();
 
-    gather(
+    gather_dispatch(
       policy, map_first, map_last, cuda::std::get<I>(input_tuple), cuda::std::get<I>(output_tuple));
     gather_zip_split_impl<InputZipIterator, OutputZipIterator, ExecutionPolicy, MapType, I + 1, N>::
       run(policy, map_first, map_last, input_first, output_first);
@@ -228,14 +228,14 @@ template <typename ExecutionPolicy,
           typename InputIterator,
           typename OutputIterator,
           std::enable_if_t<is_thrust_zip_iterator_v<InputIterator>, bool> = true>
-OutputIterator gather(ExecutionPolicy const& policy,
-                      MapType const* map_first,
-                      MapType const* map_last,
-                      InputIterator input_first,
-                      OutputIterator output_first)
+OutputIterator gather_dispatch(ExecutionPolicy const& policy,
+                               MapType const* map_first,
+                               MapType const* map_last,
+                               InputIterator input_first,
+                               OutputIterator output_first)
 {
   static_assert(is_thrust_zip_iterator_v<OutputIterator>,
-                "gather zip overload requires a zip output iterator.");
+                "gather_dispatch zip overload requires a zip output iterator.");
   if constexpr ((is_rmm_exec_policy_v<ExecutionPolicy> ||
                  is_rmm_exec_policy_nosync_v<ExecutionPolicy>) &&
                 gather_supported_map_value_v<MapType> &&
@@ -243,7 +243,7 @@ OutputIterator gather(ExecutionPolicy const& policy,
                 std::is_same_v<std::remove_cv_t<InputIterator>, std::remove_cv_t<OutputIterator>>) {
     static_assert(cuda::std::tuple_size<typename InputIterator::iterator_tuple>::value ==
                     cuda::std::tuple_size<typename OutputIterator::iterator_tuple>::value,
-                  "gather zip overload requires matching tuple arity.");
+                  "gather_dispatch zip overload requires matching tuple arity.");
 
     constexpr std::size_t tuple_size =
       cuda::std::tuple_size<typename InputIterator::iterator_tuple>::value;
@@ -251,7 +251,7 @@ OutputIterator gather(ExecutionPolicy const& policy,
     auto const& input_tuple  = input_first.get_iterator_tuple();
     auto const& output_tuple = output_first.get_iterator_tuple();
 
-    gather(
+    gather_dispatch(
       policy, map_first, map_last, cuda::std::get<0>(input_tuple), cuda::std::get<0>(output_tuple));
     if constexpr (tuple_size > 1) {
       gather_zip_split_impl<InputIterator,
@@ -296,11 +296,12 @@ struct gather_t {
     if constexpr ((detail::is_rmm_exec_policy_v<ExecutionPolicy> ||
                    detail::is_rmm_exec_policy_nosync_v<ExecutionPolicy>) &&
                   detail::gather_supported_map_iterator_v<MapIterator>) {
-      return detail::gather(policy, map_first, map_last, input_first, output_first);
+      return detail::gather_dispatch(policy, map_first, map_last, input_first, output_first);
     } else if constexpr ((detail::is_rmm_exec_policy_v<ExecutionPolicy> ||
                           detail::is_rmm_exec_policy_nosync_v<ExecutionPolicy>) &&
                          detail::is_shift_left_transform_map_iterator_v<MapIterator>) {
-      return detail::gather_shift_left(policy, map_first, map_last, input_first, output_first);
+      return detail::gather_shift_left_dispatch(
+        policy, map_first, map_last, input_first, output_first);
     } else {
       return thrust::gather(policy, map_first, map_last, input_first, output_first);
     }

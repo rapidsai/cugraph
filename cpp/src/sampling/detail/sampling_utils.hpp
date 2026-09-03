@@ -154,6 +154,7 @@ temporal_gather_one_hop_edgelist(
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::device_span<bool const>> gather_flags,
   temporal_sampling_comparison_t temporal_sampling_comparison,
+  bool fixed_window,
   bool do_expensive_check);
 
 /**
@@ -185,6 +186,7 @@ temporal_gather_one_hop_edgelist_to_unvisited_neighbors(
   rmm::device_uvector<vertex_t>&& visited_minors,
   std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
   temporal_sampling_comparison_t temporal_sampling_comparison,
+  bool fixed_window,
   bool do_expensive_check);
 
 /**
@@ -276,7 +278,9 @@ temporal_sample_edges_to_unvisited_neighbors(
   rmm::device_uvector<vertex_t>&& visited_minors,
   std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
   bool with_replacement,
-  temporal_sampling_comparison_t temporal_sampling_comparison);
+  temporal_sampling_comparison_t temporal_sampling_comparison,
+  neighbor_selection_t neighbor_selection = neighbor_selection_t::RANDOM,
+  bool fixed_window                       = false);
 
 /**
  * @brief Use the sampling results from hop N to populate the new frontier for hop N+1.

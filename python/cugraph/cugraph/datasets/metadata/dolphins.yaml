@@ -29,3 +29,4 @@ is_symmetric: true
 number_of_edges: 159
 number_of_nodes: 62
 url: https://data.rapids.ai/cugraph/datasets/dolphins.csv
+sha256: f374ea652424d074393231640368b7fc78fb503f364576085ffefc0499a454dd

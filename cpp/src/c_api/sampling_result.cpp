@@ -97,6 +97,32 @@ extern "C" void cugraph_sampling_set_temporal_sampling_comparison(
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
   internal_pointer->temporal_sampling_comparison_ = value;
+  internal_pointer->temporal_sampling_enabled_    = TRUE;
+}
+
+extern "C" void cugraph_sampling_clear_temporal_sampling_comparison(
+  cugraph_sampling_options_t* options)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
+  internal_pointer->temporal_sampling_enabled_ = FALSE;
+}
+
+extern "C" void cugraph_sampling_set_neighbor_selection(cugraph_sampling_options_t* options,
+                                                        cugraph_neighbor_selection_t selection)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
+  switch (selection) {
+    case CUGRAPH_NEIGHBOR_SELECTION_LAST:
+      internal_pointer->neighbor_selection_ = cugraph::neighbor_selection_t::LAST;
+      break;
+    default: internal_pointer->neighbor_selection_ = cugraph::neighbor_selection_t::RANDOM; break;
+  }
+}
+
+extern "C" void cugraph_sampling_set_fixed_window(cugraph_sampling_options_t* options, bool_t value)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
+  internal_pointer->fixed_window_ = value;
 }
 
 extern "C" void cugraph_sampling_set_disjoint_sampling(cugraph_sampling_options_t* options,
@@ -104,6 +130,13 @@ extern "C" void cugraph_sampling_set_disjoint_sampling(cugraph_sampling_options_
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
   internal_pointer->disjoint_sampling_ = value;
+}
+
+extern "C" void cugraph_sampling_set_use_edge_weights_as_biases(cugraph_sampling_options_t* options,
+                                                                bool_t value)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
+  internal_pointer->use_edge_weights_as_biases_ = value;
 }
 
 extern "C" void cugraph_sampling_options_free(cugraph_sampling_options_t* options)
@@ -285,7 +318,7 @@ extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_ed
   const cugraph_sample_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
-  return internal_pointer->renumber_map_ == nullptr
+  return internal_pointer->edge_renumber_map_ == nullptr
            ? NULL
            : reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
                internal_pointer->edge_renumber_map_->view());
@@ -295,7 +328,7 @@ extern "C" cugraph_type_erased_device_array_view_t*
 cugraph_sample_result_get_edge_renumber_map_offsets(const cugraph_sample_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
-  return internal_pointer->renumber_map_ == nullptr
+  return internal_pointer->edge_renumber_map_offsets_ == nullptr
            ? NULL
            : reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
                internal_pointer->edge_renumber_map_offsets_->view());

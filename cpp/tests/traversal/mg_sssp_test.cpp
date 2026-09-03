@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -129,8 +129,10 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
         (*mg_renumber_map).data(),
         mg_graph_view.vertex_partition_range_lasts());
 
-      rmm::device_scalar<vertex_t> d_sg_source(static_cast<vertex_t>(sssp_usecase.source),
-                                               handle_->get_stream());
+      vertex_t sg_source{static_cast<vertex_t>(sssp_usecase.source)};
+      rmm::device_scalar<vertex_t> d_sg_source(sg_source, handle_->get_stream());
+      handle_->sync_stream();  // before sg_source goes out-of-scope (async H2D copy from
+                               // device_scalar ctor)
 
       cugraph::unrenumber_int_vertices<vertex_t, true>(
         *handle_,
