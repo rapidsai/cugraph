@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -37,18 +37,11 @@ int generic_scc_test(const cugraph_resource_handle_t* handle,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_mg_test_graph failed.");
 
   ret_code = cugraph_strongly_connected_components(handle, p_graph, FALSE, &p_result, &ret_error);
-  TEST_ASSERT(
-    test_ret_value, ret_code == CUGRAPH_NOT_IMPLEMENTED, "SCC should not be implemented, but is");
-
-#if 0
-  // FIXME: Actual implementation will be something like this
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(
     test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_strongly_connected_components failed.");
 
-  // NOTE: Because we get back vertex ids and components, we can simply compare
-  //       the returned values with the expected results for the entire
-  //       graph.  Each GPU will have a subset of the total vertices, so
-  //       they will do a subset of the comparisons.
+  // Each rank compares its local (vertex, component) pairs against the expected labeling.
   cugraph_type_erased_device_array_view_t* vertices;
   cugraph_type_erased_device_array_view_t* components;
 
@@ -87,8 +80,6 @@ int generic_scc_test(const cugraph_resource_handle_t* handle,
   cugraph_type_erased_device_array_view_free(components);
   cugraph_type_erased_device_array_view_free(vertices);
   cugraph_labeling_result_free(p_result);
-#endif
-
   cugraph_graph_free(p_graph);
   cugraph_error_free(ret_error);
 
@@ -97,14 +88,15 @@ int generic_scc_test(const cugraph_resource_handle_t* handle,
 
 int test_strongly_connected_components(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 16;
+  size_t num_edges    = 19;
   size_t num_vertices = 12;
 
-  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 6, 7, 7, 8, 8, 8, 9, 10};
-  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 7, 9, 10, 6, 7, 9, 11, 11};
+  vertex_t h_src[] = {0, 1, 1, 1, 2, 2, 2, 3, 3, 4, 4, 6, 7, 7, 8, 8, 8, 9, 10};
+  vertex_t h_dst[] = {1, 2, 3, 4, 0, 1, 3, 4, 5, 3, 5, 7, 9, 10, 6, 7, 9, 11, 11};
   weight_t h_wgt[] = {
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-  vertex_t h_result[] = {0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1};
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+
+  vertex_t h_result[] = {0, 0, 0, 3, 3, 5, 6, 7, 8, 9, 10, 11};
 
   // SCC wants store_transposed = FALSE
   return generic_scc_test(handle, h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE);
