@@ -22,6 +22,7 @@
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/assert.cuh>
 #include <cugraph/utilities/collect_comm.cuh>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/thrust_wrappers/fill.hpp>
 #include <cugraph/utilities/thrust_wrappers/sequence.hpp>
@@ -103,31 +104,30 @@ struct return_edges_op {
 
 template <typename vertex_t>
 struct unvisited_minor_filter_op_t {
-  vertex_t const* minors{};
-  vertex_t const* visited_minors{};
-  size_t visited_minors_size{};
+  raft::device_span<vertex_t const> minors{};
+  raft::device_span<vertex_t const> visited_minors{};
 
   __device__ bool operator()(size_t index) const
   {
     return !thrust::binary_search(
-      thrust::seq, visited_minors, visited_minors + visited_minors_size, minors[index]);
+      thrust::seq, visited_minors.begin(), visited_minors.end(), minors[index]);
   }
 };
 
 template <typename vertex_t, typename label_t>
 struct unvisited_labeled_minor_filter_op_t {
-  vertex_t const* minors{};
-  label_t const* labels{};
-  vertex_t const* visited_minors{};
-  label_t const* visited_labels{};
-  size_t visited_minors_size{};
+  raft::device_span<vertex_t const> minors{};
+  raft::device_span<label_t const> labels{};
+  raft::device_span<vertex_t const> visited_minors{};
+  raft::device_span<label_t const> visited_labels{};
 
   __device__ bool operator()(size_t index) const
   {
-    auto const visited_begin = thrust::make_zip_iterator(visited_minors, visited_labels);
+    auto const visited_begin =
+      thrust::make_zip_iterator(visited_minors.begin(), visited_labels.begin());
     return !thrust::binary_search(thrust::seq,
                                   visited_begin,
-                                  visited_begin + visited_minors_size,
+                                  visited_begin + visited_minors.size(),
                                   cuda::std::make_tuple(minors[index], labels[index]));
   }
 };
@@ -135,13 +135,13 @@ struct unvisited_labeled_minor_filter_op_t {
 template <typename vertex_t, typename time_stamp_t, typename label_t>
 struct temporal_edge_filter_kv_op_t {
   temporal_sampling_comparison_t temporal_sampling_comparison{};
-  time_stamp_t const* edge_times{};
-  vertex_t const* srcs{};
-  label_t const* src_labels{};
+  raft::device_span<time_stamp_t const> edge_times{};
+  raft::device_span<vertex_t const> srcs{};
+  raft::device_span<label_t const> src_labels{};
   raft::device_span<vertex_t const> window_majors{};
   raft::device_span<label_t const> window_labels{};
   cuda::std::optional<raft::device_span<time_stamp_t const>> window_starts{};
-  time_stamp_t const* window_ends{};
+  raft::device_span<time_stamp_t const> window_ends{};
 
   __device__ bool operator()(size_t index) const
   {
@@ -163,30 +163,23 @@ struct temporal_edge_filter_kv_op_t {
 template <typename time_stamp_t>
 struct temporal_edge_filter_per_edge_op_t {
   temporal_sampling_comparison_t temporal_sampling_comparison{};
-  time_stamp_t const* edge_times{};
-  time_stamp_t const* per_edge_window_starts{};
-  time_stamp_t const* per_edge_window_ends{};
+  raft::device_span<time_stamp_t const> edge_times{};
+  cuda::std::optional<raft::device_span<time_stamp_t const>> per_edge_window_starts{};
+  cuda::std::optional<raft::device_span<time_stamp_t const>> per_edge_window_ends{};
 
   __device__ bool operator()(size_t index) const
   {
     auto const edge_time = edge_times[index];
     auto const key_time =
       per_edge_window_starts
-        ? per_edge_window_starts[index]
+        ? (*per_edge_window_starts)[index]
         : unbounded_temporal_window_start<time_stamp_t>(temporal_sampling_comparison);
     auto const window_end =
       per_edge_window_ends
-        ? per_edge_window_ends[index]
+        ? (*per_edge_window_ends)[index]
         : unbounded_temporal_window_end<time_stamp_t>(temporal_sampling_comparison);
     return passes_temporal_filter(temporal_sampling_comparison, key_time, window_end, edge_time);
   }
-};
-
-struct edge_type_gather_filter_op_t {
-  int32_t const* edge_types{};
-  bool const* gather_flags{};
-
-  __device__ bool operator()(size_t index) const { return gather_flags[edge_types[index]]; }
 };
 
 template <typename time_stamp_t>
@@ -350,7 +343,9 @@ filter_edge_by_type(raft::handle_t const& handle,
 
   auto [keep_count, marked_entries] =
     mark_entries(edge_type.size(),
-                 edge_type_gather_filter_op_t{edge_type.data(), gather_flags.data()},
+                 nested_indirection_t<size_t, int32_t, bool>{
+                   raft::device_span<int32_t const>{edge_type.data(), edge_type.size()},
+                   raft::device_span<bool const>{gather_flags.data(), gather_flags.size()}},
                  handle.get_stream());
 
   raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(), marked_entries.size()};
@@ -473,16 +468,19 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
       visited_minor_labels
         ? mark_entries(
             result_minors.size(),
-            unvisited_labeled_minor_filter_op_t<vertex_t, int32_t>{result_minors.data(),
-                                                                   result_labels->data(),
-                                                                   visited_minors.data(),
-                                                                   visited_minor_labels->data(),
-                                                                   visited_minors.size()},
+            unvisited_labeled_minor_filter_op_t<vertex_t, int32_t>{
+              raft::device_span<vertex_t const>{result_minors.data(), result_minors.size()},
+              raft::device_span<int32_t const>{result_labels->data(), result_labels->size()},
+              raft::device_span<vertex_t const>{visited_minors.data(), visited_minors.size()},
+              raft::device_span<int32_t const>{visited_minor_labels->data(),
+                                               visited_minor_labels->size()}},
             handle.get_stream())
-        : mark_entries(result_minors.size(),
-                       unvisited_minor_filter_op_t<vertex_t>{
-                         result_minors.data(), visited_minors.data(), visited_minors.size()},
-                       handle.get_stream());
+        : mark_entries(
+            result_minors.size(),
+            unvisited_minor_filter_op_t<vertex_t>{
+              raft::device_span<vertex_t const>{result_minors.data(), result_minors.size()},
+              raft::device_span<vertex_t const>{visited_minors.data(), visited_minors.size()}},
+            handle.get_stream());
 
     raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(),
                                                         marked_entries.size()};
@@ -801,23 +799,29 @@ temporal_gather_one_hop_edgelist(
             edge_times.size(),
             temporal_edge_filter_kv_op_t<vertex_t, time_stamp_t, label_t>{
               temporal_sampling_comparison,
-              edge_times.data(),
-              result_majors.data(),
-              edge_src_labels->data(),
+              raft::device_span<time_stamp_t const>{edge_times.data(), edge_times.size()},
+              raft::device_span<vertex_t const>{result_majors.data(), result_majors.size()},
+              raft::device_span<label_t const>{edge_src_labels->data(), edge_src_labels->size()},
               raft::device_span<vertex_t const>{kv_majors->data(), kv_majors->size()},
               raft::device_span<label_t const>{kv_labels->data(), kv_labels->size()},
               kv_window_starts ? cuda::std::make_optional(raft::device_span<time_stamp_t const>{
                                    kv_window_starts->data(), kv_window_starts->size()})
                                : cuda::std::nullopt,
-              kv_window_ends->data()},
+              raft::device_span<time_stamp_t const>{kv_window_ends->data(),
+                                                    kv_window_ends->size()}},
             handle.get_stream())
-        : mark_entries(edge_times.size(),
-                       temporal_edge_filter_per_edge_op_t<time_stamp_t>{
-                         temporal_sampling_comparison,
-                         edge_times.data(),
-                         tmp_window_starts ? tmp_window_starts->data() : nullptr,
-                         tmp_window_ends ? tmp_window_ends->data() : nullptr},
-                       handle.get_stream());
+        : mark_entries(
+            edge_times.size(),
+            temporal_edge_filter_per_edge_op_t<time_stamp_t>{
+              temporal_sampling_comparison,
+              raft::device_span<time_stamp_t const>{edge_times.data(), edge_times.size()},
+              tmp_window_starts ? cuda::std::make_optional(raft::device_span<time_stamp_t const>{
+                                    tmp_window_starts->data(), tmp_window_starts->size()})
+                                : cuda::std::nullopt,
+              tmp_window_ends ? cuda::std::make_optional(raft::device_span<time_stamp_t const>{
+                                  tmp_window_ends->data(), tmp_window_ends->size()})
+                              : cuda::std::nullopt},
+            handle.get_stream());
 
     raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(),
                                                         marked_entries.size()};
@@ -914,16 +918,19 @@ temporal_gather_one_hop_edgelist_to_unvisited_neighbors(
       visited_minor_labels
         ? mark_entries(
             result_minors.size(),
-            unvisited_labeled_minor_filter_op_t<vertex_t, int32_t>{result_minors.data(),
-                                                                   result_labels->data(),
-                                                                   visited_minors.data(),
-                                                                   visited_minor_labels->data(),
-                                                                   visited_minors.size()},
+            unvisited_labeled_minor_filter_op_t<vertex_t, int32_t>{
+              raft::device_span<vertex_t const>{result_minors.data(), result_minors.size()},
+              raft::device_span<int32_t const>{result_labels->data(), result_labels->size()},
+              raft::device_span<vertex_t const>{visited_minors.data(), visited_minors.size()},
+              raft::device_span<int32_t const>{visited_minor_labels->data(),
+                                               visited_minor_labels->size()}},
             handle.get_stream())
-        : mark_entries(result_minors.size(),
-                       unvisited_minor_filter_op_t<vertex_t>{
-                         result_minors.data(), visited_minors.data(), visited_minors.size()},
-                       handle.get_stream());
+        : mark_entries(
+            result_minors.size(),
+            unvisited_minor_filter_op_t<vertex_t>{
+              raft::device_span<vertex_t const>{result_minors.data(), result_minors.size()},
+              raft::device_span<vertex_t const>{visited_minors.data(), visited_minors.size()}},
+            handle.get_stream());
 
     raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(),
                                                         marked_entries.size()};

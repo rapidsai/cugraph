@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -111,6 +111,103 @@ struct is_not_equal_t {
   T compare{};
 
   __device__ bool operator()(T val) const { return val != compare; }
+};
+
+template <typename T, T compare>
+struct is_equal_to_const_t {
+  __device__ bool operator()(T val) const { return val == compare; }
+};
+
+template <typename T, T compare>
+struct is_not_equal_to_const_t {
+  __device__ bool operator()(T val) const { return val != compare; }
+};
+
+template <typename T>
+struct invert_t {
+  __device__ T operator()(T val) const { return -val; }
+};
+
+template <typename T>
+struct is_less_than_t {
+  T threshold{};
+
+  __device__ bool operator()(T val) const { return val < threshold; }
+};
+
+template <typename T>
+struct is_greater_than_or_equal_t {
+  T threshold{};
+
+  __device__ bool operator()(T val) const { return val >= threshold; }
+};
+
+template <typename T>
+struct indirection_and_is_less_than_t {
+  raft::device_span<T const> values{};
+  T threshold{};
+
+  __device__ bool operator()(size_t index) const { return values[index] < threshold; }
+};
+
+template <typename T>
+struct indirection_and_is_greater_than_or_equal_t {
+  raft::device_span<T const> values{};
+  T threshold{};
+
+  __device__ bool operator()(size_t index) const { return values[index] >= threshold; }
+};
+
+template <typename T>
+struct adjacent_difference_t {
+  raft::device_span<T const> offsets{};
+
+  template <typename Index>
+  __device__ T operator()(Index i) const
+  {
+    return offsets[i + 1] - offsets[i];
+  }
+};
+
+struct clamped_subtract_t {
+  size_t threshold{};
+
+  template <typename Degree>
+  __device__ size_t operator()(Degree value) const
+  {
+    auto d = static_cast<size_t>(value);
+    return d > threshold ? (d - threshold) : size_t{0};
+  }
+};
+
+template <typename T>
+struct indirection_and_clamped_subtract_t {
+  raft::device_span<T const> values{};
+  size_t threshold{};
+
+  __device__ size_t operator()(size_t i) const { return clamped_subtract_t{threshold}(values[i]); }
+};
+
+template <typename output_t = size_t>
+struct segment_local_idx_t {
+  raft::device_span<size_t const> segment_offsets{};
+
+  __device__ output_t operator()(size_t i) const
+  {
+    auto segment_lasts = segment_offsets.subspan(1);
+    auto idx           = cuda::std::distance(
+      segment_lasts.begin(),
+      thrust::upper_bound(thrust::seq, segment_lasts.begin(), segment_lasts.end(), i));
+    return static_cast<output_t>(i - segment_offsets[idx]);
+  }
+};
+
+template <typename index_t, typename T1, typename T2>
+struct nested_indirection_t {
+  raft::device_span<T1 const> first{};
+  raft::device_span<T2 const> second{};
+
+  __device__ T2 operator()(index_t i) const { return second[first[i]]; }
 };
 
 template <typename Iterator>
