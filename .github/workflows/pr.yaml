@@ -206,6 +206,21 @@ jobs:
           - '!img/**'
           - '!notebooks/**'
           - '!readme_pages/**'
+        build_libcugraph:
+          - 'cpp/**'
+          - 'python/libcugraph/**'
+          - 'conda/recipes/libcugraph*/**'
+          - 'ci/build_cpp.sh'
+          - 'ci/build_wheel_libcugraph.sh'
+        build_pylibcugraph:
+          - 'python/pylibcugraph/**'
+          - 'conda/recipes/pylibcugraph/**'
+          - 'ci/build_wheel_pylibcugraph.sh'
+        build_cugraph:
+          - 'python/cugraph/**'
+          - 'conda/recipes/cugraph/**'
+          - 'ci/build_wheel_cugraph.sh'
+          - 'ci/build_python.sh'
         test_python_wheels:
           - '**'
           - '!.devcontainer/**'
@@ -255,9 +270,10 @@ jobs:
     permissions:
       contents: read
   conda-cpp-build:
-    needs: [build-details, checks]
+    needs: [build-details, checks, changed-files]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@main
+    if: fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph
     with:
       build_type: pull-request
       build-datetime: ${{ needs.build-details.outputs.build-datetime }}
@@ -297,15 +313,25 @@ jobs:
       packages: read
       pull-requests: read
   conda-python-build:
-    needs: [build-details, conda-cpp-build]
+    needs: [build-details, conda-cpp-build, changed-files]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@main
+    if: |
+      !cancelled() &&
+      (needs.conda-cpp-build.result == 'success' || needs.conda-cpp-build.result == 'skipped') &&
+      (
+        fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph ||
+        fromJSON(needs.changed-files.outputs.changed_file_groups).build_pylibcugraph ||
+        fromJSON(needs.changed-files.outputs.changed_file_groups).build_cugraph
+      )
     with:
       build_type: pull-request
       build-datetime: ${{ needs.build-details.outputs.build-datetime }}
       script: ci/build_python.sh
       # Build a conda package for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
+      env: |
+        LIBCUGRAPH_FROM_NIGHTLY=${{ !fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph }}
     permissions:
       actions: read
       contents: read
@@ -361,9 +387,10 @@ jobs:
       packages: read
       pull-requests: read
   wheel-build-libcugraph:
-    needs: [build-details, checks]
+    needs: [build-details, checks, changed-files]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
+    if: fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph
     with:
       # build for every combination of arch and CUDA version, but only for the latest Python
       matrix_filter: group_by([.ARCH, (.CUDA_VER|split(".")|map(tonumber)|.[0])]) | map(max_by(.PY_VER|split(".")|map(tonumber)))
@@ -380,9 +407,16 @@ jobs:
       packages: read
       pull-requests: read
   wheel-build-pylibcugraph:
-    needs: [build-details, wheel-build-libcugraph]
+    needs: [build-details, wheel-build-libcugraph, changed-files]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
+    if: |
+      !cancelled() &&
+      (needs.wheel-build-libcugraph.result == 'success' || needs.wheel-build-libcugraph.result == 'skipped') &&
+      (
+        fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph ||
+        fromJSON(needs.changed-files.outputs.changed_file_groups).build_pylibcugraph
+      )
     with:
       build_type: pull-request
       build-datetime: ${{ needs.build-details.outputs.build-datetime }}
@@ -392,6 +426,8 @@ jobs:
       package-type: python
       # Build a wheel for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
+      env: |
+        LIBCUGRAPH_FROM_NIGHTLY=${{ !fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph }}
     permissions:
       actions: read
       contents: read
@@ -402,10 +438,16 @@ jobs:
     needs: [wheel-build-pylibcugraph, changed-files]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_wheels
+    # only test a pylibcugraph wheel actually built by this PR; a skipped build means
+    # pylibcugraph was resolved from nightly and there's nothing PR-specific to test
+    if: |
+      needs.wheel-build-pylibcugraph.result == 'success' &&
+      fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_wheels
     with:
       build_type: pull-request
       script: ci/test_wheel_pylibcugraph.sh
+      env: |
+        LIBCUGRAPH_FROM_NIGHTLY=${{ !fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph }}
     permissions:
       actions: read
       contents: read
@@ -413,9 +455,17 @@ jobs:
       packages: read
       pull-requests: read
   wheel-build-cugraph:
-    needs: [build-details, wheel-build-pylibcugraph]
+    needs: [build-details, wheel-build-pylibcugraph, changed-files]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
+    if: |
+      !cancelled() &&
+      (needs.wheel-build-pylibcugraph.result == 'success' || needs.wheel-build-pylibcugraph.result == 'skipped') &&
+      (
+        fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph ||
+        fromJSON(needs.changed-files.outputs.changed_file_groups).build_pylibcugraph ||
+        fromJSON(needs.changed-files.outputs.changed_file_groups).build_cugraph
+      )
     with:
       build_type: pull-request
       build-datetime: ${{ needs.build-details.outputs.build-datetime }}
@@ -425,6 +475,9 @@ jobs:
       package-type: python
       # Build a wheel for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
+      env: |
+        LIBCUGRAPH_FROM_NIGHTLY=${{ !fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph }}
+        PYLIBCUGRAPH_FROM_NIGHTLY=${{ !(fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph || fromJSON(needs.changed-files.outputs.changed_file_groups).build_pylibcugraph) }}
     permissions:
       actions: read
       contents: read
@@ -435,10 +488,17 @@ jobs:
     needs: [wheel-build-cugraph, changed-files]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_wheels
+    # only test a cugraph wheel actually built by this PR; a skipped build means
+    # cugraph was resolved from nightly and there's nothing PR-specific to test
+    if: |
+      needs.wheel-build-cugraph.result == 'success' &&
+      fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_wheels
     with:
       build_type: pull-request
       script: ci/test_wheel_cugraph.sh
+      env: |
+        LIBCUGRAPH_FROM_NIGHTLY=${{ !fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph }}
+        PYLIBCUGRAPH_FROM_NIGHTLY=${{ !(fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph || fromJSON(needs.changed-files.outputs.changed_file_groups).build_pylibcugraph) }}
     permissions:
       actions: read
       contents: read

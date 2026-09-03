@@ -11,8 +11,6 @@ export CMAKE_GENERATOR=Ninja
 
 rapids-print-env
 
-CPP_CHANNEL=$(rapids-download-from-github "$(rapids-artifact-name conda_cpp libcugraph cugraph --cuda "$RAPIDS_CUDA_VERSION")")
-
 rapids-generate-version > ./VERSION
 
 RAPIDS_PACKAGE_VERSION=$(head -1 ./VERSION)
@@ -21,9 +19,17 @@ export RAPIDS_PACKAGE_VERSION
 # populates `RATTLER_CHANNELS` array and `RATTLER_ARGS` array
 source rapids-rattler-channel-string
 
-rapids-logger "Prepending channel ${CPP_CHANNEL} to RATTLER_CHANNELS"
+if [[ "${LIBCUGRAPH_FROM_NIGHTLY:-false}" == "true" ]]; then
+  # libcugraph wasn't rebuilt for this PR; let the recipe's own version constraint
+  # resolve it from the rapidsai-nightly channel already present in RATTLER_CHANNELS.
+  rapids-logger "libcugraph unaffected by this PR; resolving it from the nightly channel"
+else
+  CPP_CHANNEL=$(rapids-download-from-github "$(rapids-artifact-name conda_cpp libcugraph cugraph --cuda "$RAPIDS_CUDA_VERSION")")
 
-RATTLER_CHANNELS=("--channel" "${CPP_CHANNEL}" "${RATTLER_CHANNELS[@]}")
+  rapids-logger "Prepending channel ${CPP_CHANNEL} to RATTLER_CHANNELS"
+
+  RATTLER_CHANNELS=("--channel" "${CPP_CHANNEL}" "${RATTLER_CHANNELS[@]}")
+fi
 
 sccache --stop-server 2>/dev/null || true
 
