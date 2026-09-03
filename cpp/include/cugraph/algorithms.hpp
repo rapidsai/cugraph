@@ -1759,7 +1759,7 @@ void weakly_connected_components(raft::handle_t const& handle,
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Graph view object.
+ * @param graph_view Graph view object. Must be directed (asymmetric).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Device vector of stronlgy connected component IDs
  */
@@ -1767,6 +1767,45 @@ template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> strongly_connected_components(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  bool do_expensive_check = false);
+
+/**
+.* @ingroup components_cpp
+ * @brief Enumerate simple cycles (elementary circuits) of a directed graph.
+ *
+ * A simple cycle is a closed path where no vertex appears twice. Two simple cycles are the same
+ * if they are cyclic permutations of each other. Self-loops are reported as length-1 cycles.
+ * Parallel edges do not create additional cycles.
+ *
+ * This function is currently designed for small to moderate @p length_bound values (for example, no
+ * larger than 10). Performance may deteriorate significantly for very large @p length_bound values.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object. Must be directed (asymmetric).
+ * @param seed_vertices If specified, only cycles that contain at least one vertex in this list
+ * are returned. @p seed_vertices must be sorted in ascending order. In multi-GPU, if @p
+ * seed_vertices is provided on one GPU, it must be provided on every GPU; pass an empty span
+ * (not `std::nullopt`) if this GPU has no seed vertices. The aggregate number of seed vertices
+ * over all GPUs must be greater than 0.
+ * @param length_bound Maximum cycle length to enumerate. Cycles exceeding this length won't be
+ * returned.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of two arrays: cycle vertices and offsets. Vertices of each cycle are listed in
+ * cyclic order. The size of the offset array is the number of cycles + 1 (in multi-GPU, the number
+ * of cycles stored in this GPU + 1). The i'th and (i+1)'th elements of the offset array demarcate
+ * the beginning (inclusive) and end (exclusive) of the i'th cycle on this GPU, respectively.
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<size_t>> simple_cycles(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<raft::device_span<vertex_t const>> seed_vertices,
+  vertex_t length_bound,
   bool do_expensive_check = false);
 
 /**
