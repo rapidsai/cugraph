@@ -11,7 +11,7 @@ include(rapids-test)
 rapids_test_init()
 
 ###################################################################################################
-# - set rapids dataset path ----------------------------------------------------------------------
+# - set rapids dataset path -----------------------------------------------------------------------
 if(RAPIDS_DATASET_ROOT_DIR)
     message(STATUS "setting default RAPIDS_DATASET_ROOT_DIR to: ${RAPIDS_DATASET_ROOT_DIR}")
     string(CONCAT CMAKE_C_FLAGS ${CMAKE_C_FLAGS} " -DRAPIDS_DATASET_ROOT_DIR=" "\\\"" ${RAPIDS_DATASET_ROOT_DIR} "\\\"")
@@ -20,7 +20,7 @@ if(RAPIDS_DATASET_ROOT_DIR)
 endif(RAPIDS_DATASET_ROOT_DIR)
 
 ###################################################################################################
-# - common C++ test utils -----------------------------------------------------------------------------
+# - common C++ test utils -------------------------------------------------------------------------
 
 add_library(cugraphtestutil STATIC
             utilities/matrix_market_file_utilities_sg.cu
@@ -101,8 +101,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
     find_package(MPI REQUIRED COMPONENTS CXX)
 
 
-    ###################################################################################################
-    # - common C++ mg test utils -----------------------------------------------------------------------
+    ###############################################################################################
+    # - common C++ mg test utils ------------------------------------------------------------------
     add_library(cugraphmgtestutil STATIC
                 utilities/device_comm_wrapper.cu
                 utilities/mg_utilities.cpp
@@ -422,8 +422,8 @@ ConfigureTest(COARSEN_GRAPH_TEST structure/coarsen_graph_test.cpp)
 # - Induced subgraph tests ------------------------------------------------------------------------
 ConfigureTest(INDUCED_SUBGRAPH_TEST structure/induced_subgraph_test.cpp)
 
-##################################################################################################
-# - Temporal tests -------------------------------------------------------------------------------
+###################################################################################################
+# - Temporal tests --------------------------------------------------------------------------------
 ConfigureTest(TEMPORAL_GRAPH_TEST structure/temporal_graph_test.cpp)
 
 ###################################################################################################
@@ -473,8 +473,12 @@ ConfigureTest(EDGE_BETWEENNESS_CENTRALITY_TEST centrality/edge_betweenness_centr
 ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_components_test.cpp)
 
 ###################################################################################################
-# - STRONGLY CONNECTED COMPONENTS tests -------------------------------------------------------------
+# - STRONGLY CONNECTED COMPONENTS tests -----------------------------------------------------------
 ConfigureTest(STRONGLY_CONNECTED_COMPONENTS_TEST components/strongly_connected_components_test.cpp)
+
+###################################################################################################
+# - SIMPLE CYCLES tests ---------------------------------------------------------------------------
+ConfigureTest(SIMPLE_CYCLES_TEST components/simple_cycles_test.cpp)
 
 ###################################################################################################
 # - TOPOLOGICAL SORT tests ------------------------------------------------------------------------
@@ -485,7 +489,7 @@ ConfigureTest(TOPOLOGICAL_SORT_TEST dag/topological_sort_test.cpp dag/dag_test_u
 ConfigureTest(MIS_TEST components/mis_test.cu)
 
 ###################################################################################################
-# - VERTEX COLORING tests ----------------------------------------------------------------------
+# - VERTEX COLORING tests -------------------------------------------------------------------------
 ConfigureTest(VERTEX_COLORING_TEST components/vertex_coloring_test.cu)
 
 ###################################################################################################
@@ -501,12 +505,14 @@ ConfigureTest(WEIGHTED_SIMILARITY_TEST link_prediction/weighted_similarity_test.
 #  FIXME: Rename to random_walks_test.cu once the legacy implementation is deleted
 ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp)
 
+###################################################################################################
 # - HOMOGENEOUS UNIFORM NBR SAMPLING tests --------------------------------------------------------
 ConfigureTest(
     HOMOGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/homogeneous_uniform_neighbor_sampling.cpp
         GPUS 1 PERCENT 75)
 
-# - HETEROGENEOUS UNIFORM NBR SAMPLING tests -----------------------------------------------------
+###################################################################################################
+# - HETEROGENEOUS UNIFORM NBR SAMPLING tests ------------------------------------------------------
 ConfigureTest(
     HETEROGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/heterogeneous_uniform_neighbor_sampling.cpp
         GPUS 1 PERCENT 75)
@@ -546,7 +552,7 @@ ConfigureTest(SAMPLING_POST_PROCESSING_TEST sampling/sampling_post_processing_te
 #              sampling/sampling_heterogeneous_post_processing_test.cpp)
 
 ###################################################################################################
-# - NEGATIVE SAMPLING tests --------------------------------------------------------------------
+# - NEGATIVE SAMPLING tests -----------------------------------------------------------------------
 ConfigureTest(NEGATIVE_SAMPLING_TEST sampling/negative_sampling.cpp PERCENT 100)
 
 ###################################################################################################
@@ -562,7 +568,7 @@ ConfigureTest(CORE_NUMBER_TEST cores/core_number_test.cpp)
 ConfigureTest(K_CORE_TEST cores/k_core_test.cpp)
 
 ###################################################################################################
-# - K-truss tests --------------------------------------------------------------------------
+# - K-truss tests ---------------------------------------------------------------------------------
 ConfigureTest(K_TRUSS_TEST community/k_truss_test.cpp)
 
 ###################################################################################################
@@ -611,7 +617,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_SYMMETRIZE_TEST structure/mg_symmetrize_test.cpp)
 
     ###############################################################################################
-    # - MG Temporal Graph tests -----------------------------------------------------------------------
+    # - MG Temporal Graph tests -------------------------------------------------------------------
     ConfigureTestMG(MG_TEMPORAL_GRAPH_TEST structure/mg_temporal_graph_test.cpp)
 
     ###############################################################################################
@@ -676,7 +682,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_LOUVAIN_TEST community/mg_louvain_test.cpp)
 
     ###############################################################################################
-    # - MG LEIDEN tests --------------------------------------------------------------------------
+    # - MG LEIDEN tests ---------------------------------------------------------------------------
     ConfigureTestMG(MG_LEIDEN_TEST community/mg_leiden_test.cpp)
 
     ###############################################################################################
@@ -684,7 +690,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_WEIGHTED_MATCHING_TEST community/mg_weighted_matching_test.cpp)
 
     ###############################################################################################
-    # - MG ECG tests --------------------------------------------------------------------------
+    # - MG ECG tests ------------------------------------------------------------------------------
     ConfigureTestMG(MG_ECG_TEST community/mg_ecg_test.cpp)
 
     ###############################################################################################
@@ -727,7 +733,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_MIS_TEST components/mg_mis_test.cu)
 
     ###############################################################################################
-    # - MG VERTEX COLORING tests -------------------------------------------------------------------
+    # - MG VERTEX COLORING tests ------------------------------------------------------------------
     ConfigureTestMG(MG_VERTEX_COLORING_TEST components/mg_vertex_coloring_test.cu)
 
     ###############################################################################################
@@ -852,7 +858,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
         MG_HOMOGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_homogeneous_uniform_neighbor_sampling.cpp)
 
     ###############################################################################################
-    # - MG HETEROGENEOUS UNIFORM NBR SAMPLING tests -------------------------------------------------
+    # - MG HETEROGENEOUS UNIFORM NBR SAMPLING tests -----------------------------------------------
     ConfigureTestMG(
         MG_HETEROGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_heterogeneous_uniform_neighbor_sampling.cpp)
 
@@ -862,20 +868,20 @@ if(BUILD_CUGRAPH_MG_TESTS)
         MG_HOMOGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_homogeneous_biased_neighbor_sampling.cpp)
 
     ###############################################################################################
-    # - MG HETEROGENEOUS BIASED NBR SAMPLING tests --------------------------------------------------
+    # - MG HETEROGENEOUS BIASED NBR SAMPLING tests ------------------------------------------------
     ConfigureTestMG(
         MG_HETEROGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_heterogeneous_biased_neighbor_sampling.cpp)
 
     ###############################################################################################
-    # - MG TEMPORAL NBR SAMPLING tests --------------------------------------------------------------
+    # - MG TEMPORAL NBR SAMPLING tests ------------------------------------------------------------
     ConfigureTestMG(
         MG_TEMPORAL_NEIGHBOR_SAMPLING_TEST sampling/mg_temporal_neighbor_sampling.cpp)
     ConfigureTestMG(
         MG_TEMPORAL_NEIGHBOR_SAMPLING_FIXED_WINDOW_TEST
         sampling/mg_temporal_neighbor_sampling_fixed_window.cpp)
 
-    ###################################################################################################
-    # - NEGATIVE SAMPLING tests --------------------------------------------------------------------
+    ###############################################################################################
+    # - NEGATIVE SAMPLING tests -------------------------------------------------------------------
     ConfigureTestMG(MG_NEGATIVE_SAMPLING_TEST sampling/mg_negative_sampling.cpp)
 
     ###############################################################################################
