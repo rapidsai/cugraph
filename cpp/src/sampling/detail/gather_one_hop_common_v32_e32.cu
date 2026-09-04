@@ -62,6 +62,7 @@ using edge_t   = int32_t;
     std::optional<raft::device_span<int32_t const>> active_major_labels,             \
     std::optional<raft::device_span<bool const>> gather_flags,                       \
     temporal_sampling_comparison_t temporal_sampling_comparison,                     \
+    bool fixed_window,                                                               \
     bool do_expensive_check);                                                        \
                                                                                      \
   template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<vertex_t>,                  \
@@ -84,6 +85,7 @@ using edge_t   = int32_t;
     rmm::device_uvector<vertex_t>&& visited_minors,                                  \
     std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,              \
     temporal_sampling_comparison_t temporal_sampling_comparison,                     \
+    bool fixed_window,                                                               \
     bool do_expensive_check)
 
 CUGRAPH_INSTANTIATE_GATHER_ONE_HOP(false);

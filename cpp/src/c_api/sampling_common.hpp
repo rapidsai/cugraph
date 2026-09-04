@@ -27,6 +27,7 @@ struct cugraph_sampling_options_t {
   bool_t disjoint_sampling_{FALSE};
   bool_t use_edge_weights_as_biases_{FALSE};
   cugraph::neighbor_selection_t neighbor_selection_{cugraph::neighbor_selection_t::RANDOM};
+  bool_t fixed_window_{FALSE};
 };
 
 struct sampling_flags_t {
