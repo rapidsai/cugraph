@@ -4,6 +4,7 @@
 import cudf
 from cugraph import Graph
 
+
 def degree_centrality(G: Graph, normalized=True) -> cudf.DataFrame:
     """
     Computes the degree centrality of each vertex of the input graph.
