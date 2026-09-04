@@ -100,14 +100,14 @@ struct indirection_if_idx_valid_t {
 };
 
 template <typename T>
-struct is_equal_t {
+struct is_equal_to_t {
   T compare{};
 
   __device__ bool operator()(T val) const { return val == compare; }
 };
 
 template <typename T>
-struct is_not_equal_t {
+struct is_not_equal_to_t {
   T compare{};
 
   __device__ bool operator()(T val) const { return val != compare; }
@@ -129,21 +129,21 @@ struct invert_t {
 };
 
 template <typename T>
-struct is_less_than_t {
+struct is_less_than_to_t {
   T threshold{};
 
   __device__ bool operator()(T val) const { return val < threshold; }
 };
 
 template <typename T>
-struct is_greater_than_or_equal_t {
+struct is_greater_than_or_equal_to_t {
   T threshold{};
 
   __device__ bool operator()(T val) const { return val >= threshold; }
 };
 
 template <typename T>
-struct indirection_and_is_less_than_t {
+struct indirection_and_is_less_than_to_t {
   raft::device_span<T const> values{};
   T threshold{};
 
@@ -151,7 +151,7 @@ struct indirection_and_is_less_than_t {
 };
 
 template <typename T>
-struct indirection_and_is_greater_than_or_equal_t {
+struct indirection_and_is_greater_than_or_equal_to_t {
   raft::device_span<T const> values{};
   T threshold{};
 
@@ -160,32 +160,40 @@ struct indirection_and_is_greater_than_or_equal_t {
 
 template <typename T>
 struct adjacent_difference_t {
-  raft::device_span<T const> offsets{};
+  raft::device_span<T const> lasts{};
 
   template <typename Index>
   __device__ T operator()(Index i) const
   {
-    return offsets[i + 1] - offsets[i];
+    return (i == 0) ? lasts[0] : (lasts[i] - lasts[i - 1]);
   }
 };
 
+template <typename T>
 struct clamped_subtract_t {
-  size_t threshold{};
+  T threshold{};
 
-  template <typename Degree>
-  __device__ size_t operator()(Degree value) const
-  {
-    auto d = static_cast<size_t>(value);
-    return d > threshold ? (d - threshold) : size_t{0};
-  }
+  __device__ T operator()(T value) const { return value > threshold ? (value - threshold) : T{0}; }
 };
 
 template <typename T>
 struct indirection_and_clamped_subtract_t {
   raft::device_span<T const> values{};
-  size_t threshold{};
+  T threshold{};
 
-  __device__ size_t operator()(size_t i) const { return clamped_subtract_t{threshold}(values[i]); }
+  __device__ T operator()(size_t i) const { return clamped_subtract_t<T>{threshold}(values[i]); }
+};
+
+template <typename T>
+struct segment_id_t {
+  raft::device_span<T const> segment_lasts{};
+
+  __device__ T operator()(T i) const
+  {
+    return static_cast<T>(cuda::std::distance(
+      segment_lasts.begin(),
+      thrust::upper_bound(thrust::seq, segment_lasts.begin(), segment_lasts.end(), i)));
+  }
 };
 
 template <typename output_t = size_t>
@@ -194,10 +202,7 @@ struct segment_local_idx_t {
 
   __device__ output_t operator()(size_t i) const
   {
-    auto segment_lasts = segment_offsets.subspan(1);
-    auto idx           = cuda::std::distance(
-      segment_lasts.begin(),
-      thrust::upper_bound(thrust::seq, segment_lasts.begin(), segment_lasts.end(), i));
+    auto idx = segment_id_t<size_t>{segment_offsets.subspan(1)}(i);
     return static_cast<output_t>(i - segment_offsets[idx]);
   }
 };
@@ -295,18 +300,6 @@ struct modulo_t {
   __device__ output_t operator()(input_t input) const
   {
     return static_cast<output_t>(input % modulus);
-  }
-};
-
-template <typename T>
-struct segment_id_t {
-  raft::device_span<T const> segment_lasts{};
-
-  __device__ T operator()(T i) const
-  {
-    return static_cast<T>(cuda::std::distance(
-      segment_lasts.begin(),
-      thrust::upper_bound(thrust::seq, segment_lasts.begin(), segment_lasts.end(), i)));
   }
 };
 

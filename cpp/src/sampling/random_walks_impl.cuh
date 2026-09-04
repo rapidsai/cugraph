@@ -694,11 +694,12 @@ random_walk_impl(raft::handle_t const& handle,
 
           compacted_length = cuda::std::distance(
             input_iter,
-            thrust::remove_if(handle.get_thrust_policy(),
-                              input_iter,
-                              input_iter + current_vertices.size(),
-                              current_vertices.begin(),
-                              is_equal_t<vertex_t>{cugraph::invalid_vertex_id<vertex_t>::value}));
+            thrust::remove_if(
+              handle.get_thrust_policy(),
+              input_iter,
+              input_iter + current_vertices.size(),
+              current_vertices.begin(),
+              is_equal_to_const_t<vertex_t, cugraph::invalid_vertex_id_v<vertex_t>>{}));
         } else {
           auto input_iter = thrust::make_zip_iterator(current_vertices.begin(),
                                                       new_weights->begin(),
@@ -707,11 +708,12 @@ random_walk_impl(raft::handle_t const& handle,
 
           compacted_length = cuda::std::distance(
             input_iter,
-            thrust::remove_if(handle.get_thrust_policy(),
-                              input_iter,
-                              input_iter + current_vertices.size(),
-                              current_vertices.begin(),
-                              is_equal_t<vertex_t>{cugraph::invalid_vertex_id<vertex_t>::value}));
+            thrust::remove_if(
+              handle.get_thrust_policy(),
+              input_iter,
+              input_iter + current_vertices.size(),
+              current_vertices.begin(),
+              is_equal_to_const_t<vertex_t, cugraph::invalid_vertex_id_v<vertex_t>>{}));
         }
       } else {
         if (previous_vertices) {
@@ -722,22 +724,24 @@ random_walk_impl(raft::handle_t const& handle,
 
           compacted_length = cuda::std::distance(
             input_iter,
-            thrust::remove_if(handle.get_thrust_policy(),
-                              input_iter,
-                              input_iter + current_vertices.size(),
-                              current_vertices.begin(),
-                              is_equal_t<vertex_t>{cugraph::invalid_vertex_id<vertex_t>::value}));
+            thrust::remove_if(
+              handle.get_thrust_policy(),
+              input_iter,
+              input_iter + current_vertices.size(),
+              current_vertices.begin(),
+              is_equal_to_const_t<vertex_t, cugraph::invalid_vertex_id_v<vertex_t>>{}));
         } else {
           auto input_iter = thrust::make_zip_iterator(
             current_vertices.begin(), current_gpu.begin(), current_position.begin());
 
           compacted_length = cuda::std::distance(
             input_iter,
-            thrust::remove_if(handle.get_thrust_policy(),
-                              input_iter,
-                              input_iter + current_vertices.size(),
-                              current_vertices.begin(),
-                              is_equal_t<vertex_t>{cugraph::invalid_vertex_id<vertex_t>::value}));
+            thrust::remove_if(
+              handle.get_thrust_policy(),
+              input_iter,
+              input_iter + current_vertices.size(),
+              current_vertices.begin(),
+              is_equal_to_const_t<vertex_t, cugraph::invalid_vertex_id_v<vertex_t>>{}));
         }
       }
     } else {
@@ -750,22 +754,24 @@ random_walk_impl(raft::handle_t const& handle,
 
           compacted_length = cuda::std::distance(
             input_iter,
-            thrust::remove_if(handle.get_thrust_policy(),
-                              input_iter,
-                              input_iter + current_vertices.size(),
-                              current_vertices.begin(),
-                              is_equal_t<vertex_t>{cugraph::invalid_vertex_id<vertex_t>::value}));
+            thrust::remove_if(
+              handle.get_thrust_policy(),
+              input_iter,
+              input_iter + current_vertices.size(),
+              current_vertices.begin(),
+              is_equal_to_const_t<vertex_t, cugraph::invalid_vertex_id_v<vertex_t>>{}));
         } else {
           auto input_iter = thrust::make_zip_iterator(
             current_vertices.begin(), new_weights->begin(), current_position.begin());
 
           compacted_length = cuda::std::distance(
             input_iter,
-            thrust::remove_if(handle.get_thrust_policy(),
-                              input_iter,
-                              input_iter + current_vertices.size(),
-                              current_vertices.begin(),
-                              is_equal_t<vertex_t>{cugraph::invalid_vertex_id<vertex_t>::value}));
+            thrust::remove_if(
+              handle.get_thrust_policy(),
+              input_iter,
+              input_iter + current_vertices.size(),
+              current_vertices.begin(),
+              is_equal_to_const_t<vertex_t, cugraph::invalid_vertex_id_v<vertex_t>>{}));
         }
       } else {
         if (previous_vertices) {
@@ -774,22 +780,24 @@ random_walk_impl(raft::handle_t const& handle,
 
           compacted_length = cuda::std::distance(
             input_iter,
-            thrust::remove_if(handle.get_thrust_policy(),
-                              input_iter,
-                              input_iter + current_vertices.size(),
-                              current_vertices.begin(),
-                              is_equal_t<vertex_t>{cugraph::invalid_vertex_id<vertex_t>::value}));
+            thrust::remove_if(
+              handle.get_thrust_policy(),
+              input_iter,
+              input_iter + current_vertices.size(),
+              current_vertices.begin(),
+              is_equal_to_const_t<vertex_t, cugraph::invalid_vertex_id_v<vertex_t>>{}));
         } else {
           auto input_iter =
             thrust::make_zip_iterator(current_vertices.begin(), current_position.begin());
 
           compacted_length = cuda::std::distance(
             input_iter,
-            thrust::remove_if(handle.get_thrust_policy(),
-                              input_iter,
-                              input_iter + current_vertices.size(),
-                              current_vertices.begin(),
-                              is_equal_t<vertex_t>{cugraph::invalid_vertex_id<vertex_t>::value}));
+            thrust::remove_if(
+              handle.get_thrust_policy(),
+              input_iter,
+              input_iter + current_vertices.size(),
+              current_vertices.begin(),
+              is_equal_to_const_t<vertex_t, cugraph::invalid_vertex_id_v<vertex_t>>{}));
         }
       }
     }

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Explicit instantiations for cugraph/utilities/mask_utils.cuh.
@@ -58,7 +58,7 @@ OutputIterator copy_if_mask_set_impl(raft::handle_t const& handle,
     cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
                                   check_bit_set_t<uint32_t const*, size_t>{mask_first, size_t{0}}),
     output_first,
-    is_equal_t<bool>{true});
+    is_equal_to_const_t<bool, true>{});
 }
 
 template <typename InputIterator, typename OutputIterator>
@@ -75,7 +75,7 @@ OutputIterator copy_if_mask_unset_impl(raft::handle_t const& handle,
     cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
                                   check_bit_set_t<uint32_t const*, size_t>{mask_first, size_t{0}}),
     output_first,
-    is_equal_t<bool>{false});
+    is_equal_to_const_t<bool, false>{});
 }
 
 #define CUGRAPH_COPY_IF_MASK_SCALAR_INST(T)                                                \

@@ -299,8 +299,8 @@ struct per_type_reservoir_excess_count_from_pair_op_t {
     auto frontier_idx   = cuda::std::get<0>(pair);
     auto type           = cuda::std::get<1>(pair);
     auto d = static_cast<size_t>(frontier_per_type_degrees[frontier_idx * num_edge_types + type]);
-    auto K = adjacent_difference_t<size_t>{K_offsets}(type);
-    return clamped_subtract_t{K}(d);
+    auto K = adjacent_difference_t<size_t>{K_offsets.subspan(1)}(type);
+    return clamped_subtract_t<size_t>{K}(d);
   }
 };
 
@@ -314,8 +314,8 @@ struct per_type_reservoir_excess_count_flat_op_t {
     auto num_edge_types = static_cast<edge_type_t>(K_offsets.size() - 1);
     auto d              = static_cast<size_t>(frontier_per_type_degrees[i]);
     auto type           = static_cast<edge_type_t>(i % num_edge_types);
-    auto K              = adjacent_difference_t<size_t>{K_offsets}(type);
-    return clamped_subtract_t{K}(d);
+    auto K              = adjacent_difference_t<size_t>{K_offsets.subspan(1)}(type);
+    return clamped_subtract_t<size_t>{K}(d);
   }
 };
 
@@ -998,8 +998,9 @@ void sample_nbr_index_with_replacement(
   if (frontier_index_type_pairs) {
     input_r_offsets = rmm::device_uvector<size_t>(num_keys + 1, handle.get_stream());
     (*input_r_offsets).set_element_to_zero_async(0, handle.get_stream());
-    auto k_first = cuda::make_transform_iterator(std::get<1>(*frontier_index_type_pairs).begin(),
-                                                 adjacent_difference_t<size_t>{K_offsets});
+    auto k_first =
+      cuda::make_transform_iterator(std::get<1>(*frontier_index_type_pairs).begin(),
+                                    adjacent_difference_t<size_t>{K_offsets.subspan(1)});
     cugraph::inclusive_scan(
       handle.get_thrust_policy(), k_first, k_first + num_keys, (*input_r_offsets).begin() + 1);
   }
@@ -1114,15 +1115,15 @@ void sample_nbr_index_without_replacement(
     if (frontier_indices) {
       auto count_first = cuda::make_transform_iterator(
         (*frontier_indices).begin(),
-        indirection_and_clamped_subtract_t<edge_t>{frontier_degrees, K});
+        indirection_and_clamped_subtract_t<edge_t>{frontier_degrees, static_cast<edge_t>(K)});
       cugraph::inclusive_scan(handle.get_thrust_policy(),
                               count_first,
                               count_first + num_keys,
                               input_r_offsets.begin() + 1);
 
     } else {
-      auto count_first =
-        cuda::make_transform_iterator(frontier_degrees.begin(), clamped_subtract_t{K});
+      auto count_first = cuda::make_transform_iterator(
+        frontier_degrees.begin(), clamped_subtract_t<edge_t>{static_cast<edge_t>(K)});
       cugraph::inclusive_scan(handle.get_thrust_policy(),
                               count_first,
                               count_first + num_keys,
@@ -1179,8 +1180,9 @@ void sample_nbr_index_without_replacement(
   if (frontier_index_type_pairs) {
     rmm::device_uvector<size_t> sample_size_offsets(num_keys + 1, handle.get_stream());
     sample_size_offsets.set_element_to_zero_async(0, handle.get_stream());
-    auto k_first = cuda::make_transform_iterator(std::get<1>(*frontier_index_type_pairs).begin(),
-                                                 adjacent_difference_t<size_t>{K_offsets});
+    auto k_first =
+      cuda::make_transform_iterator(std::get<1>(*frontier_index_type_pairs).begin(),
+                                    adjacent_difference_t<size_t>{K_offsets.subspan(1)});
     cugraph::inclusive_scan(
       handle.get_thrust_policy(), k_first, k_first + num_keys, sample_size_offsets.begin() + 1);
 
@@ -1524,7 +1526,7 @@ rmm::device_uvector<edge_t> compute_homogeneous_uniform_sampling_index_without_r
             handle.get_thrust_policy(),
             (*retry_segment_indices).begin(),
             (*retry_segment_indices).end(),
-            indirection_and_is_greater_than_or_equal_t<edge_t>{
+            indirection_and_is_greater_than_or_equal_to_t<edge_t>{
               raft::device_span<edge_t const>(unique_counts.data(), unique_counts.size()),
               static_cast<edge_t>(K)});
           auto num_retry_segments = cuda::std::distance((*retry_segment_indices).begin(), last);
@@ -1538,7 +1540,7 @@ rmm::device_uvector<edge_t> compute_homogeneous_uniform_sampling_index_without_r
             thrust::count_if(handle.get_thrust_policy(),
                              unique_counts.begin(),
                              unique_counts.end(),
-                             is_less_than_t<edge_t>{static_cast<edge_t>(K)});
+                             is_less_than_to_t<edge_t>{static_cast<edge_t>(K)});
           if (num_retry_segments > 0) {
             retry_segment_indices =
               rmm::device_uvector<size_t>(num_retry_segments, handle.get_stream());
@@ -1547,7 +1549,7 @@ rmm::device_uvector<edge_t> compute_homogeneous_uniform_sampling_index_without_r
               thrust::make_counting_iterator(size_t{0}),
               thrust::make_counting_iterator(num_segments),
               (*retry_segment_indices).begin(),
-              indirection_and_is_less_than_t<edge_t>{
+              indirection_and_is_less_than_to_t<edge_t>{
                 raft::device_span<edge_t const>(unique_counts.data(), unique_counts.size()),
                 static_cast<edge_t>(K)});
           }
@@ -1929,8 +1931,8 @@ rmm::device_uvector<edge_t> compute_heterogeneous_uniform_sampling_index_without
 
       rmm::device_uvector<size_t> output_count_offsets(num_segments + 1, handle.get_stream());
       output_count_offsets.set_element_to_zero_async(0, handle.get_stream());
-      auto k_first = cuda::make_transform_iterator(segment_frontier_type_first,
-                                                   adjacent_difference_t<size_t>{K_offsets});
+      auto k_first = cuda::make_transform_iterator(
+        segment_frontier_type_first, adjacent_difference_t<size_t>{K_offsets.subspan(1)});
       cugraph::inclusive_scan(handle.get_thrust_policy(),
                               k_first,
                               k_first + num_segments,
@@ -2685,7 +2687,7 @@ compute_aggregate_local_frontier_biases(raft::handle_t const& handle,
                     aggregate_local_frontier_biases.begin(),
                     thrust::make_zip_iterator(nz_biases.begin(),
                                               aggregate_local_frontier_nz_bias_indices.begin()),
-                    is_not_equal_t<bias_t>{bias_t{0.0}});
+                    is_not_equal_to_const_t<bias_t, bias_t{0.0}>{});
     aggregate_local_frontier_biases = std::move(nz_biases);
   }
 
@@ -2978,7 +2980,7 @@ shuffle_and_compute_local_nbr_values(
     minor_comm_ranks.begin(),
     thrust::make_zip_iterator(
       cuda::std::make_tuple(tmp_sample_local_nbr_values.begin(), tmp_key_indices.begin())),
-    is_not_equal_t<int>{-1});
+    is_not_equal_to_const_t<int, -1>{});
 
   sample_local_nbr_values = std::move(tmp_sample_local_nbr_values);
   key_indices             = std::move(tmp_key_indices);
@@ -3094,7 +3096,7 @@ shuffle_and_compute_per_type_local_nbr_values(
     thrust::make_zip_iterator(tmp_sample_per_type_local_nbr_values.begin(),
                               tmp_edge_types.begin(),
                               tmp_key_indices.begin()),
-    is_not_equal_t<int>{-1});
+    is_not_equal_to_const_t<int, -1>{});
 
   sample_per_type_local_nbr_values = std::move(tmp_sample_per_type_local_nbr_values);
   edge_types                       = std::move(tmp_edge_types);
@@ -3218,18 +3220,18 @@ rmm::device_uvector<edge_t> compute_local_nbr_indices_from_per_type_local_nbr_in
 
     // In each K_sum sampled indices, place invalid indices at the end.
 
-    thrust::for_each(handle.get_thrust_policy(),
-                     thrust::make_counting_iterator(size_t{0}),
-                     thrust::make_counting_iterator(local_frontier_offsets.back()),
-                     [local_nbr_indices = raft::device_span<edge_t>(local_nbr_indices.data(),
-                                                                    local_nbr_indices.size()),
-                      K_sum,
-                      invalid_idx = cugraph::invalid_edge_id_v<edge_t>] __device__(size_t i) {
-                       thrust::partition(thrust::seq,
-                                         local_nbr_indices.begin() + i * K_sum,
-                                         local_nbr_indices.begin() + (i + 1) * K_sum,
-                                         is_not_equal_t<edge_t>{invalid_idx});
-                     });
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      thrust::make_counting_iterator(size_t{0}),
+      thrust::make_counting_iterator(local_frontier_offsets.back()),
+      [local_nbr_indices =
+         raft::device_span<edge_t>(local_nbr_indices.data(), local_nbr_indices.size()),
+       K_sum] __device__(size_t i) {
+        thrust::partition(thrust::seq,
+                          local_nbr_indices.begin() + i * K_sum,
+                          local_nbr_indices.begin() + (i + 1) * K_sum,
+                          is_not_equal_to_const_t<edge_t, cugraph::invalid_edge_id_v<edge_t>>{});
+      });
   }
 
   return local_nbr_indices;
@@ -4549,7 +4551,7 @@ heterogeneous_biased_sample_without_replacement(
         auto K_first = cuda::make_transform_iterator(
           std::get<1>(aggregate_high_local_frontier_index_type_pairs).begin(),
           adjacent_difference_t<size_t>{
-            raft::device_span<size_t const>(d_K_offsets.data(), d_K_offsets.size())});
+            raft::device_span<size_t const>(d_K_offsets.data(), d_K_offsets.size()).subspan(1)});
         aggregate_high_local_frontier_output_offsets.set_element_to_zero_async(0,
                                                                                handle.get_stream());
         cugraph::inclusive_scan(
@@ -4653,7 +4655,7 @@ heterogeneous_biased_sample_without_replacement(
         auto K_first = cuda::make_transform_iterator(
           frontier_edge_types.begin() + frontier_partition_offsets[2],
           adjacent_difference_t<size_t>{
-            raft::device_span<size_t const>(d_K_offsets.data(), d_K_offsets.size())});
+            raft::device_span<size_t const>(d_K_offsets.data(), d_K_offsets.size()).subspan(1)});
         high_frontier_output_offsets.set_element_to_zero_async(0, handle.get_stream());
         cugraph::inclusive_scan(handle.get_thrust_policy(),
                                 K_first,
@@ -5064,7 +5066,7 @@ rmm::device_uvector<typename GraphViewType::edge_type> convert_to_unmasked_local
             std::get<1>(local_frontier_unique_major_valid_local_nbr_count_inclusive_sums[i]).data(),
             std::get<1>(local_frontier_unique_major_valid_local_nbr_count_inclusive_sums[i])
               .size()))},
-      is_not_equal_t<edge_t>{cugraph::invalid_edge_id_v<edge_t>});
+      is_not_equal_to_const_t<edge_t, cugraph::invalid_edge_id_v<edge_t>>{});
   }
 
   return std::move(local_nbr_indices);
