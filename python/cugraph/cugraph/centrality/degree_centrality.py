@@ -1,17 +1,18 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import cudf
+from cugraph import Graph
 
 
-def degree_centrality(G, normalized=True) -> cudf.DataFrame:
+def degree_centrality(G: Graph, normalized=True) -> cudf.DataFrame:
     """
     Computes the degree centrality of each vertex of the input graph.
 
     Parameters
     ----------
-    G : cuGraph.Graph
-        cuGraph graph descriptor with connectivity information. The graph can
+    G : cugraph.Graph
+        cugraph graph descriptor with connectivity information. The graph can
         contain either directed or undirected edges.
 
     normalized : bool, optional, default=True
