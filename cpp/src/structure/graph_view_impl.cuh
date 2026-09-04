@@ -62,7 +62,63 @@ struct out_of_range_t {
   __device__ bool operator()(vertex_t v) const { return (v < min) || (v >= max); }
 };
 
-// compute out-degrees (if we are internally storing edges in the sparse 2D matrix using sources as
+template <typename vertex_t,
+          typename edge_t,
+          bool multi_gpu,
+          typename EdgePartitionView,
+          typename EdgeMaskOptional>
+struct has_edge_op_t {
+  EdgePartitionView edge_partition{};
+  EdgeMaskOptional edge_partition_e_mask{};
+
+  __device__ bool operator()(auto e) const
+  {
+    auto major = cuda::std::get<0>(e);
+    auto minor = cuda::std::get<1>(e);
+    if constexpr (multi_gpu) {
+      auto major_idx = edge_partition.major_idx_from_major_nocheck(major);
+      if (major_idx) {
+        vertex_t const* indices{nullptr};
+        edge_t local_edge_offset{};
+        edge_t local_degree{};
+        cuda::std::tie(indices, local_edge_offset, local_degree) =
+          edge_partition.local_edges(*major_idx);
+        auto it = thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
+        if ((it != indices + local_degree) && *it == minor) {
+          if (edge_partition_e_mask) {
+            return (*edge_partition_e_mask)
+              .get(local_edge_offset + cuda::std::distance(indices, it));
+          } else {
+            return true;
+          }
+        } else {
+          return false;
+        }
+      } else {
+        return false;
+      }
+    } else {
+      auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
+      vertex_t const* indices{nullptr};
+      edge_t local_edge_offset{};
+      edge_t local_degree{};
+      cuda::std::tie(indices, local_edge_offset, local_degree) =
+        edge_partition.local_edges(major_offset);
+      auto it = thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
+      if ((it != indices + local_degree) && *it == minor) {
+        if (edge_partition_e_mask) {
+          return (*edge_partition_e_mask).get(local_edge_offset + cuda::std::distance(indices, it));
+        } else {
+          return true;
+        }
+      } else {
+        return false;
+      }
+    }
+  }
+};
+
+// compute out-degrees
 // major indices) or in-degrees (otherwise)
 template <typename vertex_t, typename edge_t>
 rmm::device_uvector<edge_t> compute_major_degrees(
@@ -856,37 +912,17 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
             detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
             *edge_mask_view, i)
         : cuda::std::nullopt;
-    thrust::transform(handle.get_thrust_policy(),
-                      sorted_edge_first + edge_partition_offsets[i],
-                      sorted_edge_first + edge_partition_offsets[i + 1],
-                      thrust::make_permutation_iterator(
-                        ret.begin(), edge_indices.begin() + edge_partition_offsets[i]),
-                      [edge_partition, edge_partition_e_mask] __device__(auto e) {
-                        auto major     = cuda::std::get<0>(e);
-                        auto minor     = cuda::std::get<1>(e);
-                        auto major_idx = edge_partition.major_idx_from_major_nocheck(major);
-                        if (major_idx) {
-                          vertex_t const* indices{nullptr};
-                          edge_t local_edge_offset{};
-                          edge_t local_degree{};
-                          cuda::std::tie(indices, local_edge_offset, local_degree) =
-                            edge_partition.local_edges(*major_idx);
-                          auto it = thrust::lower_bound(
-                            thrust::seq, indices, indices + local_degree, minor);
-                          if ((it != indices + local_degree) && *it == minor) {
-                            if (edge_partition_e_mask) {
-                              return (*edge_partition_e_mask)
-                                .get(local_edge_offset + cuda::std::distance(indices, it));
-                            } else {
-                              return true;
-                            }
-                          } else {
-                            return false;
-                          }
-                        } else {
-                          return false;
-                        }
-                      });
+    thrust::transform(
+      handle.get_thrust_policy(),
+      sorted_edge_first + edge_partition_offsets[i],
+      sorted_edge_first + edge_partition_offsets[i + 1],
+      thrust::make_permutation_iterator(ret.begin(),
+                                        edge_indices.begin() + edge_partition_offsets[i]),
+      has_edge_op_t<vertex_t,
+                    edge_t,
+                    multi_gpu,
+                    decltype(edge_partition),
+                    decltype(edge_partition_e_mask)>{edge_partition, edge_partition_e_mask});
   }
 
   return ret;
@@ -932,26 +968,11 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
     edge_first,
     edge_first + edge_srcs.size(),
     ret.begin(),
-    [edge_partition, edge_partition_e_mask] __device__(auto e) {
-      auto major        = cuda::std::get<0>(e);
-      auto minor        = cuda::std::get<1>(e);
-      auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
-      vertex_t const* indices{nullptr};
-      edge_t local_edge_offset{};
-      edge_t local_degree{};
-      cuda::std::tie(indices, local_edge_offset, local_degree) =
-        edge_partition.local_edges(major_offset);
-      auto it = thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
-      if ((it != indices + local_degree) && *it == minor) {
-        if (edge_partition_e_mask) {
-          return (*edge_partition_e_mask).get(local_edge_offset + cuda::std::distance(indices, it));
-        } else {
-          return true;
-        }
-      } else {
-        return false;
-      }
-    });
+    has_edge_op_t<vertex_t,
+                  edge_t,
+                  multi_gpu,
+                  decltype(edge_partition),
+                  decltype(edge_partition_e_mask)>{edge_partition, edge_partition_e_mask});
 
   return ret;
 }

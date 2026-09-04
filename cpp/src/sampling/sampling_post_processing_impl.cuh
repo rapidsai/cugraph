@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -495,7 +495,7 @@ void check_input_edges(raft::handle_t const& handle,
                                                   edgelist_majors.begin() + end_offset,
                                                   (*edgelist_hops).begin() + start_offset,
                                                   this_label_zero_hop_majors.begin(),
-                                                  detail::is_equal_t<int32_t>{0})),
+                                                  detail::is_equal_to_const_t<int32_t, 0>{})),
               handle.get_stream());
           } else {
             thrust::copy(handle.get_thrust_policy(),

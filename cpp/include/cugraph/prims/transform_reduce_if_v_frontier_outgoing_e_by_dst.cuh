@@ -398,7 +398,7 @@ sort_and_reduce_buffer_elements(
                         get_dataframe_buffer_end(key_buffer),
                         stencil_first,
                         get_dataframe_buffer_begin(tmp_key_buffer) + num_unique_prefix_elements,
-                        is_equal_t<bool>{true});
+                        is_equal_to_const_t<bool, true>{});
         key_buffer = std::move(tmp_key_buffer);
         cugraph::sort(handle.get_thrust_policy(),
                       get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
@@ -425,7 +425,7 @@ sort_and_reduce_buffer_elements(
                         input_pair_first + size_dataframe_buffer(key_buffer),
                         stencil_first,
                         output_pair_first + num_unique_prefix_elements,
-                        is_equal_t<bool>{true});
+                        is_equal_to_const_t<bool, true>{});
         key_buffer     = std::move(tmp_key_buffer);
         payload_buffer = std::move(tmp_payload_buffer);
         thrust::sort_by_key(

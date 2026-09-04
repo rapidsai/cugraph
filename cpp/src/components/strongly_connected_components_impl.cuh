@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -1050,7 +1050,7 @@ reachable_sets(
                                               remaining_vertices.begin(),
                                               remaining_vertices.end(),
                                               updated_flags.begin(),
-                                              detail::is_equal_t<bool>{false})),
+                                              detail::is_equal_to_const_t<bool, false>{})),
         handle.get_stream());
     }
 

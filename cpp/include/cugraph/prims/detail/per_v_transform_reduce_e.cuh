@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -1452,7 +1452,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         input_first + cuda::std::distance(sorted_unique_key_first, sorted_unique_nzd_key_last),
         vertex_value_output_first,
         output_first,
-        is_equal_t<T>{init}));
+        is_equal_to_t<T>{init}));
     resize_optional_dataframe_buffer<key_t>(tmp_key_buffer, num_tmp_keys, handle.get_stream());
     resize_optional_dataframe_buffer<size_t>(tmp_output_indices, num_tmp_keys, handle.get_stream());
     // skip shrink_to_fit to cut execution time
