@@ -112,7 +112,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
   {
     auto flag = majors.size() > mem_frugal_threshold ? int{1} : int{0};
 #if 1  // FIXME: we should add host_allreduce to raft
-    flag = host_scalar_allreduce(comm, flag, raft::comms::op_t::MAX, handle.get_stream());
+    flag = host_scalar_allreduce(comm, flag, raft::comms::op_t::MAX, handle.get_stream().get());
 #else
     comm.host_allreduce(
       std::addressof(flag), std::addressof(flag), size_t{1}, raft::comms::op_t::MAX);

@@ -42,9 +42,9 @@ rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
     auto const comm_rank = comm.get_rank();
 
     auto global_start =
-      cugraph::host_scalar_bcast(handle.get_comms(), local_range_start, 0, handle.get_stream());
+      cugraph::host_scalar_bcast(handle.get_comms(), local_range_start, 0, handle.get_stream().get());
     auto sub_range_sizes =
-      cugraph::host_scalar_allgather(handle.get_comms(), local_range_size, handle.get_stream());
+      cugraph::host_scalar_allgather(handle.get_comms(), local_range_size, handle.get_stream().get());
     std::exclusive_scan(
       sub_range_sizes.begin(), sub_range_sizes.end(), sub_range_sizes.begin(), global_start);
     CUGRAPH_EXPECTS(
@@ -153,14 +153,14 @@ rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
 
     permuted_integers.resize(local_range_size, handle.get_stream());
     auto deficits =
-      cugraph::host_scalar_allgather(handle.get_comms(), nr_deficits, handle.get_stream());
+      cugraph::host_scalar_allgather(handle.get_comms(), nr_deficits, handle.get_stream().get());
 
     std::exclusive_scan(deficits.begin(), deficits.end(), deficits.begin(), vertex_t{0});
 
     raft::copy(permuted_integers.data() + local_range_size - nr_deficits,
                extra_cluster_ids.begin() + deficits[comm_rank],
                nr_deficits,
-               handle.get_stream());
+               handle.get_stream().get());
   }
 
   assert(permuted_integers.size() == local_range_size);

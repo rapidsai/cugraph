@@ -613,7 +613,7 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
             detail::transform_reduce_e_by_src_dst_key_kernel_block_size,
             handle.get_device_properties().maxGridSize[0]);
           detail::transform_reduce_by_src_dst_key_high_degree<edge_src_key, GraphViewType>
-            <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+            <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream().get()>>>(
               edge_partition,
               edge_partition.major_range_first(),
               edge_partition.major_range_first() + (*segment_offsets)[1],
@@ -636,7 +636,7 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
             detail::transform_reduce_e_by_src_dst_key_kernel_block_size,
             handle.get_device_properties().maxGridSize[0]);
           detail::transform_reduce_by_src_dst_key_mid_degree<edge_src_key, GraphViewType>
-            <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+            <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream().get()>>>(
               edge_partition,
               edge_partition.major_range_first() + (*segment_offsets)[1],
               edge_partition.major_range_first() + (*segment_offsets)[2],
@@ -659,7 +659,7 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
             detail::transform_reduce_e_by_src_dst_key_kernel_block_size,
             handle.get_device_properties().maxGridSize[0]);
           detail::transform_reduce_by_src_dst_key_low_degree<edge_src_key, GraphViewType>
-            <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+            <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream().get()>>>(
               edge_partition,
               edge_partition.major_range_first() + (*segment_offsets)[2],
               edge_partition.major_range_first() + (*segment_offsets)[3],
@@ -683,7 +683,7 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
             detail::transform_reduce_e_by_src_dst_key_kernel_block_size,
             handle.get_device_properties().maxGridSize[0]);
           detail::transform_reduce_by_src_dst_key_hypersparse<edge_src_key, GraphViewType>
-            <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+            <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream().get()>>>(
               edge_partition,
               edge_partition_src_value_input,
               edge_partition_dst_value_input,
@@ -705,7 +705,7 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
           handle.get_device_properties().maxGridSize[0]);
 
         detail::transform_reduce_by_src_dst_key_low_degree<edge_src_key, GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream().get()>>>(
             edge_partition,
             edge_partition.major_range_first(),
             edge_partition.major_range_last(),
@@ -724,7 +724,7 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
       }
     }
     std::tie(tmp_keys, tmp_value_buffer) = reduce_to_unique_kv_pairs<vertex_t, T>(
-      std::move(tmp_keys), std::move(tmp_value_buffer), reduce_op, handle.get_stream());
+      std::move(tmp_keys), std::move(tmp_value_buffer), reduce_op, handle.get_stream().get());
 
     if (GraphViewType::is_multi_gpu) {
       auto& comm           = handle.get_comms();
@@ -753,7 +753,7 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
         reduce_to_unique_kv_pairs<vertex_t, T>(std::move(rx_unique_keys),
                                                std::move(rx_value_for_unique_key_buffer),
                                                reduce_op,
-                                               handle.get_stream());
+                                               handle.get_stream().get());
     }
 
     auto cur_size = keys.size();
@@ -778,7 +778,7 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
 
   if (GraphViewType::is_multi_gpu) {
     std::tie(keys, value_buffer) = reduce_to_unique_kv_pairs<vertex_t, T>(
-      std::move(keys), std::move(value_buffer), reduce_op, handle.get_stream());
+      std::move(keys), std::move(value_buffer), reduce_op, handle.get_stream().get());
   }
 
   // FIXME: add init

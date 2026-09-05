@@ -347,7 +347,7 @@ extern "C" cugraph_error_code_t cugraph_generate_edge_ids(const cugraph_resource
 
   if (multi_gpu) {
     auto edge_counts = cugraph::host_scalar_allgather(
-      local_handle.get_comms(), num_edges, local_handle.get_stream());
+      local_handle.get_comms(), num_edges, local_handle.get_stream().get());
     std::vector<size_t> edge_starts(edge_counts.size());
 
     std::exclusive_scan(edge_counts.begin(), edge_counts.end(), edge_starts.begin(), size_t{0});

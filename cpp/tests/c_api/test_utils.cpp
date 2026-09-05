@@ -477,7 +477,7 @@ extern "C" size_t cugraph_size_t_allreduce(const cugraph_resource_handle_t* hand
   return cugraph::host_scalar_allreduce(internal_handle->handle_->get_comms(),
                                         value,
                                         raft::comms::op_t::SUM,
-                                        internal_handle->handle_->get_stream());
+                                        internal_handle->handle_->get_stream().get());
 }
 
 extern "C" int validate_sample_result(const cugraph_resource_handle_t* handle,

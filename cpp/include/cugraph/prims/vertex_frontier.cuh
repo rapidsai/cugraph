@@ -112,7 +112,7 @@ std::vector<size_t> compute_key_segment_offsets(KeyIterator sorted_key_first,
 
   std::vector<size_t> h_offsets(d_offsets.size() + 2);
   raft::update_host(h_offsets.data() + 1, d_offsets.data(), d_offsets.size(), stream_view);
-  RAFT_CUDA_TRY(cudaStreamSynchronize(stream_view));
+  RAFT_CUDA_TRY(cudaStreamSynchronize(stream_view.get()));
   h_offsets[0]     = size_t{0};
   h_offsets.back() = static_cast<size_t>(cuda::std::distance(sorted_key_first, sorted_key_last));
 
@@ -444,7 +444,7 @@ class key_bucket_t {
     size_t ret = vertices_.size();
 #if 1  // FIXME: we should add host_allreduce to raft
     ret = host_scalar_allreduce(
-      handle_ptr_->get_comms(), ret, raft::comms::op_t::SUM, handle_ptr_->get_stream());
+      handle_ptr_->get_comms(), ret, raft::comms::op_t::SUM, handle_ptr_->get_stream().get());
 #else
     handle_ptr_->get_comms().host_allreduce(
       std::addressof(ret), std::addressof(ret), size_t{1}, raft::comms::op_t::SUM);

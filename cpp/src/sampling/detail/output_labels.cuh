@@ -92,7 +92,7 @@ std::optional<rmm::device_uvector<label_t>> compute_output_labels(
 
   if constexpr (multi_gpu) {
     max_label = host_scalar_allreduce(
-      handle.get_comms(), max_label, raft::comms::op_t::MAX, handle.get_stream());
+      handle.get_comms(), max_label, raft::comms::op_t::MAX, handle.get_stream().get());
   }
 
   rmm::device_uvector<label_t> output_labels(static_cast<size_t>(max_label + 1),

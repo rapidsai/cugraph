@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -270,7 +270,7 @@ class key_cuco_store_t {
     auto num_keys = static_cast<size_t>(cuda::std::distance(key_first, key_last));
     if (num_keys == 0) return;
 
-    size_ += cuco_store_->insert(key_first, key_last, stream.value());
+    size_ += cuco_store_->insert(key_first, key_last, stream.get());
   }
 
   template <typename KeyIterator, typename StencilIterator, typename PredOp>
@@ -283,13 +283,13 @@ class key_cuco_store_t {
     auto num_keys = static_cast<size_t>(cuda::std::distance(key_first, key_last));
     if (num_keys == 0) return;
 
-    size_ += cuco_store_->insert_if(key_first, key_last, stencil_first, pred_op, stream.value());
+    size_ += cuco_store_->insert_if(key_first, key_last, stencil_first, pred_op, stream.get());
   }
 
   auto release(rmm::cuda_stream_view stream)
   {
     rmm::device_uvector<key_t> keys(size(), stream);
-    auto last = cuco_store_->retrieve_all(keys.begin(), stream.value());
+    auto last = cuco_store_->retrieve_all(keys.begin(), stream.get());
     keys.resize(cuda::std::distance(keys.begin(), last), stream);
     keys.shrink_to_fit(stream);
     allocate(0, invalid_key(), stream);
@@ -323,7 +323,7 @@ class key_cuco_store_t {
                                       cuco::thread_scope_device,
                                       cuco_storage_type{},
                                       rmm::mr::polymorphic_allocator<std::byte>{},
-                                      stream.value());
+                                      stream.get());
   }
 
   std::unique_ptr<cuco_set_type> cuco_store_{nullptr};

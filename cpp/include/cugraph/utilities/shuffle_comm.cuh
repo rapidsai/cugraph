@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -74,9 +74,9 @@ compute_tx_rx_counts_displs_ranks(raft::comms::comms_t const& comm,
   rmm::device_uvector<size_t> d_rx_value_counts(comm_size, stream_view);
   device_alltoall(comm, d_tx_value_counts.data(), d_rx_value_counts.data(), size_t{1}, stream_view);
 
-  raft::update_host(tx_counts.data(), d_tx_value_counts.data(), comm_size, stream_view.value());
-  raft::update_host(rx_counts.data(), d_rx_value_counts.data(), comm_size, stream_view.value());
-  stream_view.synchronize();
+  raft::update_host(tx_counts.data(), d_tx_value_counts.data(), comm_size, stream_view.get());
+  raft::update_host(rx_counts.data(), d_rx_value_counts.data(), comm_size, stream_view.get());
+  stream_view.sync();
 
   std::partial_sum(tx_counts.begin(), tx_counts.end() - 1, tx_displs.begin() + 1);
   std::partial_sum(rx_counts.begin(), rx_counts.end() - 1, rx_displs.begin() + 1);
@@ -197,7 +197,7 @@ auto shuffle_values(raft::comms::comms_t const& comm,
 
   rmm::device_uvector<size_t> d_tx_value_counts(comm_size, stream_view);
   raft::update_device(
-    d_tx_value_counts.data(), tx_value_counts.data(), comm_size, stream_view.value());
+    d_tx_value_counts.data(), tx_value_counts.data(), comm_size, stream_view.get());
 
   return shuffle_values(
     comm,
@@ -296,7 +296,7 @@ auto shuffle_values(
                     stream_view);
   raft::update_host(
     rx_aligned_counts.data(), d_rx_aligned_counts.data(), d_rx_aligned_counts.size(), stream_view);
-  RAFT_CUDA_TRY(cudaStreamSynchronize(stream_view));
+  RAFT_CUDA_TRY(cudaStreamSynchronize(stream_view.get()));
   size_t offset{0};
   for (size_t i = 0; i < rx_counts.size(); ++i) {
     auto target_alignment = (alignment - rx_unaligned_counts[i]) % alignment;
@@ -394,7 +394,7 @@ auto shuffle_and_unique_segment_sorted_values(
   } else {
     rmm::device_uvector<size_t> d_tx_value_counts(comm_size, stream_view);
     raft::update_device(
-      d_tx_value_counts.data(), tx_value_counts.data(), comm_size, stream_view.value());
+      d_tx_value_counts.data(), tx_value_counts.data(), comm_size, stream_view.get());
 
     std::vector<size_t> tx_counts{};
     std::vector<size_t> tx_displs{};

@@ -49,9 +49,9 @@ std::tuple<size_t, size_t> check_edge_bias_values(
 
   if constexpr (multi_gpu) {
     num_negative_edge_weights = host_scalar_allreduce(
-      handle.get_comms(), num_negative_edge_weights, raft::comms::op_t::SUM, handle.get_stream());
+      handle.get_comms(), num_negative_edge_weights, raft::comms::op_t::SUM, handle.get_stream().get());
     num_overflows = host_scalar_allreduce(
-      handle.get_comms(), num_overflows, raft::comms::op_t::SUM, handle.get_stream());
+      handle.get_comms(), num_overflows, raft::comms::op_t::SUM, handle.get_stream().get());
   }
 
   return std::make_tuple(num_negative_edge_weights, num_overflows);

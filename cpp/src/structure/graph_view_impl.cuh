@@ -171,7 +171,7 @@ rmm::device_uvector<edge_t> compute_major_degrees(
                       static_cast<size_t>(num_local_degrees),
                       raft::comms::op_t::SUM,
                       i,
-                      handle.get_stream());
+                      handle.get_stream().get());
   }
 
   return degrees;
@@ -328,7 +328,7 @@ edge_t count_edge_partition_multi_edges(
       cugraph::for_all_major_for_all_nbr_high_degree<<<update_grid.num_blocks,
                                                        update_grid.block_size,
                                                        0,
-                                                       handle.get_stream()>>>(
+                                                       handle.get_stream().get()>>>(
         edge_partition,
         edge_partition.major_range_first(),
         edge_partition.major_range_first() + (*segment_offsets)[1],
@@ -342,7 +342,7 @@ edge_t count_edge_partition_multi_edges(
       cugraph::for_all_major_for_all_nbr_mid_degree<<<update_grid.num_blocks,
                                                       update_grid.block_size,
                                                       0,
-                                                      handle.get_stream()>>>(
+                                                      handle.get_stream().get()>>>(
         edge_partition,
         edge_partition.major_range_first() + (*segment_offsets)[1],
         edge_partition.major_range_first() + (*segment_offsets)[2],
@@ -569,7 +569,7 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
     }
 #if 1  // FIXME: we should add host_allreduce to raft
     ret =
-      host_scalar_allreduce(handle.get_comms(), ret, raft::comms::op_t::SUM, handle.get_stream());
+      host_scalar_allreduce(handle.get_comms(), ret, raft::comms::op_t::SUM, handle.get_stream().get());
 #else
     handle.get_comms().host_allreduce(
       std::addressof(ret), std::addressof(ret), size_t{1}, raft::comms::op_t::SUM);
@@ -792,7 +792,7 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
 
 #if 1  // FIXME: we should add host_allreduce to raft
   count =
-    host_scalar_allreduce(handle.get_comms(), count, raft::comms::op_t::SUM, handle.get_stream());
+    host_scalar_allreduce(handle.get_comms(), count, raft::comms::op_t::SUM, handle.get_stream().get());
 #else
   handle.get_comms().host_allreduce(
     std::addressof(count), std::addressof(count), size_t{1}, raft::comms::op_t::SUM);

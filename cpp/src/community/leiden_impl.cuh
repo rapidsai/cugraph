@@ -61,7 +61,7 @@ vertex_t remove_duplicates(raft::handle_t const& handle, rmm::device_uvector<ver
     input_array.resize(nr_unique_elements, handle.get_stream());
 
     nr_unique_elements = host_scalar_allreduce(
-      handle.get_comms(), nr_unique_elements, raft::comms::op_t::SUM, handle.get_stream());
+      handle.get_comms(), nr_unique_elements, raft::comms::op_t::SUM, handle.get_stream().get());
   }
   return nr_unique_elements;
 }
@@ -458,7 +458,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       auto nr_unique_leiden = static_cast<vertex_t>(leiden_to_louvain_map.first.size());
       if (graph_view_t::is_multi_gpu) {
         nr_unique_leiden = host_scalar_allreduce(
-          handle.get_comms(), nr_unique_leiden, raft::comms::op_t::SUM, handle.get_stream());
+          handle.get_comms(), nr_unique_leiden, raft::comms::op_t::SUM, handle.get_stream().get());
       }
 
       terminate = terminate || (nr_unique_leiden == current_graph_view.number_of_vertices());
@@ -617,7 +617,7 @@ void relabel_cluster_ids(raft::handle_t const& handle,
 
   if constexpr (multi_gpu) {
     auto cluster_ids_size_per_rank = cugraph::host_scalar_allgather(
-      handle.get_comms(), unique_cluster_ids.size(), handle.get_stream());
+      handle.get_comms(), unique_cluster_ids.size(), handle.get_stream().get());
 
     std::vector<vertex_t> cluster_ids_starts(cluster_ids_size_per_rank.size());
     std::exclusive_scan(cluster_ids_size_per_rank.begin(),

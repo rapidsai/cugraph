@@ -220,7 +220,7 @@ struct lookup_container_t<edge_id_t, edge_type_t, vertex_t, value_t>::lookup_con
       cugraph::allocate_dataframe_buffer<value_t>(edge_ids_to_lookup.size(), handle.get_stream());
     if (multi_gpu) {
       auto& comm     = handle.get_comms();
-      auto rx_counts = host_scalar_allgather(comm, unique_types.size(), handle.get_stream());
+      auto rx_counts = host_scalar_allgather(comm, unique_types.size(), handle.get_stream().get());
       std::vector<size_t> rx_displacements(rx_counts.size());
       std::exclusive_scan(rx_counts.begin(), rx_counts.end(), rx_displacements.begin(), size_t{0});
       rmm::device_uvector<edge_type_t> rx_unique_types(rx_displacements.back() + rx_counts.back(),

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -38,10 +38,10 @@ void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
 {
   if constexpr (std::is_integral<value_t>::value) {
     raft::random::uniformInt<value_t, size_t>(
-      rng_state, d_value, size, min_value, max_value, stream_view.value());
+      rng_state, d_value, size, min_value, max_value, stream_view.get());
   } else {
     raft::random::uniform<value_t, size_t>(
-      rng_state, d_value, size, min_value, max_value, stream_view.value());
+      rng_state, d_value, size, min_value, max_value, stream_view.get());
   }
 }
 

@@ -105,7 +105,7 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
       nr_remaining_vertices_to_check = host_scalar_allreduce(handle.get_comms(),
                                                              nr_remaining_vertices_to_check,
                                                              raft::comms::op_t::SUM,
-                                                             handle.get_stream());
+                                                             handle.get_stream().get());
     }
 
     vertex_t nr_candidates = (nr_remaining_vertices_to_check < 1024)
@@ -282,7 +282,7 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
       nr_remaining_vertices_to_check = host_scalar_allreduce(handle.get_comms(),
                                                              nr_remaining_vertices_to_check,
                                                              raft::comms::op_t::SUM,
-                                                             handle.get_stream());
+                                                             handle.get_stream().get());
     }
 
     if (nr_remaining_vertices_to_check == 0) { break; }

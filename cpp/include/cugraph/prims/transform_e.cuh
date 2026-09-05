@@ -353,7 +353,7 @@ void transform_e(raft::handle_t const& handle,
                                            handle.get_device_properties().maxGridSize[0]);
         if (edge_partition_e_mask) {
           detail::transform_e_packed_bool<true, GraphViewType>
-            <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+            <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream().get()>>>(
               edge_partition,
               edge_partition_src_value_input,
               edge_partition_dst_value_input,
@@ -363,7 +363,7 @@ void transform_e(raft::handle_t const& handle,
               e_op);
         } else {
           detail::transform_e_packed_bool<false, GraphViewType>
-            <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+            <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream().get()>>>(
               edge_partition,
               edge_partition_src_value_input,
               edge_partition_dst_value_input,

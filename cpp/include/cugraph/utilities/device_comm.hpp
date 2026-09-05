@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -177,7 +177,7 @@ device_sendrecv_impl(raft::comms::comms_t const& comm,
                        iter_to_raw_ptr(output_first),
                        rx_count,
                        src,
-                       stream_view.value());
+                       stream_view.get());
 }
 
 template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
@@ -203,7 +203,7 @@ struct device_sendrecv_tuple_iterator_element_impl {
       tuple_element_output_first,
       rx_count,
       src,
-      stream_view.value());
+      stream_view.get());
     device_sendrecv_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>().run(
       comm, input_first, tx_count, dst, output_first, rx_count, src, stream_view);
   }
@@ -265,7 +265,7 @@ device_multicast_sendrecv_impl(raft::comms::comms_t const& comm,
                                  std::vector<size_t>(rx_counts.begin(), rx_counts.end()),
                                  std::vector<size_t>(rx_displs.begin(), rx_displs.end()),
                                  std::vector<int>(rx_src_ranks.begin(), rx_src_ranks.end()),
-                                 stream_view.value());
+                                 stream_view.get());
 }
 
 template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
@@ -366,12 +366,10 @@ device_alltoall_impl(raft::comms::comms_t const& comm,
                                  sizes,
                                  displs,
                                  ranks,
-                                 stream_view.value());
+                                 stream_view.get());
 #else
-  comm.device_alltoall(iter_to_raw_ptr(input_first),
-                       iter_to_raw_ptr(output_first),
-                       count_per_rank,
-                       stream_view.value());
+  comm.device_alltoall(
+    iter_to_raw_ptr(input_first), iter_to_raw_ptr(output_first), count_per_rank, stream_view.get());
 #endif
 }
 
@@ -431,7 +429,7 @@ device_bcast_impl(raft::comms::comms_t const& comm,
   static_assert(std::is_same_v<typename std::iterator_traits<InputIterator>::value_type,
                                typename std::iterator_traits<OutputIterator>::value_type>);
   comm.bcast(
-    iter_to_raw_ptr(input_first), iter_to_raw_ptr(output_first), count, root, stream_view.value());
+    iter_to_raw_ptr(input_first), iter_to_raw_ptr(output_first), count, root, stream_view.get());
 }
 
 template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
@@ -492,7 +490,7 @@ device_allreduce_impl(raft::comms::comms_t const& comm,
   static_assert(std::is_same_v<typename std::iterator_traits<InputIterator>::value_type,
                                typename std::iterator_traits<OutputIterator>::value_type>);
   comm.allreduce(
-    iter_to_raw_ptr(input_first), iter_to_raw_ptr(output_first), count, op, stream_view.value());
+    iter_to_raw_ptr(input_first), iter_to_raw_ptr(output_first), count, op, stream_view.get());
 }
 
 template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
@@ -559,7 +557,7 @@ device_reduce_impl(raft::comms::comms_t const& comm,
               count,
               op,
               root,
-              stream_view.value());
+              stream_view.get());
 }
 
 template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
@@ -621,7 +619,7 @@ device_allgather_impl(raft::comms::comms_t const& comm,
   static_assert(std::is_same_v<typename std::iterator_traits<InputIterator>::value_type,
                                typename std::iterator_traits<OutputIterator>::value_type>);
   comm.allgather(
-    iter_to_raw_ptr(input_first), iter_to_raw_ptr(output_first), sendcount, stream_view.value());
+    iter_to_raw_ptr(input_first), iter_to_raw_ptr(output_first), sendcount, stream_view.get());
 }
 
 template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
@@ -682,7 +680,7 @@ device_allgatherv_impl(raft::comms::comms_t const& comm,
                   iter_to_raw_ptr(output_first),
                   recvcounts.data(),
                   displacements.data(),
-                  stream_view.value());
+                  stream_view.get());
 }
 
 template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
@@ -752,7 +750,7 @@ device_gatherv_impl(raft::comms::comms_t const& comm,
                recvcounts.data(),
                displacements.data(),
                root,
-               stream_view.value());
+               stream_view.get());
 }
 
 template <typename InputIterator, typename OutputIterator, size_t I, size_t N>

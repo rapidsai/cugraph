@@ -513,7 +513,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
             h_vertex_offsets[j + 1] - h_vertex_offsets[j],
             offset_first,
             offset_first + 1,
-            handle.get_stream());
+            handle.get_stream().get());
         } else {
           cub::DeviceSegmentedSort::SortKeys(static_cast<void*>(nullptr),
                                              tmp_storage_bytes,
@@ -544,7 +544,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
             h_vertex_offsets[j + 1] - h_vertex_offsets[j],
             offset_first,
             offset_first + 1,
-            handle.get_stream());
+            handle.get_stream().get());
         } else {
           cub::DeviceSegmentedSort::SortKeys(d_tmp_storage.data(),
                                              tmp_storage_bytes,
@@ -767,7 +767,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         host_scalar_allreduce(minor_comm,
                               tmp_majors.size() > mem_frugal_threshold ? int{1} : int{0},
                               raft::comms::op_t::MAX,
-                              handle.get_stream());
+                              handle.get_stream().get());
       if (mem_frugal_flag) {  // trade-off potential parallelism to lower peak memory
         std::tie(rx_majors, std::ignore) = shuffle_values(
           minor_comm,
@@ -1058,7 +1058,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       // reduce_op cannot be mapped to ncclRedOp_t, we need to implement our own multi-GPU reduce
       // function.
 
-      auto rx_sizes = host_scalar_gather(minor_comm, tmp_majors.size(), i, handle.get_stream());
+      auto rx_sizes = host_scalar_gather(minor_comm, tmp_majors.size(), i, handle.get_stream().get());
       std::vector<size_t> rx_displs{};
       rmm::device_uvector<vertex_t> rx_majors(0, handle.get_stream());
       if (static_cast<size_t>(minor_comm_rank) == i) {
