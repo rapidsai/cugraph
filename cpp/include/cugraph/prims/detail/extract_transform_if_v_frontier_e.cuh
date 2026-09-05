@@ -563,7 +563,7 @@ void extract_transform_if_v_frontier_e_edge_partition(
                                          extract_transform_if_v_frontier_e_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
       extract_transform_if_v_frontier_e_high_degree<GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream.get()>>>(
           edge_partition,
           edge_partition_frontier_key_first,
           raft::device_span<size_t const>((*high_segment_key_local_degree_offsets).data(),
@@ -587,7 +587,7 @@ void extract_transform_if_v_frontier_e_edge_partition(
                                        extract_transform_if_v_frontier_e_kernel_block_size,
                                        handle.get_device_properties().maxGridSize[0]);
       extract_transform_if_v_frontier_e_mid_degree<GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream.get()>>>(
           edge_partition,
           edge_partition_frontier_key_first + (*key_segment_offsets)[1],
           edge_partition_frontier_key_first + (*key_segment_offsets)[2],
@@ -610,7 +610,7 @@ void extract_transform_if_v_frontier_e_edge_partition(
                                          extract_transform_if_v_frontier_e_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
       extract_transform_if_v_frontier_e_hypersparse_or_low_degree<false, GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream.get()>>>(
           edge_partition,
           edge_partition_frontier_key_first + (*key_segment_offsets)[2],
           edge_partition_frontier_key_first + (*key_segment_offsets)[3],
@@ -634,7 +634,7 @@ void extract_transform_if_v_frontier_e_edge_partition(
                                          extract_transform_if_v_frontier_e_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
       extract_transform_if_v_frontier_e_hypersparse_or_low_degree<true, GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream.get()>>>(
           edge_partition,
           edge_partition_frontier_key_first + (*key_segment_offsets)[3],
           edge_partition_frontier_key_first + (*key_segment_offsets)[4],
@@ -662,7 +662,7 @@ void extract_transform_if_v_frontier_e_edge_partition(
                                          handle.get_device_properties().maxGridSize[0]);
 
       extract_transform_if_v_frontier_e_hypersparse_or_low_degree<false, GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream.get()>>>(
           edge_partition,
           edge_partition_frontier_key_first,
           edge_partition_frontier_key_last,
@@ -793,7 +793,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
     if constexpr (GraphViewType::is_multi_gpu) {
 #if 1  // FIXME: we should add host_allreduce to raft
       num_invalid_keys = host_scalar_allreduce(
-        handle.get_comms(), num_invalid_keys, raft::comms::op_t::SUM, handle.get_stream());
+        handle.get_comms(), num_invalid_keys, raft::comms::op_t::SUM, handle.get_stream().get());
 #else
       handle.get_comms().host_allreduce(std::addressof(num_invalid_keys),
                                         std::addressof(num_invalid_keys),

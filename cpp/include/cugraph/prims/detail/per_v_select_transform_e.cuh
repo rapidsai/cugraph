@@ -567,7 +567,7 @@ per_v_select_transform_e(
                                                   graph_view.local_vertex_partition_range_last()});
     if constexpr (GraphViewType::is_multi_gpu) {
       num_invalid_keys = host_scalar_allreduce(
-        handle.get_comms(), num_invalid_keys, raft::comms::op_t::SUM, handle.get_stream());
+        handle.get_comms(), num_invalid_keys, raft::comms::op_t::SUM, handle.get_stream().get());
     }
     CUGRAPH_EXPECTS(num_invalid_keys == size_t{0},
                     "Invalid input argument: key_list includes out-of-range keys.");
@@ -576,7 +576,7 @@ per_v_select_transform_e(
   std::vector<size_t> local_key_list_sizes{};
   if (minor_comm_size > 1) {
     auto& minor_comm     = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-    local_key_list_sizes = host_scalar_allgather(minor_comm, key_list.size(), handle.get_stream());
+    local_key_list_sizes = host_scalar_allgather(minor_comm, key_list.size(), handle.get_stream().get());
   } else {
     local_key_list_sizes = std::vector<size_t>{key_list.size()};
   }

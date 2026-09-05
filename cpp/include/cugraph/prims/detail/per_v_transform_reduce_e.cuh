@@ -1033,7 +1033,7 @@ void per_v_transform_reduce_e_edge_partition(
           assert(segment_key_last == nullptr);
         }
         detail::per_v_transform_reduce_e_hypersparse<update_major, GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream.get()>>>(
             edge_partition,
             segment_key_first,
             segment_key_last,
@@ -1068,7 +1068,7 @@ void per_v_transform_reduce_e_edge_partition(
       }
       *segment_key_first += (*key_segment_offsets)[2];
       detail::per_v_transform_reduce_e_low_degree<update_major, GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream.get()>>>(
           edge_partition,
           *segment_key_first,
           *segment_key_first + ((*key_segment_offsets)[3] - (*key_segment_offsets)[2]),
@@ -1102,7 +1102,7 @@ void per_v_transform_reduce_e_edge_partition(
       }
       *segment_key_first += (*key_segment_offsets)[1];
       detail::per_v_transform_reduce_e_mid_degree<update_major, GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream.get()>>>(
           edge_partition,
           *segment_key_first,
           *segment_key_first + ((*key_segment_offsets)[2] - (*key_segment_offsets)[1]),
@@ -1137,7 +1137,7 @@ void per_v_transform_reduce_e_edge_partition(
         segment_key_first = thrust::make_counting_iterator(edge_partition.major_range_first());
       }
       detail::per_v_transform_reduce_e_high_degree<update_major, GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream.get()>>>(
           edge_partition,
           *segment_key_first,
           *segment_key_first + (*key_segment_offsets)[1],
@@ -1179,7 +1179,7 @@ void per_v_transform_reduce_e_edge_partition(
         segment_key_first = thrust::make_counting_iterator(edge_partition.major_range_first());
       }
       detail::per_v_transform_reduce_e_low_degree<update_major, GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream.get()>>>(
           edge_partition,
           *segment_key_first,
           *segment_key_first + num_keys,
@@ -3079,7 +3079,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           }
 #if 1  // FIXME: we should add host_allreduce to raft
           max_size = host_scalar_allreduce(
-            minor_comm, max_size, raft::comms::op_t::MAX, handle.get_stream());
+            minor_comm, max_size, raft::comms::op_t::MAX, handle.get_stream().get());
 #else
           minor_comm.host_allreduce(
             std::addressof(max_size), std::addressof(max_size), size_t{1}, raft::comms::op_t::MAX);

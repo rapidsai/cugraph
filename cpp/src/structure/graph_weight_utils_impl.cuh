@@ -119,7 +119,7 @@ weight_t compute_max_in_weight_sum(
   if (it != in_weight_sums.end()) { raft::update_host(&ret, it, 1, handle.get_stream()); }
   if constexpr (multi_gpu) {
     ret =
-      host_scalar_allreduce(handle.get_comms(), ret, raft::comms::op_t::MAX, handle.get_stream());
+      host_scalar_allreduce(handle.get_comms(), ret, raft::comms::op_t::MAX, handle.get_stream().get());
   } else {
     handle.sync_stream();
   }
@@ -143,7 +143,7 @@ weight_t compute_max_out_weight_sum(
   if (it != out_weight_sums.end()) { raft::update_host(&ret, it, 1, handle.get_stream()); }
   if constexpr (multi_gpu) {
     ret =
-      host_scalar_allreduce(handle.get_comms(), ret, raft::comms::op_t::MAX, handle.get_stream());
+      host_scalar_allreduce(handle.get_comms(), ret, raft::comms::op_t::MAX, handle.get_stream().get());
   } else {
     handle.sync_stream();
   }

@@ -110,7 +110,7 @@ struct bfs_functor : public abstract_functor {
 
       if constexpr (multi_gpu) {
         invalid_count = cugraph::host_scalar_allreduce(
-          handle_.get_comms(), invalid_count, raft::comms::op_t::SUM, handle_.get_stream());
+          handle_.get_comms(), invalid_count, raft::comms::op_t::SUM, handle_.get_stream().get());
       }
 
       if (invalid_count != 0) {

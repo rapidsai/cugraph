@@ -62,7 +62,7 @@ rmm::device_uvector<vertex_t> select_random_vertices(
       num_of_elements_in_given_set = host_scalar_allreduce(handle.get_comms(),
                                                            num_of_elements_in_given_set,
                                                            raft::comms::op_t::SUM,
-                                                           handle.get_stream());
+                                                           handle.get_stream().get());
     }
     CUGRAPH_EXPECTS(
       with_replacement || select_count <= num_of_elements_in_given_set,
@@ -212,7 +212,7 @@ rmm::device_uvector<vertex_t> select_random_vertices(
       }
 
       auto buffer_sizes = cugraph::host_scalar_allgather(
-        handle.get_comms(), mg_sample_buffer.size(), handle.get_stream());
+        handle.get_comms(), mg_sample_buffer.size(), handle.get_stream().get());
       auto min_buffer_size = *std::min_element(buffer_sizes.begin(), buffer_sizes.end());
       if (min_buffer_size <= select_count / comm_size) {
         auto new_sizes    = std::vector<size_t>(comm_size, min_buffer_size);

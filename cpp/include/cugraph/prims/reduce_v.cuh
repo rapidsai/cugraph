@@ -86,7 +86,7 @@ T reduce_v(raft::handle_t const& handle,
                                           ? handle.get_comms().get_rank()
                                           : std::numeric_limits<int>::max(),
                                         raft::comms::op_t::MIN,
-                                        handle.get_stream());
+                                        handle.get_stream().get());
       ret       = host_scalar_bcast(handle.get_comms(), ret, root, handle.get_stream());
     }
   } else {
@@ -131,7 +131,7 @@ T reduce_v(raft::handle_t const& handle,
           ret = host_scalar_allreduce(handle.get_comms(),
                                       *local_result,
                                       ReduceOp::compatible_raft_comms_op,
-                                      handle.get_stream());
+                                      handle.get_stream().get());
         } else {
           auto rets =
             host_scalar_gather(handle.get_comms(), *local_result, int{0}, handle.get_stream());

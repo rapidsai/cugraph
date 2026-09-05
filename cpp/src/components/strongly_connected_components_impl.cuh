@@ -123,7 +123,7 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
     num_aggregate_candidate_vertices = host_scalar_allreduce(handle.get_comms(),
                                                              num_aggregate_candidate_vertices,
                                                              raft::comms::op_t::SUM,
-                                                             handle.get_stream());
+                                                             handle.get_stream().get());
   }
 
   if (num_aggregate_candidate_vertices == 0) {
@@ -168,7 +168,7 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
     aggregate_frontier_size = frontier_vertices.size();
     if constexpr (multi_gpu) {
       aggregate_frontier_size = host_scalar_allreduce(
-        handle.get_comms(), aggregate_frontier_size, raft::comms::op_t::SUM, handle.get_stream());
+        handle.get_comms(), aggregate_frontier_size, raft::comms::op_t::SUM, handle.get_stream().get());
     }
     if (aggregate_frontier_size == 0) { break; }
 
@@ -628,7 +628,7 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
 
       if constexpr (multi_gpu) {
         new_trivial_size = host_scalar_allreduce(
-          handle.get_comms(), new_trivial_size, raft::comms::op_t::SUM, handle.get_stream());
+          handle.get_comms(), new_trivial_size, raft::comms::op_t::SUM, handle.get_stream().get());
       }
       if (new_trivial_size == 0) { break; }
 
@@ -989,7 +989,7 @@ reachable_sets(
       auto aggregated_size = remaining_vertices.size();
       if constexpr (GraphViewType::is_multi_gpu) {
         aggregated_size = host_scalar_allreduce(
-          handle.get_comms(), aggregated_size, raft::comms::op_t::SUM, handle.get_stream());
+          handle.get_comms(), aggregated_size, raft::comms::op_t::SUM, handle.get_stream().get());
       }
       if (aggregated_size == size_t{0}) { break; }
 
@@ -1872,7 +1872,7 @@ forward_backward_intersect(
   auto num_aggregate_pivots = pivots.size();
   if constexpr (GraphViewType::is_multi_gpu) {
     num_aggregate_pivots = host_scalar_allreduce(
-      handle.get_comms(), num_aggregate_pivots, raft::comms::op_t::SUM, handle.get_stream());
+      handle.get_comms(), num_aggregate_pivots, raft::comms::op_t::SUM, handle.get_stream().get());
   }
 
   rmm::device_uvector<vertex_t> forward_set_offsets(0, handle.get_stream());

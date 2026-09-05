@@ -287,7 +287,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
   std::vector<size_t> samples_per_gpu;
 
   if constexpr (multi_gpu) {
-    samples_per_gpu = host_scalar_allgather(handle.get_comms(), num_samples, handle.get_stream());
+    samples_per_gpu = host_scalar_allgather(handle.get_comms(), num_samples, handle.get_stream().get());
     total_samples   = std::reduce(samples_per_gpu.begin(), samples_per_gpu.end());
   }
 
@@ -415,7 +415,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
       size_t current_sample_size = srcs.size();
       if constexpr (multi_gpu) {
         current_sample_size = cugraph::host_scalar_allreduce(
-          handle.get_comms(), current_sample_size, raft::comms::op_t::SUM, handle.get_stream());
+          handle.get_comms(), current_sample_size, raft::comms::op_t::SUM, handle.get_stream().get());
       }
 
       // FIXME: We could oversample and discard the unnecessary samples
@@ -444,7 +444,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
       // accommodate this situation.  For now we'll just
       // uniformly(-ish) reduce the requested size.
       size_t total_extracted = host_scalar_allreduce(
-        handle.get_comms(), srcs.size(), raft::comms::op_t::SUM, handle.get_stream());
+        handle.get_comms(), srcs.size(), raft::comms::op_t::SUM, handle.get_stream().get());
       size_t reduction = total_samples - total_extracted;
 
       while (reduction > 0) {
@@ -541,19 +541,19 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
     srcs.resize(num_samples, handle.get_stream());
     dsts.resize(num_samples, handle.get_stream());
     auto deficits =
-      cugraph::host_scalar_allgather(handle.get_comms(), nr_deficits, handle.get_stream());
+      cugraph::host_scalar_allgather(handle.get_comms(), nr_deficits, handle.get_stream().get());
 
     std::exclusive_scan(deficits.begin(), deficits.end(), deficits.begin(), vertex_t{0});
 
     raft::copy(srcs.data() + num_samples - nr_deficits,
                extra_srcs.begin() + deficits[comm_rank],
                nr_deficits,
-               handle.get_stream());
+               handle.get_stream().get());
 
     raft::copy(dsts.data() + num_samples - nr_deficits,
                extra_dsts.begin() + deficits[comm_rank],
                nr_deficits,
-               handle.get_stream());
+               handle.get_stream().get());
   }
 
   return std::make_tuple(std::move(srcs), std::move(dsts));

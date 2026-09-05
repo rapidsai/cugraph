@@ -160,7 +160,7 @@ void triangle_count(raft::handle_t const& handle,
       if constexpr (multi_gpu) {
         auto& comm = handle.get_comms();
         num_invalids =
-          host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
+          host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream().get());
       }
       CUGRAPH_EXPECTS(num_invalids == 0,
                       "Invalid input arguments: invalid vertex IDs in *vertices.");
@@ -171,7 +171,7 @@ void triangle_count(raft::handle_t const& handle,
     auto aggregate_vertex_count =
       multi_gpu
         ? host_scalar_allreduce(
-            handle.get_comms(), (*vertices).size(), raft::comms::op_t::SUM, handle.get_stream())
+            handle.get_comms(), (*vertices).size(), raft::comms::op_t::SUM, handle.get_stream().get())
         : (*vertices).size();
     if (aggregate_vertex_count == 0) { return; }
   }

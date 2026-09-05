@@ -172,7 +172,7 @@ __host__ void compute_number_of_edges_with_mask_async_mg(
   rmm::cuda_stream_view stream)
 {
   if (cuda::std::distance(major_first, major_last) == 0) {
-    RAFT_CUDA_TRY(cudaMemsetAsync(count.data(), 0, sizeof(size_t), stream));
+    RAFT_CUDA_TRY(cudaMemsetAsync(count.data(), 0, sizeof(size_t), stream.get()));
     return;
   }
 
@@ -190,14 +190,14 @@ __host__ void compute_number_of_edges_with_mask_async_mg(
                            local_degree_first,
                            count.data(),
                            cuda::std::distance(major_first, major_last),
-                           stream);
+                           stream.get());
     d_tmp_storage.resize(tmp_storage_bytes, stream);
     cub::DeviceReduce::Sum(d_tmp_storage.data(),
                            tmp_storage_bytes,
                            local_degree_first,
                            count.data(),
                            cuda::std::distance(major_first, major_last),
-                           stream);
+                           stream.get());
   } else {
     auto local_degree_first = cuda::make_transform_iterator(
       major_first,
@@ -208,14 +208,14 @@ __host__ void compute_number_of_edges_with_mask_async_mg(
                            local_degree_first,
                            count.data(),
                            cuda::std::distance(major_first, major_last),
-                           stream);
+                           stream.get());
     d_tmp_storage.resize(tmp_storage_bytes, stream);
     cub::DeviceReduce::Sum(d_tmp_storage.data(),
                            tmp_storage_bytes,
                            local_degree_first,
                            count.data(),
                            cuda::std::distance(major_first, major_last),
-                           stream);
+                           stream.get());
   }
 }
 
@@ -315,7 +315,7 @@ __host__ void compute_number_of_edges_with_mask_async_sg(
   rmm::cuda_stream_view stream)
 {
   if (cuda::std::distance(major_first, major_last) == 0) {
-    RAFT_CUDA_TRY(cudaMemsetAsync(count.data(), 0, sizeof(size_t), stream));
+    RAFT_CUDA_TRY(cudaMemsetAsync(count.data(), 0, sizeof(size_t), stream.get()));
     return;
   }
 
@@ -334,14 +334,14 @@ __host__ void compute_number_of_edges_with_mask_async_sg(
                          local_degree_first,
                          count.data(),
                          cuda::std::distance(major_first, major_last),
-                         stream);
+                         stream.get());
   d_tmp_storage.resize(tmp_storage_bytes, stream);
   cub::DeviceReduce::Sum(d_tmp_storage.data(),
                          tmp_storage_bytes,
                          local_degree_first,
                          count.data(),
                          cuda::std::distance(major_first, major_last),
-                         stream);
+                         stream.get());
 }
 
 template <typename vertex_t, typename edge_t>

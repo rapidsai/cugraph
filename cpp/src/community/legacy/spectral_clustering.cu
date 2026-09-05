@@ -76,7 +76,7 @@ void balancedCutClustering_impl(raft::handle_t const& handle,
                                               static_cast<vertex_t>(graph.number_of_vertices),
                                               src_indices.data(),
                                               static_cast<edge_t>(graph.number_of_edges),
-                                              handle.get_stream());
+                                              handle.get_stream().get());
 
   // Create coordinate structure view from converted COO data
   auto coord_view = raft::make_device_coordinate_structure_view<vertex_t, vertex_t, vertex_t>(
@@ -151,7 +151,7 @@ void spectralModularityMaximization_impl(
                                               static_cast<vertex_t>(graph.number_of_vertices),
                                               src_indices.data(),
                                               static_cast<edge_t>(graph.number_of_edges),
-                                              handle.get_stream());
+                                              handle.get_stream().get());
 
   // Create coordinate structure view from converted COO data
   auto coord_view = raft::make_device_coordinate_structure_view<vertex_t, vertex_t, vertex_t>(
