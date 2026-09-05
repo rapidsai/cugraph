@@ -57,7 +57,7 @@ class handle_t {
   {
     return raft_handle_.is_stream_pool_initialized()
              ? raft_handle_.get_stream_from_stream_pool(thread_rank_)
-             : static_cast<cuda::stream_ref>(raft_handle_.get_stream());
+             : raft_handle_.get_stream();
   }
 
   /**

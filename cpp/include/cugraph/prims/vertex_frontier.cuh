@@ -113,7 +113,7 @@ std::vector<size_t> compute_key_segment_offsets(KeyIterator sorted_key_first,
 
   std::vector<size_t> h_offsets(d_offsets.size() + 2);
   raft::update_host(h_offsets.data() + 1, d_offsets.data(), d_offsets.size(), stream_view);
-  RAFT_CUDA_TRY(cudaStreamSynchronize(stream_view.get()));
+  stream_view.sync();
   h_offsets[0]     = size_t{0};
   h_offsets.back() = static_cast<size_t>(cuda::std::distance(sorted_key_first, sorted_key_last));
 

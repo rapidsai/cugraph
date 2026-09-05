@@ -951,7 +951,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
             auto loop_stream =
               stream_pool_indices
                 ? handle.get_stream_from_stream_pool((*stream_pool_indices)[i % stream_pool_size])
-                : static_cast<cuda::stream_ref>(handle.get_stream());
+                : handle.get_stream();
 
             std::optional<rmm::device_uvector<vertex_t>> rx_vertices{std::nullopt};
             if (v_list_bitmap_size) {
