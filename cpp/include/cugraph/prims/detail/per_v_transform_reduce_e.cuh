@@ -3080,7 +3080,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           }
 #if 1  // FIXME: we should add host_allreduce to raft
           max_size = host_scalar_allreduce(
-            minor_comm, max_size, raft::comms::op_t::MAX, handle.get_stream().get());
+            minor_comm, max_size, raft::comms::op_t::MAX, handle.get_stream());
 #else
           minor_comm.host_allreduce(
             std::addressof(max_size), std::addressof(max_size), size_t{1}, raft::comms::op_t::MAX);

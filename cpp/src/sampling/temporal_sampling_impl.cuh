@@ -679,7 +679,7 @@ temporal_neighbor_sample_impl(
       size_t frontier_size = frontier_vertices.size();
       if constexpr (multi_gpu) {
         frontier_size = host_scalar_allreduce(
-          handle.get_comms(), frontier_size, raft::comms::op_t::SUM, handle.get_stream().get());
+          handle.get_comms(), frontier_size, raft::comms::op_t::SUM, handle.get_stream());
       }
       if (frontier_size == 0) { break; }
     }

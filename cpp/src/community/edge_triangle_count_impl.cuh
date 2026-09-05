@@ -169,7 +169,7 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
   // auto my_rank = handle.get_comms().get_rank();
   if constexpr (multi_gpu) {
     num_chunks = host_scalar_allreduce(
-      handle.get_comms(), num_chunks, raft::comms::op_t::MAX, handle.get_stream().get());
+      handle.get_comms(), num_chunks, raft::comms::op_t::MAX, handle.get_stream());
   }
 
   // Need to ensure that the vector has its values initialized to 0 before incrementing

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -118,8 +118,8 @@ weight_t compute_max_in_weight_sum(
   weight_t ret{0.0};
   if (it != in_weight_sums.end()) { raft::update_host(&ret, it, 1, handle.get_stream()); }
   if constexpr (multi_gpu) {
-    ret = host_scalar_allreduce(
-      handle.get_comms(), ret, raft::comms::op_t::MAX, handle.get_stream().get());
+    ret =
+      host_scalar_allreduce(handle.get_comms(), ret, raft::comms::op_t::MAX, handle.get_stream());
   } else {
     handle.sync_stream();
   }
@@ -142,8 +142,8 @@ weight_t compute_max_out_weight_sum(
   weight_t ret{0.0};
   if (it != out_weight_sums.end()) { raft::update_host(&ret, it, 1, handle.get_stream()); }
   if constexpr (multi_gpu) {
-    ret = host_scalar_allreduce(
-      handle.get_comms(), ret, raft::comms::op_t::MAX, handle.get_stream().get());
+    ret =
+      host_scalar_allreduce(handle.get_comms(), ret, raft::comms::op_t::MAX, handle.get_stream());
   } else {
     handle.sync_stream();
   }
