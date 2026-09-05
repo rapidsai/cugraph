@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -334,7 +334,7 @@ void accumulate_vertex_results(
     vertex_t frontier_count = h_bounds[d] - h_bounds[d - 1];
     if constexpr (multi_gpu) {
       frontier_count = host_scalar_allreduce(
-        handle.get_comms(), frontier_count, raft::comms::op_t::SUM, handle.get_stream().get());
+        handle.get_comms(), frontier_count, raft::comms::op_t::SUM, handle.get_stream());
     }
 
     if (frontier_count > 0) {
@@ -1318,10 +1318,8 @@ rmm::device_uvector<weight_t> betweenness_centrality(
                                   vertex_partition.in_local_vertex_partition_range_nocheck(val));
                        });
     if constexpr (multi_gpu) {
-      num_invalid_vertices = host_scalar_allreduce(handle.get_comms(),
-                                                   num_invalid_vertices,
-                                                   raft::comms::op_t::SUM,
-                                                   handle.get_stream().get());
+      num_invalid_vertices = host_scalar_allreduce(
+        handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream());
     }
     CUGRAPH_EXPECTS(num_invalid_vertices == 0,
                     "Invalid input argument: sources have invalid vertex IDs.");
@@ -1340,7 +1338,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
 
   if constexpr (multi_gpu) {
     auto source_counts =
-      host_scalar_allgather(handle.get_comms(), num_sources, handle.get_stream().get());
+      host_scalar_allgather(handle.get_comms(), num_sources, handle.get_stream());
 
     num_sources = std::accumulate(source_counts.begin(), source_counts.end(), 0);
     source_offsets.resize(source_counts.size() + 1);
@@ -1516,10 +1514,8 @@ edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
                                   vertex_partition.in_local_vertex_partition_range_nocheck(val));
                        });
     if constexpr (multi_gpu) {
-      num_invalid_vertices = host_scalar_allreduce(handle.get_comms(),
-                                                   num_invalid_vertices,
-                                                   raft::comms::op_t::SUM,
-                                                   handle.get_stream().get());
+      num_invalid_vertices = host_scalar_allreduce(
+        handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream());
     }
     CUGRAPH_EXPECTS(num_invalid_vertices == 0,
                     "Invalid input argument: sources have invalid vertex IDs.");
@@ -1534,7 +1530,7 @@ edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
 
   if constexpr (multi_gpu) {
     auto source_counts =
-      host_scalar_allgather(handle.get_comms(), num_sources, handle.get_stream().get());
+      host_scalar_allgather(handle.get_comms(), num_sources, handle.get_stream());
 
     num_sources = std::accumulate(source_counts.begin(), source_counts.end(), 0);
     source_offsets.resize(source_counts.size() + 1);

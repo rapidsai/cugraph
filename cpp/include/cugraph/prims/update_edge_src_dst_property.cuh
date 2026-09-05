@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -283,7 +283,7 @@ void update_edge_major_property(
       host_scalar_allgather(minor_comm,
                             static_cast<size_t>(cuda::std::distance(sorted_unique_vertex_first,
                                                                     sorted_unique_vertex_last)),
-                            handle.get_stream().get());
+                            handle.get_stream());
     auto max_rx_size = std::reduce(
       local_v_list_sizes.begin(), local_v_list_sizes.end(), size_t{0}, [](auto lhs, auto rhs) {
         return std::max(lhs, rhs);
@@ -707,12 +707,11 @@ void update_edge_minor_property(
       handle.sync_stream();
     }
 
-    auto local_v_list_sizes =
-      host_scalar_allgather(major_comm, v_list_size, handle.get_stream().get());
+    auto local_v_list_sizes = host_scalar_allgather(major_comm, v_list_size, handle.get_stream());
     auto local_v_list_range_firsts =
-      host_scalar_allgather(major_comm, v_list_range[0], handle.get_stream().get());
+      host_scalar_allgather(major_comm, v_list_range[0], handle.get_stream());
     auto local_v_list_range_lasts =
-      host_scalar_allgather(major_comm, v_list_range[1], handle.get_stream().get());
+      host_scalar_allgather(major_comm, v_list_range[1], handle.get_stream());
 
     std::optional<rmm::device_uvector<uint32_t>> v_list_bitmap{std::nullopt};
     if (major_comm_size > 1) {
@@ -988,8 +987,8 @@ void update_edge_src_property(raft::handle_t const& handle,
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& comm = handle.get_comms();
 #if 1  // FIXME: we should add host_allreduce to raft
-      num_invalids = host_scalar_allreduce(
-        comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream().get());
+      num_invalids =
+        host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
 #else
       comm.host_allreduce(std::addressof(num_invalids),
                           std::addressof(num_invalids),
@@ -1117,8 +1116,8 @@ void update_edge_dst_property(raft::handle_t const& handle,
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& comm = handle.get_comms();
 #if 1  // FIXME: we should add host_allreduce to raft
-      num_invalids = host_scalar_allreduce(
-        comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream().get());
+      num_invalids =
+        host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
 #else
       comm.host_allreduce(std::addressof(num_invalids),
                           std::addressof(num_invalids),

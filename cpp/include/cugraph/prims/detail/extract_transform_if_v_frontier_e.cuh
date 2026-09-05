@@ -794,7 +794,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
     if constexpr (GraphViewType::is_multi_gpu) {
 #if 1  // FIXME: we should add host_allreduce to raft
       num_invalid_keys = host_scalar_allreduce(
-        handle.get_comms(), num_invalid_keys, raft::comms::op_t::SUM, handle.get_stream().get());
+        handle.get_comms(), num_invalid_keys, raft::comms::op_t::SUM, handle.get_stream());
 #else
       handle.get_comms().host_allreduce(std::addressof(num_invalid_keys),
                                         std::addressof(num_invalid_keys),

@@ -15,6 +15,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/tuple>
+#include <cuda/stream>
 
 #include <numeric>
 #include <type_traits>
@@ -65,12 +66,12 @@ struct host_allreduce_tuple_scalar_element_impl {
   void run(raft::comms::comms_t const& comm,
            int64_t* tuple_scalar_elements,
            raft::comms::op_t op,
-           cudaStream_t stream) const
+           cuda::stream_ref stream) const
   {
     using element_t = typename cuda::std::tuple_element<I, TupleType>::type;
     static_assert(sizeof(element_t) <= sizeof(int64_t));
     auto ptr = reinterpret_cast<element_t*>(tuple_scalar_elements + I);
-    comm.allreduce(ptr, ptr, 1, op, stream);
+    comm.allreduce(ptr, ptr, 1, op, stream.get());
     host_allreduce_tuple_scalar_element_impl<TupleType, I + 1, N>().run(
       comm, tuple_scalar_elements, op, stream);
   }
@@ -81,7 +82,7 @@ struct host_allreduce_tuple_scalar_element_impl<TupleType, I, I> {
   void run(raft::comms::comms_t const& comm,
            int64_t* tuple_scalar_elements,
            raft::comms::op_t op,
-           cudaStream_t stream) const
+           cuda::stream_ref stream) const
   {
   }
 };
@@ -92,12 +93,12 @@ struct host_reduce_tuple_scalar_element_impl {
            int64_t* tuple_scalar_elements,
            raft::comms::op_t op,
            int root,
-           cudaStream_t stream) const
+           cuda::stream_ref stream) const
   {
     using element_t = typename cuda::std::tuple_element<I, TupleType>::type;
     static_assert(sizeof(element_t) <= sizeof(int64_t));
     auto ptr = reinterpret_cast<element_t*>(tuple_scalar_elements + I);
-    comm.reduce(ptr, ptr, 1, op, root, stream);
+    comm.reduce(ptr, ptr, 1, op, root, stream.get());
     host_reduce_tuple_scalar_element_impl<TupleType, I + 1, N>().run(
       comm, tuple_scalar_elements, op, root, stream);
   }
@@ -109,7 +110,7 @@ struct host_reduce_tuple_scalar_element_impl<TupleType, I, I> {
            int64_t* tuple_scalar_elements,
            raft::comms::op_t op,
            int root,
-           cudaStream_t stream) const
+           cuda::stream_ref stream) const
   {
   }
 };
@@ -118,7 +119,7 @@ struct host_reduce_tuple_scalar_element_impl<TupleType, I, I> {
 
 template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_allreduce(
-  raft::comms::comms_t const& comm, T input, raft::comms::op_t op, cudaStream_t stream)
+  raft::comms::comms_t const& comm, T input, raft::comms::op_t op, cuda::stream_ref stream)
 {
   std::variant<std::vector<T>, rmm::device_uvector<T>> h_tmp_buffer{};
   raft::host_span<T> h_tmp_buffer_view{};
@@ -134,9 +135,9 @@ std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_allreduce(
   T* d_staging_buffer = d_tmp_buffer.data();
   h_staging_buffer[0] = input;
   raft::update_device(d_staging_buffer, h_staging_buffer, 1, stream);
-  comm.allreduce(d_staging_buffer, d_staging_buffer, 1, op, stream);
+  comm.allreduce(d_staging_buffer, d_staging_buffer, 1, op, stream.get());
   raft::update_host(h_staging_buffer, d_staging_buffer, 1, stream);
-  auto status = comm.sync_stream(stream);
+  auto status = comm.sync_stream(stream.get());
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   auto h_input = h_staging_buffer[0];
@@ -145,7 +146,7 @@ std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_allreduce(
 
 template <typename T>
 std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scalar_allreduce(
-  raft::comms::comms_t const& comm, T input, raft::comms::op_t op, cudaStream_t stream)
+  raft::comms::comms_t const& comm, T input, raft::comms::op_t op, cuda::stream_ref stream)
 {
   size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
 
@@ -169,7 +170,7 @@ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scala
   detail::host_allreduce_tuple_scalar_element_impl<T, size_t{0}, tuple_size>().run(
     comm, d_staging_buffer, op, stream);
   raft::update_host(h_staging_buffer, d_staging_buffer, tuple_size, stream);
-  auto status = comm.sync_stream(stream);
+  auto status = comm.sync_stream(stream.get());
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   T ret{};
@@ -181,7 +182,11 @@ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scala
 // Return value is valid only in root (return value may better be std::optional in C++17 or later)
 template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_reduce(
-  raft::comms::comms_t const& comm, T input, raft::comms::op_t op, int root, cudaStream_t stream)
+  raft::comms::comms_t const& comm,
+  T input,
+  raft::comms::op_t op,
+  int root,
+  cuda::stream_ref stream)
 {
   std::variant<std::vector<T>, rmm::device_uvector<T>> h_tmp_buffer{};
   raft::host_span<T> h_tmp_buffer_view{};
@@ -197,9 +202,9 @@ std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_reduce(
   T* d_staging_buffer = d_tmp_buffer.data();
   h_staging_buffer[0] = input;
   raft::update_device(d_staging_buffer, h_staging_buffer, 1, stream);
-  comm.reduce(d_staging_buffer, d_staging_buffer, 1, op, stream);
+  comm.reduce(d_staging_buffer, d_staging_buffer, 1, op, stream.get());
   if (comm.get_rank() == root) { raft::update_host(h_staging_buffer, d_staging_buffer, 1, stream); }
-  auto status = comm.sync_stream(stream);
+  auto status = comm.sync_stream(stream.get());
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   T h_input{};
@@ -210,7 +215,11 @@ std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_reduce(
 // Return value is valid only in root (return value may better be std::optional in C++17 or later)
 template <typename T>
 std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scalar_reduce(
-  raft::comms::comms_t const& comm, T input, raft::comms::op_t op, int root, cudaStream_t stream)
+  raft::comms::comms_t const& comm,
+  T input,
+  raft::comms::op_t op,
+  int root,
+  cuda::stream_ref stream)
 {
   size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
 
@@ -236,7 +245,7 @@ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scala
   if (comm.get_rank() == root) {
     raft::update_host(h_staging_buffer, d_staging_buffer, tuple_size, stream);
   }
-  auto status = comm.sync_stream(stream);
+  auto status = comm.sync_stream(stream.get());
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   T ret{};
@@ -249,7 +258,7 @@ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scala
 
 template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_bcast(
-  raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
+  raft::comms::comms_t const& comm, T input, int root, cuda::stream_ref stream)
 {
   std::variant<std::vector<T>, rmm::device_uvector<T>> h_tmp_buffer{};
   raft::host_span<T> h_tmp_buffer_view{};
@@ -267,9 +276,9 @@ std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_bcast(
     h_staging_buffer[0] = input;
     raft::update_device(d_staging_buffer, h_staging_buffer, 1, stream);
   }
-  comm.bcast(d_staging_buffer, 1, root, stream);
+  comm.bcast(d_staging_buffer, 1, root, stream.get());
   if (comm.get_rank() != root) { raft::update_host(h_staging_buffer, d_staging_buffer, 1, stream); }
-  auto status = comm.sync_stream(stream);
+  auto status = comm.sync_stream(stream.get());
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   auto h_input = h_staging_buffer[0];
@@ -278,7 +287,7 @@ std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_bcast(
 
 template <typename T>
 std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scalar_bcast(
-  raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
+  raft::comms::comms_t const& comm, T input, int root, cuda::stream_ref stream)
 {
   size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
 
@@ -301,11 +310,11 @@ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scala
       .update(h_staging_buffer, input);
     raft::update_device(d_staging_buffer, h_staging_buffer, tuple_size, stream);
   }
-  comm.bcast(d_staging_buffer, tuple_size, root, stream);
+  comm.bcast(d_staging_buffer, tuple_size, root, stream.get());
   if (comm.get_rank() != root) {
     raft::update_host(h_staging_buffer, d_staging_buffer, tuple_size, stream);
   }
-  auto status = comm.sync_stream(stream);
+  auto status = comm.sync_stream(stream.get());
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   T ret{};
@@ -316,7 +325,7 @@ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scala
 
 template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value, std::vector<T>> host_scalar_allgather(
-  raft::comms::comms_t const& comm, T input, cudaStream_t stream)
+  raft::comms::comms_t const& comm, T input, cuda::stream_ref stream)
 {
   std::variant<std::vector<T>, rmm::device_uvector<T>> h_tmp_buffer{};
   raft::host_span<T> h_tmp_buffer_view{};
@@ -333,9 +342,9 @@ std::enable_if_t<std::is_arithmetic<T>::value, std::vector<T>> host_scalar_allga
   h_staging_buffer[comm.get_rank()] = input;
   raft::update_device(
     d_staging_buffer + comm.get_rank(), h_staging_buffer + comm.get_rank(), 1, stream);
-  comm.allgather(d_staging_buffer + comm.get_rank(), d_staging_buffer, size_t{1}, stream);
+  comm.allgather(d_staging_buffer + comm.get_rank(), d_staging_buffer, size_t{1}, stream.get());
   raft::update_host(h_staging_buffer, d_staging_buffer, comm.get_size(), stream);
-  auto status = comm.sync_stream(stream);
+  auto status = comm.sync_stream(stream.get());
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   std::vector<T> h_outputs(h_staging_buffer, h_staging_buffer + comm.get_size());
@@ -344,7 +353,7 @@ std::enable_if_t<std::is_arithmetic<T>::value, std::vector<T>> host_scalar_allga
 
 template <typename T>
 std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, std::vector<T>>
-host_scalar_allgather(raft::comms::comms_t const& comm, T input, cudaStream_t stream)
+host_scalar_allgather(raft::comms::comms_t const& comm, T input, cuda::stream_ref stream)
 {
   size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
 
@@ -369,9 +378,9 @@ host_scalar_allgather(raft::comms::comms_t const& comm, T input, cudaStream_t st
                       tuple_size,
                       stream);
   comm.allgather(
-    d_staging_buffer + comm.get_rank() * tuple_size, d_staging_buffer, tuple_size, stream);
+    d_staging_buffer + comm.get_rank() * tuple_size, d_staging_buffer, tuple_size, stream.get());
   raft::update_host(h_staging_buffer, d_staging_buffer, comm.get_size() * tuple_size, stream);
-  auto status = comm.sync_stream(stream);
+  auto status = comm.sync_stream(stream.get());
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   std::vector<T> ret(comm.get_size());
@@ -387,7 +396,7 @@ std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_scatter(
   raft::comms::comms_t const& comm,
   std::vector<T> const& inputs,  // relevant only in root
   int root,
-  cudaStream_t stream)
+  cuda::stream_ref stream)
 {
   CUGRAPH_EXPECTS(
     ((comm.get_rank() == root) && (inputs.size() == static_cast<size_t>(comm.get_size()))) ||
@@ -410,12 +419,12 @@ std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_scatter(
     std::copy(inputs.begin(), inputs.end(), h_staging_buffer);
     raft::update_device(d_staging_buffer, h_staging_buffer, comm.get_size(), stream);
   }
-  comm.bcast(d_staging_buffer, comm.get_size(), root, stream);
+  comm.bcast(d_staging_buffer, comm.get_size(), root, stream.get());
   if (comm.get_rank() != root) {
     raft::update_host(
       h_staging_buffer + comm.get_rank(), d_staging_buffer + comm.get_rank(), 1, stream);
   }
-  auto status = comm.sync_stream(stream);
+  auto status = comm.sync_stream(stream.get());
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   auto h_output = h_staging_buffer[comm.get_rank()];
@@ -427,7 +436,7 @@ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scala
   raft::comms::comms_t const& comm,
   std::vector<T> const& inputs,  // relevant only in root
   int root,
-  cudaStream_t stream)
+  cuda::stream_ref stream)
 {
   size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
   CUGRAPH_EXPECTS(
@@ -456,14 +465,14 @@ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scala
     }
     raft::update_device(d_staging_buffer, h_staging_buffer, comm.get_size() * tuple_size, stream);
   }
-  comm.bcast(d_staging_buffer, comm.get_size() * tuple_size, root, stream);
+  comm.bcast(d_staging_buffer, comm.get_size() * tuple_size, root, stream.get());
   if (comm.get_rank() != root) {
     raft::update_host(h_staging_buffer + comm.get_rank() * tuple_size,
                       d_staging_buffer + comm.get_rank() * tuple_size,
                       tuple_size,
                       stream);
   }
-  auto status = comm.sync_stream(stream);
+  auto status = comm.sync_stream(stream.get());
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   T ret{};
@@ -476,7 +485,7 @@ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scala
 // Return value is valid only in root (return value may better be std::optional in C++17 or later)
 template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value, std::vector<T>> host_scalar_gather(
-  raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
+  raft::comms::comms_t const& comm, T input, int root, cuda::stream_ref stream)
 {
   std::variant<std::vector<T>, rmm::device_uvector<T>> h_tmp_buffer{};
   raft::host_span<T> h_tmp_buffer_view{};
@@ -493,11 +502,11 @@ std::enable_if_t<std::is_arithmetic<T>::value, std::vector<T>> host_scalar_gathe
   h_staging_buffer[comm.get_rank()] = input;
   raft::update_device(
     d_staging_buffer + comm.get_rank(), h_staging_buffer + comm.get_rank(), 1, stream);
-  comm.gather(d_staging_buffer + comm.get_rank(), d_staging_buffer, size_t{1}, root, stream);
+  comm.gather(d_staging_buffer + comm.get_rank(), d_staging_buffer, size_t{1}, root, stream.get());
   if (comm.get_rank() == root) {
     raft::update_host(h_staging_buffer, d_staging_buffer, comm.get_size(), stream);
   }
-  auto status = comm.sync_stream(stream);
+  auto status = comm.sync_stream(stream.get());
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   std::vector<T> h_outputs{};
@@ -510,7 +519,7 @@ std::enable_if_t<std::is_arithmetic<T>::value, std::vector<T>> host_scalar_gathe
 // Return value is valid only in root (return value may better be std::optional in C++17 or later)
 template <typename T>
 std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, std::vector<T>>
-host_scalar_gather(raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
+host_scalar_gather(raft::comms::comms_t const& comm, T input, int root, cuda::stream_ref stream)
 {
   size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
 
@@ -534,12 +543,15 @@ host_scalar_gather(raft::comms::comms_t const& comm, T input, int root, cudaStre
                       h_staging_buffer + comm.get_rank() * tuple_size,
                       tuple_size,
                       stream);
-  comm.gather(
-    d_staging_buffer + comm.get_rank() * tuple_size, d_staging_buffer, tuple_size, root, stream);
+  comm.gather(d_staging_buffer + comm.get_rank() * tuple_size,
+              d_staging_buffer,
+              tuple_size,
+              root,
+              stream.get());
   if (comm.get_rank() == root) {
     raft::update_host(h_staging_buffer, d_staging_buffer, comm.get_size() * tuple_size, stream);
   }
-  auto status = comm.sync_stream(stream);
+  auto status = comm.sync_stream(stream.get());
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   std::vector<T> ret(comm.get_size());
