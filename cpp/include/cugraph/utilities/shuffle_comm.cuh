@@ -75,8 +75,8 @@ compute_tx_rx_counts_displs_ranks(raft::comms::comms_t const& comm,
   rmm::device_uvector<size_t> d_rx_value_counts(comm_size, stream_view);
   device_alltoall(comm, d_tx_value_counts.data(), d_rx_value_counts.data(), size_t{1}, stream_view);
 
-  raft::update_host(tx_counts.data(), d_tx_value_counts.data(), comm_size, stream_view.get());
-  raft::update_host(rx_counts.data(), d_rx_value_counts.data(), comm_size, stream_view.get());
+  raft::update_host(tx_counts.data(), d_tx_value_counts.data(), comm_size, stream_view);
+  raft::update_host(rx_counts.data(), d_rx_value_counts.data(), comm_size, stream_view);
   stream_view.sync();
 
   std::partial_sum(tx_counts.begin(), tx_counts.end() - 1, tx_displs.begin() + 1);

@@ -317,7 +317,7 @@ refine_clustering(raft::handle_t const& handle,
       nr_remaining_active_vertices = host_scalar_allreduce(handle.get_comms(),
                                                            nr_remaining_active_vertices,
                                                            raft::comms::op_t::SUM,
-                                                           handle.get_stream().get());
+                                                           handle.get_stream());
     }
 
     if (nr_remaining_active_vertices == 0) { break; }
@@ -581,7 +581,7 @@ refine_clustering(raft::handle_t const& handle,
     vertex_t total_nr_valid_tuples = nr_valid_tuples;
     if constexpr (multi_gpu) {
       total_nr_valid_tuples = host_scalar_allreduce(
-        handle.get_comms(), total_nr_valid_tuples, raft::comms::op_t::SUM, handle.get_stream().get());
+        handle.get_comms(), total_nr_valid_tuples, raft::comms::op_t::SUM, handle.get_stream());
     }
 
     if (total_nr_valid_tuples == 0) {

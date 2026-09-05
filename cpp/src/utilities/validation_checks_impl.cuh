@@ -36,7 +36,7 @@ size_t count_invalid_vertices(
                      });
   if constexpr (multi_gpu) {
     num_invalid_vertices = cugraph::host_scalar_allreduce(
-      handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream().get());
+      handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream());
   }
 
   return num_invalid_vertices;

@@ -83,7 +83,7 @@ typename GraphViewType::vertex_type count_if_v(raft::handle_t const& handle,
                               vertex_t{0});
   if (GraphViewType::is_multi_gpu) {
     count =
-      host_scalar_allreduce(handle.get_comms(), count, raft::comms::op_t::SUM, handle.get_stream().get());
+      host_scalar_allreduce(handle.get_comms(), count, raft::comms::op_t::SUM, handle.get_stream());
   }
   return count;
 }

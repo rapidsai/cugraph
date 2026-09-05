@@ -2562,7 +2562,7 @@ compute_aggregate_local_frontier_biases(raft::handle_t const& handle,
       check_out_of_range_t<bias_t>{bias_t{0.0}, std::numeric_limits<bias_t>::max()});
     if constexpr (GraphViewType::is_multi_gpu) {
       num_invalid_biases = host_scalar_allreduce(
-        handle.get_comms(), num_invalid_biases, raft::comms::op_t::SUM, handle.get_stream().get());
+        handle.get_comms(), num_invalid_biases, raft::comms::op_t::SUM, handle.get_stream());
     }
     CUGRAPH_EXPECTS(num_invalid_biases == 0,
                     "invalid_input_argument: bias_e_op return values should be non-negative and "
@@ -2751,7 +2751,7 @@ compute_aggregate_local_frontier_bias_type_pairs(
       check_out_of_range_t<bias_t>{bias_t{0.0}, std::numeric_limits<bias_t>::max()});
     if constexpr (GraphViewType::is_multi_gpu) {
       num_invalid_biases = host_scalar_allreduce(
-        handle.get_comms(), num_invalid_biases, raft::comms::op_t::SUM, handle.get_stream().get());
+        handle.get_comms(), num_invalid_biases, raft::comms::op_t::SUM, handle.get_stream());
     }
     CUGRAPH_EXPECTS(num_invalid_biases == 0,
                     "invalid_input_argument: bias_e_op return values should be non-negative and "
@@ -3585,7 +3585,7 @@ homogeneous_biased_sample_without_replacement(
     auto mid_frontier_size = frontier_partition_offsets[2] - frontier_partition_offsets[1];
     std::vector<size_t> mid_local_frontier_sizes{};
     mid_local_frontier_sizes =
-      host_scalar_allgather(minor_comm, mid_frontier_size, handle.get_stream().get());
+      host_scalar_allgather(minor_comm, mid_frontier_size, handle.get_stream());
     std::vector<size_t> mid_local_frontier_offsets(mid_local_frontier_sizes.size() + 1);
     mid_local_frontier_offsets[0] = 0;
     std::inclusive_scan(mid_local_frontier_sizes.begin(),
@@ -3820,7 +3820,7 @@ homogeneous_biased_sample_without_replacement(
     auto high_frontier_size = frontier_partition_offsets[3] - frontier_partition_offsets[2];
     std::vector<size_t> high_local_frontier_sizes{};
     high_local_frontier_sizes =
-      host_scalar_allgather(minor_comm, high_frontier_size, handle.get_stream().get());
+      host_scalar_allgather(minor_comm, high_frontier_size, handle.get_stream());
 
     std::vector<size_t> high_local_frontier_offsets(high_local_frontier_sizes.size() + 1);
     high_local_frontier_offsets[0] = 0;
@@ -4203,7 +4203,7 @@ heterogeneous_biased_sample_without_replacement(
 
     auto mid_frontier_size = frontier_partition_offsets[2] - frontier_partition_offsets[1];
     auto mid_local_frontier_sizes =
-      host_scalar_allgather(minor_comm, mid_frontier_size, handle.get_stream().get());
+      host_scalar_allgather(minor_comm, mid_frontier_size, handle.get_stream());
     std::vector<size_t> mid_local_frontier_offsets(mid_local_frontier_sizes.size() + 1);
     mid_local_frontier_offsets[0] = 0;
     std::inclusive_scan(mid_local_frontier_sizes.begin(),
@@ -4483,7 +4483,7 @@ heterogeneous_biased_sample_without_replacement(
     auto high_frontier_size = frontier_partition_offsets[3] - frontier_partition_offsets[2];
 
     auto high_local_frontier_sizes =
-      host_scalar_allgather(minor_comm, high_frontier_size, handle.get_stream().get());
+      host_scalar_allgather(minor_comm, high_frontier_size, handle.get_stream());
     std::vector<size_t> high_local_frontier_offsets(high_local_frontier_sizes.size() + 1);
     high_local_frontier_offsets[0] = 0;
     std::inclusive_scan(high_local_frontier_sizes.begin(),

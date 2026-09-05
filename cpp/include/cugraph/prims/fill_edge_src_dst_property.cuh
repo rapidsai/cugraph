@@ -172,7 +172,7 @@ void fill_edge_major_property(raft::handle_t const& handle,
       host_scalar_allgather(minor_comm,
                             static_cast<size_t>(cuda::std::distance(sorted_unique_vertex_first,
                                                                     sorted_unique_vertex_last)),
-                            handle.get_stream().get());
+                            handle.get_stream());
 #else
     std::vector<size_t> local_v_list_sizes(minor_comm_size, 0);
     local_v_list_sizes[minor_comm_rank] = static_cast<size_t>(
@@ -1389,7 +1389,7 @@ void fill_edge_dst_property(raft::handle_t const& handle,
       auto& comm = handle.get_comms();
 #if 1  // FIXME: we should add host_allreduce to raft
       num_invalids =
-        host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream().get());
+        host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
 #else
       comm.host_allreduce(std::addressof(num_invalids),
                           std::addressof(num_invalids),

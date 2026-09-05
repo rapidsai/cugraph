@@ -68,7 +68,7 @@ extract(raft::handle_t const& handle,
 
   if constexpr (multi_gpu) {
     source_start =
-      cugraph::host_scalar_allgather(handle.get_comms(), num_sources, handle.get_stream().get());
+      cugraph::host_scalar_allgather(handle.get_comms(), num_sources, handle.get_stream());
     num_sources = std::reduce(source_start.begin(), source_start.end());
     std::exclusive_scan(source_start.begin(), source_start.end(), source_start.begin(), size_t{0});
   }

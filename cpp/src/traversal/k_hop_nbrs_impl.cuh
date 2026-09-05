@@ -81,7 +81,7 @@ k_hop_nbrs(raft::handle_t const& handle,
   std::vector<size_t> start_vertex_counts{};
   if constexpr (GraphViewType::is_multi_gpu) {
     start_vertex_counts =
-      host_scalar_allgather(handle.get_comms(), start_vertices.size(), handle.get_stream().get());
+      host_scalar_allgather(handle.get_comms(), start_vertices.size(), handle.get_stream());
   } else {
     start_vertex_counts = std::vector<size_t>{start_vertices.size()};
   }
@@ -112,7 +112,7 @@ k_hop_nbrs(raft::handle_t const& handle,
                        });
     if constexpr (GraphViewType::is_multi_gpu) {
       num_invalid_vertices = host_scalar_allreduce(
-        handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream().get());
+        handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream());
     }
     CUGRAPH_EXPECTS(num_invalid_vertices == 0,
                     "Invalid input argument: start_vertices have invalid vertex IDs.");

@@ -1583,7 +1583,7 @@ sample_unvisited_outgoing_edges(
       sample_and_append = (host_scalar_allreduce(handle.get_comms(),
                                                  carryover_frontier_majors.size(),
                                                  raft::comms::op_t::SUM,
-                                                 handle.get_stream().get()) > 0);
+                                                 handle.get_stream()) > 0);
     } else {
       sample_and_append = carryover_frontier_majors.size() > 0;
     }

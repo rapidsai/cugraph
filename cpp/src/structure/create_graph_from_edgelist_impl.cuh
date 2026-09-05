@@ -140,7 +140,7 @@ void expensive_check_edgelist(raft::handle_t const& handle,
       auto num_unique_vertices = vertices->size();
 #if 1  // FIXME: we should add host_allreduce to raft
       num_unique_vertices = host_scalar_allreduce(
-        comm, num_unique_vertices, raft::comms::op_t::SUM, handle.get_stream().get());
+        comm, num_unique_vertices, raft::comms::op_t::SUM, handle.get_stream());
 #else
       comm.host_allreduce(std::addressof(num_unique_vertices),
                           std::addressof(num_unique_vertices),
@@ -182,7 +182,7 @@ void expensive_check_edgelist(raft::handle_t const& handle,
       rmm::device_uvector<vertex_t> sorted_majors(0, handle.get_stream());
       {
 #if 1  // FIXME: we should add host_allgather to raft
-        auto recvcounts = host_scalar_allgather(minor_comm, vertices->size(), handle.get_stream().get());
+        auto recvcounts = host_scalar_allgather(minor_comm, vertices->size(), handle.get_stream());
 #else
         std::vector<size_t> recvcounts(minor_comm_size, 0);
         recvcounts[minor_comm_rank] = vertices->size();
@@ -203,7 +203,7 @@ void expensive_check_edgelist(raft::handle_t const& handle,
       rmm::device_uvector<vertex_t> sorted_minors(0, handle.get_stream());
       {
 #if 1  // FIXME: we should add host_allgather to raft
-        auto recvcounts = host_scalar_allgather(major_comm, vertices->size(), handle.get_stream().get());
+        auto recvcounts = host_scalar_allgather(major_comm, vertices->size(), handle.get_stream());
 #else
         std::vector<size_t> recvcounts(major_comm_size, 0);
         recvcounts[major_comm_rank] = vertices->size();

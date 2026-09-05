@@ -602,7 +602,7 @@ construct_graph(
 
   size_t base_offset{0};
   if constexpr (multi_gpu) {
-    auto base_offsets = host_scalar_allgather(handle.get_comms(), num_edges, handle.get_stream().get());
+    auto base_offsets = host_scalar_allgather(handle.get_comms(), num_edges, handle.get_stream());
     handle.sync_stream();
     std::exclusive_scan(base_offsets.begin(), base_offsets.end(), base_offsets.begin(), size_t{0});
     base_offset = base_offsets[handle.get_comms().get_rank()];

@@ -42,9 +42,9 @@ rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
     auto const comm_rank = comm.get_rank();
 
     auto global_start =
-      cugraph::host_scalar_bcast(handle.get_comms(), local_range_start, 0, handle.get_stream().get());
+      cugraph::host_scalar_bcast(handle.get_comms(), local_range_start, 0, handle.get_stream());
     auto sub_range_sizes =
-      cugraph::host_scalar_allgather(handle.get_comms(), local_range_size, handle.get_stream().get());
+      cugraph::host_scalar_allgather(handle.get_comms(), local_range_size, handle.get_stream());
     std::exclusive_scan(
       sub_range_sizes.begin(), sub_range_sizes.end(), sub_range_sizes.begin(), global_start);
     CUGRAPH_EXPECTS(
@@ -153,7 +153,7 @@ rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
 
     permuted_integers.resize(local_range_size, handle.get_stream());
     auto deficits =
-      cugraph::host_scalar_allgather(handle.get_comms(), nr_deficits, handle.get_stream().get());
+      cugraph::host_scalar_allgather(handle.get_comms(), nr_deficits, handle.get_stream());
 
     std::exclusive_scan(deficits.begin(), deficits.end(), deficits.begin(), vertex_t{0});
 

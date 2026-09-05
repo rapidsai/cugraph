@@ -102,7 +102,7 @@ extern "C" cugraph_error_code_t cugraph_rng_state_create(const cugraph_resource_
     if (p_handle->handle_->comms_initialized()) {
       // need to verify that every seed is different
       auto seed_v = cugraph::host_scalar_allgather(
-        p_handle->handle_->get_comms(), seed, p_handle->handle_->get_stream().get());
+        p_handle->handle_->get_comms(), seed, p_handle->handle_->get_stream());
       std::sort(seed_v.begin(), seed_v.end());
       if (std::unique(seed_v.begin(), seed_v.end()) != seed_v.end()) {
         *error = reinterpret_cast<cugraph_error_t*>(

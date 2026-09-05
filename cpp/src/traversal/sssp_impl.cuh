@@ -252,7 +252,7 @@ void sssp(raft::handle_t const& handle,
       static_cast<size_t>(handle.get_device_properties().multiProcessorCount);
     if constexpr (GraphViewType::is_multi_gpu) {
       aggregate_sm_counts = host_scalar_allreduce(
-        handle.get_comms(), aggregate_sm_counts, raft::comms::op_t::SUM, handle.get_stream().get());
+        handle.get_comms(), aggregate_sm_counts, raft::comms::op_t::SUM, handle.get_stream());
     }
     max_near_near_q_size =
       std::min(static_cast<size_t>(

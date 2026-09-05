@@ -275,7 +275,7 @@ all_pairs_similarity(raft::handle_t const& handle,
 
       if constexpr (multi_gpu) {
         num_invalid_vertices = cugraph::host_scalar_allreduce(
-          handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream().get());
+          handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream());
       }
 
       CUGRAPH_EXPECTS(num_invalid_vertices == 0,
@@ -295,7 +295,7 @@ all_pairs_similarity(raft::handle_t const& handle,
         num_negative_edge_weights = cugraph::host_scalar_allreduce(handle.get_comms(),
                                                                    num_negative_edge_weights,
                                                                    raft::comms::op_t::SUM,
-                                                                   handle.get_stream().get());
+                                                                   handle.get_stream());
       }
 
       CUGRAPH_EXPECTS(
@@ -413,7 +413,7 @@ all_pairs_similarity(raft::handle_t const& handle,
     size_t num_batches = batch_offsets.size() - 1;
     if constexpr (multi_gpu) {
       num_batches = cugraph::host_scalar_allreduce(
-        handle.get_comms(), num_batches, raft::comms::op_t::MAX, handle.get_stream().get());
+        handle.get_comms(), num_batches, raft::comms::op_t::MAX, handle.get_stream());
     }
 
     for (size_t batch_number = 0; batch_number < num_batches; ++batch_number) {
@@ -533,7 +533,7 @@ all_pairs_similarity(raft::handle_t const& handle,
       if constexpr (multi_gpu) {
         bool is_root  = handle.get_comms().get_rank() == int{0};
         auto rx_sizes = cugraph::host_scalar_gather(
-          handle.get_comms(), top_v1.size(), int{0}, handle.get_stream().get());
+          handle.get_comms(), top_v1.size(), int{0}, handle.get_stream());
         std::vector<size_t> rx_displs;
         size_t gathered_size{0};
 
@@ -588,7 +588,7 @@ all_pairs_similarity(raft::handle_t const& handle,
       }
       if constexpr (multi_gpu) {
         similarity_threshold =
-          host_scalar_bcast(handle.get_comms(), similarity_threshold, int{0}, handle.get_stream().get());
+          host_scalar_bcast(handle.get_comms(), similarity_threshold, int{0}, handle.get_stream());
       }
     }
 
