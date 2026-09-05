@@ -1004,7 +1004,7 @@ void per_v_transform_reduce_e_edge_partition(
       auto exec_stream = edge_partition_stream_pool_indices
                            ? handle.get_stream_from_stream_pool(
                                (*edge_partition_stream_pool_indices)[0 % stream_pool_size])
-                           : static_cast<cuda::stream_ref>(handle.get_stream());
+                           : handle.get_stream();
 
       if constexpr (update_major && !use_input_key) {  // this is necessary as we don't visit
                                                        // every vertex in the hypersparse segment
@@ -1053,7 +1053,7 @@ void per_v_transform_reduce_e_edge_partition(
       auto exec_stream = edge_partition_stream_pool_indices
                            ? handle.get_stream_from_stream_pool(
                                (*edge_partition_stream_pool_indices)[1 % stream_pool_size])
-                           : static_cast<cuda::stream_ref>(handle.get_stream());
+                           : handle.get_stream();
       raft::grid_1d_thread_t update_grid((*key_segment_offsets)[3] - (*key_segment_offsets)[2],
                                          detail::per_v_transform_reduce_e_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
@@ -1087,7 +1087,7 @@ void per_v_transform_reduce_e_edge_partition(
       auto exec_stream = edge_partition_stream_pool_indices
                            ? handle.get_stream_from_stream_pool(
                                (*edge_partition_stream_pool_indices)[2 % stream_pool_size])
-                           : static_cast<cuda::stream_ref>(handle.get_stream());
+                           : handle.get_stream();
       raft::grid_1d_warp_t update_grid((*key_segment_offsets)[2] - (*key_segment_offsets)[1],
                                        detail::per_v_transform_reduce_e_kernel_block_size,
                                        handle.get_device_properties().maxGridSize[0]);
@@ -1122,7 +1122,7 @@ void per_v_transform_reduce_e_edge_partition(
       auto exec_stream = edge_partition_stream_pool_indices
                            ? handle.get_stream_from_stream_pool(
                                (*edge_partition_stream_pool_indices)[3 % stream_pool_size])
-                           : static_cast<cuda::stream_ref>(handle.get_stream());
+                           : handle.get_stream();
       raft::grid_1d_block_t update_grid(
         (*key_segment_offsets)[1],
         std::is_same_v<ReduceOp, reduce_op::any<T>>
@@ -1157,7 +1157,7 @@ void per_v_transform_reduce_e_edge_partition(
     auto exec_stream = edge_partition_stream_pool_indices
                          ? handle.get_stream_from_stream_pool(
                              (*edge_partition_stream_pool_indices)[0 % stream_pool_size])
-                         : static_cast<cuda::stream_ref>(handle.get_stream());
+                         : handle.get_stream();
 
     size_t num_keys{};
     if constexpr (use_input_key) {
@@ -2033,7 +2033,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             auto loop_stream =
               loop_stream_pool_indices
                 ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
-                : static_cast<cuda::stream_ref>(handle.get_stream());
+                : handle.get_stream();
 
             std::variant<rmm::device_uvector<uint32_t>, rmm::device_uvector<vertex_t>> keys =
               rmm::device_uvector<uint32_t>(0, loop_stream);
@@ -2132,7 +2132,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               auto loop_stream =
                 loop_stream_pool_indices
                   ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
-                  : static_cast<cuda::stream_ref>(handle.get_stream());
+                  : handle.get_stream();
 
               auto const& key_segment_offsets = (*key_segment_offset_vectors)[partition_idx];
 
@@ -2210,7 +2210,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                 auto loop_stream =
                   loop_stream_pool_indices
                     ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
-                    : static_cast<cuda::stream_ref>(handle.get_stream());
+                    : handle.get_stream();
 
                 rmm::device_uvector<vertex_t> input_count_offsets(0, loop_stream);
                 if (nonzero_key_lists[j] && process_local_edges[j]) {
@@ -2273,7 +2273,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                 auto loop_stream =
                   loop_stream_pool_indices
                     ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
-                    : static_cast<cuda::stream_ref>(handle.get_stream());
+                    : handle.get_stream();
 
                 rmm::device_uvector<uint32_t> filtered_bitmap(0, loop_stream);
                 rmm::device_uvector<vertex_t> output_count_offsets(0, loop_stream);
@@ -2368,7 +2368,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                 auto loop_stream =
                   loop_stream_pool_indices
                     ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
-                    : static_cast<cuda::stream_ref>(handle.get_stream());
+                    : handle.get_stream();
 
                 auto const& key_segment_offsets = (*key_segment_offset_vectors)[partition_idx];
 
@@ -2613,7 +2613,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               auto loop_stream =
                 loop_stream_pool_indices
                   ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
-                  : static_cast<cuda::stream_ref>(handle.get_stream());
+                  : handle.get_stream();
 
               auto const& key_segment_offsets = (*key_segment_offset_vectors)[partition_idx];
 
@@ -2800,7 +2800,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             auto loop_stream =
               loop_stream_pool_indices
                 ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
-                : static_cast<cuda::stream_ref>(handle.get_stream());
+                : handle.get_stream();
 
             if (nonzero_key_lists[j] && process_local_edges[j]) {
               auto const& key_segment_offsets = (*key_segment_offset_vectors)[partition_idx];
@@ -2845,7 +2845,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         auto partition_idx = i + j;
         auto loop_stream   = loop_stream_pool_indices
                                ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
-                               : static_cast<cuda::stream_ref>(handle.get_stream());
+                               : handle.get_stream();
 
         size_t buffer_size{0};
         if (process_local_edges[j]) {
@@ -3107,7 +3107,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         for (size_t j = 0; j < loop_count; ++j) {
           auto loop_stream          = loop_stream_pool_indices
                                         ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
-                                        : static_cast<cuda::stream_ref>(handle.get_stream());
+                                        : handle.get_stream();
           auto const& output_buffer = edge_partition_major_output_buffers[j];
 
           if (nonzero_key_lists[j] && process_local_edges[j]) {
