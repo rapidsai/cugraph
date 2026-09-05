@@ -119,7 +119,7 @@ void decompress_edge_partition_to_fill_edgelist_majors(
       detail::decompress_to_edgelist_high_degree<<<update_grid.num_blocks,
                                                    update_grid.block_size,
                                                    0,
-                                                   handle.get_stream()>>>(
+                                                   handle.get_stream().get()>>>(
         edge_partition,
         edge_partition.major_range_first(),
         edge_partition.major_range_first() + (*segment_offsets)[1],
@@ -133,7 +133,7 @@ void decompress_edge_partition_to_fill_edgelist_majors(
       detail::decompress_to_edgelist_mid_degree<<<update_grid.num_blocks,
                                                   update_grid.block_size,
                                                   0,
-                                                  handle.get_stream()>>>(
+                                                  handle.get_stream().get()>>>(
         edge_partition,
         edge_partition.major_range_first() + (*segment_offsets)[1],
         edge_partition.major_range_first() + (*segment_offsets)[2],

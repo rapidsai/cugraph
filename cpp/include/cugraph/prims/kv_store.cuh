@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -23,6 +23,7 @@
 #include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/gather.h>
@@ -253,7 +254,7 @@ class kv_binary_search_store_view_t {
   void find(QueryKeyIterator key_first,
             QueryKeyIterator key_last,
             ResultValueIterator value_first,
-            rmm::cuda_stream_view stream) const
+            cuda::stream_ref stream) const
   {
     thrust::transform(rmm::exec_policy(stream),
                       key_first,
@@ -267,7 +268,7 @@ class kv_binary_search_store_view_t {
   void contains(QueryKeyIterator key_first,
                 QueryKeyIterator key_last,
                 ResultValueIterator value_first,
-                rmm::cuda_stream_view stream) const
+                cuda::stream_ref stream) const
   {
     thrust::transform(
       rmm::exec_policy(stream),
@@ -333,14 +334,14 @@ class kv_cuco_store_view_t {
   void find(QueryKeyIterator key_first,
             QueryKeyIterator key_last,
             ResultValueIterator value_first,
-            rmm::cuda_stream_view stream) const
+            cuda::stream_ref stream) const
   {
     if constexpr (std::is_arithmetic_v<value_type>) {
-      cuco_store_->find(key_first, key_last, value_first, stream.value());
+      cuco_store_->find(key_first, key_last, value_first, stream.get());
     } else {
       rmm::device_uvector<size_t> indices(cuda::std::distance(key_first, key_last), stream);
       auto invalid_idx = cuco_store_->empty_value_sentinel();
-      cuco_store_->find(key_first, key_last, indices.begin(), stream.value());
+      cuco_store_->find(key_first, key_last, indices.begin(), stream.get());
       thrust::transform(rmm::exec_policy(stream),
                         indices.begin(),
                         indices.end(),
@@ -354,9 +355,9 @@ class kv_cuco_store_view_t {
   void contains(QueryKeyIterator key_first,
                 QueryKeyIterator key_last,
                 ResultValueIterator value_first,
-                rmm::cuda_stream_view stream) const
+                cuda::stream_ref stream) const
   {
-    cuco_store_->contains(key_first, key_last, value_first, stream.value());
+    cuco_store_->contains(key_first, key_last, value_first, stream.get());
   }
 
   auto cuco_store_find_device_ref() const { return cuco_store_->ref(cuco::find); }
@@ -393,7 +394,7 @@ class kv_binary_search_store_t {
   using key_type   = key_t;
   using value_type = value_t;
 
-  kv_binary_search_store_t(rmm::cuda_stream_view stream)
+  kv_binary_search_store_t(cuda::stream_ref stream)
     : store_keys_(0, stream), store_values_(allocate_dataframe_buffer<value_t>(0, stream))
   {
   }
@@ -407,7 +408,7 @@ class kv_binary_search_store_t {
     bool key_sorted /* if set to true, assume that the input data is sorted and skip sorting (which
                        is necessary for binary-search) */
     ,
-    rmm::cuda_stream_view stream)
+    cuda::stream_ref stream)
     : store_keys_(static_cast<size_t>(cuda::std::distance(key_first, key_last)), stream),
       store_values_(allocate_dataframe_buffer<value_t>(
         static_cast<size_t>(cuda::std::distance(key_first, key_last)), stream)),
@@ -429,12 +430,12 @@ class kv_binary_search_store_t {
 
   kv_binary_search_store_t(
     rmm::device_uvector<key_t>&& keys,
-    decltype(allocate_dataframe_buffer<value_t>(0, rmm::cuda_stream_view{}))&& values,
+    decltype(allocate_dataframe_buffer<value_t>(0, cuda::stream_ref{}))&& values,
     value_t invalid_value /* invalid_value is returned when match fails for the given key */,
     bool key_sorted /* if set to true, assume that the input data is sorted and skip sorting (which
                        is necessary for binary-search) */
     ,
-    rmm::cuda_stream_view stream)
+    cuda::stream_ref stream)
     : store_keys_(std::move(keys)), store_values_(std::move(values)), invalid_value_(invalid_value)
   {
     if (!key_sorted) {
@@ -445,7 +446,7 @@ class kv_binary_search_store_t {
     }
   }
 
-  auto retrieve_all(rmm::cuda_stream_view stream)
+  auto retrieve_all(cuda::stream_ref stream)
   {
     rmm::device_uvector<key_t> tmp_store_keys(store_keys_.size(), stream);
     auto tmp_store_values =
@@ -459,7 +460,7 @@ class kv_binary_search_store_t {
     return std::make_tuple(std::move(tmp_store_keys), std::move(tmp_store_values));
   }
 
-  auto release(rmm::cuda_stream_view stream)
+  auto release(cuda::stream_ref stream)
   {
     auto tmp_store_keys   = std::move(store_keys_);
     auto tmp_store_values = std::move(store_values_);
@@ -482,7 +483,7 @@ class kv_binary_search_store_t {
 
  private:
   rmm::device_uvector<key_t> store_keys_;
-  decltype(allocate_dataframe_buffer<value_t>(0, rmm::cuda_stream_view{})) store_values_;
+  decltype(allocate_dataframe_buffer<value_t>(0, cuda::stream_ref{})) store_values_;
 
   value_t invalid_value_{};
 };
@@ -490,10 +491,9 @@ class kv_binary_search_store_t {
 template <typename key_t, typename value_t>
 class kv_cuco_store_t {
  public:
-  using key_type   = key_t;
-  using value_type = value_t;
-  using value_buffer_type =
-    decltype(allocate_dataframe_buffer<value_t>(0, rmm::cuda_stream_view{}));
+  using key_type          = key_t;
+  using value_type        = value_t;
+  using value_buffer_type = decltype(allocate_dataframe_buffer<value_t>(0, cuda::stream_ref{}));
   using const_value_iterator =
     std::invoke_result_t<decltype(get_dataframe_buffer_cbegin<value_buffer_type>),
                          value_buffer_type&>;
@@ -509,7 +509,7 @@ class kv_cuco_store_t {
                      rmm::mr::polymorphic_allocator<std::byte>,
                      cuco_storage_type>;
 
-  kv_cuco_store_t(rmm::cuda_stream_view stream)
+  kv_cuco_store_t(cuda::stream_ref stream)
     : store_values_(allocate_optional_dataframe_buffer<
                     std::conditional_t<!std::is_arithmetic_v<value_t>, value_t, void>>(0, stream))
   {
@@ -518,7 +518,7 @@ class kv_cuco_store_t {
   kv_cuco_store_t(size_t capacity,
                   key_t invalid_key,
                   value_t invalid_value,
-                  rmm::cuda_stream_view stream)
+                  cuda::stream_ref stream)
     : store_values_(allocate_optional_dataframe_buffer<
                     std::conditional_t<!std::is_arithmetic_v<value_t>, value_t, void>>(0, stream))
   {
@@ -534,7 +534,7 @@ class kv_cuco_store_t {
                   ValueIterator value_first,
                   key_t invalid_key,
                   value_t invalid_value,
-                  rmm::cuda_stream_view stream)
+                  cuda::stream_ref stream)
     : store_values_(allocate_optional_dataframe_buffer<
                     std::conditional_t<!std::is_arithmetic_v<value_t>, value_t, void>>(0, stream))
   {
@@ -555,7 +555,7 @@ class kv_cuco_store_t {
   void insert(KeyIterator key_first,
               KeyIterator key_last,
               ValueIterator value_first,
-              rmm::cuda_stream_view stream)
+              cuda::stream_ref stream)
   {
     static_assert(std::is_same_v<typename thrust::iterator_traits<KeyIterator>::value_type, key_t>);
     static_assert(
@@ -566,7 +566,7 @@ class kv_cuco_store_t {
 
     if constexpr (std::is_arithmetic_v<value_t>) {
       auto pair_first = thrust::make_zip_iterator(key_first, value_first);
-      size_ += cuco_store_->insert(pair_first, pair_first + num_keys, stream.value());
+      size_ += cuco_store_->insert(pair_first, pair_first + num_keys, stream.get());
     } else {
       auto old_store_value_size = size_optional_dataframe_buffer<value_t>(store_values_);
       // FIXME: we can use cuda::atomic instead but currently on a system with x86 + GPU, this
@@ -599,7 +599,7 @@ class kv_cuco_store_t {
                  ValueIterator value_first,
                  StencilIterator stencil_first,
                  PredOp pred_op,
-                 rmm::cuda_stream_view stream)
+                 cuda::stream_ref stream)
   {
     static_assert(std::is_same_v<typename thrust::iterator_traits<KeyIterator>::value_type, key_t>);
     static_assert(
@@ -611,7 +611,7 @@ class kv_cuco_store_t {
     if constexpr (std::is_arithmetic_v<value_t>) {
       auto pair_first = thrust::make_zip_iterator(key_first, value_first);
       size_ += cuco_store_->insert_if(
-        pair_first, pair_first + num_keys, stencil_first, pred_op, stream.value());
+        pair_first, pair_first + num_keys, stencil_first, pred_op, stream.get());
     } else {
       auto old_store_value_size = size_optional_dataframe_buffer<value_t>(store_values_);
       // FIXME: we can use cuda::atomic instead but currently on a system with x86 + GPU, this
@@ -649,7 +649,7 @@ class kv_cuco_store_t {
   void insert_and_assign(KeyIterator key_first,
                          KeyIterator key_last,
                          ValueIterator value_first,
-                         rmm::cuda_stream_view stream)
+                         cuda::stream_ref stream)
   {
     static_assert(std::is_same_v<typename thrust::iterator_traits<KeyIterator>::value_type, key_t>);
     static_assert(
@@ -751,7 +751,7 @@ class kv_cuco_store_t {
                             ValueIterator value_first,
                             StencilIterator stencil_first,
                             PredOp pred_op,
-                            rmm::cuda_stream_view stream)
+                            cuda::stream_ref stream)
   {
     auto num_keys = static_cast<size_t>(cuda::std::distance(key_first, key_last));
     if (num_keys == 0) return;
@@ -792,19 +792,19 @@ class kv_cuco_store_t {
     }
   }
 
-  auto retrieve_all(rmm::cuda_stream_view stream)
+  auto retrieve_all(cuda::stream_ref stream)
   {
     rmm::device_uvector<key_t> keys(size_, stream);
     auto values = allocate_dataframe_buffer<value_t>(0, stream);
     if constexpr (std::is_arithmetic_v<value_t>) {
       values.resize(size_, stream);
-      auto pair_last = cuco_store_->retrieve_all(keys.begin(), values.begin(), stream.value());
+      auto pair_last = cuco_store_->retrieve_all(keys.begin(), values.begin(), stream.get());
       // FIXME: this resize (& shrink_to_fit) shouldn't be necessary if size_ is exact
       keys.resize(cuda::std::distance(keys.begin(), std::get<0>(pair_last)), stream);
       values.resize(keys.size(), stream);
     } else {
       rmm::device_uvector<size_t> indices(size_, stream);
-      auto pair_last = cuco_store_->retrieve_all(keys.begin(), indices.begin(), stream.value());
+      auto pair_last = cuco_store_->retrieve_all(keys.begin(), indices.begin(), stream.get());
       // FIXME: this resize (& shrink_to_fit) shouldn't be necessary if size_ is exact
       keys.resize(cuda::std::distance(keys.begin(), std::get<0>(pair_last)), stream);
       indices.resize(keys.size(), stream);
@@ -818,7 +818,7 @@ class kv_cuco_store_t {
     return std::make_tuple(std::move(keys), std::move(values));
   }
 
-  auto release(rmm::cuda_stream_view stream)
+  auto release(cuda::stream_ref stream)
   {
     auto [retrieved_keys, retrieved_values] = retrieve_all(stream);
     allocate(0, invalid_key(), invalid_value(), stream);
@@ -852,10 +852,7 @@ class kv_cuco_store_t {
   size_t capacity() const { return capacity_; }
 
  private:
-  void allocate(size_t num_keys,
-                key_t invalid_key,
-                value_t invalid_value,
-                rmm::cuda_stream_view stream)
+  void allocate(size_t num_keys, key_t invalid_key, value_t invalid_value, cuda::stream_ref stream)
   {
     double constexpr load_factor = 0.7;
     auto cuco_size               = std::max(
@@ -873,7 +870,7 @@ class kv_cuco_store_t {
                                         cuco::thread_scope_device,
                                         cuco_storage_type{},
                                         rmm::mr::polymorphic_allocator<std::byte>{},
-                                        stream.value());
+                                        stream.get());
     } else {
       cuco_store_ = std::make_unique<cuco_map_type>(
         cuco_size,
@@ -885,7 +882,7 @@ class kv_cuco_store_t {
         cuco::thread_scope_device,
         cuco_storage_type{},
         rmm::mr::polymorphic_allocator<std::byte>{},
-        stream.value());
+        stream.get());
       reserve_optional_dataframe_buffer<value_t>(store_values_, num_keys, stream);
     }
   }
@@ -893,7 +890,7 @@ class kv_cuco_store_t {
   std::unique_ptr<cuco_map_type> cuco_store_{nullptr};
   decltype(allocate_optional_dataframe_buffer<
            std::conditional_t<!std::is_arithmetic_v<value_t>, value_t, void>>(
-    0, rmm::cuda_stream_view{})) store_values_;
+    0, cuda::stream_ref{})) store_values_;
 
   std::conditional_t<!std::is_arithmetic_v<value_t>, value_t, std::byte /* dummy */>
     invalid_value_{};
@@ -919,7 +916,7 @@ class kv_store_t {
   static_assert(std::is_arithmetic_v<key_t>);
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<value_t>::value);
 
-  kv_store_t(rmm::cuda_stream_view stream) : store_(stream) {}
+  kv_store_t(cuda::stream_ref stream) : store_(stream) {}
 
   /* when use_binary_search = false */
   template <bool binary_search = use_binary_search>
@@ -932,7 +929,7 @@ class kv_store_t {
                              value_first + cuda::std::distance(key_first, key_last)), invalid_value
                              is returned when match fails for the given key */
     ,
-    rmm::cuda_stream_view stream,
+    cuda::stream_ref stream,
     std::enable_if_t<!binary_search, int32_t> = 0)
     : store_(capacity, invalid_key, invalid_value, stream)
   {
@@ -948,7 +945,7 @@ class kv_store_t {
     bool key_sorted /* if set to true, assume that the input data is sorted and skip sorting (which
                        is necessary for binary-search) */
     ,
-    rmm::cuda_stream_view stream,
+    cuda::stream_ref stream,
     std::enable_if_t<binary_search, int32_t> = 0)
     : store_(key_first, key_last, value_first, invalid_value, key_sorted, stream)
   {
@@ -965,7 +962,7 @@ class kv_store_t {
                              value_first + cuda::std::distance(key_first, key_last)), invalid_value
                              is returned when match fails for the given key */
     ,
-    rmm::cuda_stream_view stream,
+    cuda::stream_ref stream,
     std::enable_if_t<!binary_search, int32_t> = 0)
     : store_(key_first, key_last, value_first, invalid_key, invalid_value, stream)
   {
@@ -975,12 +972,12 @@ class kv_store_t {
   template <bool binary_search = use_binary_search>
   kv_store_t(
     rmm::device_uvector<key_t>&& keys,
-    decltype(allocate_dataframe_buffer<value_t>(0, rmm::cuda_stream_view{}))&& values,
+    decltype(allocate_dataframe_buffer<value_t>(0, cuda::stream_ref{}))&& values,
     value_t invalid_value /* invalid_value is returned when match fails for the given key */,
     bool key_sorted /* if set to true, assume that the input data is sorted and skip sorting (which
                        is necessary for binary-search) */
     ,
-    rmm::cuda_stream_view stream,
+    cuda::stream_ref stream,
     std::enable_if_t<binary_search, int32_t> = 0)
     : store_(std::move(keys), std::move(values), invalid_value, key_sorted, stream)
   {
@@ -991,7 +988,7 @@ class kv_store_t {
   std::enable_if_t<!binary_search, void> insert(KeyIterator key_first,
                                                 KeyIterator key_last,
                                                 ValueIterator value_first,
-                                                rmm::cuda_stream_view stream)
+                                                cuda::stream_ref stream)
   {
     store_.insert(key_first, key_last, value_first, stream);
   }
@@ -1007,7 +1004,7 @@ class kv_store_t {
                                                    ValueIterator value_first,
                                                    StencilIterator stencil_first,
                                                    PredOp pred_op,
-                                                   rmm::cuda_stream_view stream)
+                                                   cuda::stream_ref stream)
   {
     store_.insert_if(key_first, key_last, value_first, stencil_first, pred_op, stream);
   }
@@ -1017,7 +1014,7 @@ class kv_store_t {
   std::enable_if_t<!binary_search, void> insert_and_assign(KeyIterator key_first,
                                                            KeyIterator key_last,
                                                            ValueIterator value_first,
-                                                           rmm::cuda_stream_view stream)
+                                                           cuda::stream_ref stream)
   {
     store_.insert_and_assign(key_first, key_last, value_first, stream);
   }
@@ -1033,15 +1030,15 @@ class kv_store_t {
                                                               ValueIterator value_first,
                                                               StencilIterator stencil_first,
                                                               PredOp pred_op,
-                                                              rmm::cuda_stream_view stream)
+                                                              cuda::stream_ref stream)
   {
     store_.insert_and_assign_if(key_first, key_last, value_first, stencil_first, pred_op, stream);
   }
 
-  auto retrieve_all(rmm::cuda_stream_view stream) const { return store_.retrieve_all(stream); }
+  auto retrieve_all(cuda::stream_ref stream) const { return store_.retrieve_all(stream); }
 
   // kv_store_t becomes empty after release
-  auto release(rmm::cuda_stream_view stream) { return store_.release(stream); }
+  auto release(cuda::stream_ref stream) { return store_.release(stream); }
 
   auto view() const
   {

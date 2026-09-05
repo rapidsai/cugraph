@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -13,6 +13,7 @@
 #include <cuda/atomic>
 #include <cuda/std/functional>
 #include <cuda/std/iterator>
+#include <cuda/stream>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/iterator/iterator_traits.h>
@@ -116,7 +117,7 @@ class key_binary_search_store_view_t {
   void contains(QueryKeyIterator key_first,
                 QueryKeyIterator key_last,
                 ResultValueIterator value_first,
-                rmm::cuda_stream_view stream) const
+                cuda::stream_ref stream) const
   {
     thrust::transform(
       rmm::exec_policy(stream),
@@ -157,7 +158,7 @@ class key_cuco_store_view_t {
   void contains(QueryKeyIterator key_first,
                 QueryKeyIterator key_last,
                 ResultValueIterator value_first,
-                rmm::cuda_stream_view stream) const
+                cuda::stream_ref stream) const
   {
     cuco_store_->contains(key_first, key_last, value_first, stream);
   }
@@ -177,7 +178,7 @@ class key_binary_search_store_t {
  public:
   using key_type = key_t;
 
-  key_binary_search_store_t(rmm::cuda_stream_view stream) : store_keys_(0, stream) {}
+  key_binary_search_store_t(cuda::stream_ref stream) : store_keys_(0, stream) {}
 
   template <typename KeyIterator>
   key_binary_search_store_t(
@@ -186,7 +187,7 @@ class key_binary_search_store_t {
     bool key_sorted /* if set to true, assume that the input data is sorted and skip sorting (which
                        is necessary for binary-search) */
     ,
-    rmm::cuda_stream_view stream)
+    cuda::stream_ref stream)
     : store_keys_(static_cast<size_t>(cuda::std::distance(key_first, key_last)), stream)
   {
     thrust::copy(rmm::exec_policy(stream), key_first, key_last, store_keys_.begin());
@@ -200,7 +201,7 @@ class key_binary_search_store_t {
     bool key_sorted /* if set to true, assume that the input data is sorted and skip sorting (which
                        is necessary for binary-search) */
     ,
-    rmm::cuda_stream_view stream)
+    cuda::stream_ref stream)
     : store_keys_(std::move(keys))
   {
     if (!key_sorted) {
@@ -208,7 +209,7 @@ class key_binary_search_store_t {
     }
   }
 
-  auto release(rmm::cuda_stream_view stream)
+  auto release(cuda::stream_ref stream)
   {
     auto tmp_store_keys = std::move(store_keys_);
     store_keys_         = rmm::device_uvector<key_t>(0, stream);
@@ -241,9 +242,9 @@ class key_cuco_store_t {
                                          rmm::mr::polymorphic_allocator<std::byte>,
                                          cuco_storage_type>;
 
-  key_cuco_store_t(rmm::cuda_stream_view stream) {}
+  key_cuco_store_t(cuda::stream_ref stream) {}
 
-  key_cuco_store_t(size_t capacity, key_t invalid_key, rmm::cuda_stream_view stream)
+  key_cuco_store_t(size_t capacity, key_t invalid_key, cuda::stream_ref stream)
   {
     allocate(capacity, invalid_key, stream);
     capacity_ = capacity;
@@ -254,7 +255,7 @@ class key_cuco_store_t {
   key_cuco_store_t(KeyIterator key_first,
                    KeyIterator key_last,
                    key_t invalid_key,
-                   rmm::cuda_stream_view stream)
+                   cuda::stream_ref stream)
   {
     auto num_keys = static_cast<size_t>(cuda::std::distance(key_first, key_last));
     allocate(num_keys, invalid_key, stream);
@@ -265,12 +266,12 @@ class key_cuco_store_t {
   }
 
   template <typename KeyIterator>
-  void insert(KeyIterator key_first, KeyIterator key_last, rmm::cuda_stream_view stream)
+  void insert(KeyIterator key_first, KeyIterator key_last, cuda::stream_ref stream)
   {
     auto num_keys = static_cast<size_t>(cuda::std::distance(key_first, key_last));
     if (num_keys == 0) return;
 
-    size_ += cuco_store_->insert(key_first, key_last, stream.value());
+    size_ += cuco_store_->insert(key_first, key_last, stream.get());
   }
 
   template <typename KeyIterator, typename StencilIterator, typename PredOp>
@@ -278,18 +279,18 @@ class key_cuco_store_t {
                  KeyIterator key_last,
                  StencilIterator stencil_first,
                  PredOp pred_op,
-                 rmm::cuda_stream_view stream)
+                 cuda::stream_ref stream)
   {
     auto num_keys = static_cast<size_t>(cuda::std::distance(key_first, key_last));
     if (num_keys == 0) return;
 
-    size_ += cuco_store_->insert_if(key_first, key_last, stencil_first, pred_op, stream.value());
+    size_ += cuco_store_->insert_if(key_first, key_last, stencil_first, pred_op, stream.get());
   }
 
-  auto release(rmm::cuda_stream_view stream)
+  auto release(cuda::stream_ref stream)
   {
     rmm::device_uvector<key_t> keys(size(), stream);
-    auto last = cuco_store_->retrieve_all(keys.begin(), stream.value());
+    auto last = cuco_store_->retrieve_all(keys.begin(), stream.get());
     keys.resize(cuda::std::distance(keys.begin(), last), stream);
     keys.shrink_to_fit(stream);
     allocate(0, invalid_key(), stream);
@@ -307,7 +308,7 @@ class key_cuco_store_t {
   size_t capacity() const { return capacity_; }
 
  private:
-  void allocate(size_t num_keys, key_t invalid_key, rmm::cuda_stream_view stream)
+  void allocate(size_t num_keys, key_t invalid_key, cuda::stream_ref stream)
   {
     double constexpr load_factor = 0.7;
     auto cuco_size               = std::max(
@@ -323,7 +324,7 @@ class key_cuco_store_t {
                                       cuco::thread_scope_device,
                                       cuco_storage_type{},
                                       rmm::mr::polymorphic_allocator<std::byte>{},
-                                      stream.value());
+                                      stream.get());
   }
 
   std::unique_ptr<cuco_set_type> cuco_store_{nullptr};
@@ -344,7 +345,7 @@ class key_store_t {
 
   static_assert(std::is_arithmetic_v<key_t>);
 
-  key_store_t(rmm::cuda_stream_view stream) : store_(stream) {}
+  key_store_t(cuda::stream_ref stream) : store_(stream) {}
 
   /* when use_binary_search = false */
   template <bool binary_search = use_binary_search>
@@ -353,7 +354,7 @@ class key_store_t {
                        capacity can be larger (for performance & correctness reasons) */
     ,
     key_t invalid_key /* invalid key shouldn't appear in any *iter in [key_first, key_last) */,
-    rmm::cuda_stream_view stream,
+    cuda::stream_ref stream,
     std::enable_if_t<!binary_search, int32_t> = 0)
     : store_(capacity, invalid_key, stream)
   {
@@ -366,7 +367,7 @@ class key_store_t {
               bool key_sorted /* if set to true, assume that the input data is sorted and skip
                                  sorting (which is necessary for binary-search) */
               ,
-              rmm::cuda_stream_view stream,
+              cuda::stream_ref stream,
               std::enable_if_t<binary_search, int32_t> = 0)
     : store_(key_first, key_last, key_sorted, stream)
   {
@@ -378,7 +379,7 @@ class key_store_t {
     KeyIterator key_first,
     KeyIterator key_last,
     key_t invalid_key /* invalid key shouldn't appear in any *iter in [key_first, key_last) */,
-    rmm::cuda_stream_view stream,
+    cuda::stream_ref stream,
     std::enable_if_t<!binary_search, int32_t> = 0)
     : store_(key_first, key_last, invalid_key, stream)
   {
@@ -390,7 +391,7 @@ class key_store_t {
               bool key_sorted /* if set to true, assume that the input data is sorted and skip
                                  sorting (which is necessary for binary-search) */
               ,
-              rmm::cuda_stream_view stream,
+              cuda::stream_ref stream,
               std::enable_if_t<binary_search, int32_t> = 0)
     : store_(std::move(keys), key_sorted, stream)
   {
@@ -400,7 +401,7 @@ class key_store_t {
   template <typename KeyIterator, bool binary_search = use_binary_search>
   std::enable_if_t<!binary_search, void> insert(KeyIterator key_first,
                                                 KeyIterator key_last,
-                                                rmm::cuda_stream_view stream)
+                                                cuda::stream_ref stream)
   {
     store_.insert(key_first, key_last, stream);
   }
@@ -414,13 +415,13 @@ class key_store_t {
                                                    KeyIterator key_last,
                                                    StencilIterator stencil_first,
                                                    PredOp pred_op,
-                                                   rmm::cuda_stream_view stream)
+                                                   cuda::stream_ref stream)
   {
     store_.insert_if(key_first, key_last, stencil_first, pred_op, stream);
   }
 
   // key_store_t becomes empty after release
-  auto release(rmm::cuda_stream_view stream) { return store_.release(stream); }
+  auto release(cuda::stream_ref stream) { return store_.release(stream); }
 
   auto view() const
   {

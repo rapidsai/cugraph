@@ -813,7 +813,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                            multi_partition_copy_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
         multi_partition_copy<static_cast<int32_t>(1 /* near queue */ + num_far_buffers)>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream().get()>>>(
             input_first + num_copied,
             input_first + num_copied + this_loop_size,
             raft::device_span<key_t*>(d_buffer_ptrs.data(), d_buffer_ptrs.size()),
@@ -952,7 +952,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                 auto constexpr max_num_partitions =
                   static_cast<int32_t>(1 /* near queue */ + num_far_buffers);
                 multi_partition_copy<max_num_partitions>
-                  <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+                  <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream().get()>>>(
                     tmp_buffer.begin(),
                     tmp_buffer.end(),
                     raft::device_span<key_t*>(d_buffer_ptrs.data(), d_buffer_ptrs.size()),

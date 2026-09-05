@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -8,9 +8,8 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
-#include <rmm/cuda_stream_view.hpp>
-
 #include <cuda/std/tuple>
+#include <cuda/stream>
 
 #include <cstddef>
 #include <type_traits>
@@ -31,7 +30,7 @@ class block_array_t {
 
   using buffer_type = dataframe_buffer_type_t<T>;
 
-  block_array_t(size_t elements_per_block, size_t num_blocks, rmm::cuda_stream_view stream)
+  block_array_t(size_t elements_per_block, size_t num_blocks, cuda::stream_ref stream)
     : bit_tree_(elements_per_block, num_blocks),
       block_storage_(allocate_dataframe_buffer<T>(num_blocks * elements_per_block, stream))
   {

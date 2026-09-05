@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Explicit instantiations for cugraph/utilities/permute_wrappers.cuh.
@@ -12,6 +12,7 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/stream>
 #include <thrust/copy.h>
 
 #include <cstddef>
@@ -24,7 +25,7 @@ template <typename T>
 void permute_in_place_impl(T* first,
                            std::size_t const* map_first,
                            std::size_t num_elements,
-                           rmm::cuda_stream_view stream_view)
+                           cuda::stream_ref stream_view)
 {
   auto const policy = rmm::exec_policy(stream_view);
   rmm::device_uvector<T> tmp(num_elements, stream_view);
@@ -32,12 +33,11 @@ void permute_in_place_impl(T* first,
   thrust::copy(policy, tmp.begin(), tmp.end(), first);
 }
 
-#define CUGRAPH_PERMUTE_IN_PLACE_SCALAR_INST(ScalarType)          \
-  template CUGRAPH_EXPORT void permute_in_place_impl<ScalarType>( \
-    ScalarType * first,                                           \
-    std::size_t const* map_first,                                 \
-    std::size_t num_elements,                                     \
-    rmm::cuda_stream_view stream_view)
+#define CUGRAPH_PERMUTE_IN_PLACE_SCALAR_INST(ScalarType)                                       \
+  template CUGRAPH_EXPORT void permute_in_place_impl<ScalarType>(ScalarType * first,           \
+                                                                 std::size_t const* map_first, \
+                                                                 std::size_t num_elements,     \
+                                                                 cuda::stream_ref stream_view)
 
 CUGRAPH_PERMUTE_IN_PLACE_SCALAR_INST(std::int32_t);
 CUGRAPH_PERMUTE_IN_PLACE_SCALAR_INST(std::int64_t);

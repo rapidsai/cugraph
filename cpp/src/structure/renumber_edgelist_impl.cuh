@@ -643,20 +643,20 @@ compute_renumber_map(raft::handle_t const& handle,
       auto sorted_majors =
         large_vertex_buffer_type
           ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
-              edge_partition_major_range_sizes[i], handle.get_stream())
-          : rmm::device_uvector<vertex_t>(edge_partition_major_range_sizes[i], handle.get_stream());
+              edge_partition_major_range_sizes[i], handle.get_stream().get())
+          : rmm::device_uvector<vertex_t>(edge_partition_major_range_sizes[i], handle.get_stream().get());
       device_bcast(minor_comm,
                    sorted_local_vertices.data(),
                    sorted_majors.data(),
                    edge_partition_major_range_sizes[i],
                    i,
-                   handle.get_stream());
+                   handle.get_stream().get());
 
       auto sorted_major_degrees =
         large_vertex_buffer_type
           ? large_buffer_manager::allocate_memory_buffer<edge_t>(sorted_majors.size(),
-                                                                 handle.get_stream())
-          : rmm::device_uvector<edge_t>(sorted_majors.size(), handle.get_stream());
+                                                                 handle.get_stream().get())
+          : rmm::device_uvector<edge_t>(sorted_majors.size(), handle.get_stream().get());
       if (large_vertex_buffer_type) {
         compute_sorted_local_major_degrees_without_atomics(
           handle,
@@ -691,7 +691,7 @@ compute_renumber_map(raft::handle_t const& handle,
                     edge_partition_major_range_sizes[i],
                     raft::comms::op_t::SUM,
                     i,
-                    handle.get_stream());
+                    handle.get_stream().get());
       if (i == minor_comm_rank) { sorted_local_vertex_degrees = std::move(sorted_major_degrees); }
     }
   } else {
@@ -1026,7 +1026,7 @@ std::vector<vertex_t> aggregate_offset_vectors(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> d_aggregate_offset_vectors(minor_comm_size * d_offsets.size(),
                                                            handle.get_stream());
   minor_comm.allgather(
-    d_offsets.data(), d_aggregate_offset_vectors.data(), d_offsets.size(), handle.get_stream());
+    d_offsets.data(), d_aggregate_offset_vectors.data(), d_offsets.size(), handle.get_stream().get());
 
   std::vector<vertex_t> h_aggregate_offset_vectors(d_aggregate_offset_vectors.size(), vertex_t{0});
   raft::update_host(h_aggregate_offset_vectors.data(),

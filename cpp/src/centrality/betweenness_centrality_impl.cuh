@@ -1043,7 +1043,7 @@ void multisource_backward_pass(
                                             num_segments_in_chunk,
                                             offset_first,
                                             offset_first + 1,
-                                            handle.get_stream());
+                                            handle.get_stream().get());
 
         if (temp_storage_bytes > d_tmp_storage.size()) {
           d_tmp_storage = rmm::device_uvector<std::byte>(temp_storage_bytes, handle.get_stream());
@@ -1059,7 +1059,7 @@ void multisource_backward_pass(
                                             num_segments_in_chunk,
                                             offset_first,
                                             offset_first + 1,
-                                            handle.get_stream());
+                                            handle.get_stream().get());
       }
     }
 

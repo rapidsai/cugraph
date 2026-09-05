@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "utilities/mg_utilities.hpp"
@@ -10,6 +10,8 @@
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
+
+#include <cuda/stream>
 
 #include <vector>
 
@@ -38,7 +40,7 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle(size_t pool_size)
 {
   std::unique_ptr<raft::handle_t> handle{nullptr};
 
-  handle = std::make_unique<raft::handle_t>(rmm::cuda_stream_per_thread,
+  handle = std::make_unique<raft::handle_t>(cuda::stream_ref{cudaStreamPerThread},
                                             std::make_shared<rmm::cuda_stream_pool>(pool_size));
 
   auto comm_size = query_mpi_comm_world_size();
@@ -54,7 +56,7 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle(size_t pool_size)
   return std::move(handle);
 }
 
-void enforce_p2p_initialization(raft::comms::comms_t const& comm, rmm::cuda_stream_view stream)
+void enforce_p2p_initialization(raft::comms::comms_t const& comm, cuda::stream_ref stream)
 {
   auto const comm_size = comm.get_size();
 

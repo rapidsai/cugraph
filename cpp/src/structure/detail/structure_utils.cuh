@@ -514,7 +514,7 @@ void sort_adjacency_list(raft::handle_t const& handle,
                                           h_vertex_offsets[i + 1] - h_vertex_offsets[i],
                                           offset_first,
                                           offset_first + 1,
-                                          handle.get_stream());
+                                          handle.get_stream().get());
       if (tmp_storage_bytes > d_tmp_storage.size()) {
         d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
       }
@@ -528,7 +528,7 @@ void sort_adjacency_list(raft::handle_t const& handle,
                                           h_vertex_offsets[i + 1] - h_vertex_offsets[i],
                                           offset_first,
                                           offset_first + 1,
-                                          handle.get_stream());
+                                          handle.get_stream().get());
       thrust::copy(handle.get_thrust_policy(),
                    segment_sorted_indices.begin(),
                    segment_sorted_indices.begin() + (h_edge_offsets[i + 1] - h_edge_offsets[i]),
@@ -640,7 +640,7 @@ void sort_adjacency_list(raft::handle_t const& handle,
                                        h_vertex_offsets[i + 1] - h_vertex_offsets[i],
                                        offset_first,
                                        offset_first + 1,
-                                       handle.get_stream());
+                                       handle.get_stream().get());
     if (tmp_storage_bytes > d_tmp_storage.size()) {
       d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
     }
@@ -652,7 +652,7 @@ void sort_adjacency_list(raft::handle_t const& handle,
                                        h_vertex_offsets[i + 1] - h_vertex_offsets[i],
                                        offset_first,
                                        offset_first + 1,
-                                       handle.get_stream());
+                                       handle.get_stream().get());
     thrust::copy(handle.get_thrust_policy(),
                  segment_sorted_indices.begin(),
                  segment_sorted_indices.begin() + (h_edge_offsets[i + 1] - h_edge_offsets[i]),

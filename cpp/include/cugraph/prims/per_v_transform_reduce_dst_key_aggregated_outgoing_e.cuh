@@ -513,7 +513,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
             h_vertex_offsets[j + 1] - h_vertex_offsets[j],
             offset_first,
             offset_first + 1,
-            handle.get_stream());
+            handle.get_stream().get());
         } else {
           cub::DeviceSegmentedSort::SortKeys(static_cast<void*>(nullptr),
                                              tmp_storage_bytes,
@@ -544,7 +544,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
             h_vertex_offsets[j + 1] - h_vertex_offsets[j],
             offset_first,
             offset_first + 1,
-            handle.get_stream());
+            handle.get_stream().get());
         } else {
           cub::DeviceSegmentedSort::SortKeys(d_tmp_storage.data(),
                                              tmp_storage_bytes,

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -8,6 +8,8 @@
 
 #include <rmm/device_buffer.hpp>
 #include <rmm/device_uvector.hpp>
+
+#include <cuda/stream>
 
 #include <vector>
 
@@ -44,7 +46,7 @@ struct cugraph_type_erased_device_array_t {
   cugraph_type_erased_device_array_t(size_t size,
                                      size_t num_bytes,
                                      cugraph_data_type_id_t type,
-                                     rmm::cuda_stream_view const& stream_view)
+                                     cuda::stream_ref const& stream_view)
     : size_(size), data_(num_bytes, stream_view), type_(type)
   {
   }

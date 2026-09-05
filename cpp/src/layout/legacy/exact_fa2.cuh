@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -81,25 +81,25 @@ void exact_fa2(raft::handle_t const& handle,
   uniform_random_fill(handle.get_stream(), pos, n * 2, -100.0f, 100.0f, rng_state);
 
   if (x_start && y_start) {
-    raft::copy(pos, x_start, n, stream_view.value());
-    raft::copy(pos + n, y_start, n, stream_view.value());
+    raft::copy(pos, x_start, n, stream_view.get());
+    raft::copy(pos + n, y_start, n, stream_view.get());
   }
 
   if (graph.number_of_edges > 0) {
     // Sort COO for coalesced memory access.
-    sort(graph, stream_view.value());
-    RAFT_CHECK_CUDA(stream_view.value());
+    sort(graph, stream_view.get());
+    RAFT_CHECK_CUDA(stream_view.get());
   }
 
   if (vertex_mass != nullptr) {
-    raft::copy(d_mass, vertex_mass, n, stream_view.value());
+    raft::copy(d_mass, vertex_mass, n, stream_view.get());
   } else {
     // FA2 requires degree + 1.
     mass_edge_t.resize(n, handle.get_stream());
     cugraph::fill(handle.get_thrust_policy(), mass_edge_t.begin(), mass_edge_t.end(), 1);
     d_mass_edge_t = mass_edge_t.data();
     graph.degree(d_mass_edge_t, cugraph::legacy::DegreeDirection::OUT);
-    RAFT_CHECK_CUDA(stream_view.value());
+    RAFT_CHECK_CUDA(stream_view.get());
 
     thrust::transform(
       handle.get_thrust_policy(),
@@ -146,7 +146,7 @@ void exact_fa2(raft::handle_t const& handle,
                               vertex_radius,
                               overlap_scaling_ratio,
                               n,
-                              stream_view.value());
+                              stream_view.get());
 
     apply_gravity<vertex_t>(pos,
                             pos + n,
@@ -157,7 +157,7 @@ void exact_fa2(raft::handle_t const& handle,
                             strong_gravity_mode,
                             scaling_ratio,
                             n,
-                            stream_view.value());
+                            stream_view.get());
 
     apply_attraction<vertex_t, edge_t, weight_t>(row,
                                                  col,
@@ -174,7 +174,7 @@ void exact_fa2(raft::handle_t const& handle,
                                                  outbound_att_compensation,
                                                  prevent_overlapping,
                                                  vertex_radius,
-                                                 stream_view.value());
+                                                 stream_view.get());
 
     compute_local_speed<vertex_t>(d_repel,
                                   d_repel + n,
@@ -186,7 +186,7 @@ void exact_fa2(raft::handle_t const& handle,
                                   d_swinging,
                                   d_traction,
                                   n,
-                                  stream_view.value());
+                                  stream_view.get());
 
     // Compute global swinging and traction values.
     const float s = thrust::reduce(handle.get_thrust_policy(), swinging.begin(), swinging.end());
@@ -207,7 +207,7 @@ void exact_fa2(raft::handle_t const& handle,
                            vertex_mobility,
                            speed,
                            n,
-                           stream_view.value());
+                           stream_view.get());
 
     if (callback) callback->on_epoch_end(pos);
 

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -17,6 +17,7 @@
 #include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/iterator>
+#include <cuda/stream>
 #include <thrust/copy.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/tabulate.h>
@@ -341,7 +342,7 @@ void partition_by_mask(InputIterator input_first,
                        uint32_t const* mask_first,
                        size_t first_size,
                        size_t second_size,
-                       rmm::cuda_stream_view stream_view,
+                       cuda::stream_ref stream_view,
                        std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   using element_t = typename thrust::iterator_traits<InputIterator>::value_type;
@@ -372,7 +373,7 @@ struct partition_by_mask_zip_split_impl {
                   uint32_t const* mask_first,
                   size_t first_size,
                   size_t second_size,
-                  rmm::cuda_stream_view stream_view,
+                  cuda::stream_ref stream_view,
                   std::optional<large_buffer_type_t> large_buffer_type)
   {
     auto const& input_tuple      = input_first.get_iterator_tuple();
@@ -397,7 +398,7 @@ struct partition_by_mask_zip_split_impl<ZipIterator, I, I> {
                   uint32_t const*,
                   size_t,
                   size_t,
-                  rmm::cuda_stream_view,
+                  cuda::stream_ref,
                   std::optional<large_buffer_type_t>)
   {
   }
@@ -410,7 +411,7 @@ void partition_by_mask_zip_split(
   uint32_t const* mask_first,
   size_t first_size,
   size_t second_size,
-  rmm::cuda_stream_view stream_view,
+  cuda::stream_ref stream_view,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   constexpr size_t tuple_size = cuda::std::tuple_size<typename ZipIterator::iterator_tuple>::value;
@@ -427,7 +428,7 @@ void partition_by_mask(ZipIterator input_first,
                        uint32_t const* mask_first,
                        size_t first_size,
                        size_t second_size,
-                       rmm::cuda_stream_view stream_view,
+                       cuda::stream_ref stream_view,
                        std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   partition_by_mask_zip_split(
@@ -499,7 +500,7 @@ template <typename comparison_t>
 std::tuple<size_t, rmm::device_uvector<uint32_t>> mark_entries(
   size_t num_entries,
   comparison_t comparison,
-  rmm::cuda_stream_view stream_view,
+  cuda::stream_ref stream_view,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   auto marked_entries = large_buffer_type ? large_buffer_manager::allocate_memory_buffer<uint32_t>(
@@ -556,7 +557,7 @@ void partition_by_mask(InputIterator input_first,
                        uint32_t const* mask_first,
                        size_t first_size,
                        size_t second_size,
-                       rmm::cuda_stream_view stream_view,
+                       cuda::stream_ref stream_view,
                        std::optional<large_buffer_type_t> large_buffer_type)
 {
   detail::partition_by_mask(

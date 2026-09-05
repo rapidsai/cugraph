@@ -30,7 +30,7 @@ std::unique_ptr<legacy::GraphCOO<vertex_t, edge_t, weight_t>> mst_impl(
   rmm::device_async_resource_ref mr)
 
 {
-  auto stream = handle.get_stream();
+  auto stream = handle.get_stream().get();
   rmm::device_uvector<vertex_t> colors(graph.number_of_vertices, stream);
   auto mst_edges = raft::sparse::solver::mst<vertex_t, edge_t, weight_t>(handle,
                                                                          graph.offsets,

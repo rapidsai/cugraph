@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -44,6 +44,7 @@
 #include <cuda/std/functional>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
@@ -895,7 +896,7 @@ void copy_valid_offset_value_pairs(
     raft::device_span<typename thrust::iterator_traits<OutputOffsetIterator>::value_type const>>
     hypersparse_key_offsets,
   typename thrust::iterator_traits<OutputValueIterator>::value_type invalid_value,
-  rmm::cuda_stream_view stream)
+  cuda::stream_ref stream)
 {
   using offset_t = std::decay_t<typename thrust::iterator_traits<OutputOffsetIterator>::value_type>;
   using value_t  = std::decay_t<typename thrust::iterator_traits<OutputValueIterator>::value_type>;
@@ -1033,7 +1034,7 @@ void per_v_transform_reduce_e_edge_partition(
           assert(segment_key_last == nullptr);
         }
         detail::per_v_transform_reduce_e_hypersparse<update_major, GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream.get()>>>(
             edge_partition,
             segment_key_first,
             segment_key_last,
@@ -1068,7 +1069,7 @@ void per_v_transform_reduce_e_edge_partition(
       }
       *segment_key_first += (*key_segment_offsets)[2];
       detail::per_v_transform_reduce_e_low_degree<update_major, GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream.get()>>>(
           edge_partition,
           *segment_key_first,
           *segment_key_first + ((*key_segment_offsets)[3] - (*key_segment_offsets)[2]),
@@ -1102,7 +1103,7 @@ void per_v_transform_reduce_e_edge_partition(
       }
       *segment_key_first += (*key_segment_offsets)[1];
       detail::per_v_transform_reduce_e_mid_degree<update_major, GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream.get()>>>(
           edge_partition,
           *segment_key_first,
           *segment_key_first + ((*key_segment_offsets)[2] - (*key_segment_offsets)[1]),
@@ -1137,7 +1138,7 @@ void per_v_transform_reduce_e_edge_partition(
         segment_key_first = thrust::make_counting_iterator(edge_partition.major_range_first());
       }
       detail::per_v_transform_reduce_e_high_degree<update_major, GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream.get()>>>(
           edge_partition,
           *segment_key_first,
           *segment_key_first + (*key_segment_offsets)[1],
@@ -1179,7 +1180,7 @@ void per_v_transform_reduce_e_edge_partition(
         segment_key_first = thrust::make_counting_iterator(edge_partition.major_range_first());
       }
       detail::per_v_transform_reduce_e_low_degree<update_major, GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream.get()>>>(
           edge_partition,
           *segment_key_first,
           *segment_key_first + num_keys,

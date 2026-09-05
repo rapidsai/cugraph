@@ -171,7 +171,7 @@ rmm::device_uvector<edge_t> compute_major_degrees(
                       static_cast<size_t>(num_local_degrees),
                       raft::comms::op_t::SUM,
                       i,
-                      handle.get_stream());
+                      handle.get_stream().get());
   }
 
   return degrees;
@@ -328,7 +328,7 @@ edge_t count_edge_partition_multi_edges(
       cugraph::for_all_major_for_all_nbr_high_degree<<<update_grid.num_blocks,
                                                        update_grid.block_size,
                                                        0,
-                                                       handle.get_stream()>>>(
+                                                       handle.get_stream().get()>>>(
         edge_partition,
         edge_partition.major_range_first(),
         edge_partition.major_range_first() + (*segment_offsets)[1],
@@ -342,7 +342,7 @@ edge_t count_edge_partition_multi_edges(
       cugraph::for_all_major_for_all_nbr_mid_degree<<<update_grid.num_blocks,
                                                       update_grid.block_size,
                                                       0,
-                                                      handle.get_stream()>>>(
+                                                      handle.get_stream().get()>>>(
         edge_partition,
         edge_partition.major_range_first() + (*segment_offsets)[1],
         edge_partition.major_range_first() + (*segment_offsets)[2],

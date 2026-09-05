@@ -548,12 +548,12 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
     raft::copy(srcs.data() + num_samples - nr_deficits,
                extra_srcs.begin() + deficits[comm_rank],
                nr_deficits,
-               handle.get_stream());
+               handle.get_stream().get());
 
     raft::copy(dsts.data() + num_samples - nr_deficits,
                extra_dsts.begin() + deficits[comm_rank],
                nr_deficits,
-               handle.get_stream());
+               handle.get_stream().get());
   }
 
   return std::make_tuple(std::move(srcs), std::move(dsts));

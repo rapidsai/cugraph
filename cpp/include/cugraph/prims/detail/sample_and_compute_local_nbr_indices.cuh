@@ -612,7 +612,7 @@ compute_valid_local_nbr_count_inclusive_sums(raft::handle_t const& handle,
       compute_valid_local_nbr_count_inclusive_sums_mid_local_degree<<<update_grid.num_blocks,
                                                                       update_grid.block_size,
                                                                       0,
-                                                                      handle.get_stream()>>>(
+                                                                      handle.get_stream().get()>>>(
         edge_partition,
         *edge_partition_e_mask,
         aggregate_local_frontier_major_first + local_frontier_offsets[i],
@@ -631,7 +631,7 @@ compute_valid_local_nbr_count_inclusive_sums(raft::handle_t const& handle,
       compute_valid_local_nbr_count_inclusive_sums_high_local_degree<<<update_grid.num_blocks,
                                                                        update_grid.block_size,
                                                                        0,
-                                                                       handle.get_stream()>>>(
+                                                                       handle.get_stream().get()>>>(
         edge_partition,
         *edge_partition_e_mask,
         aggregate_local_frontier_major_first + local_frontier_offsets[i],

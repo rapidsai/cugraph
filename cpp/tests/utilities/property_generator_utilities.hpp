@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -14,6 +14,8 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/stream>
+
 #include <tuple>
 #include <vector>
 
@@ -27,8 +29,8 @@ struct generate {
   using edge_type   = typename GraphViewType::edge_type;
   using edge_type_t = int32_t;
 
-  using property_buffer_type = std::decay_t<decltype(allocate_dataframe_buffer<property_t>(
-    size_t{0}, rmm::cuda_stream_view{}))>;
+  using property_buffer_type =
+    std::decay_t<decltype(allocate_dataframe_buffer<property_t>(size_t{0}, cuda::stream_ref{}))>;
 
  public:
   static property_t initial_value(int32_t init);

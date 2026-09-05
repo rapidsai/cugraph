@@ -408,7 +408,7 @@ struct node2vec_selector {
 
       recv_counts = cugraph::host_scalar_allgather(
         handle.get_subcomm(cugraph::partition_manager::minor_comm_name()),
-        intersection_offsets.back_element(handle.get_stream()),
+        intersection_offsets.back_element(handle.get_stream().get()),
         handle.get_stream());
 
       displacements.resize(recv_counts.size());

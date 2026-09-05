@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -16,6 +16,7 @@
 #include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/count.h>
 #include <thrust/equal.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -29,7 +30,7 @@ namespace cugraph {
 namespace detail {
 
 template <typename value_t>
-void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
+void uniform_random_fill(cuda::stream_ref const& stream_view,
                          value_t* d_value,
                          size_t size,
                          value_t min_value,
@@ -38,17 +39,17 @@ void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
 {
   if constexpr (std::is_integral<value_t>::value) {
     raft::random::uniformInt<value_t, size_t>(
-      rng_state, d_value, size, min_value, max_value, stream_view.value());
+      rng_state, d_value, size, min_value, max_value, stream_view.get());
   } else {
     raft::random::uniform<value_t, size_t>(
-      rng_state, d_value, size, min_value, max_value, stream_view.value());
+      rng_state, d_value, size, min_value, max_value, stream_view.get());
   }
 }
 
 template <typename value_t>
 void transform_increment_ints(raft::device_span<value_t> values,
                               value_t incr,
-                              rmm::cuda_stream_view const& stream_view)
+                              cuda::stream_ref const& stream_view)
 {
   thrust::transform(rmm::exec_policy(stream_view),
                     values.begin(),
@@ -63,7 +64,7 @@ template <typename value_t>
 void transform_not_equal(raft::device_span<value_t> values,
                          raft::device_span<bool> result,
                          value_t compare,
-                         rmm::cuda_stream_view const& stream_view)
+                         cuda::stream_ref const& stream_view)
 {
   thrust::transform(rmm::exec_policy(stream_view),
                     values.begin(),
@@ -74,7 +75,7 @@ void transform_not_equal(raft::device_span<value_t> values,
 }
 
 template <typename vertex_t>
-vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
+vertex_t compute_maximum_vertex_id(cuda::stream_ref const& stream_view,
                                    vertex_t const* d_edgelist_srcs,
                                    vertex_t const* d_edgelist_dsts,
                                    size_t num_edges)

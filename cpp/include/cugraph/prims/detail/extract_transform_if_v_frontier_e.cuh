@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -38,6 +38,7 @@
 #include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -563,7 +564,7 @@ void extract_transform_if_v_frontier_e_edge_partition(
                                          extract_transform_if_v_frontier_e_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
       extract_transform_if_v_frontier_e_high_degree<GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream.get()>>>(
           edge_partition,
           edge_partition_frontier_key_first,
           raft::device_span<size_t const>((*high_segment_key_local_degree_offsets).data(),
@@ -587,7 +588,7 @@ void extract_transform_if_v_frontier_e_edge_partition(
                                        extract_transform_if_v_frontier_e_kernel_block_size,
                                        handle.get_device_properties().maxGridSize[0]);
       extract_transform_if_v_frontier_e_mid_degree<GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream.get()>>>(
           edge_partition,
           edge_partition_frontier_key_first + (*key_segment_offsets)[1],
           edge_partition_frontier_key_first + (*key_segment_offsets)[2],
@@ -610,7 +611,7 @@ void extract_transform_if_v_frontier_e_edge_partition(
                                          extract_transform_if_v_frontier_e_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
       extract_transform_if_v_frontier_e_hypersparse_or_low_degree<false, GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream.get()>>>(
           edge_partition,
           edge_partition_frontier_key_first + (*key_segment_offsets)[2],
           edge_partition_frontier_key_first + (*key_segment_offsets)[3],
@@ -634,7 +635,7 @@ void extract_transform_if_v_frontier_e_edge_partition(
                                          extract_transform_if_v_frontier_e_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
       extract_transform_if_v_frontier_e_hypersparse_or_low_degree<true, GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream.get()>>>(
           edge_partition,
           edge_partition_frontier_key_first + (*key_segment_offsets)[3],
           edge_partition_frontier_key_first + (*key_segment_offsets)[4],
@@ -662,7 +663,7 @@ void extract_transform_if_v_frontier_e_edge_partition(
                                          handle.get_device_properties().maxGridSize[0]);
 
       extract_transform_if_v_frontier_e_hypersparse_or_low_degree<false, GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream.get()>>>(
           edge_partition,
           edge_partition_frontier_key_first,
           edge_partition_frontier_key_last,

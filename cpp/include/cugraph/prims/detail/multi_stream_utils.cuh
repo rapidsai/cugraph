@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -10,12 +10,12 @@
 #include <raft/core/handle.hpp>
 #include <raft/util/integer_utils.hpp>
 
-#include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <cub/cub.cuh>
 #include <cuda/std/iterator>
+#include <cuda/stream>
 
 #include <numeric>
 #include <vector>
@@ -54,7 +54,7 @@ void copy_if_nosync(InputIterator input_first,
                     FlagIterator flag_first,
                     OutputIterator output_first,
                     raft::device_span<size_t> count /* size = 1 */,
-                    rmm::cuda_stream_view stream_view)
+                    cuda::stream_ref stream_view)
 {
   CUGRAPH_EXPECTS(
     static_cast<size_t>(cuda::std::distance(input_first, input_last)) <=
@@ -73,7 +73,7 @@ void copy_if_nosync(InputIterator input_first,
                              output_first,
                              count.data(),
                              input_size,
-                             stream_view);
+                             stream_view.get());
 
   auto d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, stream_view);
 
@@ -84,7 +84,7 @@ void copy_if_nosync(InputIterator input_first,
                              output_first,
                              count.data(),
                              input_size,
-                             stream_view);
+                             stream_view.get());
 }
 
 template <typename InputIterator>
@@ -92,7 +92,7 @@ void count_nosync(InputIterator input_first,
                   InputIterator input_last,
                   raft::device_span<size_t> count /* size = 1 */,
                   typename thrust::iterator_traits<InputIterator>::value_type value,
-                  rmm::cuda_stream_view stream_view)
+                  cuda::stream_ref stream_view)
 {
   CUGRAPH_EXPECTS(
     static_cast<size_t>(cuda::std::distance(input_first, input_last)) <=
@@ -121,7 +121,7 @@ void sum_nosync(
   InputIterator input_first,
   InputIterator input_last,
   raft::device_span<typename thrust::iterator_traits<InputIterator>::value_type> sum /* size = 1 */,
-  rmm::cuda_stream_view stream_view)
+  cuda::stream_ref stream_view)
 {
   CUGRAPH_EXPECTS(
     static_cast<size_t>(cuda::std::distance(input_first, input_last)) <=
