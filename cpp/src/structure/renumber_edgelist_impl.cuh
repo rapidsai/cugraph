@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -640,11 +640,11 @@ compute_renumber_map(raft::handle_t const& handle,
     auto edge_partition_major_range_sizes =
       host_scalar_allgather(minor_comm, sorted_local_vertices.size(), handle.get_stream());
     for (int i = 0; i < minor_comm_size; ++i) {
-      auto sorted_majors =
-        large_vertex_buffer_type
-          ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
-              edge_partition_major_range_sizes[i], handle.get_stream().get())
-          : rmm::device_uvector<vertex_t>(edge_partition_major_range_sizes[i], handle.get_stream().get());
+      auto sorted_majors = large_vertex_buffer_type
+                             ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
+                                 edge_partition_major_range_sizes[i], handle.get_stream().get())
+                             : rmm::device_uvector<vertex_t>(edge_partition_major_range_sizes[i],
+                                                             handle.get_stream().get());
       device_bcast(minor_comm,
                    sorted_local_vertices.data(),
                    sorted_majors.data(),
@@ -1025,8 +1025,10 @@ std::vector<vertex_t> aggregate_offset_vectors(raft::handle_t const& handle,
   raft::update_device(d_offsets.data(), offsets.data(), offsets.size(), handle.get_stream());
   rmm::device_uvector<vertex_t> d_aggregate_offset_vectors(minor_comm_size * d_offsets.size(),
                                                            handle.get_stream());
-  minor_comm.allgather(
-    d_offsets.data(), d_aggregate_offset_vectors.data(), d_offsets.size(), handle.get_stream().get());
+  minor_comm.allgather(d_offsets.data(),
+                       d_aggregate_offset_vectors.data(),
+                       d_offsets.size(),
+                       handle.get_stream().get());
 
   std::vector<vertex_t> h_aggregate_offset_vectors(d_aggregate_offset_vectors.size(), vertex_t{0});
   raft::update_host(h_aggregate_offset_vectors.data(),
