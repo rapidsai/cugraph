@@ -194,8 +194,10 @@ neighbor_sample_impl(raft::handle_t const& handle,
       size_t local_frontier_size = (hop == 0) ? starting_vertices.size() : frontier_vertices.size();
       size_t frontier_size       = local_frontier_size;
       if constexpr (multi_gpu) {
-        frontier_size = host_scalar_allreduce(
-          handle.get_comms(), local_frontier_size, raft::comms::op_t::SUM, handle.get_stream().get());
+        frontier_size = host_scalar_allreduce(handle.get_comms(),
+                                              local_frontier_size,
+                                              raft::comms::op_t::SUM,
+                                              handle.get_stream().get());
       }
       if (frontier_size == 0) { break; }
     }

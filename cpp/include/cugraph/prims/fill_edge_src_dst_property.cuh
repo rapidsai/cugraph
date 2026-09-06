@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -1387,8 +1387,8 @@ void fill_edge_dst_property(raft::handle_t const& handle,
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& comm = handle.get_comms();
 #if 1  // FIXME: we should add host_allreduce to raft
-      num_invalids =
-        host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream().get());
+      num_invalids = host_scalar_allreduce(
+        comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream().get());
 #else
       comm.host_allreduce(std::addressof(num_invalids),
                           std::addressof(num_invalids),

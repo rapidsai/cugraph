@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -48,9 +48,11 @@ std::tuple<size_t, size_t> check_edge_bias_values(
   }
 
   if constexpr (multi_gpu) {
-    num_negative_edge_weights = host_scalar_allreduce(
-      handle.get_comms(), num_negative_edge_weights, raft::comms::op_t::SUM, handle.get_stream().get());
-    num_overflows = host_scalar_allreduce(
+    num_negative_edge_weights = host_scalar_allreduce(handle.get_comms(),
+                                                      num_negative_edge_weights,
+                                                      raft::comms::op_t::SUM,
+                                                      handle.get_stream().get());
+    num_overflows             = host_scalar_allreduce(
       handle.get_comms(), num_overflows, raft::comms::op_t::SUM, handle.get_stream().get());
   }
 

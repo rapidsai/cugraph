@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -125,7 +125,8 @@ class partition_manager {
     auto const minor_comm_rank = minor_comm.get_rank();
 
 #if 1  // FIXME: we should add host_allgather to raft
-    auto vertex_counts = host_scalar_allgather(comm, local_partition_size, handle.get_stream().get());
+    auto vertex_counts =
+      host_scalar_allgather(comm, local_partition_size, handle.get_stream().get());
 #else
     std::vector<vertex_t> vertex_counts(comm_size, 0);
     vertex_counts[comm_rank] = local_partition_size;

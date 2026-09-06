@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -82,8 +82,8 @@ typename GraphViewType::vertex_type count_if_v(raft::handle_t const& handle,
                               it + graph_view.local_vertex_partition_range_size(),
                               vertex_t{0});
   if (GraphViewType::is_multi_gpu) {
-    count =
-      host_scalar_allreduce(handle.get_comms(), count, raft::comms::op_t::SUM, handle.get_stream().get());
+    count = host_scalar_allreduce(
+      handle.get_comms(), count, raft::comms::op_t::SUM, handle.get_stream().get());
   }
   return count;
 }

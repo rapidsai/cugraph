@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -182,7 +182,8 @@ void expensive_check_edgelist(raft::handle_t const& handle,
       rmm::device_uvector<vertex_t> sorted_majors(0, handle.get_stream());
       {
 #if 1  // FIXME: we should add host_allgather to raft
-        auto recvcounts = host_scalar_allgather(minor_comm, vertices->size(), handle.get_stream().get());
+        auto recvcounts =
+          host_scalar_allgather(minor_comm, vertices->size(), handle.get_stream().get());
 #else
         std::vector<size_t> recvcounts(minor_comm_size, 0);
         recvcounts[minor_comm_rank] = vertices->size();
@@ -203,7 +204,8 @@ void expensive_check_edgelist(raft::handle_t const& handle,
       rmm::device_uvector<vertex_t> sorted_minors(0, handle.get_stream());
       {
 #if 1  // FIXME: we should add host_allgather to raft
-        auto recvcounts = host_scalar_allgather(major_comm, vertices->size(), handle.get_stream().get());
+        auto recvcounts =
+          host_scalar_allgather(major_comm, vertices->size(), handle.get_stream().get());
 #else
         std::vector<size_t> recvcounts(major_comm_size, 0);
         recvcounts[major_comm_rank] = vertices->size();

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -274,8 +274,10 @@ all_pairs_similarity(raft::handle_t const& handle,
                          });
 
       if constexpr (multi_gpu) {
-        num_invalid_vertices = cugraph::host_scalar_allreduce(
-          handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream().get());
+        num_invalid_vertices = cugraph::host_scalar_allreduce(handle.get_comms(),
+                                                              num_invalid_vertices,
+                                                              raft::comms::op_t::SUM,
+                                                              handle.get_stream().get());
       }
 
       CUGRAPH_EXPECTS(num_invalid_vertices == 0,
@@ -587,8 +589,8 @@ all_pairs_similarity(raft::handle_t const& handle,
           &similarity_threshold, top_score.data() + *topk - 1, 1, handle.get_stream());
       }
       if constexpr (multi_gpu) {
-        similarity_threshold =
-          host_scalar_bcast(handle.get_comms(), similarity_threshold, int{0}, handle.get_stream().get());
+        similarity_threshold = host_scalar_bcast(
+          handle.get_comms(), similarity_threshold, int{0}, handle.get_stream().get());
       }
     }
 

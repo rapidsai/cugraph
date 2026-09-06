@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -580,8 +580,10 @@ refine_clustering(raft::handle_t const& handle,
 
     vertex_t total_nr_valid_tuples = nr_valid_tuples;
     if constexpr (multi_gpu) {
-      total_nr_valid_tuples = host_scalar_allreduce(
-        handle.get_comms(), total_nr_valid_tuples, raft::comms::op_t::SUM, handle.get_stream().get());
+      total_nr_valid_tuples = host_scalar_allreduce(handle.get_comms(),
+                                                    total_nr_valid_tuples,
+                                                    raft::comms::op_t::SUM,
+                                                    handle.get_stream().get());
     }
 
     if (total_nr_valid_tuples == 0) {

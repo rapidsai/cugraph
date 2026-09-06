@@ -389,8 +389,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         auto const comm_size  = comm.get_size();
         auto local_max_degree = max_degree;
 #if 1  // FIXME: we should add host_allreduce to raft
-        max_degree =
-          host_scalar_allreduce(comm, max_degree, raft::comms::op_t::MAX, handle.get_stream().get());
+        max_degree = host_scalar_allreduce(
+          comm, max_degree, raft::comms::op_t::MAX, handle.get_stream().get());
 #else
         comm.host_allreduce(std::addressof(max_degree),
                             std::addressof(max_degree),
@@ -399,7 +399,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 #endif
         max_v = (local_max_degree == max_degree) ? max_v : std::numeric_limits<vertex_t>::max();
 #if 1  // FIXME: we should add host_allreduce to raft
-        max_v = host_scalar_allreduce(comm, max_v, raft::comms::op_t::MIN, handle.get_stream().get());
+        max_v =
+          host_scalar_allreduce(comm, max_v, raft::comms::op_t::MIN, handle.get_stream().get());
 #else
         comm.host_allreduce(
           std::addressof(max_v), std::addressof(max_v), size_t{1}, raft::comms::op_t::MIN);

@@ -568,8 +568,8 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
         count_set_bits(handle.get_thrust_policy(), value_firsts[i], edge_counts[i]));
     }
 #if 1  // FIXME: we should add host_allreduce to raft
-    ret =
-      host_scalar_allreduce(handle.get_comms(), ret, raft::comms::op_t::SUM, handle.get_stream().get());
+    ret = host_scalar_allreduce(
+      handle.get_comms(), ret, raft::comms::op_t::SUM, handle.get_stream().get());
 #else
     handle.get_comms().host_allreduce(
       std::addressof(ret), std::addressof(ret), size_t{1}, raft::comms::op_t::SUM);
@@ -791,8 +791,8 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
   }
 
 #if 1  // FIXME: we should add host_allreduce to raft
-  count =
-    host_scalar_allreduce(handle.get_comms(), count, raft::comms::op_t::SUM, handle.get_stream().get());
+  count = host_scalar_allreduce(
+    handle.get_comms(), count, raft::comms::op_t::SUM, handle.get_stream().get());
 #else
   handle.get_comms().host_allreduce(
     std::addressof(count), std::addressof(count), size_t{1}, raft::comms::op_t::SUM);

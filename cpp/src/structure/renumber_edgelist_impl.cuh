@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -317,7 +317,8 @@ std::optional<vertex_t> find_locally_unused_ext_vertex_id(
   if (multi_gpu && (handle.get_comms().get_size() > int{1})) {
     auto& comm = handle.get_comms();
 #if 1  // FIXME: we should add host_allreduce to raft
-    unused_id = host_scalar_allreduce(comm, unused_id, raft::comms::op_t::MIN, handle.get_stream().get());
+    unused_id =
+      host_scalar_allreduce(comm, unused_id, raft::comms::op_t::MIN, handle.get_stream().get());
 #else
     comm.host_allreduce(
       std::addressof(unused_id), std::addressof(unused_id), size_t{1}, raft::comms::op_t::MIN);
@@ -640,11 +641,11 @@ compute_renumber_map(raft::handle_t const& handle,
     auto edge_partition_major_range_sizes =
       host_scalar_allgather(minor_comm, sorted_local_vertices.size(), handle.get_stream().get());
     for (int i = 0; i < minor_comm_size; ++i) {
-      auto sorted_majors =
-        large_vertex_buffer_type
-          ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
-              edge_partition_major_range_sizes[i], handle.get_stream().get())
-          : rmm::device_uvector<vertex_t>(edge_partition_major_range_sizes[i], handle.get_stream().get());
+      auto sorted_majors = large_vertex_buffer_type
+                             ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
+                                 edge_partition_major_range_sizes[i], handle.get_stream().get())
+                             : rmm::device_uvector<vertex_t>(edge_partition_major_range_sizes[i],
+                                                             handle.get_stream().get());
       device_bcast(minor_comm,
                    sorted_local_vertices.data(),
                    sorted_majors.data(),
@@ -941,8 +942,8 @@ void expensive_check_edgelist(
         "Invalid input argument: local_vertices should be pre-shuffled.");
 
       rmm::device_uvector<vertex_t> sorted_minors(0, handle.get_stream());
-      auto recvcounts =
-        host_scalar_allgather(major_comm, (*sorted_local_vertices).size(), handle.get_stream().get());
+      auto recvcounts = host_scalar_allgather(
+        major_comm, (*sorted_local_vertices).size(), handle.get_stream().get());
       std::vector<size_t> displacements(recvcounts.size(), size_t{0});
       std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);
       sorted_minors.resize(displacements.back() + recvcounts.back(), handle.get_stream());
@@ -954,8 +955,8 @@ void expensive_check_edgelist(
                         handle.get_stream());
       cugraph::sort(handle.get_thrust_policy(), sorted_minors.begin(), sorted_minors.end());
 
-      auto major_range_sizes =
-        host_scalar_allgather(minor_comm, (*sorted_local_vertices).size(), handle.get_stream().get());
+      auto major_range_sizes = host_scalar_allgather(
+        minor_comm, (*sorted_local_vertices).size(), handle.get_stream().get());
       for (size_t i = 0; i < edgelist_majors.size(); ++i) {
         rmm::device_uvector<vertex_t> sorted_majors(0, handle.get_stream());
         {
@@ -1025,8 +1026,10 @@ std::vector<vertex_t> aggregate_offset_vectors(raft::handle_t const& handle,
   raft::update_device(d_offsets.data(), offsets.data(), offsets.size(), handle.get_stream());
   rmm::device_uvector<vertex_t> d_aggregate_offset_vectors(minor_comm_size * d_offsets.size(),
                                                            handle.get_stream());
-  minor_comm.allgather(
-    d_offsets.data(), d_aggregate_offset_vectors.data(), d_offsets.size(), handle.get_stream().get());
+  minor_comm.allgather(d_offsets.data(),
+                       d_aggregate_offset_vectors.data(),
+                       d_offsets.size(),
+                       handle.get_stream().get());
 
   std::vector<vertex_t> h_aggregate_offset_vectors(d_aggregate_offset_vectors.size(), vertex_t{0});
   raft::update_host(h_aggregate_offset_vectors.data(),
@@ -1136,7 +1139,8 @@ renumber_edgelist(
   // 2. initialize partition_t object, number_of_vertices, and number_of_edges
 
 #if 1  // FIXME: we should add host_allgather to raft
-  auto vertex_counts = host_scalar_allgather(comm, renumber_map_labels.size(), handle.get_stream().get());
+  auto vertex_counts =
+    host_scalar_allgather(comm, renumber_map_labels.size(), handle.get_stream().get());
   auto vertex_partition_ids =
     host_scalar_allgather(comm,
                           partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(

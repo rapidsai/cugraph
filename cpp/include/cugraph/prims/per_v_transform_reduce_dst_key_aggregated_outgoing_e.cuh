@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -1058,7 +1058,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       // reduce_op cannot be mapped to ncclRedOp_t, we need to implement our own multi-GPU reduce
       // function.
 
-      auto rx_sizes = host_scalar_gather(minor_comm, tmp_majors.size(), i, handle.get_stream().get());
+      auto rx_sizes =
+        host_scalar_gather(minor_comm, tmp_majors.size(), i, handle.get_stream().get());
       std::vector<size_t> rx_displs{};
       rmm::device_uvector<vertex_t> rx_majors(0, handle.get_stream());
       if (static_cast<size_t>(minor_comm_rank) == i) {

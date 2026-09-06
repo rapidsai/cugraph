@@ -575,8 +575,9 @@ per_v_select_transform_e(
 
   std::vector<size_t> local_key_list_sizes{};
   if (minor_comm_size > 1) {
-    auto& minor_comm     = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-    local_key_list_sizes = host_scalar_allgather(minor_comm, key_list.size(), handle.get_stream().get());
+    auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    local_key_list_sizes =
+      host_scalar_allgather(minor_comm, key_list.size(), handle.get_stream().get());
   } else {
     local_key_list_sizes = std::vector<size_t>{key_list.size()};
   }

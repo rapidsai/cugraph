@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -347,8 +347,8 @@ void core_number(raft::handle_t const& handle,
       if constexpr (multi_gpu) {
         auto& comm = handle.get_comms();
 #if 1  // FIXME: we should add host_allreduce to raft
-        min_core_number =
-          host_scalar_allreduce(comm, min_core_number, raft::comms::op_t::MIN, handle.get_stream().get());
+        min_core_number = host_scalar_allreduce(
+          comm, min_core_number, raft::comms::op_t::MIN, handle.get_stream().get());
 #else
         comm.host_allreduce(std::addressof(min_core_number),
                             std::addressof(min_core_number),

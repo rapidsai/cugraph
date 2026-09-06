@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -167,8 +167,10 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
   while (true) {
     aggregate_frontier_size = frontier_vertices.size();
     if constexpr (multi_gpu) {
-      aggregate_frontier_size = host_scalar_allreduce(
-        handle.get_comms(), aggregate_frontier_size, raft::comms::op_t::SUM, handle.get_stream().get());
+      aggregate_frontier_size = host_scalar_allreduce(handle.get_comms(),
+                                                      aggregate_frontier_size,
+                                                      raft::comms::op_t::SUM,
+                                                      handle.get_stream().get());
     }
     if (aggregate_frontier_size == 0) { break; }
 

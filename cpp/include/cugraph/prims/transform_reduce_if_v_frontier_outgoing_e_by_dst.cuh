@@ -1149,7 +1149,8 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
 #if 1  // FIXME: we should add host_allgather to raft
-    local_frontier_sizes = host_scalar_allgather(minor_comm, frontier.size(), handle.get_stream().get());
+    local_frontier_sizes =
+      host_scalar_allgather(minor_comm, frontier.size(), handle.get_stream().get());
 #else
     local_frontier_sizes                        = std::vector<size_t>(minor_comm.get_size(), 0);
     local_frontier_sizes[minor_comm.get_rank()] = frontier.size();

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -41,10 +41,10 @@ rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
     auto const comm_size = comm.get_size();
     auto const comm_rank = comm.get_rank();
 
-    auto global_start =
-      cugraph::host_scalar_bcast(handle.get_comms(), local_range_start, 0, handle.get_stream().get());
-    auto sub_range_sizes =
-      cugraph::host_scalar_allgather(handle.get_comms(), local_range_size, handle.get_stream().get());
+    auto global_start = cugraph::host_scalar_bcast(
+      handle.get_comms(), local_range_start, 0, handle.get_stream().get());
+    auto sub_range_sizes = cugraph::host_scalar_allgather(
+      handle.get_comms(), local_range_size, handle.get_stream().get());
     std::exclusive_scan(
       sub_range_sizes.begin(), sub_range_sizes.end(), sub_range_sizes.begin(), global_start);
     CUGRAPH_EXPECTS(

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -287,8 +287,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
   std::vector<size_t> samples_per_gpu;
 
   if constexpr (multi_gpu) {
-    samples_per_gpu = host_scalar_allgather(handle.get_comms(), num_samples, handle.get_stream().get());
-    total_samples   = std::reduce(samples_per_gpu.begin(), samples_per_gpu.end());
+    samples_per_gpu =
+      host_scalar_allgather(handle.get_comms(), num_samples, handle.get_stream().get());
+    total_samples = std::reduce(samples_per_gpu.begin(), samples_per_gpu.end());
   }
 
   size_t samples_in_this_batch = total_samples;
@@ -414,8 +415,10 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
     if (exact_number_of_samples) {
       size_t current_sample_size = srcs.size();
       if constexpr (multi_gpu) {
-        current_sample_size = cugraph::host_scalar_allreduce(
-          handle.get_comms(), current_sample_size, raft::comms::op_t::SUM, handle.get_stream().get());
+        current_sample_size = cugraph::host_scalar_allreduce(handle.get_comms(),
+                                                             current_sample_size,
+                                                             raft::comms::op_t::SUM,
+                                                             handle.get_stream().get());
       }
 
       // FIXME: We could oversample and discard the unnecessary samples

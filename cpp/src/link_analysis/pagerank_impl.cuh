@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -137,8 +137,10 @@ centrality_algorithm_metadata_t pagerank(
                                     vertex_partition.in_local_vertex_partition_range_nocheck(val));
                          });
       if constexpr (GraphViewType::is_multi_gpu) {
-        num_invalid_vertices = host_scalar_allreduce(
-          handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream().get());
+        num_invalid_vertices = host_scalar_allreduce(handle.get_comms(),
+                                                     num_invalid_vertices,
+                                                     raft::comms::op_t::SUM,
+                                                     handle.get_stream().get());
       }
       CUGRAPH_EXPECTS(num_invalid_vertices == 0,
                       "Invalid input argument: peresonalization vertices have invalid vertex IDs.");
@@ -147,8 +149,10 @@ centrality_algorithm_metadata_t pagerank(
                                                   std::get<1>(*personalization).end(),
                                                   [] __device__(auto val) { return val < 0.0; });
       if constexpr (GraphViewType::is_multi_gpu) {
-        num_negative_values = host_scalar_allreduce(
-          handle.get_comms(), num_negative_values, raft::comms::op_t::SUM, handle.get_stream().get());
+        num_negative_values = host_scalar_allreduce(handle.get_comms(),
+                                                    num_negative_values,
+                                                    raft::comms::op_t::SUM,
+                                                    handle.get_stream().get());
       }
       CUGRAPH_EXPECTS(num_negative_values == 0,
                       "Invalid input argument: peresonalization values should be non-negative.");

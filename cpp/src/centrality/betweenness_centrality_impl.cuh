@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -1318,8 +1318,10 @@ rmm::device_uvector<weight_t> betweenness_centrality(
                                   vertex_partition.in_local_vertex_partition_range_nocheck(val));
                        });
     if constexpr (multi_gpu) {
-      num_invalid_vertices = host_scalar_allreduce(
-        handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream().get());
+      num_invalid_vertices = host_scalar_allreduce(handle.get_comms(),
+                                                   num_invalid_vertices,
+                                                   raft::comms::op_t::SUM,
+                                                   handle.get_stream().get());
     }
     CUGRAPH_EXPECTS(num_invalid_vertices == 0,
                     "Invalid input argument: sources have invalid vertex IDs.");
@@ -1514,8 +1516,10 @@ edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
                                   vertex_partition.in_local_vertex_partition_range_nocheck(val));
                        });
     if constexpr (multi_gpu) {
-      num_invalid_vertices = host_scalar_allreduce(
-        handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream().get());
+      num_invalid_vertices = host_scalar_allreduce(handle.get_comms(),
+                                                   num_invalid_vertices,
+                                                   raft::comms::op_t::SUM,
+                                                   handle.get_stream().get());
     }
     CUGRAPH_EXPECTS(num_invalid_vertices == 0,
                     "Invalid input argument: sources have invalid vertex IDs.");

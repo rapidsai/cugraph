@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -211,8 +211,8 @@ void bfs(raft::handle_t const& handle,
     if constexpr (GraphViewType::is_multi_gpu) {
       auto tmp = static_cast<int32_t>(is_sorted);
 #if 1  // FIXME: we should add host_allreduce to raft
-      tmp =
-        host_scalar_allreduce(handle.get_comms(), tmp, raft::comms::op_t::MIN, handle.get_stream().get());
+      tmp = host_scalar_allreduce(
+        handle.get_comms(), tmp, raft::comms::op_t::MIN, handle.get_stream().get());
 #else
       handle.get_comms().host_allreduce(
         std::addressof(tmp), std::addressof(tmp), size_t{1}, raft::comms::op_t::MIN);
@@ -231,8 +231,8 @@ void bfs(raft::handle_t const& handle,
     if constexpr (GraphViewType::is_multi_gpu) {
       auto tmp = static_cast<int32_t>(no_duplicates);
 #if 1  // FIXME: we should add host_allreduce to raft
-      tmp =
-        host_scalar_allreduce(handle.get_comms(), tmp, raft::comms::op_t::MIN, handle.get_stream().get());
+      tmp = host_scalar_allreduce(
+        handle.get_comms(), tmp, raft::comms::op_t::MIN, handle.get_stream().get());
 #else
       handle.get_comms().host_allreduce(
         std::addressof(tmp), std::addressof(tmp), size_t{1}, raft::comms::op_t::MIN);
@@ -252,8 +252,10 @@ void bfs(raft::handle_t const& handle,
                        });
     if constexpr (GraphViewType::is_multi_gpu) {
 #if 1  // FIXME: we should add host_allreduce to raft
-      num_invalid_vertices = host_scalar_allreduce(
-        handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream().get());
+      num_invalid_vertices = host_scalar_allreduce(handle.get_comms(),
+                                                   num_invalid_vertices,
+                                                   raft::comms::op_t::SUM,
+                                                   handle.get_stream().get());
 #else
       handle.get_comms().host_allreduce(std::addressof(num_invalid_vertices),
                                         std::addressof(num_invalid_vertices),
@@ -434,8 +436,10 @@ void bfs(raft::handle_t const& handle,
   vertex_t cur_aggregate_frontier_size = cur_frontier_view.size();
   if constexpr (GraphViewType::is_multi_gpu) {
 #if 1  // FIXME: we should add host_allreduce to raft
-    cur_aggregate_frontier_size = host_scalar_allreduce(
-      handle.get_comms(), cur_aggregate_frontier_size, raft::comms::op_t::SUM, handle.get_stream().get());
+    cur_aggregate_frontier_size = host_scalar_allreduce(handle.get_comms(),
+                                                        cur_aggregate_frontier_size,
+                                                        raft::comms::op_t::SUM,
+                                                        handle.get_stream().get());
 #else
     handle.get_comms().host_allreduce(std::addressof(cur_aggregate_frontier_size),
                                       std::addressof(cur_aggregate_frontier_size),
