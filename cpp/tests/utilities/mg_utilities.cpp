@@ -11,6 +11,8 @@
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
 
+#include <cuda/stream>
+
 #include <vector>
 
 namespace cugraph {
@@ -38,7 +40,7 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle(size_t pool_size)
 {
   std::unique_ptr<raft::handle_t> handle{nullptr};
 
-  handle = std::make_unique<raft::handle_t>(rmm::cuda_stream_per_thread,
+  handle = std::make_unique<raft::handle_t>(cuda::stream_ref{cudaStreamPerThread},
                                             std::make_shared<rmm::cuda_stream_pool>(pool_size));
 
   auto comm_size = query_mpi_comm_world_size();

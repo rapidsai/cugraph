@@ -18,6 +18,8 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/cuda_memory_resource.hpp>
 
+#include <cuda/stream>
+
 #include <gtest/gtest.h>
 
 struct Egonet_Usecase {
@@ -47,7 +49,7 @@ class Tests_Egonet : public ::testing::TestWithParam<std::tuple<Egonet_Usecase, 
 
     auto n_streams   = std::min(egonet_usecase.ego_sources_.size(), size_t{128});
     auto stream_pool = std::make_shared<rmm::cuda_stream_pool>(n_streams);
-    raft::handle_t handle(rmm::cuda_stream_per_thread, stream_pool);
+    raft::handle_t handle(cuda::stream_ref{cudaStreamPerThread}, stream_pool);
 
     bool renumber = true;
 

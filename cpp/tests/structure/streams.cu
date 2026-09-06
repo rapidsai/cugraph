@@ -12,6 +12,7 @@
 #include <rmm/exec_policy.hpp>
 #include <rmm/mr/cuda_memory_resource.hpp>
 
+#include <cuda/stream>
 #include <thrust/transform.h>
 
 struct StreamTest : public ::testing::Test {};
@@ -20,7 +21,7 @@ TEST_F(StreamTest, basic_test)
 {
   size_t n_streams = 4;
   auto stream_pool = std::make_shared<rmm::cuda_stream_pool>(n_streams);
-  raft::handle_t handle(rmm::cuda_stream_per_thread, stream_pool);
+  raft::handle_t handle(cuda::stream_ref{cudaStreamPerThread}, stream_pool);
 
   const size_t input_size = 4096;
 
