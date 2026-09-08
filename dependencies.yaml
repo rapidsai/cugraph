@@ -14,6 +14,7 @@ files:
       - cpp_build
       - cuda
       - cuda_version
+      - cutile_python
       - depends_on_cudf
       - depends_on_cupy
       - depends_on_dask_cuda
@@ -149,6 +150,7 @@ files:
     extras:
       table: build-system
     includes:
+      - cutile_python
       - python_build_rapids
       - python_build_skbuild
   py_rapids_build_libcugraph:
@@ -391,6 +393,32 @@ dependencies:
               arch: aarch64
             packages:
               - gcc_linux-aarch64=14.*
+  # build-time dependency on 'cuda-tile' for building cuVS from source.
+  #
+  # NOTE: 'tileiras' is needed too, but in CI that's provided by a system-installed CTK.
+  cutile_python:
+    specific:
+      - output_types: [requirements, pyproject]
+        matrices:
+          # if use_cuda_wheels=false is provided, do not add dependencies on any CUDA wheels
+          # (e.g. for DLFW and pip devcontainers)
+          - matrix:
+              use_cuda_wheels: "false"
+            packages:
+          - matrix:
+              cuda: "12.*"
+              use_cuda_wheels: "true"
+            packages:
+          - matrix:
+              cuda: "13.*"
+              use_cuda_wheels: "true"
+            packages:
+              - &cutile_python_cu13 cuda-tile
+          # if no matching matrix selectors passed, list the CUDA 13 requirement
+          # (as a source of documentation in the generated pyproject.toml)
+          - matrix:
+            packages:
+              - *cutile_python_cu13
   docs:
     common:
       - output_types: [conda]
