@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import cudf
-from cugraph import Graph
 
 
 def degree_centrality(G: Graph, normalized=True) -> cudf.DataFrame:
