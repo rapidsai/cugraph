@@ -400,18 +400,11 @@ dependencies:
     specific:
       - output_types: [requirements, pyproject]
         matrices:
-          # if use_cuda_wheels=false is provided, do not add dependencies on any CUDA wheels
-          # (e.g. for DLFW and pip devcontainers)
-          - matrix:
-              use_cuda_wheels: "false"
-            packages:
           - matrix:
               cuda: "12.*"
-              use_cuda_wheels: "true"
             packages:
           - matrix:
               cuda: "13.*"
-              use_cuda_wheels: "true"
             packages:
               - &cutile_python_cu13 cuda-tile
           # if no matching matrix selectors passed, list the CUDA 13 requirement
