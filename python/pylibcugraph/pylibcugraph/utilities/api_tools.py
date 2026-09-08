@@ -346,8 +346,14 @@ def ensure_valid_dtypes(
         edge_id_array,
     ]
     temporal_args = [edge_start_time_array, edge_stop_time_array]
-    vertex_types = {arg.dtype for arg in vertex_args if arg is not None}
-    temporal_types = {arg.dtype for arg in temporal_args if arg is not None}
+    from pylibcugraph.utils import get_c_type_from_py_obj
+
+    vertex_types = {
+        get_c_type_from_py_obj(arg) for arg in vertex_args if arg is not None
+    }
+    temporal_types = {
+        get_c_type_from_py_obj(arg) for arg in temporal_args if arg is not None
+    }
 
     if len(vertex_types) > 1:
         warning_msg = (

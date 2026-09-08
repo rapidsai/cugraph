@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -38,7 +38,7 @@ from pylibcugraph.graphs cimport (
 from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
-    assert_CAI_type,
+    assert_device_accessible,
     create_cugraph_type_erased_device_array_view_from_py_obj
 )
 from pylibcugraph._cugraph_c.array cimport (
@@ -214,63 +214,63 @@ def force_atlas2(ResourceHandle resource_handle,
 
     cdef cugraph_type_erased_device_array_t* pos_ptr
 
-    assert_CAI_type(start_vertices, "start_vertices", True)
+    assert_device_accessible(start_vertices, "start_vertices", True)
 
     cdef cugraph_type_erased_device_array_view_t* \
         start_vertices_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 start_vertices)
 
-    assert_CAI_type(x_start, "x_start", True)
+    assert_device_accessible(x_start, "x_start", True)
 
     cdef cugraph_type_erased_device_array_view_t* \
         x_start_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 x_start)
 
-    assert_CAI_type(y_start, "y_start", True)
+    assert_device_accessible(y_start, "y_start", True)
 
     cdef cugraph_type_erased_device_array_view_t* \
         y_start_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 y_start)
 
-    assert_CAI_type(vertex_radius_vertices, "vertex_radius_vertices", True)
+    assert_device_accessible(vertex_radius_vertices, "vertex_radius_vertices", True)
 
     cdef cugraph_type_erased_device_array_view_t* \
         vertex_radius_vertices_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 vertex_radius_vertices)
 
-    assert_CAI_type(vertex_radius_values, "vertex_radius_values", True)
+    assert_device_accessible(vertex_radius_values, "vertex_radius_values", True)
 
     cdef cugraph_type_erased_device_array_view_t* \
         vertex_radius_values_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 vertex_radius_values)
 
-    assert_CAI_type(vertex_mobility_vertices, "vertex_mobility_vertices", True)
+    assert_device_accessible(vertex_mobility_vertices, "vertex_mobility_vertices", True)
 
     cdef cugraph_type_erased_device_array_view_t* \
         vertex_mobility_vertices_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 vertex_mobility_vertices)
 
-    assert_CAI_type(vertex_mobility_values, "vertex_mobility_values", True)
+    assert_device_accessible(vertex_mobility_values, "vertex_mobility_values", True)
 
     cdef cugraph_type_erased_device_array_view_t* \
         vertex_mobility_values_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 vertex_mobility_values)
 
-    assert_CAI_type(vertex_mass_vertices, "vertex_mass_vertices", True)
+    assert_device_accessible(vertex_mass_vertices, "vertex_mass_vertices", True)
 
     cdef cugraph_type_erased_device_array_view_t* \
         vertex_mass_vertices_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 vertex_mass_vertices)
 
-    assert_CAI_type(vertex_mass_values, "vertex_mass_values", True)
+    assert_device_accessible(vertex_mass_values, "vertex_mass_values", True)
 
     cdef cugraph_type_erased_device_array_view_t* \
         vertex_mass_values_view_ptr = \

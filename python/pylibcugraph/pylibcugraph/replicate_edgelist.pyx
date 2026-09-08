@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -32,7 +32,7 @@ from pylibcugraph.resource_handle cimport (
 )
 from pylibcugraph.utils cimport (
     assert_success,
-    assert_CAI_type,
+    assert_device_accessible,
     copy_to_cupy_array,
     create_cugraph_type_erased_device_array_view_from_py_obj
 )
@@ -88,11 +88,11 @@ def replicate_edgelist(ResourceHandle resource_handle,
         return cupy arrays of 'src' and/or 'dst' and/or 'weight'and/or 'edge_id'
         and/or 'edge_type_id'.
     """
-    assert_CAI_type(src_array, "src_array", True)
-    assert_CAI_type(dst_array, "dst_array", True)
-    assert_CAI_type(weight_array, "weight_array", True)
-    assert_CAI_type(edge_id_array, "edge_id_array", True)
-    assert_CAI_type(edge_type_id_array, "edge_type_id_array", True)
+    assert_device_accessible(src_array, "src_array", True)
+    assert_device_accessible(dst_array, "dst_array", True)
+    assert_device_accessible(weight_array, "weight_array", True)
+    assert_device_accessible(edge_id_array, "edge_id_array", True)
+    assert_device_accessible(edge_type_id_array, "edge_type_id_array", True)
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
 

@@ -1,10 +1,8 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
 # cython: language_level = 3
-
-from libc.stdint cimport uintptr_t
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
@@ -15,7 +13,6 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
-    cugraph_type_erased_device_array_view_create,
     cugraph_type_erased_device_array_view_free,
 )
 from pylibcugraph._cugraph_c.graph cimport (
@@ -43,8 +40,9 @@ from pylibcugraph.random cimport (
 from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
-    assert_CAI_type,
+    assert_device_accessible,
     get_c_type_from_numpy_type,
+    create_cugraph_type_erased_device_array_view_from_py_obj,
 )
 
 
@@ -123,7 +121,7 @@ def node2vec_random_walks(ResourceHandle resource_handle,
     except ModuleNotFoundError:
         raise RuntimeError("node2vec requires the cupy package, which could not "
                            "be imported")
-    assert_CAI_type(seed_array, "seed_array")
+    assert_device_accessible(seed_array, "seed_array")
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
@@ -133,13 +131,8 @@ def node2vec_random_walks(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    cdef uintptr_t cai_seed_ptr = \
-        seed_array.__cuda_array_interface__["data"][0]
     cdef cugraph_type_erased_device_array_view_t* seed_view_ptr = \
-        cugraph_type_erased_device_array_view_create(
-            <void*>cai_seed_ptr,
-            len(seed_array),
-            get_c_type_from_numpy_type(seed_array.dtype))
+        create_cugraph_type_erased_device_array_view_from_py_obj(seed_array)
 
     cg_rng_state = CuGraphRandomState(resource_handle, random_state)
 

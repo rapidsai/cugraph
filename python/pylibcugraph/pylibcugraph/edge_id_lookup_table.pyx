@@ -13,10 +13,8 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
-    cugraph_type_erased_device_array_view_create,
     cugraph_type_erased_device_array_view_free,
     cugraph_type_erased_host_array_view_t,
-    cugraph_type_erased_host_array_view_create,
     cugraph_type_erased_host_array_view_free,
 )
 from pylibcugraph._cugraph_c.graph cimport (
@@ -31,8 +29,8 @@ from pylibcugraph._cugraph_c.lookup_src_dst cimport (
 )
 from pylibcugraph.utils cimport (
     assert_success,
-    assert_CAI_type,
-    assert_AI_type,
+    assert_device_accessible,
+    assert_host_accessible,
     get_c_type_from_numpy_type,
     create_cugraph_type_erased_device_array_view_from_py_obj
 )
