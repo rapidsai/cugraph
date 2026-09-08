@@ -159,6 +159,7 @@ files:
       key: requires
     includes:
       - common_build
+      - depends_on_libcuvs
       - depends_on_librmm
       - depends_on_libraft
   py_run_libcugraph:
