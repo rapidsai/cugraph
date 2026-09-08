@@ -322,50 +322,35 @@ dependencies:
     common:
       - output_types: [conda]
         packages:
-          - cuda-nvrtc-dev
           - cuda-nvtx-dev
           - cuda-profiler-api
           - libcublas-dev
           - libcurand-dev
           - libcusolver-dev
           - libcusparse-dev
-          - libnvjitlink-dev
   cuda_wheels:
     specific:
-      # cuGraph needs 'nvJitLink>={whatever-cuvs-was-built-against}' at runtime, and mixing
-      # old-CTK with new-nvJitLink is supported, so maintain 1 entry here per CUDA major.minor
-      # cuVS is built against.
-      #
-      # nvJitLink has historically roughly followed the CTK's minor versioning scheme,
-      # but check at https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html
       - output_types: [requirements, pyproject]
         matrices:
           # skip this whole group if explicitly opting out of CUDA wheels
           - matrix:
               use_cuda_wheels: "false"
             packages:
-          # We always want nvJitLink >= whatever minor version was available in the build environment
-          # nvJitLink tends to follow the CTK's minor versions, but check at https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html
-          #
-          # ref: https://github.com/rapidsai/cudf/pull/20873
           - matrix:
               cuda: "12.9"
               use_cuda_wheels: "true"
             packages:
-              - cuda-toolkit[cublas,curand,cusolver,cusparse,nvrtc]==12.*
-              - nvidia-nvjitlink-cu12>=12.9,<13
+              - cuda-toolkit[cublas,curand,cusolver,cusparse]==12.*
           - matrix:
               cuda: "13.*"
               use_cuda_wheels: "true"
             packages:
-              - &ctk_cu13 cuda-toolkit[cublas,curand,cusolver,cusparse,nvrtc]==13.*
-              - &nvjitlink_cu13 nvidia-nvjitlink>=13.3,<14
+              - &ctk_cu13 cuda-toolkit[cublas,curand,cusolver,cusparse]==13.*
           # if no matching matrix selectors passed, list the CUDA 13 requirement
           # (just as a source of documentation, as this populates pyproject.toml in source control)
           - matrix:
             packages:
               - *ctk_cu13
-              - *nvjitlink_cu13
   common_build:
     common:
       - output_types: [conda, requirements, pyproject]
