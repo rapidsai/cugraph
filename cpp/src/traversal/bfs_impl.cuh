@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -712,7 +712,7 @@ void bfs(raft::handle_t const& handle,
             detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
           predecessor_buffer.begin(),
           thrust::make_zip_iterator(distances, predecessor_first),
-          detail::is_not_equal_t<vertex_t>{invalid_vertex});
+          detail::is_not_equal_to_t<vertex_t>{invalid_vertex});
 
         new_frontier_vertex_buffer.resize(predecessor_buffer.size(), handle.get_stream());
         new_frontier_vertex_buffer.resize(
@@ -722,7 +722,7 @@ void bfs(raft::handle_t const& handle,
                                               cur_frontier_view.cend(),
                                               predecessor_buffer.begin(),
                                               new_frontier_vertex_buffer.begin(),
-                                              detail::is_not_equal_t<vertex_t>{invalid_vertex})),
+                                              detail::is_not_equal_to_t<vertex_t>{invalid_vertex})),
           handle.get_stream());
 
         assert(direction_optimizing);
