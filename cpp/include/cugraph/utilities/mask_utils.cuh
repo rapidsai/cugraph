@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -111,7 +111,7 @@ __device__ size_t copy_if_mask_set(InputIterator input_first,
                                     check_bit_set_t<MaskIterator, size_t>{mask_first, size_t{0}}) +
         input_start_offset,
       output_first + output_start_offset,
-      is_equal_t<bool>{true})));
+      is_equal_to_const_t<bool, true>{})));
 }
 
 /** Whether @p InputIterator / @p OutputIterator match an out-of-line @ref copy_if_mask_set_impl. */
@@ -156,7 +156,7 @@ OutputIterator copy_if_mask_set(raft::handle_t const& handle,
                              thrust::make_counting_iterator(size_t{0}),
                              check_bit_set_t<uint32_t const*, size_t>{mask_first, size_t{0}}),
                            output_first,
-                           is_equal_t<bool>{true});
+                           is_equal_to_const_t<bool, true>{});
   }
 }
 
@@ -179,7 +179,7 @@ OutputIterator copy_if_mask_unset(raft::handle_t const& handle,
                              thrust::make_counting_iterator(size_t{0}),
                              check_bit_set_t<uint32_t const*, size_t>{mask_first, size_t{0}}),
                            output_first,
-                           is_equal_t<bool>{false});
+                           is_equal_to_const_t<bool, false>{});
   }
 }
 

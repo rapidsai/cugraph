@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -589,7 +589,7 @@ class kv_cuco_store_t {
                          store_value_offsets.begin() /* map */,
                          store_value_offsets.begin() /* stencil */,
                          get_optional_dataframe_buffer_begin<value_t>(store_values_),
-                         is_not_equal_t<size_t>{std::numeric_limits<size_t>::max()});
+                         is_not_equal_to_const_t<size_t, std::numeric_limits<size_t>::max()>{});
     }
   }
 
@@ -641,7 +641,7 @@ class kv_cuco_store_t {
                          store_value_offsets.begin() /* map */,
                          store_value_offsets.begin() /* stencil */,
                          get_optional_dataframe_buffer_begin<value_t>(store_values_),
-                         is_not_equal_t<size_t>{std::numeric_limits<size_t>::max()});
+                         is_not_equal_to_const_t<size_t, std::numeric_limits<size_t>::max()>{});
     }
   }
 
@@ -693,7 +693,7 @@ class kv_cuco_store_t {
                          store_value_offsets.begin() /* map */,
                          store_value_offsets.begin() /* stencil */,
                          get_optional_dataframe_buffer_begin<value_t>(store_values_),
-                         is_not_equal_t<size_t>{std::numeric_limits<size_t>::max()});
+                         is_not_equal_to_const_t<size_t, std::numeric_limits<size_t>::max()>{});
 
       // now perform assigns (for k,v pairs that failed to insert)
 
