@@ -1692,8 +1692,10 @@ int mg_validate_sample_result(const cugraph_resource_handle_t* handle,
           }
         }
 
-        if (validate_edge_times) {
-          // Check that the edge times are moving in the correct direction
+        if (validate_edge_times && internal_sampling_options->fixed_window_ != TRUE) {
+          // Check that the edge times are moving in the correct direction. fixed_window is
+          // excluded because it reuses the original seed window at every hop and does not impose
+          // path-wise monotonicity.
           time_stamp_t previous_vertex_times[num_vertices];
           for (size_t i = 0; i < num_vertices; ++i)
             if (temporal_sampling_comparison == STRICTLY_INCREASING) {

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -34,6 +34,9 @@ namespace CUGRAPH_EXPORT cugraph {
  *
  * @param[in]  graph          cuGraph graph in coordinate format
  * @param[in]  mr             Memory resource used to allocate the returned graph
+ *
+ * @note Synchronizes the internal CUDA stream before returning so callers may use the
+ *       returned CSR on a different stream without additional ordering.
  *
  * @return                    Unique pointer to generate Compressed Sparse Row graph
  *

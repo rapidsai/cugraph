@@ -20,6 +20,9 @@ project(
   LANGUAGES CXX CUDA
 )
 
+# Find C++ libraries from RAPIDS wheels in site-packages.
+set_property(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS TRUE)
+
 find_package(cugraph "${RAPIDS_VERSION}" REQUIRED)
 
 # an installed version of libcugraph doesn't provide the dlpack headers so we

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 /*
@@ -153,6 +153,11 @@ std::unique_ptr<legacy::GraphCSR<VT, ET, WT>> coo_to_csr(
     std::make_unique<rmm::device_buffer>(std::move(offsets)),
     std::move(coo_contents.dst_indices),
     std::move(coo_contents.edge_data)};
+
+  // All conversion work runs on stream_view, which callers do not share (for example
+  // raft::handle_t defaults to cudaStreamPerThread). Synchronize before returning so
+  // downstream algorithms can safely consume the CSR buffers on any stream.
+  stream_view.synchronize();
 
   return std::make_unique<legacy::GraphCSR<VT, ET, WT>>(std::move(csr_contents));
 }
