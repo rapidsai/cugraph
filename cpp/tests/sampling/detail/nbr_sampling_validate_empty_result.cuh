@@ -111,7 +111,7 @@ bool validate_sampling_empty_result(
 
   if constexpr (multi_gpu) {
     num_eligible = cugraph::host_scalar_allreduce(
-      handle.get_comms(), num_eligible, raft::comms::op_t::SUM, handle.get_stream());
+      handle.get_comms(), num_eligible, raft::comms::op_t::SUM, handle.get_stream().get());
   }
 
   return num_eligible == 0;
@@ -222,7 +222,7 @@ bool validate_sampling_empty_result(
 
   if constexpr (multi_gpu) {
     num_eligible = cugraph::host_scalar_allreduce(
-      handle.get_comms(), num_eligible, raft::comms::op_t::SUM, handle.get_stream());
+      handle.get_comms(), num_eligible, raft::comms::op_t::SUM, handle.get_stream().get());
   }
 
   return num_eligible == 0;

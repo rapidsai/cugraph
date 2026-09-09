@@ -141,7 +141,7 @@ std::unique_ptr<legacy::GraphCSR<VT, ET, WT>> coo_to_csr(
 {
   rmm::cuda_stream_view stream_view;
 
-  legacy::GraphCOO<VT, ET, WT> temp_graph(graph, stream_view.value(), mr);
+  legacy::GraphCOO<VT, ET, WT> temp_graph(graph, stream_view.get(), mr);
   legacy::GraphCOOView<VT, ET, WT> temp_graph_view = temp_graph.view();
   VT total_vertex_count                            = detail::sort(temp_graph_view, stream_view);
   rmm::device_buffer offsets                       = detail::create_offset(
@@ -157,7 +157,7 @@ std::unique_ptr<legacy::GraphCSR<VT, ET, WT>> coo_to_csr(
   // All conversion work runs on stream_view, which callers do not share (for example
   // raft::handle_t defaults to cudaStreamPerThread). Synchronize before returning so
   // downstream algorithms can safely consume the CSR buffers on any stream.
-  stream_view.synchronize();
+  stream_view.sync();
 
   return std::make_unique<legacy::GraphCSR<VT, ET, WT>>(std::move(csr_contents));
 }

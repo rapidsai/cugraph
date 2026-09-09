@@ -716,7 +716,7 @@ nbr_intersection(raft::handle_t const& handle,
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& comm = handle.get_comms();
       is_sorted  = static_cast<bool>(host_scalar_allreduce(
-        comm, static_cast<int>(is_sorted), raft::comms::op_t::MIN, handle.get_stream()));
+        comm, static_cast<int>(is_sorted), raft::comms::op_t::MIN, handle.get_stream().get()));
     }
     CUGRAPH_EXPECTS(is_sorted, "Invalid input arguments: input vertex pairs should be sorted.");
 
@@ -778,7 +778,7 @@ nbr_intersection(raft::handle_t const& handle,
           // calls, perform local sort and unique, and call multiple broadcasts rather than
           // performing sort and unique for the entire range in every GPU in minor_comm.
           auto rx_counts =
-            host_scalar_allgather(minor_comm, unique_majors.size(), handle.get_stream());
+            host_scalar_allgather(minor_comm, unique_majors.size(), handle.get_stream().get());
           std::vector<size_t> rx_displacements(rx_counts.size());
           std::exclusive_scan(
             rx_counts.begin(), rx_counts.end(), rx_displacements.begin(), size_t{0});
@@ -1155,7 +1155,7 @@ nbr_intersection(raft::handle_t const& handle,
 
     for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
       auto rx_v_pair_counts =
-        host_scalar_allgather(minor_comm, input_counts[i], handle.get_stream());
+        host_scalar_allgather(minor_comm, input_counts[i], handle.get_stream().get());
       std::vector<size_t> rx_v_pair_displacements(rx_v_pair_counts.size());
       std::exclusive_scan(rx_v_pair_counts.begin(),
                           rx_v_pair_counts.end(),

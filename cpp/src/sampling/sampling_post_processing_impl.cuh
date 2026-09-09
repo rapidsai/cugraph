@@ -658,7 +658,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
                                            h_label_offsets[i + 1] - h_label_offsets[i],
                                            offset_first,
                                            offset_first + 1,
-                                           handle.get_stream());
+                                           handle.get_stream().get());
 
         if (tmp_storage_bytes > d_tmp_storage.size()) {
           d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
@@ -672,7 +672,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
                                            h_label_offsets[i + 1] - h_label_offsets[i],
                                            offset_first,
                                            offset_first + 1,
-                                           handle.get_stream());
+                                           handle.get_stream().get());
       }
       d_tmp_storage.resize(0, handle.get_stream());
       d_tmp_storage.shrink_to_fit(handle.get_stream());
@@ -723,7 +723,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
                                          (*seed_vertex_label_offsets).size() - 1,
                                          (*seed_vertex_label_offsets).begin(),
                                          (*seed_vertex_label_offsets).begin() + 1,
-                                         handle.get_stream());
+                                         handle.get_stream().get());
 
       if (tmp_storage_bytes > d_tmp_storage.size()) {
         d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
@@ -737,7 +737,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
                                          (*seed_vertex_label_offsets).size() - 1,
                                          (*seed_vertex_label_offsets).begin(),
                                          (*seed_vertex_label_offsets).begin() + 1,
-                                         handle.get_stream());
+                                         handle.get_stream().get());
 
       /* enumerate unique (label, vertex) pairs */
 
@@ -1854,7 +1854,7 @@ renumber_sampled_edgelist(raft::handle_t const& handle,
                                           h_label_offsets[i + 1] - h_label_offsets[i],
                                           offset_first,
                                           offset_first + 1,
-                                          handle.get_stream());
+                                          handle.get_stream().get());
 
       if (tmp_storage_bytes > d_tmp_storage.size()) {
         d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
@@ -1870,7 +1870,7 @@ renumber_sampled_edgelist(raft::handle_t const& handle,
                                           h_label_offsets[i + 1] - h_label_offsets[i],
                                           offset_first,
                                           offset_first + 1,
-                                          handle.get_stream());
+                                          handle.get_stream().get());
     }
     new_vertices.resize(0, handle.get_stream());
     d_tmp_storage.resize(0, handle.get_stream());
@@ -2126,7 +2126,7 @@ heterogeneous_renumber_sampled_edgelist(
         h_label_offsets[i + 1] - h_label_offsets[i],
         offset_first,
         offset_first + 1,
-        handle.get_stream());
+        handle.get_stream().get());
 
       if (tmp_storage_bytes > d_tmp_storage.size()) {
         d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
@@ -2143,7 +2143,7 @@ heterogeneous_renumber_sampled_edgelist(
         h_label_offsets[i + 1] - h_label_offsets[i],
         offset_first,
         offset_first + 1,
-        handle.get_stream());
+        handle.get_stream().get());
     }
 
     new_vertices.resize(0, handle.get_stream());
@@ -2340,7 +2340,7 @@ heterogeneous_renumber_sampled_edgelist(
           h_label_offsets[i + 1] - h_label_offsets[i],
           offset_first,
           offset_first + 1,
-          handle.get_stream());
+          handle.get_stream().get());
 
         if (tmp_storage_bytes > d_tmp_storage.size()) {
           d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
@@ -2357,7 +2357,7 @@ heterogeneous_renumber_sampled_edgelist(
           h_label_offsets[i + 1] - h_label_offsets[i],
           offset_first,
           offset_first + 1,
-          handle.get_stream());
+          handle.get_stream().get());
       }
 
       new_edge_ids.resize(0, handle.get_stream());
