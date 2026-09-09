@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -120,8 +120,8 @@ size_t count_invalid_vertex_pairs(raft::handle_t const& handle,
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& comm = handle.get_comms();
 #if 1  // FIXME: we should add host_allreduce to raft
-    num_invalid_pairs =
-      host_scalar_allreduce(comm, num_invalid_pairs, raft::comms::op_t::SUM, handle.get_stream());
+    num_invalid_pairs = host_scalar_allreduce(
+      comm, num_invalid_pairs, raft::comms::op_t::SUM, handle.get_stream().get());
 #else
     comm.host_allreduce(std::addressof(num_invalid_pairs),
                         std::addressof(num_invalid_pairs),

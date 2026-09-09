@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2017-2026, NVIDIA CORPORATION.  All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2017-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -438,13 +438,13 @@ class concurrent_unordered_map {
                                   other.m_hashtbl_values,
                                   m_capacity * sizeof(value_type),
                                   cudaMemcpyDefault,
-                                  stream.value()));
+                                  stream.get()));
   }
 
   void clear_async(rmm::cuda_stream_view stream)
   {
     constexpr int block_size = 128;
-    init_hashtbl<<<((m_capacity - 1) / block_size) + 1, block_size, 0, stream.value()>>>(
+    init_hashtbl<<<((m_capacity - 1) / block_size) + 1, block_size, 0, stream.get()>>>(
       m_hashtbl_values, m_capacity, m_unused_key, m_unused_element);
   }
 
@@ -541,10 +541,10 @@ class concurrent_unordered_map {
     }
 
     if (m_capacity > 0) {
-      init_hashtbl<<<((m_capacity - 1) / block_size) + 1, block_size, 0, stream.value()>>>(
+      init_hashtbl<<<((m_capacity - 1) / block_size) + 1, block_size, 0, stream.get()>>>(
         m_hashtbl_values, m_capacity, m_unused_key, m_unused_element);
     }
 
-    CUDF_CHECK_CUDA(stream.value());
+    CUDF_CHECK_CUDA(stream.get());
   }
 };

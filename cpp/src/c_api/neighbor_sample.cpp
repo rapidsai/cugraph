@@ -207,7 +207,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           // count, so a rank's displacement into that space is both the offset to apply to its own
           // labels and its displacement into the concatenated label to rank mapping below.
           auto recvcounts = cugraph::host_scalar_allgather(
-            handle_.get_comms(), num_local_labels, handle_.get_stream());
+            handle_.get_comms(), num_local_labels, handle_.get_stream().get());
 
           std::vector<size_t> displacements(recvcounts.size());
           std::exclusive_scan(
