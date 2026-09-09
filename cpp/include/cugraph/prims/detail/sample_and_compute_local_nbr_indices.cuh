@@ -329,7 +329,7 @@ struct zero_bias_degree_decrement_op_t {
     auto bias = cuda::std::get<0>(pair);
     if (bias == 0.0) {
       auto i   = cuda::std::get<1>(pair);
-      auto idx = segment_id_t<size_t>{offsets.subspan(1)}(i);
+      auto idx = segment_id_t<size_t>{offsets}(i);
       cuda::atomic_ref<size_t, cuda::thread_scope_device> degree(degrees[idx]);
       degree.fetch_sub(size_t{1}, cuda::std::memory_order_relaxed);
     }
@@ -1526,7 +1526,7 @@ rmm::device_uvector<edge_t> compute_homogeneous_uniform_sampling_index_without_r
             handle.get_thrust_policy(),
             (*retry_segment_indices).begin(),
             (*retry_segment_indices).end(),
-            indirection_and_is_greater_than_or_equal_to_t<edge_t>{
+            indirection_and_is_greater_than_or_equal_t<edge_t>{
               raft::device_span<edge_t const>(unique_counts.data(), unique_counts.size()),
               static_cast<edge_t>(K)});
           auto num_retry_segments = cuda::std::distance((*retry_segment_indices).begin(), last);
@@ -1549,7 +1549,7 @@ rmm::device_uvector<edge_t> compute_homogeneous_uniform_sampling_index_without_r
               thrust::make_counting_iterator(size_t{0}),
               thrust::make_counting_iterator(num_segments),
               (*retry_segment_indices).begin(),
-              indirection_and_is_less_than_to_t<edge_t>{
+              indirection_and_is_less_than_t<edge_t>{
                 raft::device_span<edge_t const>(unique_counts.data(), unique_counts.size()),
                 static_cast<edge_t>(K)});
           }
@@ -3285,11 +3285,9 @@ biased_sample_with_replacement(
   {
     auto unique_key_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(size_t{0}),
-      segment_id_t<size_t>{
-        raft::device_span<size_t const>(
-          aggregate_local_frontier_unique_key_per_type_local_degree_offsets.data(),
-          aggregate_local_frontier_unique_key_per_type_local_degree_offsets.size())
-          .subspan(1)});
+      segment_id_t<size_t>{raft::device_span<size_t const>(
+        aggregate_local_frontier_unique_key_per_type_local_degree_offsets.data(),
+        aggregate_local_frontier_unique_key_per_type_local_degree_offsets.size())});
     thrust::inclusive_scan_by_key(
       handle.get_thrust_policy(),
       unique_key_first,

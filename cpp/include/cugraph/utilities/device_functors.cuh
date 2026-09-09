@@ -143,7 +143,7 @@ struct is_greater_than_or_equal_to_t {
 };
 
 template <typename T>
-struct indirection_and_is_less_than_to_t {
+struct indirection_and_is_less_than_t {
   raft::device_span<T const> values{};
   T threshold{};
 
@@ -151,7 +151,7 @@ struct indirection_and_is_less_than_to_t {
 };
 
 template <typename T>
-struct indirection_and_is_greater_than_or_equal_to_t {
+struct indirection_and_is_greater_than_or_equal_t {
   raft::device_span<T const> values{};
   T threshold{};
 
@@ -186,13 +186,13 @@ struct indirection_and_clamped_subtract_t {
 
 template <typename T>
 struct segment_id_t {
-  raft::device_span<T const> segment_lasts{};
+  raft::device_span<T const> segment_offsets{};
 
   __device__ T operator()(T i) const
   {
     return static_cast<T>(cuda::std::distance(
-      segment_lasts.begin(),
-      thrust::upper_bound(thrust::seq, segment_lasts.begin(), segment_lasts.end(), i)));
+      segment_offsets.begin() + 1,
+      thrust::upper_bound(thrust::seq, segment_offsets.begin() + 1, segment_offsets.end(), i)));
   }
 };
 
@@ -202,7 +202,7 @@ struct segment_local_idx_t {
 
   __device__ output_t operator()(size_t i) const
   {
-    auto idx = segment_id_t<size_t>{segment_offsets.subspan(1)}(i);
+    auto idx = segment_id_t<size_t>{segment_offsets}(i);
     return static_cast<output_t>(i - segment_offsets[idx]);
   }
 };
