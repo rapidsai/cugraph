@@ -720,6 +720,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
                     components/mg_strongly_connected_components_test.cpp)
 
     ###############################################################################################
+    # - MG SIMPLE CYCLES tests --------------------------------------------------------------------
+    ConfigureTestMG(MG_SIMPLE_CYCLES_TEST components/mg_simple_cycles_test.cpp)
+
+    ###############################################################################################
     # - MG TOPOLOGICAL SORT tests -----------------------------------------------------------------
     ConfigureTestMG(MG_TOPOLOGICAL_SORT_TEST dag/mg_topological_sort_test.cpp
                     dag/dag_test_utilities_mg.cu)
