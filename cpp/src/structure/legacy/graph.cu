@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -51,7 +51,7 @@ void degree_from_vertex_ids(const raft::handle_t* handle,
     [indices, degree] __device__(edge_t e) { atomicAdd(degree + indices[e], edge_t{1}); });
   if ((handle != nullptr) && (handle->comms_initialized())) {
     auto& comm = handle->get_comms();
-    comm.allreduce(degree, degree, number_of_vertices, raft::comms::op_t::SUM, stream_view.value());
+    comm.allreduce(degree, degree, number_of_vertices, raft::comms::op_t::SUM, stream_view.get());
   }
 }
 

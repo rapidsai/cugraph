@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -123,7 +123,7 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
     num_aggregate_candidate_vertices = host_scalar_allreduce(handle.get_comms(),
                                                              num_aggregate_candidate_vertices,
                                                              raft::comms::op_t::SUM,
-                                                             handle.get_stream());
+                                                             handle.get_stream().get());
   }
 
   if (num_aggregate_candidate_vertices == 0) {
@@ -167,8 +167,10 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
   while (true) {
     aggregate_frontier_size = frontier_vertices.size();
     if constexpr (multi_gpu) {
-      aggregate_frontier_size = host_scalar_allreduce(
-        handle.get_comms(), aggregate_frontier_size, raft::comms::op_t::SUM, handle.get_stream());
+      aggregate_frontier_size = host_scalar_allreduce(handle.get_comms(),
+                                                      aggregate_frontier_size,
+                                                      raft::comms::op_t::SUM,
+                                                      handle.get_stream().get());
     }
     if (aggregate_frontier_size == 0) { break; }
 
@@ -628,7 +630,7 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
 
       if constexpr (multi_gpu) {
         new_trivial_size = host_scalar_allreduce(
-          handle.get_comms(), new_trivial_size, raft::comms::op_t::SUM, handle.get_stream());
+          handle.get_comms(), new_trivial_size, raft::comms::op_t::SUM, handle.get_stream().get());
       }
       if (new_trivial_size == 0) { break; }
 
@@ -821,7 +823,7 @@ find_pivots(
     auto component_idx_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(vertex_t{0}),
       detail::segment_id_t<vertex_t>{raft::device_span<vertex_t const>(
-        unresolved_component_offsets.data() + 1, unresolved_component_offsets.size() - 1)});
+        unresolved_component_offsets.data(), unresolved_component_offsets.size())});
     auto ret = thrust::reduce_by_key(
       handle.get_thrust_policy(),
       component_idx_first,
@@ -989,7 +991,7 @@ reachable_sets(
       auto aggregated_size = remaining_vertices.size();
       if constexpr (GraphViewType::is_multi_gpu) {
         aggregated_size = host_scalar_allreduce(
-          handle.get_comms(), aggregated_size, raft::comms::op_t::SUM, handle.get_stream());
+          handle.get_comms(), aggregated_size, raft::comms::op_t::SUM, handle.get_stream().get());
       }
       if (aggregated_size == size_t{0}) { break; }
 
@@ -1050,7 +1052,7 @@ reachable_sets(
                                               remaining_vertices.begin(),
                                               remaining_vertices.end(),
                                               updated_flags.begin(),
-                                              detail::is_equal_t<bool>{false})),
+                                              detail::is_equal_to_const_t<bool, false>{})),
         handle.get_stream());
     }
 
@@ -1134,15 +1136,15 @@ intersect_reachable_sets(
     auto unresolved_component_idxs_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(vertex_t{0}),
       detail::segment_id_t<vertex_t>{raft::device_span<vertex_t const>(
-        unresolved_component_offsets.data() + 1, unresolved_component_offsets.size() - 1)});
+        unresolved_component_offsets.data(), unresolved_component_offsets.size())});
     auto forward_set_component_idxs_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(vertex_t{0}),
-      detail::segment_id_t<vertex_t>{raft::device_span<vertex_t const>(
-        forward_set_offsets.data() + 1, forward_set_offsets.size() - 1)});
+      detail::segment_id_t<vertex_t>{
+        raft::device_span<vertex_t const>(forward_set_offsets.data(), forward_set_offsets.size())});
     auto backward_set_component_idxs_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(vertex_t{0}),
       detail::segment_id_t<vertex_t>{raft::device_span<vertex_t const>(
-        backward_set_offsets.data() + 1, backward_set_offsets.size() - 1)});
+        backward_set_offsets.data(), backward_set_offsets.size())});
 
     auto unresolved_component_pairs_first = thrust::make_zip_iterator(
       unresolved_component_idxs_first, unresolved_component_vertices.begin());
@@ -1872,7 +1874,7 @@ forward_backward_intersect(
   auto num_aggregate_pivots = pivots.size();
   if constexpr (GraphViewType::is_multi_gpu) {
     num_aggregate_pivots = host_scalar_allreduce(
-      handle.get_comms(), num_aggregate_pivots, raft::comms::op_t::SUM, handle.get_stream());
+      handle.get_comms(), num_aggregate_pivots, raft::comms::op_t::SUM, handle.get_stream().get());
   }
 
   rmm::device_uvector<vertex_t> forward_set_offsets(0, handle.get_stream());
@@ -1935,7 +1937,7 @@ forward_backward_intersect(
     auto component_idx_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(vertex_t{0}),
       detail::segment_id_t<vertex_t>{raft::device_span<vertex_t const>(
-        backward_set_offsets.data() + 1, backward_set_offsets.size() - 1)});
+        backward_set_offsets.data(), backward_set_offsets.size())});
     thrust::copy(handle.get_thrust_policy(),
                  component_idx_first,
                  component_idx_first + backward_set_vertices.size(),

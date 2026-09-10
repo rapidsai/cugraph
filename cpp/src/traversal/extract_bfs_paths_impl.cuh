@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -174,7 +174,7 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
 
   if constexpr (multi_gpu) {
     max_path_length = cugraph::host_scalar_allreduce(
-      handle.get_comms(), max_path_length, raft::comms::op_t::MAX, handle.get_stream());
+      handle.get_comms(), max_path_length, raft::comms::op_t::MAX, handle.get_stream().get());
   }
 
   rmm::device_uvector<vertex_t> paths(n_destinations * max_path_length, handle.get_stream());
