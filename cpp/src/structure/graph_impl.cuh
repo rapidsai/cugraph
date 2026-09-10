@@ -178,7 +178,7 @@ update_local_sorted_unique_edge_majors_minors(
       comm,
       static_cast<double>(num_local_unique_edge_minors) / static_cast<double>(minor_range_size),
       raft::comms::op_t::MAX,
-      handle.get_stream());
+      handle.get_stream().get());
 
     if (max_minor_properties_fill_ratio <
         detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold) {
@@ -291,7 +291,7 @@ update_local_sorted_unique_edge_majors_minors(
                                            static_cast<double>(aggregate_major_range_size);
 #if 1  // FIXME: we should add host_allreduce to raft
     max_major_properties_fill_ratio = host_scalar_allreduce(
-      comm, max_major_properties_fill_ratio, raft::comms::op_t::MAX, handle.get_stream());
+      comm, max_major_properties_fill_ratio, raft::comms::op_t::MAX, handle.get_stream().get());
 #else
     comm.host_allreduce(std::addressof(max_major_properties_fill_ratio),
                         std::addressof(max_major_properties_fill_ratio),

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -37,11 +37,11 @@ void timer_stop(raft::handle_t const& handle, HighResTimer& hr_timer)
 {
   if constexpr (multi_gpu) {
     if (handle.get_comms().get_rank() == 0) {
-      handle.get_stream().synchronize();
+      handle.get_stream().sync();
       hr_timer.stop();
     }
   } else {
-    handle.get_stream().synchronize();
+    handle.get_stream().sync();
     hr_timer.stop();
   }
 }

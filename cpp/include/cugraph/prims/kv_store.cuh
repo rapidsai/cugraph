@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -336,11 +336,11 @@ class kv_cuco_store_view_t {
             rmm::cuda_stream_view stream) const
   {
     if constexpr (std::is_arithmetic_v<value_type>) {
-      cuco_store_->find(key_first, key_last, value_first, stream.value());
+      cuco_store_->find(key_first, key_last, value_first, stream.get());
     } else {
       rmm::device_uvector<size_t> indices(cuda::std::distance(key_first, key_last), stream);
       auto invalid_idx = cuco_store_->empty_value_sentinel();
-      cuco_store_->find(key_first, key_last, indices.begin(), stream.value());
+      cuco_store_->find(key_first, key_last, indices.begin(), stream.get());
       thrust::transform(rmm::exec_policy(stream),
                         indices.begin(),
                         indices.end(),
@@ -356,7 +356,7 @@ class kv_cuco_store_view_t {
                 ResultValueIterator value_first,
                 rmm::cuda_stream_view stream) const
   {
-    cuco_store_->contains(key_first, key_last, value_first, stream.value());
+    cuco_store_->contains(key_first, key_last, value_first, stream.get());
   }
 
   auto cuco_store_find_device_ref() const { return cuco_store_->ref(cuco::find); }
@@ -566,7 +566,7 @@ class kv_cuco_store_t {
 
     if constexpr (std::is_arithmetic_v<value_t>) {
       auto pair_first = thrust::make_zip_iterator(key_first, value_first);
-      size_ += cuco_store_->insert(pair_first, pair_first + num_keys, stream.value());
+      size_ += cuco_store_->insert(pair_first, pair_first + num_keys, stream.get());
     } else {
       auto old_store_value_size = size_optional_dataframe_buffer<value_t>(store_values_);
       // FIXME: we can use cuda::atomic instead but currently on a system with x86 + GPU, this
@@ -589,7 +589,7 @@ class kv_cuco_store_t {
                          store_value_offsets.begin() /* map */,
                          store_value_offsets.begin() /* stencil */,
                          get_optional_dataframe_buffer_begin<value_t>(store_values_),
-                         is_not_equal_t<size_t>{std::numeric_limits<size_t>::max()});
+                         is_not_equal_to_const_t<size_t, std::numeric_limits<size_t>::max()>{});
     }
   }
 
@@ -611,7 +611,7 @@ class kv_cuco_store_t {
     if constexpr (std::is_arithmetic_v<value_t>) {
       auto pair_first = thrust::make_zip_iterator(key_first, value_first);
       size_ += cuco_store_->insert_if(
-        pair_first, pair_first + num_keys, stencil_first, pred_op, stream.value());
+        pair_first, pair_first + num_keys, stencil_first, pred_op, stream.get());
     } else {
       auto old_store_value_size = size_optional_dataframe_buffer<value_t>(store_values_);
       // FIXME: we can use cuda::atomic instead but currently on a system with x86 + GPU, this
@@ -641,7 +641,7 @@ class kv_cuco_store_t {
                          store_value_offsets.begin() /* map */,
                          store_value_offsets.begin() /* stencil */,
                          get_optional_dataframe_buffer_begin<value_t>(store_values_),
-                         is_not_equal_t<size_t>{std::numeric_limits<size_t>::max()});
+                         is_not_equal_to_const_t<size_t, std::numeric_limits<size_t>::max()>{});
     }
   }
 
@@ -693,7 +693,7 @@ class kv_cuco_store_t {
                          store_value_offsets.begin() /* map */,
                          store_value_offsets.begin() /* stencil */,
                          get_optional_dataframe_buffer_begin<value_t>(store_values_),
-                         is_not_equal_t<size_t>{std::numeric_limits<size_t>::max()});
+                         is_not_equal_to_const_t<size_t, std::numeric_limits<size_t>::max()>{});
 
       // now perform assigns (for k,v pairs that failed to insert)
 
@@ -798,13 +798,13 @@ class kv_cuco_store_t {
     auto values = allocate_dataframe_buffer<value_t>(0, stream);
     if constexpr (std::is_arithmetic_v<value_t>) {
       values.resize(size_, stream);
-      auto pair_last = cuco_store_->retrieve_all(keys.begin(), values.begin(), stream.value());
+      auto pair_last = cuco_store_->retrieve_all(keys.begin(), values.begin(), stream.get());
       // FIXME: this resize (& shrink_to_fit) shouldn't be necessary if size_ is exact
       keys.resize(cuda::std::distance(keys.begin(), std::get<0>(pair_last)), stream);
       values.resize(keys.size(), stream);
     } else {
       rmm::device_uvector<size_t> indices(size_, stream);
-      auto pair_last = cuco_store_->retrieve_all(keys.begin(), indices.begin(), stream.value());
+      auto pair_last = cuco_store_->retrieve_all(keys.begin(), indices.begin(), stream.get());
       // FIXME: this resize (& shrink_to_fit) shouldn't be necessary if size_ is exact
       keys.resize(cuda::std::distance(keys.begin(), std::get<0>(pair_last)), stream);
       indices.resize(keys.size(), stream);
@@ -873,7 +873,7 @@ class kv_cuco_store_t {
                                         cuco::thread_scope_device,
                                         cuco_storage_type{},
                                         rmm::mr::polymorphic_allocator<std::byte>{},
-                                        stream.value());
+                                        stream.get());
     } else {
       cuco_store_ = std::make_unique<cuco_map_type>(
         cuco_size,
@@ -885,7 +885,7 @@ class kv_cuco_store_t {
         cuco::thread_scope_device,
         cuco_storage_type{},
         rmm::mr::polymorphic_allocator<std::byte>{},
-        stream.value());
+        stream.get());
       reserve_optional_dataframe_buffer<value_t>(store_values_, num_keys, stream);
     }
   }
