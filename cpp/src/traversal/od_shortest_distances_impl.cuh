@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -813,7 +813,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                            multi_partition_copy_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
         multi_partition_copy<static_cast<int32_t>(1 /* near queue */ + num_far_buffers)>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream().get()>>>(
             input_first + num_copied,
             input_first + num_copied + this_loop_size,
             raft::device_span<key_t*>(d_buffer_ptrs.data(), d_buffer_ptrs.size()),
@@ -951,28 +951,30 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                                    handle.get_device_properties().maxGridSize[0]);
                 auto constexpr max_num_partitions =
                   static_cast<int32_t>(1 /* near queue */ + num_far_buffers);
-                multi_partition_copy<max_num_partitions>
-                  <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
-                    tmp_buffer.begin(),
-                    tmp_buffer.end(),
-                    raft::device_span<key_t*>(d_buffer_ptrs.data(), d_buffer_ptrs.size()),
-                    [key_to_dist_map =
-                       detail::kv_cuco_store_find_device_view_t(key_to_dist_map.view()),
-                     split_thresholds = raft::device_span<weight_t const>(
-                       d_split_thresholds.data(), d_split_thresholds.size()),
-                     invalid_threshold] __device__(auto key) {
-                      auto dist = key_to_dist_map.find(key);
-                      return static_cast<uint8_t>(
-                        (dist < invalid_threshold)
-                          ? max_num_partitions /* discard */
-                          : cuda::std::distance(split_thresholds.begin(),
-                                                thrust::upper_bound(thrust::seq,
-                                                                    split_thresholds.begin(),
-                                                                    split_thresholds.end(),
-                                                                    dist)));
-                    },
-                    cuda::std::identity{},
-                    raft::device_span<size_t>(d_counters.data(), d_counters.size()));
+                multi_partition_copy<max_num_partitions><<<update_grid.num_blocks,
+                                                           update_grid.block_size,
+                                                           0,
+                                                           handle.get_stream().get()>>>(
+                  tmp_buffer.begin(),
+                  tmp_buffer.end(),
+                  raft::device_span<key_t*>(d_buffer_ptrs.data(), d_buffer_ptrs.size()),
+                  [key_to_dist_map =
+                     detail::kv_cuco_store_find_device_view_t(key_to_dist_map.view()),
+                   split_thresholds = raft::device_span<weight_t const>(d_split_thresholds.data(),
+                                                                        d_split_thresholds.size()),
+                   invalid_threshold] __device__(auto key) {
+                    auto dist = key_to_dist_map.find(key);
+                    return static_cast<uint8_t>(
+                      (dist < invalid_threshold)
+                        ? max_num_partitions /* discard */
+                        : cuda::std::distance(split_thresholds.begin(),
+                                              thrust::upper_bound(thrust::seq,
+                                                                  split_thresholds.begin(),
+                                                                  split_thresholds.end(),
+                                                                  dist)));
+                  },
+                  cuda::std::identity{},
+                  raft::device_span<size_t>(d_counters.data(), d_counters.size()));
               }
               std::vector<size_t> h_counters(d_counters.size());
               raft::update_host(

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -175,13 +175,14 @@ bool is_valid_predecessor_tree(raft::handle_t const& handle,
       raft::host_span<vertex_t const>(vertex_partition_range_offsets.data() + 1,
                                       vertex_partition_range_offsets.size() - 1),
       local_vertex_partition_range_first);
-    ancestors.resize(cuda::std::distance(
-                       ancestors.begin(),
-                       thrust::remove_if(handle.get_thrust_policy(),
-                                         ancestors.begin(),
-                                         ancestors.end(),
-                                         cugraph::detail::is_equal_t<vertex_t>{starting_vertex})),
-                     handle.get_stream());
+    ancestors.resize(
+      cuda::std::distance(
+        ancestors.begin(),
+        thrust::remove_if(handle.get_thrust_policy(),
+                          ancestors.begin(),
+                          ancestors.end(),
+                          cugraph::detail::is_equal_to_t<vertex_t>{starting_vertex})),
+      handle.get_stream());
     aggregate_size = ancestors.size();
 #if 1  // FIXME: we should add host_allreduce to raft
     aggregate_size = cugraph::host_scalar_allreduce(

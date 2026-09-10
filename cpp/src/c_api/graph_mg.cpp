@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -426,7 +426,7 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
   size_t num_edges = cugraph::host_scalar_allreduce(p_handle->handle_->get_comms(),
                                                     local_num_edges,
                                                     raft::comms::op_t::SUM,
-                                                    p_handle->handle_->get_stream());
+                                                    p_handle->handle_->get_stream().get());
 
   cugraph_data_type_id_t edge_type{vertex_type};
 
@@ -436,11 +436,13 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
                  "Number of edges won't fit in 32-bit integer, using 32-bit type",
                  *error);
 
-  auto vertex_types = cugraph::host_scalar_allgather(
-    p_handle->handle_->get_comms(), static_cast<int>(vertex_type), p_handle->handle_->get_stream());
+  auto vertex_types = cugraph::host_scalar_allgather(p_handle->handle_->get_comms(),
+                                                     static_cast<int>(vertex_type),
+                                                     p_handle->handle_->get_stream().get());
 
-  auto weight_types = cugraph::host_scalar_allgather(
-    p_handle->handle_->get_comms(), static_cast<int>(weight_type), p_handle->handle_->get_stream());
+  auto weight_types = cugraph::host_scalar_allgather(p_handle->handle_->get_comms(),
+                                                     static_cast<int>(weight_type),
+                                                     p_handle->handle_->get_stream().get());
 
   if (vertex_type == cugraph_data_type_id_t::NTYPES) {
     // Only true if this GPU had no vertex arrays
@@ -498,7 +500,7 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
 
   auto edge_type_id_types = cugraph::host_scalar_allgather(p_handle->handle_->get_comms(),
                                                            static_cast<int>(edge_type_id_type),
-                                                           p_handle->handle_->get_stream());
+                                                           p_handle->handle_->get_stream().get());
 
   if (edge_type_id_type == cugraph_data_type_id_t::NTYPES) {
     // Only true if this GPU had no edge_type_id arrays
@@ -682,7 +684,7 @@ extern "C" cugraph_error_code_t cugraph_graph_create_with_times_mg(
   size_t num_edges = cugraph::host_scalar_allreduce(p_handle->handle_->get_comms(),
                                                     local_num_edges,
                                                     raft::comms::op_t::SUM,
-                                                    p_handle->handle_->get_stream());
+                                                    p_handle->handle_->get_stream().get());
 
   cugraph_data_type_id_t edge_type{vertex_type};
 
@@ -692,15 +694,17 @@ extern "C" cugraph_error_code_t cugraph_graph_create_with_times_mg(
                  "Number of edges won't fit in 32-bit integer, using 32-bit type",
                  *error);
 
-  auto vertex_types = cugraph::host_scalar_allgather(
-    p_handle->handle_->get_comms(), static_cast<int>(vertex_type), p_handle->handle_->get_stream());
+  auto vertex_types = cugraph::host_scalar_allgather(p_handle->handle_->get_comms(),
+                                                     static_cast<int>(vertex_type),
+                                                     p_handle->handle_->get_stream().get());
 
-  auto weight_types = cugraph::host_scalar_allgather(
-    p_handle->handle_->get_comms(), static_cast<int>(weight_type), p_handle->handle_->get_stream());
+  auto weight_types = cugraph::host_scalar_allgather(p_handle->handle_->get_comms(),
+                                                     static_cast<int>(weight_type),
+                                                     p_handle->handle_->get_stream().get());
 
   auto time_types = cugraph::host_scalar_allgather(p_handle->handle_->get_comms(),
                                                    static_cast<int>(edge_time_type),
-                                                   p_handle->handle_->get_stream());
+                                                   p_handle->handle_->get_stream().get());
 
   if (vertex_type == cugraph_data_type_id_t::NTYPES) {
     // Only true if this GPU had no vertex arrays
@@ -786,7 +790,7 @@ extern "C" cugraph_error_code_t cugraph_graph_create_with_times_mg(
 
   auto edge_type_id_types = cugraph::host_scalar_allgather(p_handle->handle_->get_comms(),
                                                            static_cast<int>(edge_type_id_type),
-                                                           p_handle->handle_->get_stream());
+                                                           p_handle->handle_->get_stream().get());
 
   if (edge_type_id_type == cugraph_data_type_id_t::NTYPES) {
     // Only true if this GPU had no edge_type_id arrays

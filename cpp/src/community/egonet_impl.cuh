@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -69,7 +69,7 @@ extract(raft::handle_t const& handle,
 
   if constexpr (multi_gpu) {
     source_start =
-      cugraph::host_scalar_allgather(handle.get_comms(), num_sources, handle.get_stream());
+      cugraph::host_scalar_allgather(handle.get_comms(), num_sources, handle.get_stream().get());
     num_sources = std::reduce(source_start.begin(), source_start.end());
     std::exclusive_scan(source_start.begin(), source_start.end(), source_start.begin(), size_t{0});
   }
@@ -83,7 +83,7 @@ extract(raft::handle_t const& handle,
   std::vector<rmm::device_uvector<vertex_t>> reached{};
   reached.reserve(num_sources);
 
-  user_stream_view.synchronize();
+  user_stream_view.sync();
 #ifdef TIMING
   HighResTimer hr_timer;
   hr_timer.start("ego_neighbors");
@@ -165,9 +165,9 @@ extract(raft::handle_t const& handle,
     h_neighbors_offsets[i + 1] = h_neighbors_offsets[i] + reached[i].size();
   }
   raft::update_device(
-    neighbors_offsets.data(), &h_neighbors_offsets[0], num_sources + 1, user_stream_view.value());
-  neighbors.resize(h_neighbors_offsets[num_sources], user_stream_view.value());
-  user_stream_view.synchronize();
+    neighbors_offsets.data(), &h_neighbors_offsets[0], num_sources + 1, user_stream_view.get());
+  neighbors.resize(h_neighbors_offsets[num_sources], user_stream_view.get());
+  user_stream_view.sync();
 
   // Construct the neighbors list concurrently
   for (size_t i = 0; i < num_sources; i++) {
