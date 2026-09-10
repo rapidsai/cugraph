@@ -41,6 +41,7 @@
 #include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/iterator>
+#include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -288,17 +289,17 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> append_
   std::optional<std::tuple<raft::device_span<vertex_t const>, raft::host_span<vertex_t const>>>
     renumber_info)
 {
-  if (new_cycle_vertices.size() == 0) {
-    return std::make_tuple(std::move(cycle_vertices), std::move(cycle_lengths));
-  }
-
   if (renumber_info) {
     auto [renumber_map, vertex_partition_range_lasts] = *renumber_info;
     unrenumber_int_vertices<vertex_t, multi_gpu>(handle,
                                                  new_cycle_vertices.data(),
                                                  new_cycle_vertices.size(),
                                                  renumber_map.data(),
-                                                 vertex_partition_range_lasts);
+                                                 vertex_partition_range_lasts);  // collective
+  }
+
+  if (new_cycle_vertices.size() == 0) {
+    return std::make_tuple(std::move(cycle_vertices), std::move(cycle_lengths));
   }
 
   auto old_num_cycles         = cycle_lengths.size();
@@ -1027,10 +1028,26 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> simple_
 
     rmm::device_uvector<vertex_t> roots(0, handle.get_stream());
     {
+      // if seed vertices are provided, pick a root among the seed vertices in each SCC; every
+      // enumerated cycle includes the root of its SCC, so this guarantees that every enumerated
+      // cycle includes at least one seed vertex
+      auto root_candidate_first = cuda::make_transform_iterator(
+        cuda::make_counting_iterator(scc_graph_view.local_vertex_partition_range_first()),
+        cuda::proclaim_return_type<vertex_t>(
+          [seed_vertices = scc_graph_seed_vertices
+                             ? cuda::std::make_optional<raft::device_span<vertex_t const>>(
+                                 scc_graph_seed_vertices->data(), scc_graph_seed_vertices->size())
+                             : cuda::std::nullopt] __device__(vertex_t v) {
+            if (seed_vertices && !thrust::binary_search(
+                                   thrust::seq, seed_vertices->begin(), seed_vertices->end(), v)) {
+              return std::numeric_limits<vertex_t>::max();  // this can never be selected as a root
+            }
+            return v;
+          }));
       auto [unique_components, unique_component_roots] = reduce_by_component<vertex_t, multi_gpu>(
         handle,
         raft::device_span<vertex_t const>(components.data(), components.size()),
-        cuda::make_counting_iterator(scc_graph_view.local_vertex_partition_range_first()),
+        root_candidate_first,
         thrust::minimum<vertex_t>{});
       auto num_valid_roots = static_cast<vertex_t>(
         thrust::count_if(handle.get_thrust_policy(),
@@ -1048,6 +1065,13 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> simple_
                       cuda::proclaim_return_type<bool>([] __device__(vertex_t component) {
                         return component != invalid_vertex_id_v<vertex_t>;
                       }));
+      if constexpr (multi_gpu) {
+        std::tie(roots, std::ignore) =
+          shuffle_int_vertices(handle,
+                               std::move(roots),
+                               std::vector<cugraph::arithmetic_device_uvector_t>{},
+                               scc_graph_view.vertex_partition_range_lasts());
+      }
       thrust::sort(handle.get_thrust_policy(), roots.begin(), roots.end());
     }
 
@@ -1070,7 +1094,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> simple_
                                         scc_graph_view.local_vertex_partition_range_first()}),
         reverse_distances.begin());
       for (vertex_t hop = vertex_t{0}; hop < length_bound; ++hop) {
-        rmm::device_uvector<bool> next_hop_flags(reverse_distances.size(), handle.get_stream());
+        // uint8_t instead of bool as bool is not a supported raft::comms type (necessary for the
+        // multi-GPU reduction in per_v_transform_reduce_outgoing_e)
+        rmm::device_uvector<uint8_t> next_hop_flags(reverse_distances.size(), handle.get_stream());
         if constexpr (multi_gpu) {
           auto dst_prev_hop_visited_flags =
             make_initialized_edge_dst_property(handle, scc_graph_view, false);
@@ -1087,11 +1113,12 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> simple_
             edge_src_dummy_property_t{}.view(),
             dst_prev_hop_visited_flags.view(),
             edge_dummy_property_t{}.view(),
-            [] __device__(vertex_t, vertex_t, auto, bool dst_prev_hop_visited, auto) {
-              return dst_prev_hop_visited;
-            },
-            false,
-            cugraph::reduce_op::maximum<bool>{},
+            cuda::proclaim_return_type<uint8_t>(
+              [] __device__(vertex_t, vertex_t, auto, bool dst_prev_hop_visited, auto) {
+                return dst_prev_hop_visited ? uint8_t{1} : uint8_t{0};
+              }),
+            uint8_t{0},
+            cugraph::reduce_op::maximum<uint8_t>{},
             next_hop_flags.begin());
         } else {
           per_v_transform_reduce_outgoing_e(
@@ -1101,12 +1128,12 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> simple_
             make_edge_dst_property_view<vertex_t, vertex_t>(
               scc_graph_view, reverse_distances.begin(), reverse_distances.size()),
             edge_dummy_property_t{}.view(),
-            cuda::proclaim_return_type<bool>(
+            cuda::proclaim_return_type<uint8_t>(
               [hop] __device__(vertex_t, vertex_t, auto, vertex_t dst_reverse_distance, auto) {
-                return (dst_reverse_distance == hop);
+                return (dst_reverse_distance == hop) ? uint8_t{1} : uint8_t{0};
               }),
-            false,
-            cugraph::reduce_op::maximum<bool>{},
+            uint8_t{0},
+            cugraph::reduce_op::maximum<uint8_t>{},
             next_hop_flags.begin());
         }
         thrust::transform(
@@ -1115,16 +1142,16 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> simple_
           next_hop_flags.end(),
           reverse_distances.begin(),
           next_hop_flags.begin(),
-          cuda::proclaim_return_type<bool>([] __device__(bool flag, vertex_t distance) {
+          cuda::proclaim_return_type<uint8_t>([] __device__(uint8_t flag, vertex_t distance) {
             if (distance == std::numeric_limits<vertex_t>::max()) {
               return flag;
             } else {  // already visited
-              return false;
+              return uint8_t{0};
             }
           }));
 
         auto next_hop_size = thrust::count(
-          handle.get_thrust_policy(), next_hop_flags.begin(), next_hop_flags.end(), true);
+          handle.get_thrust_policy(), next_hop_flags.begin(), next_hop_flags.end(), uint8_t{1});
         auto aggregate_next_hop_size = next_hop_size;
         if constexpr (multi_gpu) {
           aggregate_next_hop_size = host_scalar_allreduce(handle.get_comms(),

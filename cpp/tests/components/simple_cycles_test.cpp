@@ -98,21 +98,24 @@ std::vector<std::vector<vertex_t>> strongly_connected_components_from_induced_su
   return components;
 }
 
-// Non-recursive Johnson search for cycles through @p start in the subgraph given by CSR
-// @p offsets / @p indices (NetworkX _johnson_cycle_search).
+// Non-recursive bounded backtracking search (DFS) for the simple cycles through @p start with
+// length @p length_bound or shorter in the subgraph given by CSR @p offsets / @p indices.
+//
+// We did not follow NetworkX's length_bound implementation (Gupta and Suzumura's pruning of
+// Johnson). That algorithm can miss cycles; see "Finding All Bounded-Length Simple Cycles in a
+// Directed Graph -- Revisited", arXiv:2512.08392, 2025.
 template <typename vertex_t, typename edge_t>
-std::vector<std::vector<vertex_t>> johnson_cycle_search(std::span<edge_t const> offsets,
+std::vector<std::vector<vertex_t>> bounded_cycle_search(std::span<edge_t const> offsets,
                                                         std::span<vertex_t const> indices,
-                                                        vertex_t start)
+                                                        vertex_t start,
+                                                        vertex_t length_bound)
 {
   auto const num_vertices = static_cast<vertex_t>(offsets.size() - 1);
-  std::vector<bool> blocked(num_vertices, false);
-  std::vector<std::unordered_set<vertex_t>> B(num_vertices);
-  blocked[start] = true;
+  std::vector<bool> on_path(num_vertices, false);
+  on_path[start] = true;
 
   std::vector<vertex_t> path  = {start};
-  std::vector<size_t> nbr_pos = {0};
-  std::vector<bool> closed    = {false};
+  std::vector<edge_t> nbr_pos = {0};
   std::vector<std::vector<vertex_t>> cycles{};
 
   while (!path.empty()) {
@@ -120,54 +123,46 @@ std::vector<std::vector<vertex_t>> johnson_cycle_search(std::span<edge_t const> 
     auto nbr_start_offset = offsets[v];
     auto nbr_end_offset   = offsets[v + 1];
     bool pushed           = false;
-    while (nbr_pos.back() < static_cast<size_t>(nbr_end_offset - nbr_start_offset)) {
+    while (nbr_pos.back() < nbr_end_offset - nbr_start_offset) {
       auto w = indices[nbr_start_offset + nbr_pos.back()];
       ++nbr_pos.back();
-      if (w == start) {
+      if (w == start) {  // closing a cycle, self-loops are excluded from offsets & indices, so
+                         // path.size() is at least 2 here
         cycles.push_back(path);
-        closed.back() = true;
-      } else if (!blocked[w]) {
+      } else if (!on_path[w] && (static_cast<vertex_t>(path.size()) < length_bound)) {
         path.push_back(w);
         nbr_pos.push_back(0);
-        closed.push_back(false);
-        blocked[w] = true;
+        on_path[w] = true;
         pushed     = true;
         break;
       }
     }
     if (pushed) { continue; }
 
-    nbr_pos.pop_back();
-    v = path.back();
+    on_path[v] = false;
     path.pop_back();
-    bool v_closed = closed.back();
-    closed.pop_back();
-    if (v_closed) {
-      if (!closed.empty()) { closed.back() = true; }
-      std::vector<vertex_t> unblock_stack{v};
-      while (!unblock_stack.empty()) {
-        auto u = unblock_stack.back();
-        unblock_stack.pop_back();
-        if (blocked[u]) {
-          blocked[u] = false;
-          unblock_stack.insert(unblock_stack.end(), B[u].begin(), B[u].end());
-          B[u].clear();
-        }
-      }
-    } else {
-      for (edge_t e = offsets[v]; e < offsets[v + 1]; ++e) {
-        B[indices[e]].insert(v);
-      }
-    }
+    nbr_pos.pop_back();
   }
 
   return cycles;
 }
 
-// Host reference for directed simple_cycles (NetworkX simple_cycles / Johnson, unbounded).
+// Host reference for directed simple_cycles, returns the simple cycles with length @p length_bound
+// or shorter.
+//
+// This peels one vertex at a time like NetworkX simple_cycles (pick the minimum vertex @p v of a
+// strongly connected component, enumerate the cycles through @p v, then re-compute the strongly
+// connected components of the component minus @p v), but enumerates the cycles through @p v using
+// a bounded backtracking search instead of Johnson's search. Johnson's search is designed for
+// unbounded enumeration and still walks every simple cycle through @p v, including those longer
+// than @p length_bound; that is far too expensive for the relatively small length bounds this
+// test targets. Every simple cycle with length @p length_bound or shorter is still enumerated
+// exactly once as the peel order guarantees that each cycle is visited when its minimum remaining
+// vertex is picked.
 template <typename vertex_t, typename edge_t>
 std::vector<std::vector<vertex_t>> simple_cycles_reference(std::span<edge_t const> offsets,
-                                                           std::span<vertex_t const> indices)
+                                                           std::span<vertex_t const> indices,
+                                                           vertex_t length_bound)
 {
   auto num_vertices = static_cast<vertex_t>(offsets.size() - 1);
 
@@ -188,7 +183,7 @@ std::vector<std::vector<vertex_t>> simple_cycles_reference(std::span<edge_t cons
         simple_indices.push_back(w);
       }
     }
-    if (self_loop) { cycles.push_back(std::vector<vertex_t>{v}); }
+    if (self_loop && (length_bound >= 1)) { cycles.push_back(std::vector<vertex_t>{v}); }
     std::sort(simple_indices.begin() + simple_offsets[v], simple_indices.end());
     simple_indices.erase(
       std::unique(simple_indices.begin() + simple_offsets[v], simple_indices.end()),
@@ -215,7 +210,7 @@ std::vector<std::vector<vertex_t>> simple_cycles_reference(std::span<edge_t cons
     if (c.size() < 2) {
       continue;
     } else if (c.size() == 2) {  // the only simple cycle is c[0] -> c[1] -> c[0]
-      cycles.push_back(std::move(c));
+      if (length_bound >= 2) { cycles.push_back(std::move(c)); }
       continue;
     }
 
@@ -241,7 +236,7 @@ std::vector<std::vector<vertex_t>> simple_cycles_reference(std::span<edge_t cons
     }
 
     auto new_cycles =
-      johnson_cycle_search<vertex_t, edge_t>(component_offsets, component_indices, v);
+      bounded_cycle_search<vertex_t, edge_t>(component_offsets, component_indices, v, length_bound);
     cycles.insert(cycles.end(),
                   std::make_move_iterator(new_cycles.begin()),
                   std::make_move_iterator(new_cycles.end()));
@@ -367,7 +362,8 @@ class Tests_SimpleCycles
 
       auto h_reference_cycles =
         simple_cycles_reference(std::span<edge_t const>(h_offsets.data(), h_offsets.size()),
-                                std::span<vertex_t const>(h_indices.data(), h_indices.size()));
+                                std::span<vertex_t const>(h_indices.data(), h_indices.size()),
+                                static_cast<vertex_t>(simple_cycles_usecase.k));
 
       std::optional<std::unordered_set<vertex_t>> h_seed_set{std::nullopt};
       if (d_seed_vertices) {
@@ -382,17 +378,17 @@ class Tests_SimpleCycles
         auto h_seeds = cugraph::test::to_host(handle, *d_seed_vertices);
         h_seed_set.emplace(h_seeds.begin(), h_seeds.end());
       }
-      h_reference_cycles.erase(
-        std::remove_if(h_reference_cycles.begin(),
-                       h_reference_cycles.end(),
-                       [k = simple_cycles_usecase.k, &h_seed_set](auto const& cycle) {
-                         if (cycle.size() > k) { return true; }
-                         if (!h_seed_set) { return false; }
-                         return std::none_of(cycle.begin(), cycle.end(), [&h_seed_set](auto v) {
-                           return h_seed_set->count(v) > 0;
-                         });
-                       }),
-        h_reference_cycles.end());
+      if (h_seed_set) {
+        h_reference_cycles.erase(
+          std::remove_if(h_reference_cycles.begin(),
+                         h_reference_cycles.end(),
+                         [&h_seed_set](auto const& cycle) {
+                           return std::none_of(cycle.begin(), cycle.end(), [&h_seed_set](auto v) {
+                             return h_seed_set->count(v) > 0;
+                           });
+                         }),
+          h_reference_cycles.end());
+      }
 
       if (renumber) {
         cugraph::unrenumber_local_int_vertices(handle,
