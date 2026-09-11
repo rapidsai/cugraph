@@ -262,7 +262,7 @@ rmm::device_uvector<vertex_t> extract_length_2_cycle_vertices(
     input_pair_first + components.size(),
     component_sizes.begin(),
     thrust::make_zip_iterator(length_2_cycle_components.begin(), length_2_cycle_vertices.begin()),
-    cugraph::detail::is_equal_t{vertex_t{2}});
+    cugraph::detail::is_equal_to_t{vertex_t{2}});
   if constexpr (multi_gpu) {
     std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
     vertex_properties.push_back(std::move(length_2_cycle_vertices));
