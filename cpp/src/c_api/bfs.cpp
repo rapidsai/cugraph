@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -110,7 +110,7 @@ struct bfs_functor : public abstract_functor {
 
       if constexpr (multi_gpu) {
         invalid_count = cugraph::host_scalar_allreduce(
-          handle_.get_comms(), invalid_count, raft::comms::op_t::SUM, handle_.get_stream().get());
+          handle_.get_comms(), invalid_count, raft::comms::op_t::SUM, handle_.get_stream());
       }
 
       if (invalid_count != 0) {

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -22,6 +22,7 @@
 #include <cuda/std/iterator>
 #include <cuda/std/limits>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/iterator/iterator_traits.h>
@@ -85,7 +86,7 @@ compute_partition_permutation_map(KeyIterator key_first,
                                   KeyToGroupIdOp key_to_group_id_op,
                                   int group_first,
                                   int group_last,
-                                  rmm::cuda_stream_view stream_view)
+                                  cuda::stream_ref stream_view)
 {
   auto const num_keys   = static_cast<size_t>(cuda::std::distance(key_first, key_last));
   auto const num_groups = group_last - group_first;
@@ -123,7 +124,7 @@ void apply_multi_partition_permutation(
   std::tuple<rmm::device_uvector<gid_offset_t>,
              rmm::device_uvector<offset_t>,
              rmm::device_uvector<size_t>> const& permutation_map,
-  rmm::cuda_stream_view stream_view)
+  cuda::stream_ref stream_view)
 {
   auto const& group_id_offsets       = std::get<0>(permutation_map);
   auto const& intra_partition_displs = std::get<1>(permutation_map);
@@ -151,7 +152,7 @@ void multi_partition(ValueIterator value_first,
                      ValueToGroupIdOp value_to_group_id_op,
                      int group_first,
                      int group_last,
-                     rmm::cuda_stream_view stream_view)
+                     cuda::stream_ref stream_view)
 {
   auto permutation_map = compute_partition_permutation_map<gid_offset_t, offset_t>(
     value_first, value_last, value_to_group_id_op, group_first, group_last, stream_view);
@@ -170,7 +171,7 @@ void multi_partition(KeyIterator key_first,
                      KeyToGroupIdOp key_to_group_id_op,
                      int group_first,
                      int group_last,
-                     rmm::cuda_stream_view stream_view)
+                     cuda::stream_ref stream_view)
 {
   auto const num_keys = static_cast<size_t>(cuda::std::distance(key_first, key_last));
 
@@ -187,7 +188,7 @@ template <typename ValueIterator>
 void swap_partitions(ValueIterator value_first,
                      ValueIterator value_last,
                      size_t first_partition_size,
-                     rmm::cuda_stream_view stream_view,
+                     cuda::stream_ref stream_view,
                      std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   using value_t = typename thrust::iterator_traits<ValueIterator>::value_type;
@@ -245,7 +246,7 @@ void swap_partitions(KeyIterator key_first,
                      KeyIterator key_last,
                      ValueIterator value_first,
                      size_t first_partition_size,
-                     rmm::cuda_stream_view stream_view,
+                     cuda::stream_ref stream_view,
                      std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   using key_t   = typename thrust::iterator_traits<KeyIterator>::value_type;
@@ -339,7 +340,7 @@ void mem_frugal_groupby(
   int num_groups,
   size_t mem_frugal_threshold,  // take the memory frugal approach (instead of thrust::sort) if #
                                 // elements to groupby is no smaller than this value
-  rmm::cuda_stream_view stream_view,
+  cuda::stream_ref stream_view,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
@@ -445,7 +446,7 @@ void mem_frugal_groupby(
   int num_groups,
   size_t mem_frugal_threshold,  // take the memory frugal approach (instead of thrust::sort) if #
                                 // elements to groupby is no smaller than this value
-  rmm::cuda_stream_view stream_view,
+  cuda::stream_ref stream_view,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
@@ -563,7 +564,7 @@ rmm::device_uvector<size_t> groupby_and_count(
   ValueToGroupIdOp value_to_group_id_op,
   int num_groups,
   size_t mem_frugal_threshold,
-  rmm::cuda_stream_view stream_view,
+  cuda::stream_ref stream_view,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
@@ -603,7 +604,7 @@ rmm::device_uvector<size_t> groupby_and_count(
   KeyToGroupIdOp key_to_group_id_op,
   int num_groups,
   size_t mem_frugal_threshold,
-  rmm::cuda_stream_view stream_view,
+  cuda::stream_ref stream_view,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),

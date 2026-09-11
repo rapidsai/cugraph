@@ -7,61 +7,53 @@
 
 #include <cugraph/export.hpp>
 
+#include <cuda/stream>
+
 namespace cugraph {
 namespace c_api {
 
 template CUGRAPH_EXPORT rmm::device_uvector<int32_t> expand_sparse_offsets(
-  raft::device_span<int32_t const> offsets,
-  int32_t base_vertex_id,
-  rmm::cuda_stream_view const& stream);
+  raft::device_span<int32_t const> offsets, int32_t base_vertex_id, cuda::stream_ref const& stream);
 
 template CUGRAPH_EXPORT rmm::device_uvector<int32_t> expand_sparse_offsets(
-  raft::device_span<int64_t const> offsets,
-  int32_t base_vertex_id,
-  rmm::cuda_stream_view const& stream);
+  raft::device_span<int64_t const> offsets, int32_t base_vertex_id, cuda::stream_ref const& stream);
 
 template CUGRAPH_EXPORT rmm::device_uvector<int64_t> expand_sparse_offsets(
-  raft::device_span<int64_t const> offsets,
-  int64_t base_vertex_id,
-  rmm::cuda_stream_view const& stream);
+  raft::device_span<int64_t const> offsets, int64_t base_vertex_id, cuda::stream_ref const& stream);
 
 template CUGRAPH_EXPORT rmm::device_uvector<int32_t> expand_sparse_offsets(
-  raft::device_span<size_t const> offsets,
-  int32_t base_vertex_id,
-  rmm::cuda_stream_view const& stream);
+  raft::device_span<size_t const> offsets, int32_t base_vertex_id, cuda::stream_ref const& stream);
 
 template CUGRAPH_EXPORT rmm::device_uvector<int64_t> expand_sparse_offsets(
-  raft::device_span<size_t const> offsets,
-  int64_t base_vertex_id,
-  rmm::cuda_stream_view const& stream);
+  raft::device_span<size_t const> offsets, int64_t base_vertex_id, cuda::stream_ref const& stream);
 
 template CUGRAPH_EXPORT void copy_or_transform(raft::device_span<int8_t> output,
                                                cugraph_type_erased_device_array_view_t const* input,
-                                               rmm::cuda_stream_view const& stream_view);
+                                               cuda::stream_ref const& stream_view);
 
 template CUGRAPH_EXPORT void copy_or_transform(raft::device_span<int16_t> output,
                                                cugraph_type_erased_device_array_view_t const* input,
-                                               rmm::cuda_stream_view const& stream_view);
+                                               cuda::stream_ref const& stream_view);
 
 template CUGRAPH_EXPORT void copy_or_transform(raft::device_span<int32_t> output,
                                                cugraph_type_erased_device_array_view_t const* input,
-                                               rmm::cuda_stream_view const& stream_view);
+                                               cuda::stream_ref const& stream_view);
 
 template CUGRAPH_EXPORT void copy_or_transform(raft::device_span<int64_t> output,
                                                cugraph_type_erased_device_array_view_t const* input,
-                                               rmm::cuda_stream_view const& stream_view);
+                                               cuda::stream_ref const& stream_view);
 
 template CUGRAPH_EXPORT void copy_or_transform(raft::device_span<float> output,
                                                cugraph_type_erased_device_array_view_t const* input,
-                                               rmm::cuda_stream_view const& stream_view);
+                                               cuda::stream_ref const& stream_view);
 
 template CUGRAPH_EXPORT void copy_or_transform(raft::device_span<double> output,
                                                cugraph_type_erased_device_array_view_t const* input,
-                                               rmm::cuda_stream_view const& stream_view);
+                                               cuda::stream_ref const& stream_view);
 
 template CUGRAPH_EXPORT void copy_or_transform(raft::device_span<size_t> output,
                                                cugraph_type_erased_device_array_view_t const* input,
-                                               rmm::cuda_stream_view const& stream_view);
+                                               cuda::stream_ref const& stream_view);
 
 template CUGRAPH_EXPORT edge_property_t<int32_t, float> create_constant_edge_property(
   raft::handle_t const& handle,

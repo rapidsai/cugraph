@@ -1,12 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
 #include <cugraph/dynamic/memory_manager/block_array.hpp>
 
-#include <rmm/cuda_stream_view.hpp>
+#include <cuda/stream>
 
 #include <algorithm>
 #include <array>
@@ -55,7 +55,7 @@ class block_array_manager_t {
   block_array_manager_t(block_array_manager_t&&)            = default;
   block_array_manager_t& operator=(block_array_manager_t&&) = default;
 
-  block_access_data_t insert(size_t num_elements_per_block, rmm::cuda_stream_view stream)
+  block_access_data_t insert(size_t num_elements_per_block, cuda::stream_ref stream)
   {
     CUGRAPH_EXPECTS(
       num_elements_per_block <= max_elements_per_block_array_,

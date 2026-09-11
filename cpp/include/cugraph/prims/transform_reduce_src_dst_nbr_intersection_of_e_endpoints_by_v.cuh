@@ -280,7 +280,7 @@ void transform_reduce_minor_nbr_intersection_of_e_endpoints_by_v(
     auto max_num_chunks = (majors.size() + max_chunk_size - 1) / max_chunk_size;
     if constexpr (GraphViewType::is_multi_gpu) {
       max_num_chunks = host_scalar_allreduce(
-        handle.get_comms(), max_num_chunks, raft::comms::op_t::MAX, handle.get_stream().get());
+        handle.get_comms(), max_num_chunks, raft::comms::op_t::MAX, handle.get_stream());
     }
 
     std::vector<size_t> h_chunk_sizes(max_num_chunks);

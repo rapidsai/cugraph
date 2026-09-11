@@ -7,13 +7,15 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/stream>
+
 namespace cugraph {
 namespace c_api {
 
 template <typename vertex_t, typename edge_t>
 rmm::device_uvector<vertex_t> expand_sparse_offsets(raft::device_span<edge_t const> offsets,
                                                     vertex_t base_vertex_id,
-                                                    rmm::cuda_stream_view const& stream);
+                                                    cuda::stream_ref const& stream);
 
 template <typename GraphViewType, typename T>
 edge_property_t<typename GraphViewType::edge_type, T> create_constant_edge_property(
@@ -34,7 +36,7 @@ edge_property_t<typename GraphViewType::edge_type, T> create_constant_edge_prope
 template <typename new_type_t>
 void copy_or_transform(raft::device_span<new_type_t> output,
                        cugraph_type_erased_device_array_view_t const* input,
-                       rmm::cuda_stream_view const& stream_view);
+                       cuda::stream_ref const& stream_view);
 
 }  // namespace c_api
 }  // namespace cugraph

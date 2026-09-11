@@ -365,7 +365,7 @@ struct node2vec_selector {
       auto recv_counts = cugraph::host_scalar_allgather(
         handle.get_subcomm(cugraph::partition_manager::minor_comm_name()),
         current_vertices.size(),
-        handle.get_stream().get());
+        handle.get_stream());
 
       std::vector<size_t> displacements(recv_counts.size());
       std::exclusive_scan(recv_counts.begin(), recv_counts.end(), displacements.begin(), size_t{0});
@@ -410,7 +410,7 @@ struct node2vec_selector {
       recv_counts = cugraph::host_scalar_allgather(
         handle.get_subcomm(cugraph::partition_manager::minor_comm_name()),
         intersection_offsets.back_element(handle.get_stream().get()),
-        handle.get_stream().get());
+        handle.get_stream());
 
       displacements.resize(recv_counts.size());
       std::exclusive_scan(recv_counts.begin(), recv_counts.end(), displacements.begin(), size_t{0});
