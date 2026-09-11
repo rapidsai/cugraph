@@ -584,7 +584,8 @@ dependencies:
               - cugraph-cu13==26.12.*,>=0.0.0a0
           - matrix:
               cuda_suffixed: "false"
-            packages: [*cugraph_unsuffixed]
+            packages:
+              - *cugraph_unsuffixed
   depends_on_libcugraph_etl:
     common:
       - output_types: conda
@@ -624,7 +625,8 @@ dependencies:
               - libraft-cu13==26.12.*,>=0.0.0a0
           - matrix:
               cuda_suffixed: "false"
-            packages: [*libraft_unsuffixed]
+            packages:
+              - *libraft_unsuffixed
   depends_on_libcuvs:
     common:
       - output_types: conda
@@ -649,7 +651,8 @@ dependencies:
               - libcuvs-cu13==26.12.*,>=0.0.0a0
           - matrix:
               cuda_suffixed: "false"
-            packages: [*libcuvs_unsuffixed]
+            packages:
+              - *libcuvs_unsuffixed
   depends_on_librmm:
     common:
       - output_types: conda
@@ -674,7 +677,8 @@ dependencies:
               - librmm-cu13==26.12.*,>=0.0.0a0
           - matrix:
               cuda_suffixed: "false"
-            packages: [*librmm_unsuffixed]
+            packages:
+              - *librmm_unsuffixed
   depends_on_rmm:
     common:
       - output_types: conda
@@ -699,7 +703,8 @@ dependencies:
               - rmm-cu13==26.12.*,>=0.0.0a0
           - matrix:
               cuda_suffixed: "false"
-            packages: [*rmm_unsuffixed]
+            packages:
+              - *rmm_unsuffixed
   depends_on_pylibcudf:
     common:
       - output_types: conda
@@ -724,7 +729,8 @@ dependencies:
               - pylibcudf-cu13==26.12.*,>=0.0.0a0
           - matrix:
               cuda_suffixed: "false"
-            packages: [*pylibcudf_unsuffixed]
+            packages:
+              - *pylibcudf_unsuffixed
   depends_on_cudf:
     common:
       - output_types: conda
@@ -749,7 +755,8 @@ dependencies:
               - cudf-cu13==26.12.*,>=0.0.0a0
           - matrix:
               cuda_suffixed: "false"
-            packages: [*cudf_unsuffixed]
+            packages:
+              - *cudf_unsuffixed
   depends_on_dask_cuda:
     common:
       - output_types: conda
@@ -799,7 +806,8 @@ dependencies:
               - dask-cudf-cu13==26.12.*,>=0.0.0a0
           - matrix:
               cuda_suffixed: "false"
-            packages: [*dask_cudf_unsuffixed]
+            packages:
+              - *dask_cudf_unsuffixed
   depends_on_pylibraft:
     common:
       - output_types: conda
@@ -824,7 +832,8 @@ dependencies:
               - pylibraft-cu13==26.12.*,>=0.0.0a0
           - matrix:
               cuda_suffixed: "false"
-            packages: [*pylibraft_unsuffixed]
+            packages:
+              - *pylibraft_unsuffixed
   depends_on_raft_dask:
     common:
       - output_types: conda
@@ -849,7 +858,8 @@ dependencies:
               - raft-dask-cu13==26.12.*,>=0.0.0a0
           - matrix:
               cuda_suffixed: "false"
-            packages: [*raft_dask_unsuffixed]
+            packages:
+              - *raft_dask_unsuffixed
   depends_on_libcugraph:
     common:
       - output_types: conda
@@ -875,7 +885,8 @@ dependencies:
               - libcugraph-cu13==26.12.*,>=0.0.0a0
           - matrix:
               cuda_suffixed: "false"
-            packages: [*libcugraph_unsuffixed]
+            packages:
+              - *libcugraph_unsuffixed
   depends_on_pylibcugraph:
     common:
       - output_types: conda
@@ -901,7 +912,8 @@ dependencies:
               - pylibcugraph-cu13==26.12.*,>=0.0.0a0
           - matrix:
               cuda_suffixed: "false"
-            packages: [*pylibcugraph_unsuffixed]
+            packages:
+              - *pylibcugraph_unsuffixed
   depends_on_cupy:
     common:
       - output_types: conda
@@ -967,4 +979,5 @@ dependencies:
               - ucxx-cu13==0.53.*,>=0.0.0a0
           - matrix:
               cuda_suffixed: "false"
-            packages: [*ucxx_unsuffixed]
+            packages:
+              - *ucxx_unsuffixed
