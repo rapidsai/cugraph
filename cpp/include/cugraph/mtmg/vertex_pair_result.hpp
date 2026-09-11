@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -13,7 +13,9 @@ namespace CUGRAPH_EXPORT cugraph {
 namespace mtmg {
 
 /**
- * @brief An MTMG device vector for storing vertex results
+ * @brief An MTMG device vector for storing vertex pair results
+ *
+ * @deprecated This API is deprecated and will be removed in release 27.02.
  */
 template <typename vertex_t, typename result_t>
 class vertex_pair_result_t

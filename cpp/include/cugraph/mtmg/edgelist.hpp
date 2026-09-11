@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -16,6 +16,8 @@ namespace mtmg {
 
 /**
  * @brief Edgelist object for each GPU
+ *
+ * @deprecated This API is deprecated and will be removed in release 27.02.
  */
 template <typename vertex_t>
 class edgelist_t : public detail::device_shared_wrapper_t<detail::per_device_edgelist_t<vertex_t>> {
