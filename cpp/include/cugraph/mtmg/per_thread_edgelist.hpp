@@ -15,6 +15,8 @@ namespace mtmg {
 /**
  * @brief Supports creating an edgelist from individual host threads
  *
+ * @deprecated This API is deprecated and will be removed in release 27.02.
+ *
  * A cugraph edgelist needs to contain all of the edges necessary to create the graph
  * stored in GPU memory (distributed across multiple GPUs in a multi-GPU configuration).
  *
