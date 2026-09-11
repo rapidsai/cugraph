@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -306,7 +306,7 @@ void per_v_pair_transform_minor_nbr_intersection(
     auto max_num_chunks = (h_edge_partition_group_sizes[i] + max_chunk_size - 1) / max_chunk_size;
     if constexpr (GraphViewType::is_multi_gpu) {
       max_num_chunks = host_scalar_allreduce(
-        handle.get_comms(), max_num_chunks, raft::comms::op_t::MAX, handle.get_stream());
+        handle.get_comms(), max_num_chunks, raft::comms::op_t::MAX, handle.get_stream().get());
     }
 
     std::vector<size_t> h_chunk_sizes(max_num_chunks);

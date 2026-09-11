@@ -93,12 +93,12 @@ prepare_next_frontier(
       host_scalar_allreduce(comm,
                             static_cast<int32_t>(has_sampled_dst_window_starts ? 1 : 0),
                             raft::comms::op_t::MAX,
-                            handle.get_stream()) != 0;
+                            handle.get_stream().get()) != 0;
     has_sampled_dst_window_ends =
       host_scalar_allreduce(comm,
                             static_cast<int32_t>(has_sampled_dst_window_ends ? 1 : 0),
                             raft::comms::op_t::MAX,
-                            handle.get_stream()) != 0;
+                            handle.get_stream().get()) != 0;
   }
 
   auto const carry_over = prior_sources_behavior == prior_sources_behavior_t::CARRY_OVER;

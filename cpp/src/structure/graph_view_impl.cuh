@@ -62,7 +62,63 @@ struct out_of_range_t {
   __device__ bool operator()(vertex_t v) const { return (v < min) || (v >= max); }
 };
 
-// compute out-degrees (if we are internally storing edges in the sparse 2D matrix using sources as
+template <typename vertex_t,
+          typename edge_t,
+          bool multi_gpu,
+          typename EdgePartitionView,
+          typename EdgeMaskOptional>
+struct has_edge_op_t {
+  EdgePartitionView edge_partition{};
+  EdgeMaskOptional edge_partition_e_mask{};
+
+  __device__ bool operator()(auto e) const
+  {
+    auto major = cuda::std::get<0>(e);
+    auto minor = cuda::std::get<1>(e);
+    if constexpr (multi_gpu) {
+      auto major_idx = edge_partition.major_idx_from_major_nocheck(major);
+      if (major_idx) {
+        vertex_t const* indices{nullptr};
+        edge_t local_edge_offset{};
+        edge_t local_degree{};
+        cuda::std::tie(indices, local_edge_offset, local_degree) =
+          edge_partition.local_edges(*major_idx);
+        auto it = thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
+        if ((it != indices + local_degree) && *it == minor) {
+          if (edge_partition_e_mask) {
+            return (*edge_partition_e_mask)
+              .get(local_edge_offset + cuda::std::distance(indices, it));
+          } else {
+            return true;
+          }
+        } else {
+          return false;
+        }
+      } else {
+        return false;
+      }
+    } else {
+      auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
+      vertex_t const* indices{nullptr};
+      edge_t local_edge_offset{};
+      edge_t local_degree{};
+      cuda::std::tie(indices, local_edge_offset, local_degree) =
+        edge_partition.local_edges(major_offset);
+      auto it = thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
+      if ((it != indices + local_degree) && *it == minor) {
+        if (edge_partition_e_mask) {
+          return (*edge_partition_e_mask).get(local_edge_offset + cuda::std::distance(indices, it));
+        } else {
+          return true;
+        }
+      } else {
+        return false;
+      }
+    }
+  }
+};
+
+// compute out-degrees
 // major indices) or in-degrees (otherwise)
 template <typename vertex_t, typename edge_t>
 rmm::device_uvector<edge_t> compute_major_degrees(
@@ -171,7 +227,7 @@ rmm::device_uvector<edge_t> compute_major_degrees(
                       static_cast<size_t>(num_local_degrees),
                       raft::comms::op_t::SUM,
                       i,
-                      handle.get_stream());
+                      handle.get_stream().get());
   }
 
   return degrees;
@@ -328,7 +384,7 @@ edge_t count_edge_partition_multi_edges(
       cugraph::for_all_major_for_all_nbr_high_degree<<<update_grid.num_blocks,
                                                        update_grid.block_size,
                                                        0,
-                                                       handle.get_stream()>>>(
+                                                       handle.get_stream().get()>>>(
         edge_partition,
         edge_partition.major_range_first(),
         edge_partition.major_range_first() + (*segment_offsets)[1],
@@ -342,7 +398,7 @@ edge_t count_edge_partition_multi_edges(
       cugraph::for_all_major_for_all_nbr_mid_degree<<<update_grid.num_blocks,
                                                       update_grid.block_size,
                                                       0,
-                                                      handle.get_stream()>>>(
+                                                      handle.get_stream().get()>>>(
         edge_partition,
         edge_partition.major_range_first() + (*segment_offsets)[1],
         edge_partition.major_range_first() + (*segment_offsets)[2],
@@ -568,8 +624,8 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
         count_set_bits(handle.get_thrust_policy(), value_firsts[i], edge_counts[i]));
     }
 #if 1  // FIXME: we should add host_allreduce to raft
-    ret =
-      host_scalar_allreduce(handle.get_comms(), ret, raft::comms::op_t::SUM, handle.get_stream());
+    ret = host_scalar_allreduce(
+      handle.get_comms(), ret, raft::comms::op_t::SUM, handle.get_stream().get());
 #else
     handle.get_comms().host_allreduce(
       std::addressof(ret), std::addressof(ret), size_t{1}, raft::comms::op_t::SUM);
@@ -791,8 +847,8 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
   }
 
 #if 1  // FIXME: we should add host_allreduce to raft
-  count =
-    host_scalar_allreduce(handle.get_comms(), count, raft::comms::op_t::SUM, handle.get_stream());
+  count = host_scalar_allreduce(
+    handle.get_comms(), count, raft::comms::op_t::SUM, handle.get_stream().get());
 #else
   handle.get_comms().host_allreduce(
     std::addressof(count), std::addressof(count), size_t{1}, raft::comms::op_t::SUM);
@@ -856,37 +912,17 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
             detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
             *edge_mask_view, i)
         : cuda::std::nullopt;
-    thrust::transform(handle.get_thrust_policy(),
-                      sorted_edge_first + edge_partition_offsets[i],
-                      sorted_edge_first + edge_partition_offsets[i + 1],
-                      thrust::make_permutation_iterator(
-                        ret.begin(), edge_indices.begin() + edge_partition_offsets[i]),
-                      [edge_partition, edge_partition_e_mask] __device__(auto e) {
-                        auto major     = cuda::std::get<0>(e);
-                        auto minor     = cuda::std::get<1>(e);
-                        auto major_idx = edge_partition.major_idx_from_major_nocheck(major);
-                        if (major_idx) {
-                          vertex_t const* indices{nullptr};
-                          edge_t local_edge_offset{};
-                          edge_t local_degree{};
-                          cuda::std::tie(indices, local_edge_offset, local_degree) =
-                            edge_partition.local_edges(*major_idx);
-                          auto it = thrust::lower_bound(
-                            thrust::seq, indices, indices + local_degree, minor);
-                          if ((it != indices + local_degree) && *it == minor) {
-                            if (edge_partition_e_mask) {
-                              return (*edge_partition_e_mask)
-                                .get(local_edge_offset + cuda::std::distance(indices, it));
-                            } else {
-                              return true;
-                            }
-                          } else {
-                            return false;
-                          }
-                        } else {
-                          return false;
-                        }
-                      });
+    thrust::transform(
+      handle.get_thrust_policy(),
+      sorted_edge_first + edge_partition_offsets[i],
+      sorted_edge_first + edge_partition_offsets[i + 1],
+      thrust::make_permutation_iterator(ret.begin(),
+                                        edge_indices.begin() + edge_partition_offsets[i]),
+      has_edge_op_t<vertex_t,
+                    edge_t,
+                    multi_gpu,
+                    decltype(edge_partition),
+                    decltype(edge_partition_e_mask)>{edge_partition, edge_partition_e_mask});
   }
 
   return ret;
@@ -932,26 +968,11 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
     edge_first,
     edge_first + edge_srcs.size(),
     ret.begin(),
-    [edge_partition, edge_partition_e_mask] __device__(auto e) {
-      auto major        = cuda::std::get<0>(e);
-      auto minor        = cuda::std::get<1>(e);
-      auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
-      vertex_t const* indices{nullptr};
-      edge_t local_edge_offset{};
-      edge_t local_degree{};
-      cuda::std::tie(indices, local_edge_offset, local_degree) =
-        edge_partition.local_edges(major_offset);
-      auto it = thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
-      if ((it != indices + local_degree) && *it == minor) {
-        if (edge_partition_e_mask) {
-          return (*edge_partition_e_mask).get(local_edge_offset + cuda::std::distance(indices, it));
-        } else {
-          return true;
-        }
-      } else {
-        return false;
-      }
-    });
+    has_edge_op_t<vertex_t,
+                  edge_t,
+                  multi_gpu,
+                  decltype(edge_partition),
+                  decltype(edge_partition_e_mask)>{edge_partition, edge_partition_e_mask});
 
   return ret;
 }
