@@ -25,6 +25,8 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/per_device_resource.hpp>
 
+#include <cuda/stream>
+
 #include <cuda_runtime.h>
 
 #include <cstdio>
@@ -121,8 +123,9 @@ extern "C" void* create_mg_raft_handle(int argc, char** argv)
 
   // Match initialize_mg_handle: per-thread default stream + stream pool.
   constexpr size_t stream_pool_size = 8;  // default CUDA_DEVICE_MAX_CONNECTIONS
-  raft::handle_t* handle            = new raft::handle_t{
-    rmm::cuda_stream_per_thread, std::make_shared<rmm::cuda_stream_pool>(stream_pool_size)};
+  raft::handle_t* handle =
+    new raft::handle_t{cuda::stream_ref{cudaStreamPerThread},
+                       std::make_shared<rmm::cuda_stream_pool>(stream_pool_size)};
   raft::comms::initialize_mpi_comms(handle, MPI_COMM_WORLD);
 
 #if 1
@@ -1692,8 +1695,10 @@ int mg_validate_sample_result(const cugraph_resource_handle_t* handle,
           }
         }
 
-        if (validate_edge_times) {
-          // Check that the edge times are moving in the correct direction
+        if (validate_edge_times && internal_sampling_options->fixed_window_ != TRUE) {
+          // Check that the edge times are moving in the correct direction. fixed_window is
+          // excluded because it reuses the original seed window at every hop and does not impose
+          // path-wise monotonicity.
           time_stamp_t previous_vertex_times[num_vertices];
           for (size_t i = 0; i < num_vertices; ++i)
             if (temporal_sampling_comparison == STRICTLY_INCREASING) {

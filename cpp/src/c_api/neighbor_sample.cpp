@@ -207,7 +207,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           // count, so a rank's displacement into that space is both the offset to apply to its own
           // labels and its displacement into the concatenated label to rank mapping below.
           auto recvcounts = cugraph::host_scalar_allgather(
-            handle_.get_comms(), num_local_labels, handle_.get_stream());
+            handle_.get_comms(), num_local_labels, handle_.get_stream().get());
 
           std::vector<size_t> displacements(recvcounts.size());
           std::exclusive_scan(
@@ -339,9 +339,6 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
             temporal_sampling_comparison =
               cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING;
             break;
-          case cugraph_temporal_sampling_comparison_t::FIXED_WINDOW:
-            temporal_sampling_comparison = cugraph::temporal_sampling_comparison_t::FIXED_WINDOW;
-            break;
           default: CUGRAPH_FAIL("Invalid temporal sampling comparison type");
         }
       }
@@ -406,7 +403,8 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                                       options_.with_replacement_ == TRUE,
                                       temporal_sampling_comparison,
                                       options_.disjoint_sampling_ == TRUE,
-                                      options_.neighbor_selection_},
+                                      options_.neighbor_selection_,
+                                      options_.fixed_window_ == TRUE},
           do_expensive_check_);
 
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(

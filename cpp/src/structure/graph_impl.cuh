@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -178,7 +178,7 @@ update_local_sorted_unique_edge_majors_minors(
       comm,
       static_cast<double>(num_local_unique_edge_minors) / static_cast<double>(minor_range_size),
       raft::comms::op_t::MAX,
-      handle.get_stream());
+      handle.get_stream().get());
 
     if (max_minor_properties_fill_ratio <
         detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold) {
@@ -291,7 +291,7 @@ update_local_sorted_unique_edge_majors_minors(
                                            static_cast<double>(aggregate_major_range_size);
 #if 1  // FIXME: we should add host_allreduce to raft
     max_major_properties_fill_ratio = host_scalar_allreduce(
-      comm, max_major_properties_fill_ratio, raft::comms::op_t::MAX, handle.get_stream());
+      comm, max_major_properties_fill_ratio, raft::comms::op_t::MAX, handle.get_stream().get());
 #else
     comm.host_allreduce(std::addressof(max_major_properties_fill_ratio),
                         std::addressof(max_major_properties_fill_ratio),
@@ -486,6 +486,22 @@ graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gp
   if (edge_partition_dcs_nzd_vertices_) {
     edge_partition_dcs_nzd_range_bitmaps_ =
       compute_edge_partition_dcs_nzd_range_bitmaps(handle, meta, *edge_partition_dcs_nzd_vertices_);
+  }
+
+  // Global logical |E|: sum local CSR index counts, then SUM allreduce (each edge on one GPU).
+  {
+    edge_t local_count{0};
+    for (auto const& indices : edge_partition_indices_) {
+      local_count += static_cast<edge_t>(indices.size());
+    }
+#if 1  // FIXME: we should add host_allreduce to raft
+    this->number_of_edges_ = host_scalar_allreduce(
+      handle.get_comms(), local_count, raft::comms::op_t::SUM, handle.get_stream());
+#else
+    handle.get_comms().host_allreduce(
+      std::addressof(local_count), std::addressof(local_count), size_t{1}, raft::comms::op_t::SUM);
+    this->number_of_edges_ = local_count;
+#endif
   }
 }
 

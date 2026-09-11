@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -36,7 +36,7 @@ size_t count_invalid_vertices(
                      });
   if constexpr (multi_gpu) {
     num_invalid_vertices = cugraph::host_scalar_allreduce(
-      handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream());
+      handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream().get());
   }
 
   return num_invalid_vertices;

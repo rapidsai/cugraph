@@ -477,7 +477,7 @@ extern "C" size_t cugraph_size_t_allreduce(const cugraph_resource_handle_t* hand
   return cugraph::host_scalar_allreduce(internal_handle->handle_->get_comms(),
                                         value,
                                         raft::comms::op_t::SUM,
-                                        internal_handle->handle_->get_stream());
+                                        internal_handle->handle_->get_stream().get());
 }
 
 extern "C" int validate_sample_result(const cugraph_resource_handle_t* handle,
@@ -1012,8 +1012,8 @@ extern "C" int validate_sample_result(const cugraph_resource_handle_t* handle,
         }
       }
 
-      if (validate_edge_times && temporal_sampling_comparison != FIXED_WINDOW) {
-        // Check that the edge times are moving in the correct direction. FIXED_WINDOW is excluded
+      if (validate_edge_times && internal_sampling_options->fixed_window_ != TRUE) {
+        // Check that the edge times are moving in the correct direction. fixed_window is excluded
         // because it reuses the original seed window at every hop and does not impose path-wise
         // monotonicity.
         time_stamp_t previous_vertex_times[num_vertices];

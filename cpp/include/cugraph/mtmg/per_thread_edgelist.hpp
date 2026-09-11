@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -155,7 +155,7 @@ class per_thread_edgelist_t {
 
     current_pos_ = 0;
 
-    if (sync) stream_view.synchronize();
+    if (sync) stream_view.sync();
   }
 
  private:

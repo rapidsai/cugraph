@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -73,6 +73,20 @@ class edge_bucket_t {
       minors_(std::move(src_major ? dsts : srcs)),
       multi_edge_indices_(std::move(multi_edge_indices))
   {
+  }
+
+  /**
+   * @brief Move the stored edgelist out of the bucket.
+   *
+   * Complements the r-value constructor: callers can construct with moved vectors, use the bucket
+   * for gather/transform, then recover ownership without an insert copy.
+   */
+  std::tuple<rmm::device_uvector<vertex_t>,
+             rmm::device_uvector<vertex_t>,
+             std::optional<rmm::device_uvector<edge_t>>>
+  take_edgelist()
+  {
+    return {std::move(majors_), std::move(minors_), std::move(multi_edge_indices_)};
   }
 
   /**
