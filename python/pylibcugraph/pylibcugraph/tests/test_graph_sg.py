@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -130,8 +130,9 @@ def test_SGGraph_create_from_cudf():
 
     graph_props = GraphProperties(is_multigraph=False, is_symmetric=False)
 
+    resource_handle = ResourceHandle()
     plc_graph = SGGraph(
-        resource_handle=ResourceHandle(),
+        resource_handle=resource_handle,
         graph_properties=graph_props,
         src_or_offset_array=edgelist["src"],
         dst_or_index_array=edgelist["dst"],
@@ -143,5 +144,34 @@ def test_SGGraph_create_from_cudf():
         do_expensive_check=True,
         input_array_format="COO",
     )
-    print("done", flush=True)
-    print(f"created SGGraph {plc_graph=}", flush=True)
+    assert plc_graph.number_of_vertices() == 5
+    assert plc_graph.number_of_edges(resource_handle) == 3
+
+
+def test_sg_graph_number_of_vertices_and_edges():
+    import cupy as cp
+    import numpy as np
+    from pylibcugraph import ResourceHandle, GraphProperties, SGGraph
+
+    resource_handle = ResourceHandle()
+    graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
+
+    device_srcs = cp.asarray([0, 1, 1, 2, 2, 2, 3, 4], dtype=np.int32)
+    device_dsts = cp.asarray([1, 3, 4, 0, 1, 3, 5, 5], dtype=np.int32)
+    device_weights = cp.asarray(
+        [0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2], dtype=np.float32
+    )
+
+    graph = SGGraph(
+        resource_handle=resource_handle,
+        graph_properties=graph_props,
+        src_or_offset_array=device_srcs,
+        dst_or_index_array=device_dsts,
+        weight_array=device_weights,
+        store_transposed=False,
+        renumber=False,
+        do_expensive_check=False,
+    )
+
+    assert graph.number_of_vertices() == 6
+    assert graph.number_of_edges(resource_handle) == 8
