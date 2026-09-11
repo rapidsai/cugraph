@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -99,6 +99,19 @@ int test_create_sg_graph_simple()
                                                 &graph,
                                                 &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
+
+  size_t result_num_vertices = 0;
+  size_t result_num_edges    = 0;
+
+  ret_code = cugraph_graph_number_of_vertices(graph, &result_num_vertices, &ret_error);
+  TEST_ASSERT(
+    test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_graph_number_of_vertices failed.");
+  TEST_ASSERT(
+    test_ret_value, result_num_vertices == num_vertices, "number of vertices did not match");
+
+  ret_code = cugraph_graph_number_of_edges(handle, graph, &result_num_edges, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_graph_number_of_edges failed.");
+  TEST_ASSERT(test_ret_value, result_num_edges == num_edges, "number of edges did not match");
 
   cugraph_graph_free(graph);
 
