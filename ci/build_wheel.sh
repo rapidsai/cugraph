@@ -85,6 +85,7 @@ EXCLUDE_ARGS+=(
   --exclude "libcurand.so.*"
   --exclude "libcusolver.so.*"
   --exclude "libcusparse.so.*"
+  --exclude "libkvikio.so*"
   --exclude "libnvJitLink.so.*"
   --exclude "librapids_logger.so"
   --exclude "librmm.so"
