@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -716,7 +716,7 @@ nbr_intersection(raft::handle_t const& handle,
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& comm = handle.get_comms();
       is_sorted  = static_cast<bool>(host_scalar_allreduce(
-        comm, static_cast<int>(is_sorted), raft::comms::op_t::MIN, handle.get_stream()));
+        comm, static_cast<int>(is_sorted), raft::comms::op_t::MIN, handle.get_stream().get()));
     }
     CUGRAPH_EXPECTS(is_sorted, "Invalid input arguments: input vertex pairs should be sorted.");
 
@@ -778,7 +778,7 @@ nbr_intersection(raft::handle_t const& handle,
           // calls, perform local sort and unique, and call multiple broadcasts rather than
           // performing sort and unique for the entire range in every GPU in minor_comm.
           auto rx_counts =
-            host_scalar_allgather(minor_comm, unique_majors.size(), handle.get_stream());
+            host_scalar_allgather(minor_comm, unique_majors.size(), handle.get_stream().get());
           std::vector<size_t> rx_displacements(rx_counts.size());
           std::exclusive_scan(
             rx_counts.begin(), rx_counts.end(), rx_displacements.begin(), size_t{0});
@@ -1155,7 +1155,7 @@ nbr_intersection(raft::handle_t const& handle,
 
     for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
       auto rx_v_pair_counts =
-        host_scalar_allgather(minor_comm, input_counts[i], handle.get_stream());
+        host_scalar_allgather(minor_comm, input_counts[i], handle.get_stream().get());
       std::vector<size_t> rx_v_pair_displacements(rx_v_pair_counts.size());
       std::exclusive_scan(rx_v_pair_counts.begin(),
                           rx_v_pair_counts.end(),
@@ -1765,10 +1765,11 @@ nbr_intersection(raft::handle_t const& handle,
 #if 1  // FIXME: work-around for the 32 bit integer overflow issue in thrust::remove,
        // thrust::remove_if, and thrust::copy_if (https://github.com/NVIDIA/thrust/issues/1302)
     rmm::device_uvector<vertex_t> tmp_indices(
-      thrust::count_if(handle.get_thrust_policy(),
-                       nbr_intersection_indices.begin(),
-                       nbr_intersection_indices.end(),
-                       detail::is_not_equal_t<vertex_t>{invalid_vertex_id<vertex_t>::value}),
+      thrust::count_if(
+        handle.get_thrust_policy(),
+        nbr_intersection_indices.begin(),
+        nbr_intersection_indices.end(),
+        detail::is_not_equal_to_const_t<vertex_t, cugraph::invalid_vertex_id_v<vertex_t>>{}),
       handle.get_stream());
 
     [[maybe_unused]] auto tmp_property_values0 =
@@ -1790,11 +1791,12 @@ nbr_intersection(raft::handle_t const& handle,
       if constexpr (std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>) {
         num_copied += static_cast<size_t>(cuda::std::distance(
           tmp_indices.begin() + num_copied,
-          thrust::copy_if(handle.get_thrust_policy(),
-                          nbr_intersection_indices.begin() + num_scanned,
-                          nbr_intersection_indices.begin() + num_scanned + this_scan_size,
-                          tmp_indices.begin() + num_copied,
-                          detail::is_not_equal_t<vertex_t>{invalid_vertex_id<vertex_t>::value})));
+          thrust::copy_if(
+            handle.get_thrust_policy(),
+            nbr_intersection_indices.begin() + num_scanned,
+            nbr_intersection_indices.begin() + num_scanned + this_scan_size,
+            tmp_indices.begin() + num_copied,
+            detail::is_not_equal_to_const_t<vertex_t, cugraph::invalid_vertex_id_v<vertex_t>>{})));
       } else {
         auto zipped_itr_to_indices_and_e_property_values_begin = thrust::make_zip_iterator(
           cuda::std::make_tuple(nbr_intersection_indices.begin(),

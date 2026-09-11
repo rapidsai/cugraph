@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -73,7 +73,7 @@ void copy_if_nosync(InputIterator input_first,
                              output_first,
                              count.data(),
                              input_size,
-                             stream_view);
+                             stream_view.get());
 
   auto d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, stream_view);
 
@@ -84,7 +84,7 @@ void copy_if_nosync(InputIterator input_first,
                              output_first,
                              count.data(),
                              input_size,
-                             stream_view);
+                             stream_view.get());
 }
 
 template <typename InputIterator>

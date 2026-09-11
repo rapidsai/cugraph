@@ -398,7 +398,7 @@ sort_and_reduce_buffer_elements(
                         get_dataframe_buffer_end(key_buffer),
                         stencil_first,
                         get_dataframe_buffer_begin(tmp_key_buffer) + num_unique_prefix_elements,
-                        is_equal_t<bool>{true});
+                        is_equal_to_const_t<bool, true>{});
         key_buffer = std::move(tmp_key_buffer);
         cugraph::sort(handle.get_thrust_policy(),
                       get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
@@ -425,7 +425,7 @@ sort_and_reduce_buffer_elements(
                         input_pair_first + size_dataframe_buffer(key_buffer),
                         stencil_first,
                         output_pair_first + num_unique_prefix_elements,
-                        is_equal_t<bool>{true});
+                        is_equal_to_const_t<bool, true>{});
         key_buffer     = std::move(tmp_key_buffer);
         payload_buffer = std::move(tmp_payload_buffer);
         thrust::sort_by_key(
@@ -736,7 +736,7 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
     if (major_comm_size > 1) {
 #if 1  // FIXME: we should add host_allreduce to raft
       aggregate_key_buffer_size = host_scalar_allreduce(
-        major_comm, aggregate_key_buffer_size, raft::comms::op_t::SUM, handle.get_stream());
+        major_comm, aggregate_key_buffer_size, raft::comms::op_t::SUM, handle.get_stream().get());
 #else
       major_comm.host_allreduce(std::addressof(aggregate_key_buffer_size),
                                 std::addressof(aggregate_key_buffer_size),
@@ -1149,7 +1149,8 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
 #if 1  // FIXME: we should add host_allgather to raft
-    local_frontier_sizes = host_scalar_allgather(minor_comm, frontier.size(), handle.get_stream());
+    local_frontier_sizes =
+      host_scalar_allgather(minor_comm, frontier.size(), handle.get_stream().get());
 #else
     local_frontier_sizes                        = std::vector<size_t>(minor_comm.get_size(), 0);
     local_frontier_sizes[minor_comm.get_rank()] = frontier.size();

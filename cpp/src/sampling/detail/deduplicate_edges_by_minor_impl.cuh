@@ -68,7 +68,7 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
 
   if constexpr (multi_gpu) {
     total_edges = host_scalar_allreduce(
-      handle.get_comms(), total_edges, raft::comms::op_t::SUM, handle.get_stream());
+      handle.get_comms(), total_edges, raft::comms::op_t::SUM, handle.get_stream().get());
   }
 
   if (total_edges == 0) {
