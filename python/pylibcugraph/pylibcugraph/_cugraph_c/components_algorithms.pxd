@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -23,7 +23,7 @@ from pylibcugraph._cugraph_c.graph cimport (
 )
 
 
-cdef extern from "cugraph_c/labeling_algorithms.h":
+cdef extern from "cugraph_c/components_algorithms.h":
     ###########################################################################
     # weakly connected components
     ctypedef struct cugraph_labeling_result_t:
