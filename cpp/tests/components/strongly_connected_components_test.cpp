@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "strongly_connected_components_reference.hpp"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/property_generator_utilities.hpp"
@@ -23,69 +24,9 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
-#include <iterator>
-#include <limits>
-#include <stack>
+#include <span>
 #include <unordered_map>
 #include <vector>
-
-// Tarjan's strongly connected components algorithm.
-// (https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm)
-template <typename vertex_t, typename edge_t>
-void strongly_connected_components_reference(edge_t const* offsets,
-                                             vertex_t const* indices,
-                                             vertex_t* components,
-                                             vertex_t num_vertices)
-{
-  using index_t                   = size_t;
-  constexpr index_t invalid_index = std::numeric_limits<index_t>::max();
-
-  std::vector<index_t> index(num_vertices, invalid_index);
-  std::vector<index_t> lowlink(num_vertices, invalid_index);
-  std::vector<bool> on_stack(num_vertices, false);
-  std::stack<vertex_t> S{};
-  index_t current_index{0};
-  vertex_t next_component_id{0};
-
-  std::fill(components, components + num_vertices, cugraph::invalid_component_id<vertex_t>::value);
-
-  auto strongconnect = [&](vertex_t v, auto&& strongconnect_ref) -> void {
-    index[v]   = current_index;
-    lowlink[v] = current_index;
-    ++current_index;
-    S.push(v);
-    on_stack[v] = true;
-
-    // Consider successors of v (outgoing edges)
-    edge_t nbr_begin = offsets[v];
-    edge_t nbr_end   = offsets[v + 1];
-    for (edge_t e = nbr_begin; e != nbr_end; ++e) {
-      vertex_t w = indices[e];
-      if (index[w] == invalid_index) {
-        strongconnect_ref(w, strongconnect_ref);
-        lowlink[v] = std::min(lowlink[v], lowlink[w]);
-      } else if (on_stack[w]) {
-        lowlink[v] = std::min(lowlink[v], index[w]);
-      }
-    }
-
-    // If v is a root node, pop the stack and assign component id
-    if (lowlink[v] == index[v]) {
-      vertex_t w;
-      do {
-        w = S.top();
-        S.pop();
-        on_stack[w]   = false;
-        components[w] = next_component_id;
-      } while (w != v);
-      ++next_component_id;
-    }
-  };
-
-  for (vertex_t v = 0; v < num_vertices; ++v) {
-    if (index[v] == invalid_index) { strongconnect(v, strongconnect); }
-  }
-}
 
 struct StronglyConnectedComponents_Usecase {
   bool edge_masking{false};
@@ -170,12 +111,9 @@ class Tests_StronglyConnectedComponent
                                     d_renumber_map_labels->data(), d_renumber_map_labels->size())
                                 : std::nullopt);
 
-      std::vector<vertex_t> h_reference_components(graph_view.number_of_vertices());
-
-      strongly_connected_components_reference(h_offsets.data(),
-                                              h_indices.data(),
-                                              h_reference_components.data(),
-                                              graph_view.number_of_vertices());
+      auto h_reference_components = strongly_connected_components_reference(
+        std::span<edge_t const>(h_offsets.data(), h_offsets.size()),
+        std::span<vertex_t const>(h_indices.data(), h_indices.size()));
 
       std::vector<vertex_t> h_cugraph_components{};
       if (renumber) {
