@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES.
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 """Starter cuGraph analysis with intentionally incorrect graph semantics."""
@@ -21,7 +21,7 @@ def reachable_within_hops(edges, vertices, start, max_hops):
     return cugraph.sssp(graph, source=start)
 
 
-def demo():
+def main():
     edges = cudf.DataFrame(
         {
             "src_service": ["checkout", "payments", "payments", "ledger"],
@@ -36,4 +36,4 @@ def demo():
 
 
 if __name__ == "__main__":
-    print(demo())
+    print(main())

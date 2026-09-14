@@ -83,7 +83,7 @@
     },
     {
       "id": "cugraph-analysis-implicit-composite-identities",
-      "prompt": "Our vertices are keyed by (tenant_id, account_id). A prototype concatenates the two fields before building a PageRank graph, and different pairs have collided. Define the correct cuGraph construction and a stable result handoff for version 26.10.",
+      "prompt": "Our vertices are keyed by (tenant_id, account_id). Existing code concatenates the two fields before building a PageRank graph, and different pairs have collided. Define the correct cuGraph construction and a stable result handoff.",
       "expected_output": "The agent keeps the two identifier fields separate, passes matching source and destination column lists with renumber=True, and does not rely on row order or delimiter concatenation. It notes that multi-column PageRank output is unrenumbered into multiple vertex columns such as 0_vertex and 1_vertex in the current tests, then explicitly maps and validates those columns back to tenant_id and account_id with one score per graph vertex.",
       "assertions": [
         "Rejects concatenation as a stable composite-key strategy",

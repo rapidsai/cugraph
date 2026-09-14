@@ -1,6 +1,6 @@
 ---
 name: cugraph-graph-analysis
-version: "26.10.00"
+version: "1.0.0"
 description: Use for cuGraph construction and analytics where direction, weights, parallel edges, isolates, or vertex identity matter; not table-only aggregation.
 license: Apache-2.0
 metadata:
@@ -48,7 +48,7 @@ Record these choices:
 | Isolates | Whether entities with no edges belong in the analytical population |
 | Output | Algorithm, parameters, result grain, and interpretation |
 
-A field named `parent`, `follows`, or `supplier` does not by itself prove edge direction. Verify direction on a tiny named chain whose expected reachability is obvious.
+A field named `parent`, `follows`, or `depends_on` does not by itself prove edge direction. Verify direction on a tiny named chain whose expected reachability is obvious.
 
 Do not project a bipartite or event model into entity-to-entity edges unless the projection rule is part of the analysis. A projection can discard edge type, timing, quantities, and path meaning.
 
@@ -90,7 +90,7 @@ G.from_cudf_edgelist(
 )
 ```
 
-Grounded behavior in the 26.10 source tree:
+Grounded behavior in the current source tree:
 
 - `Graph()` defaults to undirected; pass `directed=True` intentionally when direction matters.
 - `from_cudf_edgelist` defaults to `renumber=True`. External IDs may be strings, non-contiguous, or composite columns. Pass matching source/destination column lists for composite IDs; never make a supposedly unique key by lossy string concatenation. Multi-column IDs require renumbering, and output key columns must be inspected and explicitly renamed before handoff.

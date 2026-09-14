@@ -1,6 +1,6 @@
 # cuGraph Python API and Validation Patterns
 
-These examples are grounded in the cuGraph 26.10 source tree. Verify signatures and algorithm support against the installed release. They use the high-level `cugraph` Python API; `pylibcugraph`, `cugraph.dask`, and the NetworkX backend have different contracts.
+These examples are grounded in the current cuGraph source tree. Verify signatures and algorithm support against the installed release. They use the high-level `cugraph` Python API; `pylibcugraph`, `cugraph.dask`, and the NetworkX backend have different contracts.
 
 ## Directed graph with stable string IDs and an isolate
 
@@ -140,7 +140,7 @@ composite_graph.from_cudf_edgelist(
 composite_rank = cugraph.pagerank(composite_graph)
 ```
 
-The 26.10 PageRank tests receive unrenumbered composite keys in columns such as `0_vertex` and `1_vertex`, plus `pagerank`. Inspect and rename those result columns explicitly before a business-key handoff; do not join scores back by row order. Multi-column IDs require `renumber=True` in the high-level construction source.
+The current PageRank tests receive unrenumbered composite keys in columns such as `0_vertex` and `1_vertex`, plus `pagerank`. Inspect and rename those result columns explicitly before a business-key handoff; do not join scores back by row order. Multi-column IDs require `renumber=True` in the high-level construction source.
 
 ## Undirected topology with edge IDs or types
 

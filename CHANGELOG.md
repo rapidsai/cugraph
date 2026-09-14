@@ -14,6 +14,7 @@
 ### 🚀 New Features
 * Port Hornet's binning block memory allocator to cuGraph by @seunghwak in https://github.com/rapidsai/cugraph/pull/5555
 ### 🛠️ Improvements
+* Add a repository-grounded cuGraph graph-analysis agent skill by @cafzal in https://github.com/rapidsai/cugraph/pull/5674
 * Require CMake 4.0 by @KyleFromNVIDIA in https://github.com/rapidsai/cugraph/pull/5515
 * Improve devcontainer startup times by @trxcllnt in https://github.com/rapidsai/cugraph/pull/5523
 * Remove deprecated GNN code by @alexbarghi-nv in https://github.com/rapidsai/cugraph/pull/5529

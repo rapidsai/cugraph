@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES.
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 """Dependency-free component contract checks; no GPU execution occurs."""
@@ -52,14 +52,25 @@ def main():
         ]
     )
 
-    source = Path(__file__).with_name("analyze_components.py").read_text(encoding="utf-8")
+    source = (
+        Path(__file__).with_name("analyze_components.py").read_text(encoding="utf-8")
+    )
     tree = ast.parse(source)
     graph_calls = calls(tree, "Graph")
     directions = {
-        next((kw.value.value for kw in call.keywords if kw.arg == "directed" and isinstance(kw.value, ast.Constant)), None)
+        next(
+            (
+                kw.value.value
+                for kw in call.keywords
+                if kw.arg == "directed" and isinstance(kw.value, ast.Constant)
+            ),
+            None,
+        )
         for call in graph_calls
     }
-    assert directions >= {True, False}, "construct separate directed and undirected graph views"
+    assert directions >= {True, False}, (
+        "construct separate directed and undirected graph views"
+    )
 
     builds = calls(tree, "from_cudf_edgelist")
     assert len(builds) >= 2
@@ -69,11 +80,19 @@ def main():
 
     for function in ("weakly_connected_components", "strongly_connected_components"):
         call = calls(tree, function)[0]
-        forbidden = {kw.arg for kw in call.keywords} & {"directed", "connection", "return_labels"}
-        assert not forbidden, f"Graph input does not accept these {function} arguments: {forbidden}"
+        forbidden = {kw.arg for kw in call.keywords} & {
+            "directed",
+            "connection",
+            "return_labels",
+        }
+        assert not forbidden, (
+            f"Graph input does not accept these {function} arguments: {forbidden}"
+        )
 
     lowered = source.lower()
-    assert "canonical" in lowered or "frozenset" in lowered, "compare partitions independent of label numbers"
+    assert "canonical" in lowered or "frozenset" in lowered, (
+        "compare partitions independent of label numbers"
+    )
     assert "duplicated" in lowered and ("nunique" in lowered or "len(" in lowered), (
         "validate one keyed component row per required vertex"
     )
