@@ -69,7 +69,7 @@ def main():
         trusted = bool(
             reference
             and hashlib.sha256(reference.read_bytes()).hexdigest()
-            == "6650d3af17a6b5bbbe1fd5d37b83d35675855d23b3732452bb0957ecdeee5be1"
+            == "e70cdab22873c0d14365dcffdd8d1457f2289075c777dd3a6b2cffe08e6aee98"
         )
         ref_ok = (
             subprocess.run(["python3", str(reference)], capture_output=True).returncode
