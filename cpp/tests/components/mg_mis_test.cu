@@ -122,26 +122,22 @@ class Tests_MGMaximalIndependentSet
       // Flag the vertices included in the MIS
       rmm::device_uvector<vertex_t> inclusion_flags(local_vtx_partition_size,
                                                     handle_->get_stream());
-      thrust::fill(handle_->get_thrust_policy(),
-                   inclusion_flags.begin(),
-                   inclusion_flags.end(),
-                   vertex_t{0});
+      thrust::fill(
+        handle_->get_thrust_policy(), inclusion_flags.begin(), inclusion_flags.end(), vertex_t{0});
 
       thrust::for_each(handle_->get_thrust_policy(),
                        d_mis.begin(),
                        d_mis.end(),
                        [inclusion_flags = raft::device_span<vertex_t>(inclusion_flags.data(),
                                                                       inclusion_flags.size()),
-                        v_first = vertex_first] __device__(auto v) {
+                        v_first         = vertex_first] __device__(auto v) {
                          inclusion_flags[v - v_first] = vertex_t{1};
                        });
 
       // Edge endpoints may be owned by other GPUs, so the inclusion flags are materialized as
       // edge source and destination properties before the verification reductions
-      cugraph::edge_src_property_t<vertex_t, vertex_t> src_inclusion_cache(*handle_,
-                                                                          mg_graph_view);
-      cugraph::edge_dst_property_t<vertex_t, vertex_t> dst_inclusion_cache(*handle_,
-                                                                          mg_graph_view);
+      cugraph::edge_src_property_t<vertex_t, vertex_t> src_inclusion_cache(*handle_, mg_graph_view);
+      cugraph::edge_dst_property_t<vertex_t, vertex_t> dst_inclusion_cache(*handle_, mg_graph_view);
       update_edge_src_property(
         *handle_, mg_graph_view, inclusion_flags.begin(), src_inclusion_cache.mutable_view());
       update_edge_dst_property(
@@ -278,12 +274,11 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGMaximalIndependentSet_File,
   // enable correctness checks
-  ::testing::Combine(
-    ::testing::Values(MaximalIndependentSet_Usecase{true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/netscience.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/polbooks.mtx"))));
+  ::testing::Combine(::testing::Values(MaximalIndependentSet_Usecase{true}),
+                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"),
+                                       cugraph::test::File_Usecase("test/datasets/netscience.mtx"),
+                                       cugraph::test::File_Usecase("test/datasets/polbooks.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,

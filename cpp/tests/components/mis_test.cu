@@ -112,17 +112,15 @@ class Tests_SGMaximalIndependentSet
 
       // Flag the vertices included in the MIS
       rmm::device_uvector<vertex_t> inclusion_flags(local_vtx_partition_size, handle.get_stream());
-      thrust::fill(handle.get_thrust_policy(),
-                   inclusion_flags.begin(),
-                   inclusion_flags.end(),
-                   vertex_t{0});
+      thrust::fill(
+        handle.get_thrust_policy(), inclusion_flags.begin(), inclusion_flags.end(), vertex_t{0});
 
       thrust::for_each(handle.get_thrust_policy(),
                        d_mis.begin(),
                        d_mis.end(),
                        [inclusion_flags = raft::device_span<vertex_t>(inclusion_flags.data(),
                                                                       inclusion_flags.size()),
-                        v_first = vertex_first] __device__(auto v) {
+                        v_first         = vertex_first] __device__(auto v) {
                          inclusion_flags[v - v_first] = vertex_t{1};
                        });
 
@@ -242,13 +240,12 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_SGMaximalIndependentSet_File,
   // enable correctness checks, and cover both the renumbered (degree ordered) and the
   // non-renumbered vertex partitions
-  ::testing::Combine(
-    ::testing::Values(MaximalIndependentSet_Usecase{true, true},
-                      MaximalIndependentSet_Usecase{false, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/netscience.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/polbooks.mtx"))));
+  ::testing::Combine(::testing::Values(MaximalIndependentSet_Usecase{true, true},
+                                       MaximalIndependentSet_Usecase{false, true}),
+                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"),
+                                       cugraph::test::File_Usecase("test/datasets/netscience.mtx"),
+                                       cugraph::test::File_Usecase("test/datasets/polbooks.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
