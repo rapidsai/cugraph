@@ -996,11 +996,8 @@ reachable_sets(
       rmm::device_uvector<vertex_t> new_remaining_vertex_ancestors(0, handle.get_stream());
       auto remaining_vertex_ancestor_first = cuda::make_transform_iterator(
         remaining_vertices.begin(),
-        cuda::proclaim_return_type<vertex_t>(
-          [ancestors = raft::device_span<vertex_t const>(ancestors.data(), ancestors.size()),
-           v_first   = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
-            return ancestors[v - v_first];
-          }));
+        detail::shift_left_and_indirection_t<vertex_t, vertex_t const*>{
+          ancestors.data(), graph_view.local_vertex_partition_range_first()});
       if constexpr (GraphViewType::is_multi_gpu) {
         new_remaining_vertex_ancestors = collect_values_for_int_vertices(
           handle,
@@ -1054,26 +1051,44 @@ reachable_sets(
         handle.get_stream());
     }
 
-    cugraph::kv_store_t<vertex_t, vertex_t, true> starting_vertex_unresolved_component_idx_store(
-      sorted_starting_vertices.begin(),
-      sorted_starting_vertices.end(),
-      sorted_starting_vertex_unresolved_component_idxs.begin(),
-      invalid_component_id_v<vertex_t>,
-      true /* key_sorted */,
-      handle.get_stream());
-    auto starting_vertex_unresolved_component_idx_store_view =
-      starting_vertex_unresolved_component_idx_store.view();
-
-    idxs.resize(vertices.size(), handle.get_stream());
     auto ancestor_first = cuda::make_transform_iterator(
       vertices.begin(),
-      cuda::proclaim_return_type<vertex_t>(
-        [ancestors = raft::device_span<vertex_t const>(ancestors.data(), ancestors.size()),
-         v_first   = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
-          return ancestors[v - v_first];
-        }));
-    starting_vertex_unresolved_component_idx_store_view.find(
-      ancestor_first, ancestor_first + vertices.size(), idxs.begin(), handle.get_stream());
+      detail::shift_left_and_indirection_t<vertex_t, vertex_t const*>{
+        ancestors.data(), graph_view.local_vertex_partition_range_first()});
+    detail::kv_binary_search_store_view_t<vertex_t const*, vertex_t const*>
+      starting_vertex_unresolved_component_idx_store_view(
+        sorted_starting_vertices.begin(),
+        sorted_starting_vertices.end(),
+        sorted_starting_vertex_unresolved_component_idxs.begin(),
+        invalid_component_id_v<vertex_t>);
+    if constexpr (GraphViewType::is_multi_gpu) {
+      auto major_comm_size =
+        handle.get_subcomm(cugraph::partition_manager::major_comm_name()).get_size();
+      auto minor_comm_size =
+        handle.get_subcomm(cugraph::partition_manager::minor_comm_name()).get_size();
+      auto h_vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
+      rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
+        h_vertex_partition_range_lasts.size(), handle.get_stream());
+      raft::update_device(d_vertex_partition_range_lasts.data(),
+                          h_vertex_partition_range_lasts.data(),
+                          h_vertex_partition_range_lasts.size(),
+                          handle.get_stream());
+      idxs = detail::collect_values_for_keys(
+        handle.get_comms(),
+        starting_vertex_unresolved_component_idx_store_view,
+        ancestor_first,
+        ancestor_first + vertices.size(),
+        detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
+          raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                            d_vertex_partition_range_lasts.size()),
+          major_comm_size,
+          minor_comm_size},
+        handle.get_stream());
+    } else {
+      idxs.resize(vertices.size(), handle.get_stream());
+      starting_vertex_unresolved_component_idx_store_view.find(
+        ancestor_first, ancestor_first + vertices.size(), idxs.begin(), handle.get_stream());
+    }
   }
 
   {
@@ -2217,10 +2232,8 @@ void strongly_connected_components_impl(
                                         scc_component_vertices.size()));
     scc_component_ids.resize(0, handle.get_stream());
     scc_component_offsets.resize(0, handle.get_stream());
-    scc_component_vertices.resize(0, handle.get_stream());
     scc_component_ids.shrink_to_fit(handle.get_stream());
     scc_component_offsets.shrink_to_fit(handle.get_stream());
-    scc_component_vertices.shrink_to_fit(handle.get_stream());
 
     // 6-3. mask out edges between different components
 
@@ -2289,6 +2302,8 @@ void strongly_connected_components_impl(
                                tmp_components.begin(),
                                inverse_edge_dst_components.mutable_view());
     }
+    scc_component_vertices.resize(0, handle.get_stream());
+    scc_component_vertices.shrink_to_fit(handle.get_stream());
 
     auto edge_src_component_view = multi_gpu
                                      ? edge_src_components.view()
