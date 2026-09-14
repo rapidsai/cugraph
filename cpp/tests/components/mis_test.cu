@@ -12,19 +12,18 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/per_v_transform_reduce_if_incoming_outgoing_e.cuh>
 #include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <cugraph/prims/reduce_op.cuh>
-#include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/random/rng_state.hpp>
 
+#include <cuda/std/tuple>
+#include <thrust/count.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
-#include <thrust/iterator/counting_iterator.h>
-#include <thrust/reduce.h>
-#include <thrust/set_operations.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/transform.h>
 
 #include <gtest/gtest.h>
 
@@ -102,9 +101,6 @@ class Tests_SGMaximalIndependentSet
       auto vertex_first = sg_graph_view.local_vertex_partition_range_first();
       auto vertex_last  = sg_graph_view.local_vertex_partition_range_last();
 
-      auto vertex_begin = thrust::make_counting_iterator(vertex_first);
-      auto vertex_end   = thrust::make_counting_iterator(vertex_last);
-
       auto h_mis = cugraph::test::to_host(handle, d_mis);
 
       std::for_each(h_mis.begin(), h_mis.end(), [vertex_first, vertex_last](vertex_t v) {
@@ -131,7 +127,8 @@ class Tests_SGMaximalIndependentSet
                        });
 
       //
-      // Independence: no two adjacent vertices are both included in the MIS
+      // Number of neighbors included in the MIS, for every vertex. A vertex is adjacent to both
+      // its incoming and its outgoing neighbors, and a self loop is not an adjacency.
       //
       rmm::device_uvector<vertex_t> nr_nbrs_included_in_mis(local_vtx_partition_size,
                                                             handle.get_stream());
@@ -145,70 +142,67 @@ class Tests_SGMaximalIndependentSet
           sg_graph_view, inclusion_flags.begin(), inclusion_flags.size()),
         cugraph::edge_dummy_property_t{}.view(),
         [] __device__(auto src, auto dst, auto src_included, auto dst_included, auto wt) {
-          // both endpoints are included in the MIS, a self loop is not a violation
-          return ((src != dst) && (src_included == vertex_t{1}) && (dst_included == vertex_t{1}))
-                   ? vertex_t{1}
-                   : vertex_t{0};
+          return (src != dst) ? dst_included : vertex_t{0};
         },
         vertex_t{0},
         cugraph::reduce_op::plus<vertex_t>{},
         nr_nbrs_included_in_mis.begin());
 
-      ASSERT_EQ(thrust::reduce(handle.get_thrust_policy(),
-                               nr_nbrs_included_in_mis.begin(),
-                               nr_nbrs_included_in_mis.end()),
-                vertex_t{0})
+      if (!sg_graph_view.is_symmetric()) {
+        rmm::device_uvector<vertex_t> nr_incoming_nbrs_included_in_mis(local_vtx_partition_size,
+                                                                       handle.get_stream());
+
+        per_v_transform_reduce_incoming_e(
+          handle,
+          sg_graph_view,
+          cugraph::make_edge_src_property_view<vertex_t, vertex_t>(
+            sg_graph_view, inclusion_flags.begin(), inclusion_flags.size()),
+          cugraph::make_edge_dst_property_view<vertex_t, vertex_t>(
+            sg_graph_view, inclusion_flags.begin(), inclusion_flags.size()),
+          cugraph::edge_dummy_property_t{}.view(),
+          [] __device__(auto src, auto dst, auto src_included, auto dst_included, auto wt) {
+            return (src != dst) ? src_included : vertex_t{0};
+          },
+          vertex_t{0},
+          cugraph::reduce_op::plus<vertex_t>{},
+          nr_incoming_nbrs_included_in_mis.begin());
+
+        thrust::transform(handle.get_thrust_policy(),
+                          nr_nbrs_included_in_mis.begin(),
+                          nr_nbrs_included_in_mis.end(),
+                          nr_incoming_nbrs_included_in_mis.begin(),
+                          nr_nbrs_included_in_mis.begin(),
+                          thrust::plus<vertex_t>{});
+      }
+
+      auto flag_nr_nbrs_pair_first =
+        thrust::make_zip_iterator(inclusion_flags.begin(), nr_nbrs_included_in_mis.begin());
+
+      // Independence: no vertex included in the MIS has a neighbor included in the MIS
+      auto num_dependent_vertices =
+        thrust::count_if(handle.get_thrust_policy(),
+                         flag_nr_nbrs_pair_first,
+                         flag_nr_nbrs_pair_first + local_vtx_partition_size,
+                         [] __device__(auto flag_and_nr_nbrs) {
+                           return (cuda::std::get<0>(flag_and_nr_nbrs) == vertex_t{1}) &&
+                                  (cuda::std::get<1>(flag_and_nr_nbrs) > vertex_t{0});
+                         });
+
+      ASSERT_EQ(num_dependent_vertices, 0)
         << "A vertex included in the MIS has a neighbor included in the MIS" << std::endl;
 
-      //
       // Maximality: every vertex excluded from the MIS has a neighbor included in the MIS,
-      // otherwise the MIS could be augmented with that vertex. Note that
-      // per_v_transform_reduce_if_outgoing_e does not write to the vertices without a qualifying
-      // edge, hence the output is initialized.
-      //
-      rmm::device_uvector<vertex_t> excluded_vertices(
-        local_vtx_partition_size - static_cast<vertex_t>(d_mis.size()), handle.get_stream());
+      // otherwise the MIS could be augmented with that vertex
+      auto num_augmenting_vertices =
+        thrust::count_if(handle.get_thrust_policy(),
+                         flag_nr_nbrs_pair_first,
+                         flag_nr_nbrs_pair_first + local_vtx_partition_size,
+                         [] __device__(auto flag_and_nr_nbrs) {
+                           return (cuda::std::get<0>(flag_and_nr_nbrs) == vertex_t{0}) &&
+                                  (cuda::std::get<1>(flag_and_nr_nbrs) == vertex_t{0});
+                         });
 
-      thrust::set_difference(handle.get_thrust_policy(),
-                             vertex_begin,
-                             vertex_end,
-                             d_mis.begin(),
-                             d_mis.end(),
-                             excluded_vertices.begin());
-
-      cugraph::vertex_frontier_t<vertex_t, void, multi_gpu, true> vertex_frontier(handle, 1);
-      vertex_frontier.bucket(0).insert(excluded_vertices.begin(), excluded_vertices.end());
-
-      rmm::device_uvector<vertex_t> any_nbr_included_in_mis(excluded_vertices.size(),
-                                                            handle.get_stream());
-      thrust::fill(handle.get_thrust_policy(),
-                   any_nbr_included_in_mis.begin(),
-                   any_nbr_included_in_mis.end(),
-                   vertex_t{0});
-
-      per_v_transform_reduce_if_outgoing_e(
-        handle,
-        sg_graph_view,
-        vertex_frontier.bucket(0),
-        cugraph::make_edge_src_property_view<vertex_t, vertex_t>(
-          sg_graph_view, inclusion_flags.begin(), inclusion_flags.size()),
-        cugraph::make_edge_dst_property_view<vertex_t, vertex_t>(
-          sg_graph_view, inclusion_flags.begin(), inclusion_flags.size()),
-        cugraph::edge_dummy_property_t{}.view(),
-        [] __device__(auto src, auto dst, auto src_included, auto dst_included, auto wt) {
-          return vertex_t{1};
-        },
-        vertex_t{0},
-        cugraph::reduce_op::any<vertex_t>{},
-        [] __device__(auto src, auto dst, auto src_included, auto dst_included, auto wt) {
-          return dst_included == vertex_t{1};
-        },
-        any_nbr_included_in_mis.begin());
-
-      ASSERT_EQ(thrust::reduce(handle.get_thrust_policy(),
-                               any_nbr_included_in_mis.begin(),
-                               any_nbr_included_in_mis.end()),
-                static_cast<vertex_t>(excluded_vertices.size()))
+      ASSERT_EQ(num_augmenting_vertices, 0)
         << "A vertex excluded from the MIS has no neighbor included in the MIS" << std::endl;
     }
   }
@@ -259,11 +253,12 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_SGMaximalIndependentSet_Rmat,
-  // enable correctness checks
+  // enable correctness checks, and cover both symmetric and asymmetric graphs
   ::testing::Combine(
     ::testing::Values(MaximalIndependentSet_Usecase{true, true},
                       MaximalIndependentSet_Usecase{false, true}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false),
+                      cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
