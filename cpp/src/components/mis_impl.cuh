@@ -1,33 +1,39 @@
-
 /*
  * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
+#include "detail/shuffle_wrappers.hpp"
+
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
-#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/fill_edge_src_dst_property.cuh>
+#include <cugraph/prims/per_v_transform_reduce_if_incoming_outgoing_e.cuh>
 #include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
+#include <cugraph/prims/vertex_frontier.cuh>
+#include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
+#include <thrust/copy.h>
 #include <thrust/count.h>
+#include <thrust/fill.h>
+#include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/merge.h>
-#include <thrust/remove.h>
-#include <thrust/set_operations.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/partition.h>
+#include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/transform_reduce.h>
 
-#include <cmath>
+#include <algorithm>
 #include <optional>
+#include <vector>
 
 namespace cugraph {
 
@@ -41,205 +47,271 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
 {
   using GraphViewType = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
 
-  vertex_t local_vtx_partitoin_size = graph_view.local_vertex_partition_range_size();
+  // FIXME: support asymmetric graphs. A vertex is adjacent to both its incoming and outgoing
+  // neighbors, and this implementation traverses outgoing edges only.
+  CUGRAPH_EXPECTS(graph_view.is_symmetric(),
+                  "Invalid input argument: maximal_independent_set currently supports symmetric "
+                  "(undirected) graphs only.");
 
-  rmm::device_uvector<vertex_t> remaining_vertices(local_vtx_partitoin_size, handle.get_stream());
+  vertex_t local_vtx_partition_size = graph_view.local_vertex_partition_range_size();
+  auto v_first                      = graph_view.local_vertex_partition_range_first();
 
-  auto vertex_begin =
-    thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first());
+  auto vertex_begin = thrust::make_counting_iterator(v_first);
   auto vertex_end = thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last());
 
-  auto out_degrees = graph_view.compute_out_degrees(handle);
-  auto in_degrees  = graph_view.compute_in_degrees(handle);
+  auto segment_offsets = graph_view.local_vertex_partition_segment_offsets();
 
-  // Vertices with degree zero are always part of MIS
+  //
+  // Degree segment offsets of the local vertex partition, and the vertices in the degree
+  // ordering the offsets refer to. Renumbered vertices are already sorted by decreasing degree,
+  // so the segment offsets of the graph apply to the local vertex partition range as is.
+  // Otherwise, the local vertices are sorted by degree here and the segment offsets are computed
+  // from the sorted degrees, using the same thresholds renumbering would have used.
+  //
+  std::vector<vertex_t> h_segment_offsets{};
+  std::optional<rmm::device_uvector<vertex_t>> sorted_vertices{std::nullopt};
+
+  if (segment_offsets) {
+    h_segment_offsets = *segment_offsets;
+  } else {
+    auto out_degrees = graph_view.compute_out_degrees(handle);
+
+    sorted_vertices = rmm::device_uvector<vertex_t>(local_vtx_partition_size, handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(), vertex_begin, vertex_end, (*sorted_vertices).begin());
+
+    // sort local vertices by degree (descending)
+    thrust::sort_by_key(handle.get_thrust_policy(),
+                        out_degrees.begin(),
+                        out_degrees.end(),
+                        (*sorted_vertices).begin(),
+                        cuda::std::greater<edge_t>());
+
+    static_assert(num_sparse_segments_per_vertex_partition == 3);
+
+    h_segment_offsets.resize(num_sparse_segments_per_vertex_partition + 2);
+    h_segment_offsets.front() = vertex_t{0};
+    h_segment_offsets.back()  = local_vtx_partition_size;
+    for (size_t i = 0; i < num_sparse_segments_per_vertex_partition; ++i) {
+      auto threshold = static_cast<edge_t>((i == 0)   ? mid_degree_threshold   // high, mid
+                                           : (i == 1) ? low_degree_threshold   // mid, low
+                                                      : size_t{1});            // low, zero
+      h_segment_offsets[i + 1] = static_cast<vertex_t>(
+        thrust::count_if(handle.get_thrust_policy(),
+                         out_degrees.begin(),
+                         out_degrees.end(),
+                         [threshold] __device__(auto out_degree) {
+                           return out_degree >= threshold;
+                         }));
+    }
+
+    out_degrees.resize(0, handle.get_stream());
+    out_degrees.shrink_to_fit(handle.get_stream());
+  }
+
+  // Vertices with degree zero are in the last segment
+  vertex_t isolated_v_start = *(h_segment_offsets.rbegin() + 1);
+
+  //
+  // Rank of a vertex is its priority. Ranks are unique, so two adjacent vertices can never be
+  // included in the MIS in the same iteration.
+  //
+  rmm::device_uvector<vertex_t> ranks(local_vtx_partition_size, handle.get_stream());
+
+  if constexpr (multi_gpu) {
+    //
+    // Set ID of each vertex as its rank. Vertices are assigned to GPUs by hashing their external
+    // IDs, and each GPU owns one contiguous block of the renumbered ID space while sorting its
+    // own vertices by degree. A rank is therefore decided first by the (random) GPU block and
+    // only then by degree, which already amounts to a random permutation coarsened to comm_size
+    // levels. Perturbing the ranks any further only adds work.
+    //
+    thrust::copy(handle.get_thrust_policy(), vertex_begin, vertex_end, ranks.begin());
+
+    // Vertices with degree zero are always part of MIS
+    thrust::fill(handle.get_thrust_policy(),
+                 ranks.begin() + isolated_v_start,
+                 ranks.end(),
+                 std::numeric_limits<vertex_t>::max());
+  } else {
+    //
+    // Set a random permutation of each degree segment as the ranks of the segment. This keeps the
+    // degree bands intact, so that the low degree vertices still get high priority (which yields
+    // a larger MIS), while randomizing the order within a band, which breaks the long dependency
+    // chains a monotone ordering creates in high diameter graphs.
+    //
+    rmm::device_uvector<vertex_t> sorted_vertex_ranks(local_vtx_partition_size,
+                                                      handle.get_stream());
+
+    for (size_t i = 0; i + 1 < h_segment_offsets.size(); ++i) {
+      auto segment_first = h_segment_offsets[i];
+      auto segment_last  = std::min(h_segment_offsets[i + 1], isolated_v_start);
+      if (segment_last <= segment_first) { continue; }  // empty segment, or the zero degree one
+
+      auto permuted_ranks = permute_range<vertex_t>(
+        handle, rng_state, v_first + segment_first, segment_last - segment_first);
+
+      thrust::copy(handle.get_thrust_policy(),
+                   permuted_ranks.begin(),
+                   permuted_ranks.end(),
+                   sorted_vertex_ranks.begin() + segment_first);
+    }
+
+    // Vertices with degree zero are always part of MIS
+    thrust::fill(handle.get_thrust_policy(),
+                 sorted_vertex_ranks.begin() + isolated_v_start,
+                 sorted_vertex_ranks.end(),
+                 std::numeric_limits<vertex_t>::max());
+
+    // Map the ranks from the degree ordering back to the local vertex partition order
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      thrust::make_counting_iterator(vertex_t{0}),
+      thrust::make_counting_iterator(local_vtx_partition_size),
+      [sorted_vertices = sorted_vertices ? raft::device_span<vertex_t const>(
+                                             (*sorted_vertices).data(), (*sorted_vertices).size())
+                                         : raft::device_span<vertex_t const>{},
+       sorted_vertex_ranks = raft::device_span<vertex_t const>(sorted_vertex_ranks.data(),
+                                                              sorted_vertex_ranks.size()),
+       ranks               = raft::device_span<vertex_t>(ranks.data(), ranks.size()),
+       v_first             = v_first] __device__(auto position) {
+        // renumbered vertices are already in the degree ordering
+        auto v_offset = sorted_vertices.empty() ? position : (sorted_vertices[position] - v_first);
+        ranks[v_offset] = sorted_vertex_ranks[position];
+      });
+  }
+
+  //
+  // Vertices with degree zero are already part of MIS, the rest are to be checked
+  //
+  rmm::device_uvector<vertex_t> remaining_vertices(isolated_v_start, handle.get_stream());
+
   remaining_vertices.resize(
-    cuda::std::distance(
-      remaining_vertices.begin(),
-      thrust::copy_if(handle.get_thrust_policy(),
-                      vertex_begin,
-                      vertex_end,
-                      thrust::make_zip_iterator(out_degrees.begin(), in_degrees.begin()),
-                      remaining_vertices.begin(),
-                      [] __device__(auto out_deg_and_in_deg) {
-                        return !((cuda::std::get<0>(out_deg_and_in_deg) == 0) &&
-                                 (cuda::std::get<1>(out_deg_and_in_deg) == 0));
-                      })),
+    cuda::std::distance(remaining_vertices.begin(),
+                        thrust::copy_if(handle.get_thrust_policy(),
+                                        vertex_begin,
+                                        vertex_end,
+                                        ranks.begin(),
+                                        remaining_vertices.begin(),
+                                        [] __device__(auto rank) {
+                                          return rank < std::numeric_limits<vertex_t>::max();
+                                        })),
     handle.get_stream());
 
-  // Set ID of each vertex as its rank
-  rmm::device_uvector<vertex_t> ranks(local_vtx_partitoin_size, handle.get_stream());
-  thrust::copy(handle.get_thrust_policy(), vertex_begin, vertex_end, ranks.begin());
+  // Only the ranks of the undecided vertices are queried, and they are kept in the front of
+  // remaining_vertices.
+  vertex_frontier_t<vertex_t, void, GraphViewType::is_multi_gpu, true> vertex_frontier(handle, 1);
 
-  // Set ranks of zero degree vetices to std::numeric_limits<vertex_t>::max()
-  thrust::transform_if(handle.get_thrust_policy(),
-                       thrust::make_zip_iterator(out_degrees.begin(), in_degrees.begin()),
-                       thrust::make_zip_iterator(out_degrees.end(), in_degrees.end()),
-                       ranks.begin(),
-                       cuda::proclaim_return_type<vertex_t>(
-                         [] __device__(auto) { return std::numeric_limits<vertex_t>::max(); }),
-                       [] __device__(auto in_out_degree) {
-                         return (cuda::std::get<0>(in_out_degree) == 0) &&
-                                (cuda::std::get<1>(in_out_degree) == 0);
-                       });
+  // Cache for ranks
+  edge_dst_property_t<vertex_t, vertex_t> dst_rank_cache(handle);
 
-  out_degrees.resize(0, handle.get_stream());
-  out_degrees.shrink_to_fit(handle.get_stream());
+  size_t loop_counter                           = 0;
+  vertex_t nr_remaining_local_vertices_to_check = remaining_vertices.size();
 
-  in_degrees.resize(0, handle.get_stream());
-  in_degrees.shrink_to_fit(handle.get_stream());
-
-  size_t loop_counter = 0;
   while (true) {
     loop_counter++;
 
-    // Copy ranks into temporary vector to begin with
+    auto num_processed_vertices = remaining_vertices.size() - nr_remaining_local_vertices_to_check;
 
-    rmm::device_uvector<vertex_t> temporary_ranks(local_vtx_partitoin_size, handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(), ranks.begin(), ranks.end(), temporary_ranks.begin());
-
-    // Select a random set of candidate vertices
-
-    vertex_t nr_remaining_vertices_to_check = remaining_vertices.size();
     if constexpr (multi_gpu) {
-      nr_remaining_vertices_to_check = host_scalar_allreduce(handle.get_comms(),
-                                                             nr_remaining_vertices_to_check,
-                                                             raft::comms::op_t::SUM,
-                                                             handle.get_stream());
+      if (loop_counter == 1) {
+        // Update the rank of every edge destination during the first iteration
+        dst_rank_cache = edge_dst_property_t<vertex_t, vertex_t>(handle, graph_view);
+        update_edge_dst_property(handle, graph_view, ranks.begin(), dst_rank_cache.mutable_view());
+      } else {
+        // Update the ranks of the vertices decided in the previous iteration only. They are the
+        // tail of remaining_vertices, and thrust::stable_partition kept them sorted.
+        auto processed_vertex_first =
+          remaining_vertices.begin() + nr_remaining_local_vertices_to_check;
+
+        rmm::device_uvector<vertex_t> processed_ranks(num_processed_vertices, handle.get_stream());
+        thrust::transform(
+          handle.get_thrust_policy(),
+          processed_vertex_first,
+          processed_vertex_first + num_processed_vertices,
+          processed_ranks.begin(),
+          cuda::proclaim_return_type<vertex_t>(
+            [ranks   = raft::device_span<vertex_t const>(ranks.data(), ranks.size()),
+             v_first = v_first] __device__(auto v) { return ranks[v - v_first]; }));
+
+        // FIXME: Since the ranks being updated are either std::numeric_limits<vertex_t>::max() or
+        // std::numeric_limits<vertex_t>::lowest(), explore 'fill_edge_dst_property' which is
+        // faster
+        update_edge_dst_property(handle,
+                                 graph_view,
+                                 processed_vertex_first,
+                                 processed_vertex_first + num_processed_vertices,
+                                 processed_ranks.begin(),
+                                 dst_rank_cache.mutable_view());
+      }
     }
 
-    vertex_t nr_candidates = (nr_remaining_vertices_to_check < 1024)
-                               ? nr_remaining_vertices_to_check
-                               : std::min(static_cast<vertex_t>((0.50 + 0.25 * loop_counter) *
-                                                                nr_remaining_vertices_to_check),
-                                          nr_remaining_vertices_to_check);
+    remaining_vertices.resize(nr_remaining_local_vertices_to_check, handle.get_stream());
+    remaining_vertices.shrink_to_fit(handle.get_stream());
 
-    // FIXME: Can we improve performance here?
-    // FIXME: if(nr_remaining_vertices_to_check < 1024), may avoid calling select_random_vertices
-    auto d_sampled_vertices =
-      cugraph::select_random_vertices(handle,
-                                      graph_view,
-                                      std::make_optional(raft::device_span<vertex_t const>{
-                                        remaining_vertices.data(), remaining_vertices.size()}),
-                                      rng_state,
-                                      nr_candidates,
-                                      false,
-                                      true);
+    vertex_frontier.bucket(0).clear();
+    vertex_frontier.bucket(0).insert(remaining_vertices.begin(), remaining_vertices.end());
 
-    rmm::device_uvector<vertex_t> non_candidate_vertices(
-      remaining_vertices.size() - d_sampled_vertices.size(), handle.get_stream());
+    //
+    // Find maximum rank outgoing neighbor for each undecided vertex
+    //
 
-    thrust::set_difference(handle.get_thrust_policy(),
-                           remaining_vertices.begin(),
-                           remaining_vertices.end(),
-                           d_sampled_vertices.begin(),
-                           d_sampled_vertices.end(),
-                           non_candidate_vertices.begin());
+    rmm::device_uvector<vertex_t> max_outgoing_ranks(remaining_vertices.size(),
+                                                     handle.get_stream());
 
-    // Set temporary ranks of non-candidate vertices to std::numeric_limits<vertex_t>::lowest()
-    thrust::for_each(
-      handle.get_thrust_policy(),
-      non_candidate_vertices.begin(),
-      non_candidate_vertices.end(),
-      [temporary_ranks =
-         raft::device_span<vertex_t>(temporary_ranks.data(), temporary_ranks.size()),
-       v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
-        //
-        // if rank of a non-candidate vertex is not std::numeric_limits<vertex_t>::max() (i.e. the
-        // vertex is not already in MIS), set it to std::numeric_limits<vertex_t>::lowest()
-        //
-        auto v_offset = v - v_first;
-        if (temporary_ranks[v_offset] < std::numeric_limits<vertex_t>::max()) {
-          temporary_ranks[v_offset] = std::numeric_limits<vertex_t>::lowest();
-        }
-      });
-
-    // Caches for ranks
-    edge_src_property_t<vertex_t, vertex_t> src_rank_cache(handle);
-    edge_dst_property_t<vertex_t, vertex_t> dst_rank_cache(handle);
-
-    // Update rank caches with temporary ranks
-    if constexpr (multi_gpu) {
-      src_rank_cache = edge_src_property_t<vertex_t, vertex_t>(handle, graph_view);
-      dst_rank_cache = edge_dst_property_t<vertex_t, vertex_t>(handle, graph_view);
-      update_edge_src_property(
-        handle, graph_view, temporary_ranks.begin(), src_rank_cache.mutable_view());
-      update_edge_dst_property(
-        handle, graph_view, temporary_ranks.begin(), dst_rank_cache.mutable_view());
+    if ((loop_counter == 1) && !multi_gpu) {
+      // Every vertex is undecided in the first iteration, so instead of the maximum rank
+      // neighbor, stop the traversal of a vertex as soon as a higher ranked neighbor is found.
+      per_v_transform_reduce_if_outgoing_e(
+        handle,
+        graph_view,
+        vertex_frontier.bucket(0),
+        make_edge_src_property_view<vertex_t, vertex_t>(graph_view, ranks.begin(), ranks.size()),
+        make_edge_dst_property_view<vertex_t, vertex_t>(graph_view, ranks.begin(), ranks.size()),
+        edge_dummy_property_t{}.view(),
+        [] __device__(auto src, auto dst, auto src_rank, auto dst_rank, auto wt) {
+          return dst_rank;
+        },
+        std::numeric_limits<vertex_t>::lowest(),
+        cugraph::reduce_op::any<vertex_t>{},
+        [] __device__(auto src, auto dst, auto src_rank, auto dst_rank, auto wt) {
+          return src_rank < dst_rank;
+        },
+        max_outgoing_ranks.begin());
+    } else {
+      per_v_transform_reduce_outgoing_e(
+        handle,
+        graph_view,
+        vertex_frontier.bucket(0),
+        edge_src_dummy_property_t{}.view(),
+        multi_gpu ? dst_rank_cache.view()
+                  : make_edge_dst_property_view<vertex_t, vertex_t>(
+                      graph_view, ranks.begin(), ranks.size()),
+        edge_dummy_property_t{}.view(),
+        [] __device__(auto src, auto dst, auto src_rank, auto dst_rank, auto wt) {
+          return dst_rank;
+        },
+        std::numeric_limits<vertex_t>::lowest(),
+        cugraph::reduce_op::maximum<vertex_t>{},
+        max_outgoing_ranks.begin());
     }
-
-    //
-    // Find maximum rank outgoing neighbor for each vertex
-    //
-
-    rmm::device_uvector<vertex_t> max_outgoing_ranks(local_vtx_partitoin_size, handle.get_stream());
-
-    per_v_transform_reduce_outgoing_e(
-      handle,
-      graph_view,
-      multi_gpu ? src_rank_cache.view()
-                : make_edge_src_property_view<vertex_t, vertex_t>(
-                    graph_view, temporary_ranks.begin(), temporary_ranks.size()),
-      multi_gpu ? dst_rank_cache.view()
-                : make_edge_dst_property_view<vertex_t, vertex_t>(
-                    graph_view, temporary_ranks.begin(), temporary_ranks.size()),
-      edge_dummy_property_t{}.view(),
-      [] __device__(auto src, auto dst, auto src_rank, auto dst_rank, auto wt) { return dst_rank; },
-      std::numeric_limits<vertex_t>::lowest(),
-      cugraph::reduce_op::maximum<vertex_t>{},
-      max_outgoing_ranks.begin());
-
-    //
-    // Find maximum rank incoming neighbor for each vertex
-    //
-
-    rmm::device_uvector<vertex_t> max_incoming_ranks(local_vtx_partitoin_size, handle.get_stream());
-
-    per_v_transform_reduce_incoming_e(
-      handle,
-      graph_view,
-      multi_gpu ? src_rank_cache.view()
-                : make_edge_src_property_view<vertex_t, vertex_t>(
-                    graph_view, temporary_ranks.begin(), temporary_ranks.size()),
-      multi_gpu ? dst_rank_cache.view()
-                : make_edge_dst_property_view<vertex_t, vertex_t>(
-                    graph_view, temporary_ranks.begin(), temporary_ranks.size()),
-      edge_dummy_property_t{}.view(),
-      [] __device__(auto src, auto dst, auto src_rank, auto dst_rank, auto wt) { return src_rank; },
-      std::numeric_limits<vertex_t>::lowest(),
-      cugraph::reduce_op::maximum<vertex_t>{},
-      max_incoming_ranks.begin());
-
-    temporary_ranks.resize(0, handle.get_stream());
-    temporary_ranks.shrink_to_fit(handle.get_stream());
-
-    //
-    // Compute max of outgoing and incoming neighbors
-    //
-    thrust::transform(handle.get_thrust_policy(),
-                      max_incoming_ranks.begin(),
-                      max_incoming_ranks.end(),
-                      max_outgoing_ranks.begin(),
-                      max_outgoing_ranks.begin(),
-                      cuda::maximum<vertex_t>());
-
-    max_incoming_ranks.resize(0, handle.get_stream());
-    max_incoming_ranks.shrink_to_fit(handle.get_stream());
 
     //
     // If the max neighbor of a vertex is already in MIS (i.e. has rank
     // std::numeric_limits<vertex_t>::max()), discard it, otherwise,
-    // include the vertex if it has larger rank than its maximum rank neighbor
+    // include the vertex if it has larger rank than its maximum rank neighbor. The vertices that
+    // are still undecided are kept in the front of remaining_vertices.
     //
-    auto last = thrust::remove_if(
+    auto max_rank_vertex_pair_first =
+      thrust::make_zip_iterator(max_outgoing_ranks.begin(), remaining_vertices.begin());
+
+    auto last = thrust::stable_partition(
       handle.get_thrust_policy(),
-      d_sampled_vertices.begin(),
-      d_sampled_vertices.end(),
-      [max_rank_neighbor_first = max_outgoing_ranks.begin(),
-       ranks                   = raft::device_span<vertex_t>(ranks.data(), ranks.size()),
-       v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
-        auto v_offset          = v - v_first;
-        auto max_neighbor_rank = *(max_rank_neighbor_first + v_offset);
+      max_rank_vertex_pair_first,
+      max_rank_vertex_pair_first + remaining_vertices.size(),
+      [ranks   = raft::device_span<vertex_t>(ranks.data(), ranks.size()),
+       v_first = v_first] __device__(auto max_neighbor_rank_and_v) {
+        auto max_neighbor_rank = cuda::std::get<0>(max_neighbor_rank_and_v);
+        auto v_offset          = cuda::std::get<1>(max_neighbor_rank_and_v) - v_first;
         auto rank_of_v         = ranks[v_offset];
 
         if (max_neighbor_rank >= std::numeric_limits<vertex_t>::max()) {
@@ -247,37 +319,24 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
           // Discard current vertex by setting its rank to
           // std::numeric_limits<vertex_t>::lowest()
           ranks[v_offset] = std::numeric_limits<vertex_t>::lowest();
-          return true;
+          return false;
         }
 
         if (rank_of_v >= max_neighbor_rank) {
           // Include v and set its rank to std::numeric_limits<vertex_t>::max()
           ranks[v_offset] = std::numeric_limits<vertex_t>::max();
-          return true;
+          return false;
         }
-        return false;
+        return true;
       });
+
+    nr_remaining_local_vertices_to_check =
+      static_cast<vertex_t>(cuda::std::distance(max_rank_vertex_pair_first, last));
 
     max_outgoing_ranks.resize(0, handle.get_stream());
     max_outgoing_ranks.shrink_to_fit(handle.get_stream());
 
-    d_sampled_vertices.resize(cuda::std::distance(d_sampled_vertices.begin(), last),
-                              handle.get_stream());
-    d_sampled_vertices.shrink_to_fit(handle.get_stream());
-
-    remaining_vertices.resize(non_candidate_vertices.size() + d_sampled_vertices.size(),
-                              handle.get_stream());
-    remaining_vertices.shrink_to_fit(handle.get_stream());
-
-    // merge non-candidate and remaining candidate vertices
-    thrust::merge(handle.get_thrust_policy(),
-                  non_candidate_vertices.begin(),
-                  non_candidate_vertices.end(),
-                  d_sampled_vertices.begin(),
-                  d_sampled_vertices.end(),
-                  remaining_vertices.begin());
-
-    nr_remaining_vertices_to_check = remaining_vertices.size();
+    vertex_t nr_remaining_vertices_to_check = nr_remaining_local_vertices_to_check;
     if constexpr (multi_gpu) {
       nr_remaining_vertices_to_check = host_scalar_allreduce(handle.get_comms(),
                                                              nr_remaining_vertices_to_check,
