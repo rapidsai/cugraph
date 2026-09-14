@@ -4,32 +4,38 @@
  */
 
 #include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/edge_partition_view.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/fill_edge_src_dst_property.cuh>
+#include <cugraph/prims/per_v_transform_reduce_if_incoming_outgoing_e.cuh>
 #include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
-#include <cugraph/utilities/dataframe_buffer.hpp>
+#include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/random/rng_state.hpp>
 
+#include <thrust/fill.h>
+#include <thrust/for_each.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/reduce.h>
+#include <thrust/set_operations.h>
+
 #include <gtest/gtest.h>
 
-#include <chrono>
+#include <algorithm>
 #include <iostream>
-#include <random>
+#include <vector>
 
 struct MaximalIndependentSet_Usecase {
-  bool check_correctness{true};
+  bool check_correctness_{true};
 };
 
 template <typename input_usecase_t>
@@ -44,100 +50,112 @@ class Tests_MGMaximalIndependentSet
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
+  template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(std::tuple<MaximalIndependentSet_Usecase, input_usecase_t> const& param)
   {
     auto [mis_usecase, input_usecase] = param;
 
-    auto const comm_rank = handle_->get_comms().get_rank();
-    auto const comm_size = handle_->get_comms().get_size();
-
     HighResTimer hr_timer{};
 
+    constexpr bool multi_gpu = true;
+
     if (cugraph::test::g_perf) {
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
       hr_timer.start("MG Construct graph");
     }
-
-    constexpr bool multi_gpu = true;
 
     auto [mg_graph, mg_edge_weights, mg_renumber_map] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, multi_gpu>(
         *handle_, input_usecase, false, true);
 
     if (cugraph::test::g_perf) {
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
       hr_timer.stop();
       hr_timer.display_and_clear(std::cout);
     }
 
     auto mg_graph_view = mg_graph.view();
-    auto mg_edge_weight_view =
-      mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
-    raft::random::RngState rng_state(multi_gpu ? handle_->get_comms().get_rank() : 0);
+    raft::random::RngState rng_state(handle_->get_comms().get_rank());
+
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle_->get_comms().barrier();
+      hr_timer.start("MG MIS");
+    }
+
     auto d_mis = cugraph::maximal_independent_set<vertex_t, edge_t, multi_gpu>(
       *handle_, mg_graph_view, rng_state);
 
-    // Test MIS
-    if (mis_usecase.check_correctness) {
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      std::vector<vertex_t> h_mis(d_mis.size());
-      raft::update_host(h_mis.data(), d_mis.data(), d_mis.size(), handle_->get_stream());
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle_->get_comms().barrier();
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
 
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      auto mis_size = cugraph::host_scalar_allreduce(
+        handle_->get_comms(), d_mis.size(), raft::comms::op_t::SUM, handle_->get_stream());
 
+      if (handle_->get_comms().get_rank() == 0) {
+        std::cout << "MIS size = " << mis_size << ", "
+                  << (static_cast<double>(mis_size) /
+                      static_cast<double>(mg_graph_view.number_of_vertices())) *
+                       100.0
+                  << "% of the vertices" << std::endl;
+      }
+    }
+
+    if (mis_usecase.check_correctness_) {
       auto vertex_first = mg_graph_view.local_vertex_partition_range_first();
       auto vertex_last  = mg_graph_view.local_vertex_partition_range_last();
 
+      auto vertex_begin = thrust::make_counting_iterator(vertex_first);
+      auto vertex_end   = thrust::make_counting_iterator(vertex_last);
+
+      auto h_mis = cugraph::test::to_host(*handle_, d_mis);
+
       std::for_each(h_mis.begin(), h_mis.end(), [vertex_first, vertex_last](vertex_t v) {
-        ASSERT_TRUE((v >= vertex_first) && (v < vertex_last));
+        ASSERT_TRUE((v >= vertex_first) && (v < vertex_last))
+          << v << " is not within the vertex partition range" << std::endl;
       });
 
-      // If a vertex is included in MIS, then none of its neighbor should be
+      vertex_t local_vtx_partition_size = mg_graph_view.local_vertex_partition_range_size();
 
-      vertex_t local_vtx_partitoin_size = mg_graph_view.local_vertex_partition_range_size();
-      rmm::device_uvector<vertex_t> d_total_outgoing_nbrs_included_mis(local_vtx_partitoin_size,
-                                                                       handle_->get_stream());
+      // Flag the vertices included in the MIS
+      rmm::device_uvector<vertex_t> inclusion_flags(local_vtx_partition_size,
+                                                    handle_->get_stream());
+      thrust::fill(handle_->get_thrust_policy(),
+                   inclusion_flags.begin(),
+                   inclusion_flags.end(),
+                   vertex_t{0});
 
-      rmm::device_uvector<vertex_t> inclusiong_flags(local_vtx_partitoin_size,
-                                                     handle_->get_stream());
+      thrust::for_each(handle_->get_thrust_policy(),
+                       d_mis.begin(),
+                       d_mis.end(),
+                       [inclusion_flags = raft::device_span<vertex_t>(inclusion_flags.data(),
+                                                                      inclusion_flags.size()),
+                        v_first = vertex_first] __device__(auto v) {
+                         inclusion_flags[v - v_first] = vertex_t{1};
+                       });
 
-      thrust::uninitialized_fill(handle_->get_thrust_policy(),
-                                 inclusiong_flags.begin(),
-                                 inclusiong_flags.end(),
-                                 vertex_t{0});
+      // Edge endpoints may be owned by other GPUs, so the inclusion flags are materialized as
+      // edge source and destination properties before the verification reductions
+      cugraph::edge_src_property_t<vertex_t, vertex_t> src_inclusion_cache(*handle_,
+                                                                          mg_graph_view);
+      cugraph::edge_dst_property_t<vertex_t, vertex_t> dst_inclusion_cache(*handle_,
+                                                                          mg_graph_view);
+      update_edge_src_property(
+        *handle_, mg_graph_view, inclusion_flags.begin(), src_inclusion_cache.mutable_view());
+      update_edge_dst_property(
+        *handle_, mg_graph_view, inclusion_flags.begin(), dst_inclusion_cache.mutable_view());
 
-      thrust::for_each(
-        handle_->get_thrust_policy(),
-        d_mis.begin(),
-        d_mis.end(),
-        [inclusiong_flags =
-           raft::device_span<vertex_t>(inclusiong_flags.data(), inclusiong_flags.size()),
-         v_first = mg_graph_view.local_vertex_partition_range_first()] __device__(auto v) {
-          auto v_offset              = v - v_first;
-          inclusiong_flags[v_offset] = vertex_t{1};
-        });
-
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-
-      // Cache for inclusiong_flags
-      using GraphViewType = cugraph::graph_view_t<vertex_t, edge_t, false, true>;
-      cugraph::edge_src_property_t<vertex_t, vertex_t> src_inclusion_cache(*handle_);
-      cugraph::edge_dst_property_t<vertex_t, vertex_t> dst_inclusion_cache(*handle_);
-
-      if constexpr (multi_gpu) {
-        src_inclusion_cache =
-          cugraph::edge_src_property_t<vertex_t, vertex_t>(*handle_, mg_graph_view);
-        dst_inclusion_cache =
-          cugraph::edge_dst_property_t<vertex_t, vertex_t>(*handle_, mg_graph_view);
-        update_edge_src_property(
-          *handle_, mg_graph_view, inclusiong_flags.begin(), src_inclusion_cache.mutable_view());
-        update_edge_dst_property(
-          *handle_, mg_graph_view, inclusiong_flags.begin(), dst_inclusion_cache.mutable_view());
-      }
+      //
+      // Independence: no two adjacent vertices are both included in the MIS
+      //
+      rmm::device_uvector<vertex_t> nr_nbrs_included_in_mis(local_vtx_partition_size,
+                                                            handle_->get_stream());
 
       per_v_transform_reduce_outgoing_e(
         *handle_,
@@ -146,37 +164,75 @@ class Tests_MGMaximalIndependentSet
         dst_inclusion_cache.view(),
         cugraph::edge_dummy_property_t{}.view(),
         [] __device__(auto src, auto dst, auto src_included, auto dst_included, auto wt) {
-          return (src == dst) ? 0 : dst_included;
+          // both endpoints are included in the MIS, a self loop is not a violation
+          return ((src != dst) && (src_included == vertex_t{1}) && (dst_included == vertex_t{1}))
+                   ? vertex_t{1}
+                   : vertex_t{0};
         },
         vertex_t{0},
         cugraph::reduce_op::plus<vertex_t>{},
-        d_total_outgoing_nbrs_included_mis.begin());
+        nr_nbrs_included_in_mis.begin());
 
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      auto num_invalid_vertices_in_mis =
+        cugraph::host_scalar_allreduce(handle_->get_comms(),
+                                       thrust::reduce(handle_->get_thrust_policy(),
+                                                      nr_nbrs_included_in_mis.begin(),
+                                                      nr_nbrs_included_in_mis.end()),
+                                       raft::comms::op_t::SUM,
+                                       handle_->get_stream());
 
-      std::vector<vertex_t> h_total_outgoing_nbrs_included_mis(
-        d_total_outgoing_nbrs_included_mis.size());
-      raft::update_host(h_total_outgoing_nbrs_included_mis.data(),
-                        d_total_outgoing_nbrs_included_mis.data(),
-                        d_total_outgoing_nbrs_included_mis.size(),
-                        handle_->get_stream());
+      ASSERT_EQ(num_invalid_vertices_in_mis, vertex_t{0})
+        << "A vertex included in the MIS has a neighbor included in the MIS" << std::endl;
 
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      //
+      // Maximality: every vertex excluded from the MIS has a neighbor included in the MIS,
+      // otherwise the MIS could be augmented with that vertex. Every GPU checks its own vertex
+      // partition, so the local sum is compared against the local number of excluded vertices.
+      // Note that per_v_transform_reduce_if_outgoing_e does not write to the vertices without a
+      // qualifying edge, hence the output is initialized.
+      //
+      rmm::device_uvector<vertex_t> excluded_vertices(
+        local_vtx_partition_size - static_cast<vertex_t>(d_mis.size()), handle_->get_stream());
 
-      {
-        auto vertex_first = mg_graph_view.local_vertex_partition_range_first();
-        auto vertex_last  = mg_graph_view.local_vertex_partition_range_last();
+      thrust::set_difference(handle_->get_thrust_policy(),
+                             vertex_begin,
+                             vertex_end,
+                             d_mis.begin(),
+                             d_mis.end(),
+                             excluded_vertices.begin());
 
-        std::for_each(h_mis.begin(),
-                      h_mis.end(),
-                      [vertex_first, vertex_last, &h_total_outgoing_nbrs_included_mis](vertex_t v) {
-                        ASSERT_TRUE((v >= vertex_first) && (v < vertex_last))
-                          << v << " is not within vertex parition range" << std::endl;
+      cugraph::vertex_frontier_t<vertex_t, void, multi_gpu, true> vertex_frontier(*handle_, 1);
+      vertex_frontier.bucket(0).insert(excluded_vertices.begin(), excluded_vertices.end());
 
-                        ASSERT_TRUE(h_total_outgoing_nbrs_included_mis[v - vertex_first] == 0)
-                          << v << "'s neighbor is included in MIS" << std::endl;
-                      });
-      }
+      rmm::device_uvector<vertex_t> any_nbr_included_in_mis(excluded_vertices.size(),
+                                                            handle_->get_stream());
+      thrust::fill(handle_->get_thrust_policy(),
+                   any_nbr_included_in_mis.begin(),
+                   any_nbr_included_in_mis.end(),
+                   vertex_t{0});
+
+      per_v_transform_reduce_if_outgoing_e(
+        *handle_,
+        mg_graph_view,
+        vertex_frontier.bucket(0),
+        src_inclusion_cache.view(),
+        dst_inclusion_cache.view(),
+        cugraph::edge_dummy_property_t{}.view(),
+        [] __device__(auto src, auto dst, auto src_included, auto dst_included, auto wt) {
+          return vertex_t{1};
+        },
+        vertex_t{0},
+        cugraph::reduce_op::any<vertex_t>{},
+        [] __device__(auto src, auto dst, auto src_included, auto dst_included, auto wt) {
+          return dst_included == vertex_t{1};
+        },
+        any_nbr_included_in_mis.begin());
+
+      ASSERT_EQ(thrust::reduce(handle_->get_thrust_policy(),
+                               any_nbr_included_in_mis.begin(),
+                               any_nbr_included_in_mis.end()),
+                static_cast<vertex_t>(excluded_vertices.size()))
+        << "A vertex excluded from the MIS has no neighbor included in the MIS" << std::endl;
     }
   }
 
@@ -192,44 +248,48 @@ using Tests_MGMaximalIndependentSet_File =
 using Tests_MGMaximalIndependentSet_Rmat =
   Tests_MGMaximalIndependentSet<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_MGMaximalIndependentSet_File, CheckInt32Int32FloatFloat)
+TEST_P(Tests_MGMaximalIndependentSet_File, CheckInt32Int32Float)
 {
-  run_current_test<int32_t, int32_t, float, int>(
+  run_current_test<int32_t, int32_t, float>(
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_MGMaximalIndependentSet_File, CheckInt64Int64FloatFloat)
+TEST_P(Tests_MGMaximalIndependentSet_File, CheckInt64Int64Float)
 {
-  run_current_test<int64_t, int64_t, float, int>(
+  run_current_test<int64_t, int64_t, float>(
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_MGMaximalIndependentSet_Rmat, CheckInt32Int32FloatFloat)
+TEST_P(Tests_MGMaximalIndependentSet_Rmat, CheckInt32Int32Float)
 {
-  run_current_test<int32_t, int32_t, float, int>(
+  run_current_test<int32_t, int32_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_MGMaximalIndependentSet_Rmat, CheckInt64Int64FloatFloat)
+TEST_P(Tests_MGMaximalIndependentSet_Rmat, CheckInt64Int64Float)
 {
-  run_current_test<int64_t, int64_t, float, int>(
+  run_current_test<int64_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-bool constexpr check_correctness = false;
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGMaximalIndependentSet_File,
-  ::testing::Combine(::testing::Values(MaximalIndependentSet_Usecase{check_correctness},
-                                       MaximalIndependentSet_Usecase{check_correctness}),
-                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+  // enable correctness checks
+  ::testing::Combine(
+    ::testing::Values(MaximalIndependentSet_Usecase{true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/netscience.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/polbooks.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_MGMaximalIndependentSet_Rmat,
+  // enable correctness checks
   ::testing::Combine(
-    ::testing::Values(MaximalIndependentSet_Usecase{check_correctness}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(3, 4, 0.57, 0.19, 0.19, 0, true, false))));
+    ::testing::Values(MaximalIndependentSet_Usecase{true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -238,9 +298,9 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGMaximalIndependentSet_Rmat,
+  // disable correctness checks for large graphs
   ::testing::Combine(
-    ::testing::Values(MaximalIndependentSet_Usecase{check_correctness},
-                      MaximalIndependentSet_Usecase{check_correctness}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+    ::testing::Values(MaximalIndependentSet_Usecase{false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
