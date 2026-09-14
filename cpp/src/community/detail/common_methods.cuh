@@ -198,7 +198,7 @@ weight_t compute_modularity(
 
   if constexpr (multi_gpu) {
     sum_degree_squared = host_scalar_allreduce(
-      handle.get_comms(), sum_degree_squared, raft::comms::op_t::SUM, handle.get_stream().get());
+      handle.get_comms(), sum_degree_squared, raft::comms::op_t::SUM, handle.get_stream());
   }
 
   // Sum(Sigma_in_c), over all clusters c
@@ -433,7 +433,7 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
 
   if constexpr (multi_gpu) {
     nr_moves = host_scalar_allreduce(
-      handle.get_comms(), nr_moves, raft::comms::op_t::SUM, handle.get_stream().get());
+      handle.get_comms(), nr_moves, raft::comms::op_t::SUM, handle.get_stream());
   }
 
   if (nr_moves == 0) { up_down = !up_down; }

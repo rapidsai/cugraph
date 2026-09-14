@@ -359,10 +359,8 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
     handle.get_thrust_policy(), offers_from_partners.begin(), offers_from_partners.end());
 
   if constexpr (multi_gpu) {
-    sum_matched_edge_weights = host_scalar_allreduce(handle.get_comms(),
-                                                     sum_matched_edge_weights,
-                                                     raft::comms::op_t::SUM,
-                                                     handle.get_stream().get());
+    sum_matched_edge_weights = host_scalar_allreduce(
+      handle.get_comms(), sum_matched_edge_weights, raft::comms::op_t::SUM, handle.get_stream());
   }
 
   return std::make_tuple(std::move(partners), sum_matched_edge_weights / 2.0);

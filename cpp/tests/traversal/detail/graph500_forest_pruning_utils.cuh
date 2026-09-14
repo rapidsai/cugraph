@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -683,14 +683,14 @@ std::tuple<vertex_t, int, distance_t, vertex_t, std::optional<distance_t>> trave
       cudaMemsetAsync(mg_distances.data() + (starting_vertex - local_vertex_partition_range_first),
                       0,
                       sizeof(distance_t),
-                      handle.get_stream()));  // note that all 0 bits are zero in both integers and
-                                              // floating point numbers
+                      handle.get_stream().get()));         // note that all 0 bits are zero in both
+                                                           // integers and floating point numbers
     if constexpr (std::is_floating_point_v<distance_t>) {  // SSSP
       RAFT_CUDA_TRY(cudaMemsetAsync(
         mg_w_to_predecessors->data() + (starting_vertex - local_vertex_partition_range_first),
         0,
         sizeof(distance_t),
-        handle.get_stream()));
+        handle.get_stream().get()));
     }
     handle.sync_stream();
   }

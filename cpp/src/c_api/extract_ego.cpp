@@ -91,7 +91,7 @@ struct extract_ego_functor : public cugraph::c_api::abstract_functor {
 
       if constexpr (multi_gpu) {
         auto displacements = cugraph::host_scalar_allgather(
-          handle_.get_comms(), source_vertices.size(), handle_.get_stream().get());
+          handle_.get_comms(), source_vertices.size(), handle_.get_stream());
         std::exclusive_scan(
           displacements.begin(), displacements.end(), displacements.begin(), size_t{0});
         source_indices = rmm::device_uvector<size_t>(source_vertices.size(), handle_.get_stream());
@@ -143,7 +143,7 @@ struct extract_ego_functor : public cugraph::c_api::abstract_functor {
 
       if constexpr (multi_gpu) {
         auto recvcounts = cugraph::host_scalar_allgather(
-          handle_.get_comms(), (*source_indices).size(), handle_.get_stream().get());
+          handle_.get_comms(), (*source_indices).size(), handle_.get_stream());
         std::vector<size_t> displacements(recvcounts.size());
         std::exclusive_scan(recvcounts.begin(), recvcounts.end(), displacements.begin(), size_t{0});
         rmm::device_uvector<size_t> allgathered_indices(displacements.back() + recvcounts.back(),

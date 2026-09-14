@@ -1,13 +1,14 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
 #include <cugraph/export.hpp>
 
-#include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
+
+#include <cuda/stream>
 
 #include <cstddef>
 #include <cstdint>
@@ -27,14 +28,14 @@ CUGRAPH_EXPORT rmm::device_uvector<size_t> compute_partition_scatter_map_impl(
   offset_t const* intra_partition_displs,
   size_t const* group_displacements,
   size_t num_elements,
-  rmm::cuda_stream_view stream_view);
+  cuda::stream_ref stream_view);
 
 template <typename gid_offset_t, typename offset_t>
 rmm::device_uvector<size_t> compute_partition_scatter_map(
   rmm::device_uvector<gid_offset_t> const& group_id_offsets,
   rmm::device_uvector<offset_t> const& intra_partition_displs,
   rmm::device_uvector<size_t> const& group_displacements,
-  rmm::cuda_stream_view stream_view)
+  cuda::stream_ref stream_view)
 {
   static_assert(compute_partition_scatter_map_supported_v<gid_offset_t, offset_t>,
                 "compute_partition_scatter_map is not explicitly instantiated for this "
