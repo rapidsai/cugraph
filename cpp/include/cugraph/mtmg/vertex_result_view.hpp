@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -18,6 +18,8 @@ namespace mtmg {
 
 /**
  * @brief An MTMG device span for referencing a vertex result
+ *
+ * @deprecated This API is deprecated and will be removed in release 27.02.
  */
 template <typename result_t>
 class vertex_result_view_t : public detail::device_shared_device_span_t<result_t const> {
@@ -28,6 +30,8 @@ class vertex_result_view_t : public detail::device_shared_device_span_t<result_t
 
   /**
    * @brief Gather results from specified vertices into a device vector
+   *
+   * @deprecated This API is deprecated and will be removed in release 27.02.
    */
   template <typename vertex_t, bool multi_gpu>
   rmm::device_uvector<result_t> gather(
