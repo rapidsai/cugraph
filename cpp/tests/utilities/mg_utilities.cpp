@@ -67,7 +67,7 @@ void enforce_p2p_initialization(raft::comms::comms_t const& comm, cuda::stream_r
 
   cugraph::device_alltoall(comm, tx_ints.data(), rx_ints.data(), p2p_count, stream);
 
-  RAFT_CUDA_TRY(cudaStreamSynchronize(stream));
+  RAFT_CUDA_TRY(cudaStreamSynchronize(stream.get()));
 }
 
 }  // namespace test
