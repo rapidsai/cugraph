@@ -51,6 +51,7 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sampling_set_use_edge_weights_as_biases,
     cugraph_sampling_set_neighbor_selection,
     cugraph_neighbor_selection_t,
+    cugraph_sampling_set_fixed_window,
 )
 from pylibcugraph._cugraph_c.sampling_algorithms cimport (
     cugraph_neighbor_sample,
@@ -101,7 +102,8 @@ def neighbor_sample(ResourceHandle resource_handle,
                     random_state=None,
                     temporal_sampling_comparison=None,
                     use_edge_weights_as_biases=False,
-                    neighbor_selection='random'):
+                    neighbor_selection='random',
+                    fixed_window=False):
     """
     Unified neighborhood sampling for homogeneous/heterogeneous and
     temporal/non-temporal graphs.
@@ -173,8 +175,7 @@ def neighbor_sample(ResourceHandle resource_handle,
     temporal_sampling_comparison: str (Optional)
         If None (default), sampling is non-temporal. Otherwise one of
         'strictly_increasing', 'strictly_decreasing',
-        'monotonically_increasing', 'monotonically_decreasing',
-        or 'fixed_window'.
+        'monotonically_increasing', or 'monotonically_decreasing'.
 
     use_edge_weights_as_biases: bool (Optional)
         If True and no separate edge-bias property is provided, use graph
@@ -182,7 +183,22 @@ def neighbor_sample(ResourceHandle resource_handle,
         supported from pylibcugraph. Defaults to False (uniform).
 
     neighbor_selection: str (Optional)
-        'random' (default) or 'last'. 'last' is not yet implemented.
+        'random' (default) or 'last'. Matches PyG temporal_strategy='last': among
+        temporally eligible edges, keep fanout-K ranked by start time along the walk
+        implied by temporal_sampling_comparison — later times for increasing modes,
+        earliest times for decreasing modes (last in decreasing time order). Requires
+        temporal sampling, no edge biases, and with_replacement=False. int32 start
+        times rank exactly over the full signed range; int64 ranks exactly on
+        [-2^52, 2^52 - 1] (typical unix seconds/milliseconds/microseconds). Beyond
+        that, int64 ordering is preserved but values may tie, so fanout edges are still
+        returned yet the chosen set may be wrong when more than fanout K eligible edges
+        on one source share the same rank. Equal timestamps always tie.
+
+    fixed_window: bool (Optional)
+        If True (temporal only), keep each seed's original time window at
+        every hop instead of replacing the frontier bound with the sampled
+        edge time. Orthogonal to temporal_sampling_comparison. Defaults to
+        False.
 
     Returns
     -------
@@ -203,6 +219,7 @@ def neighbor_sample(ResourceHandle resource_handle,
     cdef bool_t c_renumber = renumber
     cdef bool_t c_compress_per_hop = compress_per_hop
     cdef bool_t c_use_edge_weights_as_biases = use_edge_weights_as_biases
+    cdef bool_t c_fixed_window = fixed_window
 
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
@@ -365,6 +382,7 @@ def neighbor_sample(ResourceHandle resource_handle,
     cugraph_sampling_set_use_edge_weights_as_biases(
         sampling_options, c_use_edge_weights_as_biases)
     cugraph_sampling_set_neighbor_selection(sampling_options, neighbor_selection_e)
+    cugraph_sampling_set_fixed_window(sampling_options, c_fixed_window)
 
     cdef cugraph_temporal_sampling_comparison_t temporal_sampling_comparison_e
     if temporal_sampling_comparison is not None:
@@ -380,9 +398,6 @@ def neighbor_sample(ResourceHandle resource_handle,
         elif temporal_sampling_comparison == 'monotonically_decreasing':
             temporal_sampling_comparison_e = (
                 cugraph_temporal_sampling_comparison_t.MONOTONICALLY_DECREASING)
-        elif temporal_sampling_comparison == 'fixed_window':
-            temporal_sampling_comparison_e = (
-                cugraph_temporal_sampling_comparison_t.FIXED_WINDOW)
         elif temporal_sampling_comparison == 'last':
             raise NotImplementedError(
                 'The "last" temporal comparison type is currently unsupported.')

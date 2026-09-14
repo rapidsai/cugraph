@@ -27,6 +27,7 @@
 #include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/fill.h>
@@ -53,7 +54,7 @@ template <typename vertex_t, typename KeyIterator>
 KeyIterator compute_key_lower_bound(KeyIterator sorted_unique_key_first,
                                     KeyIterator sorted_unique_key_last,
                                     vertex_t v_threshold,
-                                    rmm::cuda_stream_view stream_view)
+                                    cuda::stream_ref stream_view)
 {
   using key_t = typename thrust::iterator_traits<KeyIterator>::value_type;
 
@@ -78,7 +79,7 @@ std::vector<size_t> compute_key_segment_offsets(KeyIterator sorted_key_first,
                                                 KeyIterator sorted_key_last,
                                                 raft::host_span<vertex_t const> segment_offsets,
                                                 vertex_t vertex_range_first,
-                                                rmm::cuda_stream_view stream_view)
+                                                cuda::stream_ref stream_view)
 {
   using key_t = typename thrust::iterator_traits<KeyIterator>::value_type;
 
@@ -112,7 +113,7 @@ std::vector<size_t> compute_key_segment_offsets(KeyIterator sorted_key_first,
 
   std::vector<size_t> h_offsets(d_offsets.size() + 2);
   raft::update_host(h_offsets.data() + 1, d_offsets.data(), d_offsets.size(), stream_view);
-  RAFT_CUDA_TRY(cudaStreamSynchronize(stream_view));
+  stream_view.sync();
   h_offsets[0]     = size_t{0};
   h_offsets.back() = static_cast<size_t>(cuda::std::distance(sorted_key_first, sorted_key_last));
 
@@ -125,7 +126,7 @@ rmm::device_uvector<uint32_t> compute_vertex_list_bitmap_info(
   VertexIterator sorted_unique_vertex_last,
   typename thrust::iterator_traits<VertexIterator>::value_type vertex_range_first,
   typename thrust::iterator_traits<VertexIterator>::value_type vertex_range_last,
-  rmm::cuda_stream_view stream_view)
+  cuda::stream_ref stream_view)
 {
   using vertex_t = typename thrust::iterator_traits<VertexIterator>::value_type;
 
@@ -174,7 +175,7 @@ void device_bcast_vertex_list(
   typename thrust::iterator_traits<InputVertexIterator>::value_type vertex_range_last,
   size_t v_list_size,
   int root,
-  rmm::cuda_stream_view stream_view)
+  cuda::stream_ref stream_view)
 {
   using vertex_t = typename thrust::iterator_traits<InputVertexIterator>::value_type;
 
@@ -214,7 +215,7 @@ void retrieve_vertex_list_from_bitmap(
   raft::device_span<size_t> count /* size = 1 */,
   typename thrust::iterator_traits<OutputVertexIterator>::value_type vertex_range_first,
   typename thrust::iterator_traits<OutputVertexIterator>::value_type vertex_range_last,
-  rmm::cuda_stream_view stream_view)
+  cuda::stream_ref stream_view)
 {
   using vertex_t = typename thrust::iterator_traits<OutputVertexIterator>::value_type;
 

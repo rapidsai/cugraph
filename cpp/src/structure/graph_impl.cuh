@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -486,6 +486,22 @@ graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gp
   if (edge_partition_dcs_nzd_vertices_) {
     edge_partition_dcs_nzd_range_bitmaps_ =
       compute_edge_partition_dcs_nzd_range_bitmaps(handle, meta, *edge_partition_dcs_nzd_vertices_);
+  }
+
+  // Global logical |E|: sum local CSR index counts, then SUM allreduce (each edge on one GPU).
+  {
+    edge_t local_count{0};
+    for (auto const& indices : edge_partition_indices_) {
+      local_count += static_cast<edge_t>(indices.size());
+    }
+#if 1  // FIXME: we should add host_allreduce to raft
+    this->number_of_edges_ = host_scalar_allreduce(
+      handle.get_comms(), local_count, raft::comms::op_t::SUM, handle.get_stream());
+#else
+    handle.get_comms().host_allreduce(
+      std::addressof(local_count), std::addressof(local_count), size_t{1}, raft::comms::op_t::SUM);
+    this->number_of_edges_ = local_count;
+#endif
   }
 }
 

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -10,6 +10,8 @@
 #include <raft/core/handle.hpp>
 
 #include <rmm/exec_policy.hpp>
+
+#include <cuda/stream>
 
 namespace CUGRAPH_EXPORT cugraph {
 namespace mtmg {
@@ -51,7 +53,7 @@ class handle_t {
    *
    * @return cuda stream
    */
-  rmm::cuda_stream_view get_stream() const
+  cuda::stream_ref get_stream() const
   {
     return raft_handle_.is_stream_pool_initialized()
              ? raft_handle_.get_stream_from_stream_pool(thread_rank_)
@@ -63,7 +65,7 @@ class handle_t {
    *
    * @param stream  Which stream to synchronize (defaults to the stream for this handle)
    */
-  void sync_stream(rmm::cuda_stream_view stream) const { raft_handle_.sync_stream(stream); }
+  void sync_stream(cuda::stream_ref stream) const { raft_handle_.sync_stream(stream); }
 
   /**
    * @brief Sync on the cuda stream for this handle
@@ -82,7 +84,7 @@ class handle_t {
    *
    * @return exec policy using the current stream
    */
-  rmm::exec_policy get_thrust_policy(rmm::cuda_stream_view stream) const
+  rmm::exec_policy get_thrust_policy(cuda::stream_ref stream) const
   {
     return rmm::exec_policy(stream);
   }

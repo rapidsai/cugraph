@@ -45,7 +45,7 @@ void device_segmented_sort_pairs(raft::handle_t const& handle,
                                       begin_offsets.size(),
                                       begin_offsets.data(),
                                       end_offsets.data(),
-                                      handle.get_stream());
+                                      handle.get_stream().get());
   rmm::device_uvector<std::byte> d_tmp_storage(tmp_storage_bytes, handle.get_stream());
   cub::DeviceSegmentedSort::SortPairs(d_tmp_storage.data(),
                                       tmp_storage_bytes,
@@ -57,7 +57,7 @@ void device_segmented_sort_pairs(raft::handle_t const& handle,
                                       begin_offsets.size(),
                                       begin_offsets.data(),
                                       end_offsets.data(),
-                                      handle.get_stream());
+                                      handle.get_stream().get());
 }
 
 // offsets is a CSR offset array of size num_segments + 1

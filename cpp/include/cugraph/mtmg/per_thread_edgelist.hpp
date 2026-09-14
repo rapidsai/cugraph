@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -8,6 +8,8 @@
 #include <cugraph/export.hpp>
 #include <cugraph/mtmg/detail/device_shared_wrapper.hpp>
 #include <cugraph/mtmg/detail/per_device_edgelist.hpp>
+
+#include <cuda/stream>
 
 namespace CUGRAPH_EXPORT cugraph {
 namespace mtmg {
@@ -66,7 +68,7 @@ class per_thread_edgelist_t {
   void append(vertex_t src,
               vertex_t dst,
               std::vector<cugraph::arithmetic_type_t> edge_properties,
-              rmm::cuda_stream_view stream_view)
+              cuda::stream_ref stream_view)
   {
     if (current_pos_ == src_.size()) { flush(stream_view); }
 
@@ -97,7 +99,7 @@ class per_thread_edgelist_t {
   void append(raft::host_span<vertex_t const> src,
               raft::host_span<vertex_t const> dst,
               std::vector<raft::host_span<cugraph::arithmetic_type_t const>> edge_properties,
-              rmm::cuda_stream_view stream_view)
+              cuda::stream_ref stream_view)
   {
     size_t count = src.size();
     size_t pos   = 0;
@@ -134,7 +136,7 @@ class per_thread_edgelist_t {
    * @param sync       If true, synchronize the asynchronous copy of data;
    *                   defaults to false.
    */
-  void flush(rmm::cuda_stream_view stream_view, bool sync = false)
+  void flush(cuda::stream_ref stream_view, bool sync = false)
   {
     std::vector<arithmetic_const_host_span_t> edge_properties_spans;
     std::for_each(edge_properties_.begin(),
@@ -155,7 +157,7 @@ class per_thread_edgelist_t {
 
     current_pos_ = 0;
 
-    if (sync) stream_view.synchronize();
+    if (sync) stream_view.sync();
   }
 
  private:

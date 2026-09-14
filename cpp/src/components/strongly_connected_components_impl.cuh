@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -821,7 +821,7 @@ find_pivots(
     auto component_idx_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(vertex_t{0}),
       detail::segment_id_t<vertex_t>{raft::device_span<vertex_t const>(
-        unresolved_component_offsets.data() + 1, unresolved_component_offsets.size() - 1)});
+        unresolved_component_offsets.data(), unresolved_component_offsets.size())});
     auto ret = thrust::reduce_by_key(
       handle.get_thrust_policy(),
       component_idx_first,
@@ -1050,7 +1050,7 @@ reachable_sets(
                                               remaining_vertices.begin(),
                                               remaining_vertices.end(),
                                               updated_flags.begin(),
-                                              detail::is_equal_t<bool>{false})),
+                                              detail::is_equal_to_const_t<bool, false>{})),
         handle.get_stream());
     }
 
@@ -1134,15 +1134,15 @@ intersect_reachable_sets(
     auto unresolved_component_idxs_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(vertex_t{0}),
       detail::segment_id_t<vertex_t>{raft::device_span<vertex_t const>(
-        unresolved_component_offsets.data() + 1, unresolved_component_offsets.size() - 1)});
+        unresolved_component_offsets.data(), unresolved_component_offsets.size())});
     auto forward_set_component_idxs_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(vertex_t{0}),
-      detail::segment_id_t<vertex_t>{raft::device_span<vertex_t const>(
-        forward_set_offsets.data() + 1, forward_set_offsets.size() - 1)});
+      detail::segment_id_t<vertex_t>{
+        raft::device_span<vertex_t const>(forward_set_offsets.data(), forward_set_offsets.size())});
     auto backward_set_component_idxs_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(vertex_t{0}),
       detail::segment_id_t<vertex_t>{raft::device_span<vertex_t const>(
-        backward_set_offsets.data() + 1, backward_set_offsets.size() - 1)});
+        backward_set_offsets.data(), backward_set_offsets.size())});
 
     auto unresolved_component_pairs_first = thrust::make_zip_iterator(
       unresolved_component_idxs_first, unresolved_component_vertices.begin());
@@ -1935,7 +1935,7 @@ forward_backward_intersect(
     auto component_idx_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(vertex_t{0}),
       detail::segment_id_t<vertex_t>{raft::device_span<vertex_t const>(
-        backward_set_offsets.data() + 1, backward_set_offsets.size() - 1)});
+        backward_set_offsets.data(), backward_set_offsets.size())});
     thrust::copy(handle.get_thrust_policy(),
                  component_idx_first,
                  component_idx_first + backward_set_vertices.size(),

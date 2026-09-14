@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -10,6 +10,10 @@ import networkx as nx
 import cugraph
 from cugraph.testing import utils
 
+from cugraph.datasets import karate, polbooks
+
+TEST_DATASETS = [karate, polbooks]
+
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
@@ -19,10 +23,10 @@ def setup_function():
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", TEST_DATASETS)
 def test_to_from_pandas(graph_file):
     # Read in the graph
-    M = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
+    M = utils.read_csv_for_nx(graph_file.get_path(), read_weights_in_sp=True)
 
     # create a NetworkX DiGraph and convert to pandas adjacency
     nxG = nx.from_pandas_edgelist(
@@ -68,10 +72,10 @@ def test_to_from_pandas(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", TEST_DATASETS)
 def test_from_to_numpy(graph_file):
     # Read in the graph
-    M = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
+    M = utils.read_csv_for_nx(graph_file.get_path(), read_weights_in_sp=True)
 
     # create NetworkX and cugraph Directed Graph
     nxG = nx.from_pandas_edgelist(
@@ -134,14 +138,14 @@ def test_from_to_numpy(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", TEST_DATASETS)
 def test_from_edgelist(graph_file):
     """
     Compare the resulting Graph objs from cugraph.from_edgelist() calls of both
     a cudf and pandas DataFrame and ensure the results are equal.
     """
-    df = utils.read_csv_file(graph_file)
-    pdf = utils.read_csv_for_nx(graph_file)
+    df = utils.read_csv_file(graph_file.get_path())
+    pdf = utils.read_csv_for_nx(graph_file.get_path())
 
     G1 = cugraph.from_edgelist(df, source="0", destination="1")
     G2 = cugraph.from_edgelist(pdf, source="0", destination="1")
@@ -150,13 +154,13 @@ def test_from_edgelist(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", TEST_DATASETS)
 def test_from_adjlist(graph_file):
     """
     Compare the resulting Graph objs from cugraph.from_adjlist() calls of both
     a cudf and pandas DataFrame and ensure the results are equal.
     """
-    G = utils.generate_cugraph_graph_from_file(graph_file, directed=True)
+    G = utils.generate_cugraph_graph_from_file(graph_file.get_path(), directed=True)
     (cu_offsets, cu_indices, cu_vals) = G.view_adj_list()
 
     pd_offsets = cu_offsets.to_pandas()

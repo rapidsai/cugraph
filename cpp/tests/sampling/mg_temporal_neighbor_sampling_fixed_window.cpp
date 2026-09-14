@@ -30,7 +30,6 @@ struct Fixed_Window_Temporal_Neighbor_Sampling_Usecase {
   cugraph::temporal_sampling_comparison_t temporal_sampling_comparison{
     cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING};
   bool check_correctness{true};
-  // LAST are expected to fast-fail until the selection primitive is implemented.
   cugraph::neighbor_selection_t neighbor_selection{cugraph::neighbor_selection_t::RANDOM};
 };
 
@@ -191,7 +190,9 @@ class Tests_MGFixed_Window_Temporal_Neighbor_Sampling
     sampling_flags.with_replacement  = false;
     sampling_flags.disjoint_sampling = true;
     sampling_flags.temporal_sampling_comparison =
-      cugraph::temporal_sampling_comparison_t::FIXED_WINDOW;
+      temporal_neighbor_sampling_usecase.temporal_sampling_comparison;
+    sampling_flags.fixed_window       = true;
+    sampling_flags.neighbor_selection = temporal_neighbor_sampling_usecase.neighbor_selection;
 
     rmm::device_uvector<vertex_t> src_out(0, handle_->get_stream());
     rmm::device_uvector<vertex_t> dst_out(0, handle_->get_stream());
@@ -249,47 +250,6 @@ class Tests_MGFixed_Window_Temporal_Neighbor_Sampling
         ? std::make_optional(raft::device_span<time_stamp_t const>{
             starting_vertex_end_times->data(), starting_vertex_end_times->size()})
         : std::nullopt;
-
-    if (temporal_neighbor_sampling_usecase.neighbor_selection !=
-        cugraph::neighbor_selection_t::RANDOM) {
-      sampling_flags.neighbor_selection = temporal_neighbor_sampling_usecase.neighbor_selection;
-      // LAST is declared in the public API but is not implemented yet.  The check is
-      // local to each rank and runs before any collective, so every rank throws here.
-      try {
-        cugraph::neighbor_sample<vertex_t,
-                                 edge_t,
-                                 weight_t,
-                                 edge_type_t,
-                                 time_stamp_t,
-                                 store_transposed,
-                                 true>(
-          *handle_,
-          rng_state,
-          graph_view,
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          edge_start_times_view,
-          edge_end_times_view,
-          std::nullopt,
-          raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
-          starting_vertex_start_times_span,
-          starting_vertex_end_times_span,
-          batch_number ? std::make_optional(raft::device_span<int32_t const>{batch_number->data(),
-                                                                             batch_number->size()})
-                       : std::nullopt,
-          label_to_output_comm_rank_mapping,
-          raft::host_span<int32_t const>(temporal_neighbor_sampling_usecase.fanout.data(),
-                                         temporal_neighbor_sampling_usecase.fanout.size()),
-          std::nullopt,
-          sampling_flags);
-        ADD_FAILURE() << "expected LAST neighbor selection to fail as not implemented";
-      } catch (cugraph::logic_error const& e) {
-        EXPECT_NE(std::string{e.what()}.find("not yet implemented"), std::string::npos)
-          << "expected a not-implemented failure, got: " << e.what();
-      }
-      return;
-    }
 
     if (temporal_neighbor_sampling_usecase.biased) {
       std::tie(src_out,
@@ -372,7 +332,7 @@ class Tests_MGFixed_Window_Temporal_Neighbor_Sampling
         starting_vertex_start_times_span,
         starting_vertex_end_times_span,
         num_sampled_edges,
-        cugraph::temporal_sampling_comparison_t::FIXED_WINDOW));
+        temporal_neighbor_sampling_usecase.temporal_sampling_comparison));
 
       ASSERT_TRUE(offsets.has_value());
       auto h_offsets = cugraph::test::to_host(*handle_, *offsets);
@@ -579,7 +539,7 @@ INSTANTIATE_TEST_SUITE_P(
                          false,
                          true,
                          true,
-                         cugraph::temporal_sampling_comparison_t::FIXED_WINDOW,
+                         cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING,
                          true},
                        Fixed_Window_Temporal_Neighbor_Sampling_Usecase{
                          {4, -1, 10},
@@ -588,7 +548,7 @@ INSTANTIATE_TEST_SUITE_P(
                          false,
                          true,
                          true,
-                         cugraph::temporal_sampling_comparison_t::FIXED_WINDOW,
+                         cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING,
                          true}),
                      ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
@@ -604,7 +564,7 @@ INSTANTIATE_TEST_SUITE_P(
         false,
         true,
         true,
-        cugraph::temporal_sampling_comparison_t::FIXED_WINDOW,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING,
         true},
       Fixed_Window_Temporal_Neighbor_Sampling_Usecase{
         {4, -1, 10},
@@ -613,14 +573,12 @@ INSTANTIATE_TEST_SUITE_P(
         false,
         true,
         true,
-        cugraph::temporal_sampling_comparison_t::FIXED_WINDOW,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING,
         true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0))));
 
-// The fast-fail is an argument check that runs before any graph traversal, so a single small
-// input is enough to cover it.
 INSTANTIATE_TEST_SUITE_P(
-  file_test_unimplemented_selection,
+  file_test_last_selection,
   Tests_MGFixed_Window_Temporal_Neighbor_Sampling_File,
   ::testing::Combine(::testing::Values(Fixed_Window_Temporal_Neighbor_Sampling_Usecase{
                        {4, -1, 10},
@@ -629,8 +587,8 @@ INSTANTIATE_TEST_SUITE_P(
                        false,
                        true,
                        true,
-                       cugraph::temporal_sampling_comparison_t::FIXED_WINDOW,
-                       false,
+                       cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING,
+                       true,
                        cugraph::neighbor_selection_t::LAST}),
                      ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 

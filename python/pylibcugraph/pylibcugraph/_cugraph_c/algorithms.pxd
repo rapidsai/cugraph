@@ -291,7 +291,6 @@ cdef extern from "cugraph_c/algorithms.h":
         MONOTONICALLY_INCREASING
         STRICTLY_DECREASING
         MONOTONICALLY_DECREASING
-        FIXED_WINDOW
         LAST
 
     ctypedef enum cugraph_neighbor_selection_t:
@@ -319,6 +318,12 @@ cdef extern from "cugraph_c/algorithms.h":
         cugraph_sampling_set_neighbor_selection(
             cugraph_sampling_options_t* options,
             cugraph_neighbor_selection_t selection,
+        )
+
+    cdef void \
+        cugraph_sampling_set_fixed_window(
+            cugraph_sampling_options_t* options,
+            bool_t value,
         )
 
     cdef void \

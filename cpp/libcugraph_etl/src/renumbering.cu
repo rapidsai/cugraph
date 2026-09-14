@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <cugraph/utilities/error.hpp>
@@ -778,7 +778,7 @@ struct renumber_functor {
         const_cast<str_offset_type*>(str_col_view.offsets().data<str_offset_type>()));
     }
 
-    cudaStream_t exec_strm = handle.get_stream();
+    cudaStream_t exec_strm = handle.get_stream().get();
 
     auto mr                         = rmm::mr::pinned_host_memory_resource();
     size_t hist_size                = sizeof(accum_type) * 32;

@@ -93,6 +93,28 @@ def _build_temporal_sg(resource_handle: ResourceHandle) -> SGGraph:
     return G
 
 
+def _build_last_temporal_sg(resource_handle: ResourceHandle) -> SGGraph:
+    srcs = cp.asarray([0, 0, 0, 0], dtype=np.int32)
+    dsts = cp.asarray([1, 2, 3, 4], dtype=np.int32)
+    weights = cp.asarray([1.0, 2.0, 3.0, 4.0], dtype=np.float32)
+    edge_start_times = cp.asarray([-5, 0, 5, 10], dtype=np.int32)
+    edge_end_times = edge_start_times + 1
+
+    props = GraphProperties(is_symmetric=False, is_multigraph=False)
+    return SGGraph(
+        resource_handle,
+        props,
+        srcs,
+        dsts,
+        weight_array=weights,
+        edge_start_time_array=edge_start_times,
+        edge_end_time_array=edge_end_times,
+        store_transposed=True,
+        renumber=False,
+        do_expensive_check=False,
+    )
+
+
 def _build_temporal_sg_with_edge_types(resource_handle: ResourceHandle) -> SGGraph:
     srcs = cp.asarray([0, 1, 1, 2], dtype=np.int32)
     dsts = cp.asarray([1, 2, 3, 3], dtype=np.int32)
@@ -328,7 +350,6 @@ def test_starting_vertex_label_offsets_length_mismatch_raises():
         "strictly_decreasing",
         "monotonically_increasing",
         "monotonically_decreasing",
-        "fixed_window",
     ],
 )
 def test_homogeneous_uniform_temporal_none_times(temporal_sampling_comparison):
@@ -361,7 +382,6 @@ def test_homogeneous_uniform_temporal_none_times(temporal_sampling_comparison):
         "strictly_decreasing",
         "monotonically_increasing",
         "monotonically_decreasing",
-        "fixed_window",
     ],
 )
 def test_homogeneous_uniform_temporal_with_times_and_labels(
@@ -398,7 +418,6 @@ def test_homogeneous_uniform_temporal_with_times_and_labels(
         "strictly_decreasing",
         "monotonically_increasing",
         "monotonically_decreasing",
-        "fixed_window",
     ],
 )
 def test_homogeneous_biased_temporal_with_times(temporal_sampling_comparison):
@@ -442,11 +461,44 @@ def test_homogeneous_temporal_with_seed_time_window():
         with_replacement=False,
         do_expensive_check=True,
         disjoint_sampling=True,
-        temporal_sampling_comparison="fixed_window",
+        temporal_sampling_comparison="monotonically_increasing",
+        fixed_window=True,
     )
 
     assert isinstance(result["majors"], cp.ndarray)
     assert isinstance(result["minors"], cp.ndarray)
+
+
+@pytest.mark.parametrize(
+    ("temporal_sampling_comparison", "expected_dst", "expected_time"),
+    [
+        ("monotonically_increasing", 3, 5),
+        ("monotonically_decreasing", 2, 0),
+    ],
+)
+def test_homogeneous_temporal_last_selects_expected_edge(
+    temporal_sampling_comparison, expected_dst, expected_time
+):
+    rh = ResourceHandle()
+    G = _build_last_temporal_sg(rh)
+
+    result = neighbor_sample(
+        rh,
+        G,
+        cp.asarray([0], dtype=np.int32),
+        np.asarray([1], dtype=np.int32),
+        starting_vertex_start_times=cp.asarray([-4], dtype=np.int32),
+        starting_vertex_end_times=cp.asarray([9], dtype=np.int32),
+        with_replacement=False,
+        do_expensive_check=True,
+        disjoint_sampling=True,
+        temporal_sampling_comparison=temporal_sampling_comparison,
+        neighbor_selection="last",
+    )
+
+    assert result["majors"].get().tolist() == [0]
+    assert result["minors"].get().tolist() == [expected_dst]
+    assert result["edge_start_time"].get().tolist() == [expected_time]
 
 
 @pytest.mark.parametrize(
@@ -456,7 +508,6 @@ def test_homogeneous_temporal_with_seed_time_window():
         "strictly_decreasing",
         "monotonically_increasing",
         "monotonically_decreasing",
-        "fixed_window",
     ],
 )
 def test_heterogeneous_uniform_temporal_none_times(temporal_sampling_comparison):
@@ -487,7 +538,6 @@ def test_heterogeneous_uniform_temporal_none_times(temporal_sampling_comparison)
         "strictly_decreasing",
         "monotonically_increasing",
         "monotonically_decreasing",
-        "fixed_window",
     ],
 )
 def test_heterogeneous_biased_temporal_with_times(temporal_sampling_comparison):

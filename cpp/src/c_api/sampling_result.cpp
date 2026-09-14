@@ -119,6 +119,12 @@ extern "C" void cugraph_sampling_set_neighbor_selection(cugraph_sampling_options
   }
 }
 
+extern "C" void cugraph_sampling_set_fixed_window(cugraph_sampling_options_t* options, bool_t value)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
+  internal_pointer->fixed_window_ = value;
+}
+
 extern "C" void cugraph_sampling_set_disjoint_sampling(cugraph_sampling_options_t* options,
                                                        bool_t value)
 {

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -513,7 +513,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
             h_vertex_offsets[j + 1] - h_vertex_offsets[j],
             offset_first,
             offset_first + 1,
-            handle.get_stream());
+            handle.get_stream().get());
         } else {
           cub::DeviceSegmentedSort::SortKeys(static_cast<void*>(nullptr),
                                              tmp_storage_bytes,
@@ -523,7 +523,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                                              h_vertex_offsets[j + 1] - h_vertex_offsets[j],
                                              offset_first,
                                              offset_first + 1,
-                                             handle.get_stream());
+                                             handle.get_stream().get());
         }
         if (tmp_storage_bytes > d_tmp_storage.size()) {
           d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
@@ -544,7 +544,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
             h_vertex_offsets[j + 1] - h_vertex_offsets[j],
             offset_first,
             offset_first + 1,
-            handle.get_stream());
+            handle.get_stream().get());
         } else {
           cub::DeviceSegmentedSort::SortKeys(d_tmp_storage.data(),
                                              tmp_storage_bytes,
@@ -554,7 +554,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                                              h_vertex_offsets[j + 1] - h_vertex_offsets[j],
                                              offset_first,
                                              offset_first + 1,
-                                             handle.get_stream());
+                                             handle.get_stream().get());
         }
 
         thrust::copy(handle.get_thrust_policy(),

@@ -15,6 +15,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <optional>
+#include <vector>
 
 // utilities for testing / verification of Nbr Sampling functionality:
 //
@@ -69,6 +70,39 @@ bool validate_temporal_time_windows(
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> edge_labels,
   cugraph::temporal_sampling_comparison_t temporal_sampling_comparison);
+
+/**
+ * @brief Validate that LAST selected the highest-ranked eligible edges at every hop.
+ *
+ * This replays the sampled traversal one hop at a time. At each hop, a fanout of -1 gathers every
+ * outgoing edge from the current frontier and sorts those edges by (src, time, dst). For each
+ * source, LAST is the first K eligible times (decreasing) or last K eligible times (increasing) in
+ * that already-sorted range. Candidates whose destination was visited, or claimed at this hop by a
+ * different source, are not eligible; destination uniqueness itself is checked separately by
+ * validate_disjoint_sampling. Equal timestamps are interchangeable because the top-k primitive has
+ * no secondary tie-breaker.
+ *
+ * Like the other temporal validators, this inspects already-complete sampled arrays. MG tests
+ * gather results to rank 0 before calling those helpers; this one follows the same contract and
+ * expects an SG graph view so the original edgelist is available on the host.
+ */
+template <typename vertex_t, typename edge_t, typename time_stamp_t>
+bool validate_last_n_selection(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
+  cugraph::edge_property_view_t<edge_t, time_stamp_t const*> edge_start_time_view,
+  raft::device_span<vertex_t const> sampled_srcs,
+  raft::device_span<vertex_t const> sampled_dsts,
+  raft::device_span<time_stamp_t const> sampled_edge_times,
+  raft::device_span<int32_t const> sampled_hops,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_start_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_end_times,
+  raft::device_span<size_t const> label_offsets,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+  std::vector<int32_t> const& fanout,
+  cugraph::temporal_sampling_comparison_t temporal_sampling_comparison,
+  bool fixed_window);
 
 /**
  * @brief Validate fixed-window temporal sampling against each seed's original window.

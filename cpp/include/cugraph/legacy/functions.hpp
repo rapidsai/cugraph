@@ -64,7 +64,7 @@ std::unique_ptr<legacy::GraphCSR<VT, ET, WT>> coo_to_csr(
 template <typename value_t>
 void comms_bcast(const raft::handle_t& handle, value_t* value, size_t count)
 {
-  handle.get_comms().bcast(value, count, 0, handle.get_stream());
+  handle.get_comms().bcast(value, count, 0, handle.get_stream().get());
 }
 
 }  // namespace CUGRAPH_EXPORT cugraph

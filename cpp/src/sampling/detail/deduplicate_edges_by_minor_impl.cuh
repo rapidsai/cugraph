@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -50,12 +50,18 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
   bool const has_types         = !std::holds_alternative<std::monostate>(result_types);
   bool const has_labels        = result_labels.has_value();
   if (has_types) {
-    CUGRAPH_EXPECTS(std::holds_alternative<rmm::device_uvector<int32_t>>(result_types),
-                    "result_types must be rmm::device_uvector<int32_t> when present.");
+    CUGRAPH_EXPECTS(
+      std::holds_alternative<rmm::device_uvector<int32_t>>(result_types),
+      "deduplicate_edges_by_minor: result_types expected rmm::device_uvector<int32_t>, variant "
+      "index %zu",
+      result_types.index());
   }
   if (has_edge_property) {
-    CUGRAPH_EXPECTS(std::holds_alternative<rmm::device_uvector<edge_t>>(result_edge_property),
-                    "result_edge_property must be rmm::device_uvector<edge_t> when present.");
+    CUGRAPH_EXPECTS(
+      std::holds_alternative<rmm::device_uvector<edge_t>>(result_edge_property),
+      "deduplicate_edges_by_minor: result_edge_property expected rmm::device_uvector<edge_t>, "
+      "variant index %zu",
+      result_edge_property.index());
   }
 
   size_t total_edges = result_majors.size();
@@ -92,6 +98,10 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
                            graph_view.vertex_partition_range_lasts(),
                            std::nullopt);
 
+    CUGRAPH_EXPECTS(std::holds_alternative<rmm::device_uvector<vertex_t>>(shuffle_properties[0]),
+                    "deduplicate_edges_by_minor MG shuffle: shuffle_properties[0] expected "
+                    "rmm::device_uvector<vertex_t>, variant index %zu",
+                    shuffle_properties[0].index());
     result_majors = std::move(std::get<rmm::device_uvector<vertex_t>>(shuffle_properties[0]));
     size_t shuffle_prop_idx{1};
     if (has_edge_property) {
@@ -99,6 +109,18 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
     }
     if (has_types) { result_types = std::move(shuffle_properties[shuffle_prop_idx++]); }
     if (has_labels) {
+      CUGRAPH_EXPECTS(
+        shuffle_prop_idx < shuffle_properties.size(),
+        "deduplicate_edges_by_minor MG shuffle: label property index %zu out of range "
+        "(shuffle_properties.size()=%zu)",
+        shuffle_prop_idx,
+        shuffle_properties.size());
+      CUGRAPH_EXPECTS(
+        std::holds_alternative<rmm::device_uvector<int32_t>>(shuffle_properties[shuffle_prop_idx]),
+        "deduplicate_edges_by_minor MG shuffle: shuffle_properties[%zu] expected "
+        "rmm::device_uvector<int32_t>, variant index %zu",
+        shuffle_prop_idx,
+        shuffle_properties[shuffle_prop_idx].index());
       result_labels =
         std::move(std::get<rmm::device_uvector<int32_t>>(shuffle_properties[shuffle_prop_idx++]));
     }
