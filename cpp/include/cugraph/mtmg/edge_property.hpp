@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -14,6 +14,8 @@ namespace mtmg {
 
 /**
  * @brief Edge property object for each GPU
+ *
+ * @deprecated This API is deprecated and will be removed in release 27.02.
  */
 template <typename edge_t>
 class edge_property_t
