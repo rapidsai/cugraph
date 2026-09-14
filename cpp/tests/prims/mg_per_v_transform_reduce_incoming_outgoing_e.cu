@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -32,6 +32,7 @@
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/count.h>
 #include <thrust/equal.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -141,9 +142,9 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
     std::array<reduction_type_t, 3> reduction_types = {
       reduction_type_t::PLUS, reduction_type_t::ELEMWISE_MIN, reduction_type_t::ELEMWISE_MAX};
 
-    std::vector<decltype(cugraph::allocate_dataframe_buffer<result_t>(0, rmm::cuda_stream_view{}))>
+    std::vector<decltype(cugraph::allocate_dataframe_buffer<result_t>(0, cuda::stream_ref{}))>
       mg_in_results{};
-    std::vector<decltype(cugraph::allocate_dataframe_buffer<result_t>(0, rmm::cuda_stream_view{}))>
+    std::vector<decltype(cugraph::allocate_dataframe_buffer<result_t>(0, cuda::stream_ref{}))>
       mg_out_results{};
     mg_in_results.reserve(reduction_types.size());
     mg_out_results.reserve(reduction_types.size());

@@ -83,9 +83,9 @@ extern "C" int run_mg_test(int (*test)(const cugraph_resource_handle_t*),
   rmm::device_uvector<int> d_input(1, raft_handle->get_stream());
   raft::update_device(d_input.data(), &ret_val, 1, raft_handle->get_stream());
   comm.allreduce(
-    d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, raft_handle->get_stream());
+    d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, raft_handle->get_stream().get());
   raft::update_host(&ret_val, d_input.data(), 1, raft_handle->get_stream());
-  auto status = comm.sync_stream(raft_handle->get_stream());
+  auto status = comm.sync_stream(raft_handle->get_stream().get());
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   if (rank == 0) {
@@ -772,9 +772,9 @@ extern "C" size_t cugraph_test_device_gatherv_size(
   rmm::device_uvector<size_t> d_input(1, raft_handle->get_stream());
   raft::update_device(d_input.data(), &ret_value, 1, raft_handle->get_stream());
   comm.allreduce(
-    d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, raft_handle->get_stream());
+    d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, raft_handle->get_stream().get());
   raft::update_host(&ret_value, d_input.data(), 1, raft_handle->get_stream());
-  auto status = comm.sync_stream(raft_handle->get_stream());
+  auto status = comm.sync_stream(raft_handle->get_stream().get());
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   return (comm.get_rank() == 0) ? ret_value : 0;
@@ -789,9 +789,9 @@ extern "C" size_t cugraph_test_scalar_reduce(const cugraph_resource_handle_t* ha
   rmm::device_uvector<size_t> d_input(1, raft_handle->get_stream());
   raft::update_device(d_input.data(), &value, 1, raft_handle->get_stream());
   comm.allreduce(
-    d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, raft_handle->get_stream());
+    d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, raft_handle->get_stream().get());
   raft::update_host(&value, d_input.data(), 1, raft_handle->get_stream());
-  auto status = comm.sync_stream(raft_handle->get_stream());
+  auto status = comm.sync_stream(raft_handle->get_stream().get());
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   return (comm.get_rank() == 0) ? value : 0;

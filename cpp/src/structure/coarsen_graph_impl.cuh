@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -28,6 +28,7 @@
 #include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -74,7 +75,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
 groupby_e_and_coarsen_edgelist(rmm::device_uvector<vertex_t>&& edgelist_majors,
                                rmm::device_uvector<vertex_t>&& edgelist_minors,
                                std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-                               rmm::cuda_stream_view stream_view)
+                               cuda::stream_ref stream_view)
 {
   auto pair_first = thrust::make_zip_iterator(edgelist_majors.begin(), edgelist_minors.begin());
 

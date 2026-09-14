@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -17,6 +17,7 @@
 
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/zip_iterator.h>
 
@@ -418,7 +419,7 @@ class edge_minor_property_t {
     key_chunk_start_offsets_.reset();
     key_chunk_size_.reset();
 
-    rmm::cuda_stream_view stream{};
+    cuda::stream_ref stream{};
     if constexpr (std::is_arithmetic_v<T>) {
       stream = buffer_.stream();
     } else {
