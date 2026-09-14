@@ -1,0 +1,125 @@
+{
+  "skill_name": "cugraph-graph-analysis",
+  "evals": [
+    {
+      "id": "cugraph-analysis-explicit-directed-reachability",
+      "prompt": "Use the cuGraph graph-analysis skill to fix code/analyze.py. The edge contract is src_service calls dst_service, and the function must return services reachable from the start in at most max_hops directed hops. Preserve the complete vertex universe, including isolates, but filter unreachable rows from the result. Do not use trust as a shortest-path cost. Keep stable service IDs in the output. Run the CPU semantic check and a Python syntax check; if cuGraph/GPU execution is unavailable, report that blocker instead of claiming a GPU run.",
+      "expected_output": "The agent reads the skill and edits analyze.py to create cugraph.Graph(directed=True), pass vertices= and renumber=True to from_cudf_edgelist, use cugraph.bfs with depth_limit=max_hops, and call cugraph.filter_unreachable. It does not use the trust column for hop reachability. It runs `python3 code/reference_smoke.py` and `python3 -m py_compile code/analyze.py`, reports results, and does not claim the CPU reference proves GPU execution.",
+      "assertions": [
+        "Reads cugraph-graph-analysis/SKILL.md",
+        "Builds a directed Graph and preserves vertices including isolates",
+        "Uses BFS with depth_limit rather than weighted SSSP",
+        "Filters unreachable results with cugraph.filter_unreachable",
+        "Runs the reference smoke and syntax checks and reports any GPU blocker"
+      ],
+      "expected_skill": "cugraph-graph-analysis",
+      "expected_script": null,
+      "files": [
+        "files/directed-reachability/code/analyze.py",
+        "files/directed-reachability/code/reference_smoke.py"
+      ]
+    },
+    {
+      "id": "cugraph-analysis-explicit-pagerank-contract",
+      "prompt": "Repair code/rank_pages.py against the current repository API. The business definition is directed, unweighted link authority: latency_ms measures slowness and must not affect importance. all_pages is the required population, including isolates, and outputs must retain stable page IDs. The current implementation fails at runtime and can return unchecked results. Keep non-raising PageRank mode because the caller records the returned convergence diagnostic, but make the result safe to consume. Run `python3 -m py_compile code/rank_pages.py` and report GPU execution separately from syntax or CPU-only checks.",
+      "expected_output": "The agent builds a directed, unweighted graph with vertices=all_pages, renumber=True, and store_transposed=True. It unpacks `(ranks, converged)` from PageRank, rejects or explicitly returns non-convergence, validates stable-key coverage, finiteness, uniqueness, and score mass, and does not use latency_ms as edge_attr. The syntax check passes, the hidden source contract is satisfied, and neither is presented as GPU evidence.",
+      "assertions": [
+        "Builds an unweighted directed graph with complete vertices and store_transposed=True",
+        "Uses renumber=True and retains stable external page IDs",
+        "Unpacks and checks the convergence result for fail_on_nonconvergence=False",
+        "Validates finite unique page scores, complete coverage, and score mass",
+        "Passes syntax and hidden contract checks without claiming GPU execution"
+      ],
+      "expected_skill": "cugraph-graph-analysis",
+      "expected_script": null,
+      "files": [
+        "files/pagerank-contract/code/rank_pages.py"
+      ]
+    },
+    {
+      "id": "cugraph-analysis-explicit-component-semantics",
+      "prompt": "Fix code/analyze_components.py against the current repository API. The service team needs both weak operational regions that ignore call direction and strong feedback groups that preserve caller-to-callee direction. all_services is the required population, including isolates. The current implementation fails, and its result comparison is unreliable. Return validated stable service-keyed results, run a Python syntax check, and distinguish syntax or CPU-only checks from GPU execution.",
+      "expected_output": "The agent constructs separate undirected and directed Graph objects from the same declared edge snapshot, supplies vertices and renumber=True to both, calls weakly_connected_components and strongly_connected_components without matrix-only keyword overrides, validates keyed coverage including the isolate, and canonicalizes partitions as sets of external IDs instead of comparing numeric labels. The syntax and hidden source-contract checks pass and GPU status is reported honestly.",
+      "assertions": [
+        "Constructs separate undirected weak and directed strong graph views",
+        "Includes the complete service universe and stable external keys",
+        "Does not pass matrix-only overrides to component calls with Graph inputs",
+        "Compares component memberships independent of numeric label IDs",
+        "Passes syntax and hidden contract checks and reports GPU execution separately"
+      ],
+      "expected_skill": "cugraph-graph-analysis",
+      "expected_script": null,
+      "files": [
+        "files/component-semantics/code/analyze_components.py"
+      ]
+    },
+    {
+      "id": "cugraph-analysis-implicit-parallel-edges",
+      "prompt": "A payment network has one row per transfer, so account pairs can have thousands of parallel edges. I loaded it into cugraph.Graph and the edge count shrank. Is that harmless, and how should I implement the graph?",
+      "expected_output": "The agent explains that a simple Graph drops parallel edges in the current source while MultiGraph retains them, and that neither policy is automatically correct. It asks whether transfer events remain distinct or aggregate by account pair with a named function, checks selected-algorithm multigraph support, and preserves raw and graph-ready edges with count reconciliation.",
+      "assertions": [
+        "Explains simple Graph versus MultiGraph multiplicity behavior",
+        "Treats aggregation as a semantic decision",
+        "Checks selected-algorithm support for multigraph input",
+        "Reconciles raw and materialized edge populations"
+      ],
+      "expected_skill": "cugraph-graph-analysis",
+      "expected_script": null,
+      "files": []
+    },
+    {
+      "id": "cugraph-analysis-contextual-centrality",
+      "prompt": "In a web-analytics project, rank the most important pages. The team proposes averaging in-degree, PageRank, and betweenness into one score. Review the method and define a validated cuGraph run.",
+      "expected_output": "The agent asks what importance means, explains that the three centralities answer distinct structural questions, and does not create an unexplained composite. If PageRank is selected, it defines links and weight semantics, records alpha/tolerance/convergence, includes the required vertex population, validates output coverage and score properties, and limits interpretation to the graph definition.",
+      "assertions": [
+        "Maps candidate centralities to distinct meanings",
+        "Does not average them without an approved model and normalization",
+        "Records selected-method parameters and convergence",
+        "Interprets the score only within the declared graph"
+      ],
+      "expected_skill": "cugraph-graph-analysis",
+      "expected_script": null,
+      "files": []
+    },
+    {
+      "id": "cugraph-analysis-implicit-composite-identities",
+      "prompt": "Our vertices are keyed by (tenant_id, account_id). A prototype concatenates the two fields before building a PageRank graph, and different pairs have collided. Define the correct cuGraph construction and a stable result handoff for version 26.10.",
+      "expected_output": "The agent keeps the two identifier fields separate, passes matching source and destination column lists with renumber=True, and does not rely on row order or delimiter concatenation. It notes that multi-column PageRank output is unrenumbered into multiple vertex columns such as 0_vertex and 1_vertex in the current tests, then explicitly maps and validates those columns back to tenant_id and account_id with one score per graph vertex.",
+      "assertions": [
+        "Rejects concatenation as a stable composite-key strategy",
+        "Uses matching multi-column source and destination lists",
+        "Requires renumber=True for multi-column IDs",
+        "Explicitly maps and validates unrenumbered composite output keys"
+      ],
+      "expected_skill": "cugraph-graph-analysis",
+      "expected_script": null,
+      "files": []
+    },
+    {
+      "id": "cugraph-analysis-contextual-symmetrization-metadata",
+      "prompt": "An undirected relationship analysis passes edge_id and edge_type into from_cudf_edgelist while relying on default symmetrization. Construction fails. The source has one row per relationship, and the selected component algorithm needs topology but not edge metadata. Diagnose and redesign this without losing auditability.",
+      "expected_output": "The agent identifies automatic undirected symmetrization with edge IDs/types as the incompatible combination. Because the selected algorithm needs topology only, it preserves the typed raw edge table as an auditable artifact and builds a separate unweighted undirected topology graph without edge IDs/types, reconciling raw relationships to materialized topology. It does not silently discard metadata or invent reverse-edge IDs. It may describe an already-symmetric symmetrize=False alternative only with an explicit reverse-edge metadata policy and support check.",
+      "assertions": [
+        "Diagnoses edge IDs/types with automatic symmetrization as incompatible",
+        "Separates the auditable typed edge table from the topology graph",
+        "Reconciles source relationships with materialized undirected topology",
+        "Does not silently invent or discard reverse-edge identity"
+      ],
+      "expected_skill": "cugraph-graph-analysis",
+      "expected_script": null,
+      "files": []
+    },
+    {
+      "id": "cugraph-analysis-negative-table-aggregation",
+      "prompt": "Count orders by customer region by joining orders to customers once and grouping by region. Use the fastest RAPIDS approach.",
+      "expected_output": "This request should not activate cugraph-graph-analysis. Topology and multi-hop structure are unnecessary; the agent routes the work to a keyed cuDF join and groupby and does not construct a graph.",
+      "assertions": [
+        "Routes a one-hop relational aggregation to cuDF",
+        "Does not construct an unnecessary graph"
+      ],
+      "expected_skill": null,
+      "expected_script": null,
+      "files": []
+    }
+  ]
+}
