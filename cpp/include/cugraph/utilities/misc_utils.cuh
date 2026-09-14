@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -20,6 +20,7 @@
 #include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/optional>
+#include <cuda/stream>
 #include <thrust/binary_search.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -101,7 +102,7 @@ std::optional<T> to_std_optional(cuda::std::optional<T> val)
 template <typename idx_t, typename offset_t>
 rmm::device_uvector<idx_t> expand_sparse_offsets(raft::device_span<offset_t const> offsets,
                                                  idx_t base_idx,
-                                                 rmm::cuda_stream_view stream_view)
+                                                 cuda::stream_ref stream_view)
 {
   assert(offsets.size() > 0);
 
