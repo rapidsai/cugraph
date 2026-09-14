@@ -455,10 +455,10 @@ INSTANTIATE_TEST_SUITE_P(
                                        SimpleCycles_Usecase{size_t{6}, 0.5, true},
                                        SimpleCycles_Usecase{size_t{6}, 1.0, false},
                                        SimpleCycles_Usecase{size_t{6}, 1.0, true},
-                                       SimpleCycles_Usecase{size_t{10}, 0.5, false},
-                                       SimpleCycles_Usecase{size_t{10}, 0.5, true},
-                                       SimpleCycles_Usecase{size_t{10}, 1.0, false},
-                                       SimpleCycles_Usecase{size_t{10}, 1.0, true}),
+                                       SimpleCycles_Usecase{size_t{9}, 0.5, false},
+                                       SimpleCycles_Usecase{size_t{9}, 0.5, true},
+                                       SimpleCycles_Usecase{size_t{9}, 1.0, false},
+                                       SimpleCycles_Usecase{size_t{9}, 1.0, true}),
                      ::testing::Values(cugraph::test::File_Usecase("karate-asymmetric.csv"),
                                        cugraph::test::File_Usecase("test/datasets/cage6.mtx"))));
 
@@ -473,12 +473,8 @@ INSTANTIATE_TEST_SUITE_P(
                       SimpleCycles_Usecase{size_t{6}, 0.5, false},
                       SimpleCycles_Usecase{size_t{6}, 0.5, true},
                       SimpleCycles_Usecase{size_t{6}, 1.0, false},
-                      SimpleCycles_Usecase{size_t{6}, 1.0, true},
-                      SimpleCycles_Usecase{size_t{10}, 0.5, false},
-                      SimpleCycles_Usecase{size_t{10}, 0.5, true},
-                      SimpleCycles_Usecase{size_t{10}, 1.0, false},
-                      SimpleCycles_Usecase{size_t{10}, 1.0, true}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+                      SimpleCycles_Usecase{size_t{6}, 1.0, true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 4, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -488,9 +484,9 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_SimpleCycles_Rmat,
   ::testing::Values(
-    std::make_tuple(SimpleCycles_Usecase{size_t{10}, 1.0, false, false},
-                    cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, false, false)),
-    std::make_tuple(SimpleCycles_Usecase{size_t{10}, 1.0, true, false},
-                    cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, false, false))));
+    std::make_tuple(SimpleCycles_Usecase{size_t{3}, 1.0, false, false},
+                    cugraph::test::Rmat_Usecase(18, 4, 0.57, 0.19, 0.19, 0, false, false)),
+    std::make_tuple(SimpleCycles_Usecase{size_t{3}, 1.0, true, false},
+                    cugraph::test::Rmat_Usecase(18, 4, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

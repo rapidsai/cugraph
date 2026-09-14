@@ -30,7 +30,9 @@
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/scatter.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 #include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
@@ -59,6 +61,7 @@
 #include <thrust/transform.h>
 #include <thrust/unique.h>
 
+#include <algorithm>
 #include <limits>
 #include <numeric>
 #include <optional>
@@ -104,7 +107,7 @@ reduce_by_component(raft::handle_t const& handle,
                         get_dataframe_buffer_begin(tmp_values),
                         unique_components.begin(),
                         get_dataframe_buffer_begin(unique_values),
-                        thrust::equal_to<vertex_t>{},
+                        cuda::std::equal_to<vertex_t>{},
                         reduce_op);
   if constexpr (multi_gpu) {
     std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
@@ -142,7 +145,7 @@ reduce_by_component(raft::handle_t const& handle,
                           get_dataframe_buffer_begin(unique_values),
                           tmp_unique_components.begin(),
                           get_dataframe_buffer_begin(tmp_unique_values),
-                          thrust::equal_to<vertex_t>{},
+                          cuda::std::equal_to<vertex_t>{},
                           reduce_op);
     unique_components = std::move(tmp_unique_components);
     unique_values     = std::move(tmp_unique_values);
@@ -279,15 +282,119 @@ rmm::device_uvector<vertex_t> extract_length_2_cycle_vertices(
   return length_2_cycle_vertices;
 }
 
-template <typename vertex_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> append_cycles(
+// Map seed vertices from the unrenumbered vertex space of @p renumber_map into the internal vertex
+// space of the renumbered graph. Seeds that do not appear in @p renumber_map are dropped. The
+// returned vector is sorted.
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> renumber_seed_vertices(
   raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& cycle_vertices,
-  rmm::device_uvector<vertex_t>&& cycle_lengths,
+  raft::device_span<vertex_t const> seed_vertices,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  raft::device_span<vertex_t const> renumber_map,
+  bool do_expensive_check)
+{
+  rmm::device_uvector<vertex_t> tmp_seed_vertices(seed_vertices.size(), handle.get_stream());
+  thrust::copy(handle.get_thrust_policy(),
+               seed_vertices.begin(),
+               seed_vertices.end(),
+               tmp_seed_vertices.begin());
+  if constexpr (multi_gpu) {
+    std::tie(tmp_seed_vertices, std::ignore) = shuffle_ext_vertices(
+      handle, std::move(tmp_seed_vertices), std::vector<cugraph::arithmetic_device_uvector_t>{});
+  }
+  rmm::device_uvector<vertex_t> sorted_renumber_map(renumber_map.size(), handle.get_stream());
+  thrust::copy(handle.get_thrust_policy(),
+               renumber_map.begin(),
+               renumber_map.end(),
+               sorted_renumber_map.begin());
+  cugraph::sort(handle.get_thrust_policy(), sorted_renumber_map.begin(), sorted_renumber_map.end());
+  tmp_seed_vertices.resize(
+    cuda::std::distance(
+      tmp_seed_vertices.begin(),
+      thrust::remove_if(
+        handle.get_thrust_policy(),
+        tmp_seed_vertices.begin(),
+        tmp_seed_vertices.end(),
+        cuda::proclaim_return_type<bool>(
+          [sorted_renumber_map = raft::device_span<vertex_t const>(
+             sorted_renumber_map.data(), sorted_renumber_map.size())] __device__(vertex_t v) {
+            return !thrust::binary_search(
+              thrust::seq, sorted_renumber_map.begin(), sorted_renumber_map.end(), v);
+          }))),
+    handle.get_stream());
+  tmp_seed_vertices.shrink_to_fit(handle.get_stream());
+  cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+    handle,
+    tmp_seed_vertices.data(),
+    tmp_seed_vertices.size(),
+    renumber_map.data(),
+    graph_view.local_vertex_partition_range_first(),
+    graph_view.local_vertex_partition_range_last(),
+    do_expensive_check);
+  cugraph::sort(handle.get_thrust_policy(), tmp_seed_vertices.begin(), tmp_seed_vertices.end());
+  return tmp_seed_vertices;
+}
+
+// Per-vertex in-degree * out-degree (and the global sum of those products).
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<float>, double> compute_in_out_degree_products(
+  raft::handle_t const& handle, graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view)
+{
+  auto in_degrees  = graph_view.compute_in_degrees(handle);
+  auto out_degrees = graph_view.compute_out_degrees(handle);
+  rmm::device_uvector<float> in_out_degree_products(in_degrees.size(), handle.get_stream());
+  thrust::transform(
+    handle.get_thrust_policy(),
+    in_degrees.begin(),
+    in_degrees.end(),
+    out_degrees.begin(),
+    in_out_degree_products.begin(),
+    cuda::proclaim_return_type<float>([] __device__(edge_t in_degree, edge_t out_degree) {
+      return static_cast<float>(in_degree) * static_cast<float>(out_degree);
+    }));
+  auto sum_in_out_degree_products =
+    static_cast<double>(thrust::reduce(handle.get_thrust_policy(),
+                                       in_out_degree_products.begin(),
+                                       in_out_degree_products.end(),
+                                       float{0.0},
+                                       thrust::plus<float>{}));
+  if constexpr (multi_gpu) {
+    sum_in_out_degree_products = host_scalar_allreduce(
+      handle.get_comms(), sum_in_out_degree_products, raft::comms::op_t::SUM, handle.get_stream());
+  }
+  return std::make_tuple(std::move(in_out_degree_products), sum_in_out_degree_products);
+}
+
+template <typename T>
+rmm::device_uvector<T> concatenate(raft::handle_t const& handle,
+                                   std::vector<rmm::device_uvector<T>>&& inputs)
+{
+  if (inputs.size() == 0) { return rmm::device_uvector<T>(0, handle.get_stream()); }
+  if (inputs.size() == 1) { return std::move(inputs[0]); }
+
+  size_t tot_size{0};
+  for (auto const& input : inputs) {
+    tot_size += input.size();
+  }
+  rmm::device_uvector<T> output(tot_size, handle.get_stream());
+  size_t offset{0};
+  for (auto& input : inputs) {
+    thrust::copy(handle.get_thrust_policy(), input.begin(), input.end(), output.begin() + offset);
+    offset += input.size();
+  }
+  return output;
+}
+
+template <typename vertex_t, bool multi_gpu>
+std::tuple<std::vector<rmm::device_uvector<vertex_t>>, std::vector<rmm::device_uvector<vertex_t>>>
+push_back_cycles(
+  raft::handle_t const& handle,
+  std::vector<rmm::device_uvector<vertex_t>>&& cycle_vertex_chunks,
+  std::vector<rmm::device_uvector<vertex_t>>&& cycle_length_chunks,
   rmm::device_uvector<vertex_t>&& new_cycle_vertices,
   std::variant<vertex_t, rmm::device_uvector<vertex_t>>&& new_cycle_lengths,
   std::optional<std::tuple<raft::device_span<vertex_t const>, raft::host_span<vertex_t const>>>
-    renumber_info)
+    renumber_info = std::nullopt)
 {
   if (renumber_info) {
     auto [renumber_map, vertex_partition_range_lasts] = *renumber_info;
@@ -299,61 +406,47 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> append_
   }
 
   if (new_cycle_vertices.size() == 0) {
-    return std::make_tuple(std::move(cycle_vertices), std::move(cycle_lengths));
+    return std::make_tuple(std::move(cycle_vertex_chunks), std::move(cycle_length_chunks));
   }
 
-  auto old_num_cycles         = cycle_lengths.size();
-  auto old_num_cycle_vertices = cycle_vertices.size();
   if (std::holds_alternative<vertex_t>(new_cycle_lengths)) {
-    auto length         = std::get<vertex_t>(new_cycle_lengths);
-    auto num_new_cycles = new_cycle_vertices.size() / static_cast<size_t>(length);
-    cycle_lengths.resize(old_num_cycles + num_new_cycles, handle.get_stream());
-    thrust::fill(handle.get_thrust_policy(),
-                 cycle_lengths.begin() + old_num_cycles,
-                 cycle_lengths.end(),
-                 length);
+    auto length = std::get<vertex_t>(new_cycle_lengths);
+    rmm::device_uvector<vertex_t> lengths(new_cycle_vertices.size() / static_cast<size_t>(length),
+                                          handle.get_stream());
+    cugraph::fill(handle.get_thrust_policy(), lengths.begin(), lengths.end(), length);
+    cycle_length_chunks.push_back(std::move(lengths));
   } else {
-    auto& lengths = std::get<rmm::device_uvector<vertex_t>>(new_cycle_lengths);
-    cycle_lengths.resize(old_num_cycles + lengths.size(), handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(),
-                 lengths.begin(),
-                 lengths.end(),
-                 cycle_lengths.begin() + old_num_cycles);
+    cycle_length_chunks.push_back(
+      std::move(std::get<rmm::device_uvector<vertex_t>>(new_cycle_lengths)));
   }
-  if (old_num_cycle_vertices == 0) {
-    cycle_vertices = std::move(new_cycle_vertices);
-  } else {
-    cycle_vertices.resize(old_num_cycle_vertices + new_cycle_vertices.size(), handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(),
-                 new_cycle_vertices.begin(),
-                 new_cycle_vertices.end(),
-                 cycle_vertices.begin() + old_num_cycle_vertices);
-  }
-
-  return std::make_tuple(std::move(cycle_vertices), std::move(cycle_lengths));
+  cycle_vertex_chunks.push_back(std::move(new_cycle_vertices));
+  return std::make_tuple(std::move(cycle_vertex_chunks), std::move(cycle_length_chunks));
 }
 
+// Expand @p path_vertices (packed paths of length @p start_path_length) up to @p length_bound.
+// Stops early if the number of live paths exceeds @p max_aggregate_paths. Returns the cycles found,
+// their lengths, the leftover path vertices, and the length of those leftover paths (std::nullopt
+// if enumeration finished: length_bound reached, no remaining paths, or no remaining extensions).
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
-enumerate_simple_cycles_including_roots(
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<vertex_t>>
+enumerate_simple_cycles_expanding_paths(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  raft::device_span<vertex_t const> roots,
   raft::device_span<vertex_t const> reverse_distances,
-  vertex_t length_bound)
+  edge_dst_property_t<vertex_t, vertex_t> const& dst_reverse_distances,
+  rmm::device_uvector<vertex_t>&& path_vertices,
+  vertex_t start_path_length,
+  vertex_t length_bound,
+  size_t max_aggregate_paths)
 {
-  rmm::device_uvector<vertex_t> cycle_vertices(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> cycle_lengths(0, handle.get_stream());
+  std::vector<rmm::device_uvector<vertex_t>> cycle_vertex_chunks{};
+  std::vector<rmm::device_uvector<vertex_t>> cycle_length_chunks{};
+  std::optional<vertex_t> next_path_length{std::nullopt};
 
-  edge_dst_property_t<vertex_t, vertex_t> dst_reverse_distances(handle);
-  if constexpr (multi_gpu) {
-    dst_reverse_distances = edge_dst_property_t<vertex_t, vertex_t>(handle, graph_view);
-    update_edge_dst_property(
-      handle, graph_view, reverse_distances.begin(), dst_reverse_distances.mutable_view());
-  }
-  rmm::device_uvector<vertex_t> path_vertices(roots.size(), handle.get_stream());
-  thrust::copy(handle.get_thrust_policy(), roots.begin(), roots.end(), path_vertices.begin());
-  for (vertex_t path_length = vertex_t{1}; path_length <= length_bound; ++path_length) {
+  for (vertex_t path_length = start_path_length; path_length < length_bound; ++path_length) {
     auto path_count = path_vertices.size() / static_cast<size_t>(path_length);
 
     std::vector<size_t> path_idx_lasts{};
@@ -380,10 +473,10 @@ enumerate_simple_cycles_including_roots(
         return path_vertices[i * static_cast<size_t>(path_length) +
                              static_cast<size_t>(path_length - vertex_t{1})];
       }));
-    thrust::sequence(
+    cugraph::sequence(
       handle.get_thrust_policy(), path_idxs.begin(), path_idxs.end(), path_idx_start_offset);
     auto key_first = thrust::make_zip_iterator(last_vs.begin(), path_idxs.begin());
-    thrust::sort(handle.get_thrust_policy(), key_first, key_first + path_count);
+    cugraph::sort(handle.get_thrust_policy(), key_first, key_first + path_count);
 
     auto frontier = key_bucket_view_t<vertex_t, size_t, multi_gpu, true>(
       handle,
@@ -410,9 +503,6 @@ enumerate_simple_cycles_including_roots(
         }  // a path never leaves the SCC of its root vertex and the root is the only vertex with
            // reverse distance 0 in the SCC, so dst is the root of this path (closing a cycle).
            // Self-loops were already removed, so this cannot be a length 1 cycle.
-        if (path_length >= length_bound) {
-          return false;
-        }  // haven't reached the root within length_bound
         if ((dst_reverse_distance == std::numeric_limits<vertex_t>::max()) ||
             (path_length + dst_reverse_distance > length_bound)) {
           return false;
@@ -549,22 +639,27 @@ enumerate_simple_cycles_including_roots(
                      path_vertices.begin() + input_offset + static_cast<size_t>(path_length),
                      new_cycle_vertices.begin() + output_offset);
       });
-    std::tie(cycle_vertices, cycle_lengths) =
-      append_cycles<vertex_t, multi_gpu>(handle,
-                                         std::move(cycle_vertices),
-                                         std::move(cycle_lengths),
-                                         std::move(new_cycle_vertices),
-                                         path_length,
-                                         std::nullopt);
+    std::tie(cycle_vertex_chunks, cycle_length_chunks) =
+      push_back_cycles<vertex_t, multi_gpu>(handle,
+                                            std::move(cycle_vertex_chunks),
+                                            std::move(cycle_length_chunks),
+                                            std::move(new_cycle_vertices),
+                                            path_length);
     nbrs.resize(num_extensions, handle.get_stream());
     nbr_path_idxs.resize(num_extensions, handle.get_stream());
+    nbrs.shrink_to_fit(handle.get_stream());
+    nbr_path_idxs.shrink_to_fit(handle.get_stream());
 
     auto aggregate_num_extensions = num_extensions;
     if constexpr (multi_gpu) {
       aggregate_num_extensions = host_scalar_allreduce(
         handle.get_comms(), num_extensions, raft::comms::op_t::SUM, handle.get_stream());
     }
-    if (aggregate_num_extensions == 0) { break; }
+    if (aggregate_num_extensions == 0) {
+      path_vertices.resize(0, handle.get_stream());
+      path_vertices.shrink_to_fit(handle.get_stream());
+      break;
+    }
 
     // create the extended paths, an extended path should be stored in the GPU owning its last
     // vertex (the frontier keys should be local to each GPU)
@@ -595,12 +690,13 @@ enumerate_simple_cycles_including_roots(
                      nbr_path_idxs.begin(),
                      nbr_path_idxs.end(),
                      unique_path_idxs.begin());
-        thrust::sort(handle.get_thrust_policy(), unique_path_idxs.begin(), unique_path_idxs.end());
+        cugraph::sort(handle.get_thrust_policy(), unique_path_idxs.begin(), unique_path_idxs.end());
         unique_path_idxs.resize(cuda::std::distance(unique_path_idxs.begin(),
-                                                    thrust::unique(handle.get_thrust_policy(),
-                                                                   unique_path_idxs.begin(),
-                                                                   unique_path_idxs.end())),
+                                                    cugraph::unique(handle.get_thrust_policy(),
+                                                                    unique_path_idxs.begin(),
+                                                                    unique_path_idxs.end())),
                                 handle.get_stream());
+        unique_path_idxs.shrink_to_fit(handle.get_stream());
 
         // path indices are assigned to GPUs in contiguous blocks in the increasing order of GPU
         // ranks, so the sorted unique path indices are already grouped by the GPUs storing the
@@ -724,27 +820,168 @@ enumerate_simple_cycles_including_roots(
         });
     }
 
-    path_vertices = std::move(next_path_vertices);
+    path_vertices  = std::move(next_path_vertices);
+    auto num_paths = path_vertices.size() / static_cast<size_t>(path_length + vertex_t{1});
+    auto aggregate_num_paths = num_paths;
+    if constexpr (multi_gpu) {
+      aggregate_num_paths = host_scalar_allreduce(
+        handle.get_comms(), aggregate_num_paths, raft::comms::op_t::SUM, handle.get_stream());
+    }
+    // length_bound paths are already cycles (no further extract), so do not return them as
+    // unfinished work; they are emitted below.
+    if ((path_length + vertex_t{1} < length_bound) && (aggregate_num_paths > max_aggregate_paths)) {
+      next_path_length = path_length + vertex_t{1};
+      break;
+    }
   }
 
-  return std::make_tuple(std::move(cycle_vertices), std::move(cycle_lengths));
+  // Reverse-distance pruning only extends a path of length L to dst if
+  // L + reverse_distance(dst) <= length_bound. A path that reaches length_bound therefore ends on a
+  // vertex with reverse distance 1 (the unique non-root predecessor of the path's root), so the
+  // path is already a simple cycle. Skip a last-hop extract and emit the leftover paths as cycles.
+  if (!next_path_length && (path_vertices.size() > 0)) {
+    std::tie(cycle_vertex_chunks, cycle_length_chunks) =
+      push_back_cycles<vertex_t, multi_gpu>(handle,
+                                            std::move(cycle_vertex_chunks),
+                                            std::move(cycle_length_chunks),
+                                            std::move(path_vertices),
+                                            length_bound);
+  }
+
+  return std::make_tuple(concatenate(handle, std::move(cycle_vertex_chunks)),
+                         concatenate(handle, std::move(cycle_length_chunks)),
+                         std::move(path_vertices),
+                         next_path_length);
 }
 
-// return std::tuple of cycle_vertices and cycle_lengths
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> simple_cycles_impl(
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
+enumerate_simple_cycles_including_roots(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<raft::device_span<vertex_t const>> seed_vertices,
+  raft::device_span<vertex_t const> roots,
+  raft::device_span<vertex_t const> reverse_distances,
   vertex_t length_bound,
-  bool do_expensive_check)
+  double approx_path_expansion_factor)
+{
+  std::vector<rmm::device_uvector<vertex_t>> cycle_vertex_chunks{};
+  std::vector<rmm::device_uvector<vertex_t>> cycle_length_chunks{};
+
+  edge_dst_property_t<vertex_t, vertex_t> dst_reverse_distances(handle);
+  if constexpr (multi_gpu) {
+    dst_reverse_distances = edge_dst_property_t<vertex_t, vertex_t>(handle, graph_view);
+    update_edge_dst_property(
+      handle, graph_view, reverse_distances.begin(), dst_reverse_distances.mutable_view());
+  }
+  rmm::device_uvector<vertex_t> root_path_vertices(roots.size(), handle.get_stream());
+  thrust::copy(handle.get_thrust_policy(), roots.begin(), roots.end(), root_path_vertices.begin());
+
+  size_t constexpr target_edges_per_sm = size_t{1} << 18;  // tuning parameter
+  auto chunk_size                      = std::max(
+    size_t{1},
+    static_cast<size_t>(static_cast<double>(handle.get_device_properties().multiProcessorCount) *
+                        static_cast<double>(target_edges_per_sm) / approx_path_expansion_factor));
+  auto max_chunk_size = chunk_size;
+  if constexpr (multi_gpu) {
+    max_chunk_size = host_scalar_allreduce(
+      handle.get_comms(), max_chunk_size, raft::comms::op_t::MAX, handle.get_stream());
+  }
+  auto max_aggregate_paths = max_chunk_size * 8;  // tuning parameter, if # paths far exceeds the
+                                                  // target chunk_size, execute in multiple chunks.
+  if constexpr (multi_gpu) {
+    max_aggregate_paths *= static_cast<size_t>(handle.get_comms().get_size());
+  }
+
+  auto [new_cycle_vertices, new_cycle_lengths, new_path_vertices, new_path_length] =
+    enumerate_simple_cycles_expanding_paths<vertex_t, edge_t, multi_gpu>(
+      handle,
+      graph_view,
+      reverse_distances,
+      dst_reverse_distances,
+      std::move(root_path_vertices),
+      vertex_t{1},
+      length_bound,
+      max_aggregate_paths);
+  std::tie(cycle_vertex_chunks, cycle_length_chunks) =
+    push_back_cycles<vertex_t, multi_gpu>(handle,
+                                          std::move(cycle_vertex_chunks),
+                                          std::move(cycle_length_chunks),
+                                          std::move(new_cycle_vertices),
+                                          std::move(new_cycle_lengths));
+  if (new_path_length) {
+    // expanding a chunk may again exceed max_aggregate_paths, so keep the unfinished path sets in a
+    // worklist. The worklist is traversed in the DFS order (chunks created by expanding a chunk sit
+    // on top of the remaining sibling chunks). Every GPU pushes & pops in lock-step
+    // (new_path_length is based on the aggregate path count and the number of chunks in a path set
+    // is max-reduced).
+    std::vector<std::tuple<rmm::device_uvector<vertex_t>, vertex_t>> unfinished{};
+    auto push_unfinished = [&handle, &unfinished, chunk_size](
+                             rmm::device_uvector<vertex_t>&& path_vertices, vertex_t path_length) {
+      auto num_paths  = path_vertices.size() / static_cast<size_t>(path_length);
+      auto num_chunks = (num_paths + (chunk_size - 1)) / chunk_size;
+      if constexpr (multi_gpu) {
+        num_chunks = host_scalar_allreduce(
+          handle.get_comms(), num_chunks, raft::comms::op_t::MAX, handle.get_stream());
+      }
+      for (size_t i = 0; i < num_chunks; ++i) {
+        auto chunk_first = std::min(i * chunk_size, num_paths);
+        auto chunk_last  = std::min(chunk_first + chunk_size, num_paths);
+        rmm::device_uvector<vertex_t> chunk_path_vertices(
+          (chunk_last - chunk_first) * static_cast<size_t>(path_length), handle.get_stream());
+        thrust::copy(handle.get_thrust_policy(),
+                     path_vertices.begin() + chunk_first * static_cast<size_t>(path_length),
+                     path_vertices.begin() + chunk_last * static_cast<size_t>(path_length),
+                     chunk_path_vertices.begin());
+        unfinished.emplace_back(std::move(chunk_path_vertices), path_length);
+      }
+      path_vertices.resize(0, handle.get_stream());
+      path_vertices.shrink_to_fit(handle.get_stream());
+    };
+
+    push_unfinished(std::move(new_path_vertices), *new_path_length);
+    while (unfinished.size() > 0) {
+      auto [chunk_path_vertices, path_length] = std::move(unfinished.back());
+      unfinished.pop_back();
+
+      std::tie(new_cycle_vertices, new_cycle_lengths, new_path_vertices, new_path_length) =
+        enumerate_simple_cycles_expanding_paths<vertex_t, edge_t, multi_gpu>(
+          handle,
+          graph_view,
+          reverse_distances,
+          dst_reverse_distances,
+          std::move(chunk_path_vertices),
+          path_length,
+          length_bound,
+          max_aggregate_paths);
+      std::tie(cycle_vertex_chunks, cycle_length_chunks) =
+        push_back_cycles<vertex_t, multi_gpu>(handle,
+                                              std::move(cycle_vertex_chunks),
+                                              std::move(cycle_length_chunks),
+                                              std::move(new_cycle_vertices),
+                                              std::move(new_cycle_lengths));
+      if (new_path_length) { push_unfinished(std::move(new_path_vertices), *new_path_length); }
+    }
+  }
+
+  return std::make_tuple(concatenate(handle, std::move(cycle_vertex_chunks)),
+                         concatenate(handle, std::move(cycle_length_chunks)));
+}
+
+// return std::tuple of cycle vertex chunks and cycle length chunks
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::tuple<std::vector<rmm::device_uvector<vertex_t>>, std::vector<rmm::device_uvector<vertex_t>>>
+simple_cycles_impl(raft::handle_t const& handle,
+                   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                   std::optional<raft::device_span<vertex_t const>> seed_vertices,
+                   vertex_t length_bound,
+                   bool do_expensive_check)
 {
   using weight_t     = float;    // dummy
   using edge_type_t  = int32_t;  // dummy
   using time_stamp_t = int64_t;  // dummy
 
-  rmm::device_uvector<vertex_t> cycle_vertices(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> cycle_lengths(0, handle.get_stream());
+  std::vector<rmm::device_uvector<vertex_t>> cycle_vertex_chunks{};
+  std::vector<rmm::device_uvector<vertex_t>> cycle_length_chunks{};
 
   /* 1. check input arguments */
 
@@ -836,16 +1073,15 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> simple_
       handle.get_stream());
   }
 
-  std::tie(cycle_vertices, cycle_lengths) =
-    append_cycles<vertex_t, multi_gpu>(handle,
-                                       std::move(cycle_vertices),
-                                       std::move(cycle_lengths),
-                                       std::move(length_1_cycle_vertices),
-                                       vertex_t{1},
-                                       std::nullopt);
+  std::tie(cycle_vertex_chunks, cycle_length_chunks) =
+    push_back_cycles<vertex_t, multi_gpu>(handle,
+                                          std::move(cycle_vertex_chunks),
+                                          std::move(cycle_length_chunks),
+                                          std::move(length_1_cycle_vertices),
+                                          vertex_t{1});
 
   if (length_bound == 1) {
-    return std::make_tuple(std::move(cycle_vertices), std::move(cycle_lengths));
+    return std::make_tuple(std::move(cycle_vertex_chunks), std::move(cycle_length_chunks));
   }
 
   /* 3. find SCCs and compute the size of the component each vertex belongs to */
@@ -865,16 +1101,15 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> simple_
     raft::device_span<vertex_t const>(component_sizes.data(), component_sizes.size()),
     graph_view.local_vertex_partition_range_first());
 
-  std::tie(cycle_vertices, cycle_lengths) =
-    append_cycles<vertex_t, multi_gpu>(handle,
-                                       std::move(cycle_vertices),
-                                       std::move(cycle_lengths),
-                                       std::move(length_2_cycle_vertices),
-                                       vertex_t{2},
-                                       std::nullopt);
+  std::tie(cycle_vertex_chunks, cycle_length_chunks) =
+    push_back_cycles<vertex_t, multi_gpu>(handle,
+                                          std::move(cycle_vertex_chunks),
+                                          std::move(cycle_length_chunks),
+                                          std::move(length_2_cycle_vertices),
+                                          vertex_t{2});
 
   if (length_bound == 2) {
-    return std::make_tuple(std::move(cycle_vertices), std::move(cycle_lengths));
+    return std::make_tuple(std::move(cycle_vertex_chunks), std::move(cycle_length_chunks));
   }
 
   /* 5. enumerate intra-SCC edges for SCCs with more than 2 vertices and create a new graph */
@@ -893,6 +1128,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> simple_
       cuda::proclaim_return_type<bool>([] __device__(vertex_t size) {
         return size <= vertex_t{2};
       }));  // components with no seed vertices and length 1 & 2 components will be excluded
+    component_sizes.resize(0, handle.get_stream());
+    component_sizes.shrink_to_fit(handle.get_stream());
 
     rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
     rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
@@ -939,6 +1176,17 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> simple_
                                e_op,
                                pred_op);
     }
+    components.resize(0, handle.get_stream());
+    components.shrink_to_fit(handle.get_stream());
+    auto aggregate_edge_count = edgelist_srcs.size();
+    if constexpr (multi_gpu) {
+      aggregate_edge_count = host_scalar_allreduce(
+        handle.get_comms(), aggregate_edge_count, raft::comms::op_t::SUM, handle.get_stream());
+    }
+    if (aggregate_edge_count == 0) {
+      return std::make_tuple(std::move(cycle_vertex_chunks), std::move(cycle_length_chunks));
+    }
+
     std::tie(edgelist_srcs,
              edgelist_dsts,
              std::ignore,
@@ -955,6 +1203,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> simple_
         std::nullopt,
         std::nullopt,
         std::nullopt);
+
     std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
     std::tie(scc_graph, std::ignore, tmp_renumber_map) =
       create_graph_from_edgelist<vertex_t, edge_t, false, multi_gpu>(
@@ -967,51 +1216,13 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> simple_
         true /* renumber */);
     scc_graph_renumber_map = std::move(*tmp_renumber_map);
     if (seed_vertices) {
-      rmm::device_uvector<vertex_t> tmp_seed_vertices(seed_vertices->size(), handle.get_stream());
-      thrust::copy(handle.get_thrust_policy(),
-                   seed_vertices->begin(),
-                   seed_vertices->end(),
-                   tmp_seed_vertices.begin());
-      if constexpr (multi_gpu) {
-        std::tie(tmp_seed_vertices, std::ignore) =
-          shuffle_ext_vertices(handle,
-                               std::move(tmp_seed_vertices),
-                               std::vector<cugraph::arithmetic_device_uvector_t>{});
-      }
-      auto scc_graph_view = scc_graph.view();
-      rmm::device_uvector<vertex_t> sorted_renumber_map(scc_graph_renumber_map.size(),
-                                                        handle.get_stream());
-      thrust::copy(handle.get_thrust_policy(),
-                   scc_graph_renumber_map.begin(),
-                   scc_graph_renumber_map.end(),
-                   sorted_renumber_map.begin());
-      cugraph::sort(
-        handle.get_thrust_policy(), sorted_renumber_map.begin(), sorted_renumber_map.end());
-      tmp_seed_vertices.resize(
-        cuda::std::distance(
-          tmp_seed_vertices.begin(),
-          thrust::remove_if(
-            handle.get_thrust_policy(),
-            tmp_seed_vertices.begin(),
-            tmp_seed_vertices.end(),
-            cuda::proclaim_return_type<bool>(
-              [sorted_renumber_map = raft::device_span<vertex_t const>(
-                 sorted_renumber_map.data(), sorted_renumber_map.size())] __device__(vertex_t v) {
-                return !thrust::binary_search(
-                  thrust::seq, sorted_renumber_map.begin(), sorted_renumber_map.end(), v);
-              }))),
-        handle.get_stream());
-      tmp_seed_vertices.shrink_to_fit(handle.get_stream());
-      cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+      scc_graph_seed_vertices = renumber_seed_vertices<vertex_t, edge_t, multi_gpu>(
         handle,
-        tmp_seed_vertices.data(),
-        tmp_seed_vertices.size(),
-        scc_graph_renumber_map.data(),
-        scc_graph_view.local_vertex_partition_range_first(),
-        scc_graph_view.local_vertex_partition_range_last(),
+        *seed_vertices,
+        scc_graph.view(),
+        raft::device_span<vertex_t const>(scc_graph_renumber_map.data(),
+                                          scc_graph_renumber_map.size()),
         do_expensive_check);
-      cugraph::sort(handle.get_thrust_policy(), tmp_seed_vertices.begin(), tmp_seed_vertices.end());
-      scc_graph_seed_vertices = std::move(tmp_seed_vertices);
     }
   }
 
@@ -1019,250 +1230,395 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> simple_
 
   assert(length_bound >= 3);
 
-  auto scc_graph_view      = scc_graph.view();
+  auto scc_graph_view = scc_graph.view();
+  auto [in_out_degree_products, sum_in_out_degree_products] =
+    compute_in_out_degree_products<vertex_t, edge_t, multi_gpu>(handle, scc_graph_view);
+  auto approx_path_expansion_factor =
+    std::max(sum_in_out_degree_products / static_cast<double>(scc_graph.number_of_edges()),
+             double{1.0});  // in_degree weighted average out-degree considering that high in-degree
+                            // vertices appear more often as path endpoints
   auto scc_graph_edge_mask = make_initialized_edge_property(handle, scc_graph_view, false);
   components = cugraph::strongly_connected_components(handle, scc_graph_view, do_expensive_check);
 
   while (true) {
-    // 6-1. Pick a root from each length 3+ SCCs
+    size_t max_inner_loop_iters = 1;
+    size_t inner_iter           = 0;
+    while (true) {
+      // 6-1. Pick a root from each length 3+ SCCs (FIXME: when # SCCs is small & # vertices in the
+      // scc graph is small & # expected cycles is small, we may pick multiple roots from each SCC
+      // and find cycles concurrnently and remove duplicates)
 
-    rmm::device_uvector<vertex_t> roots(0, handle.get_stream());
-    {
-      // if seed vertices are provided, pick a root among the seed vertices in each SCC; every
-      // enumerated cycle includes the root of its SCC, so this guarantees that every enumerated
-      // cycle includes at least one seed vertex
-      auto root_candidate_first = cuda::make_transform_iterator(
-        cuda::make_counting_iterator(scc_graph_view.local_vertex_partition_range_first()),
-        cuda::proclaim_return_type<vertex_t>(
-          [seed_vertices = scc_graph_seed_vertices
-                             ? cuda::std::make_optional<raft::device_span<vertex_t const>>(
-                                 scc_graph_seed_vertices->data(), scc_graph_seed_vertices->size())
-                             : cuda::std::nullopt] __device__(vertex_t v) {
-            if (seed_vertices && !thrust::binary_search(
-                                   thrust::seq, seed_vertices->begin(), seed_vertices->end(), v)) {
-              return std::numeric_limits<vertex_t>::max();  // this can never be selected as a root
-            }
-            return v;
-          }));
-      auto [unique_components, unique_component_roots] = reduce_by_component<vertex_t, multi_gpu>(
-        handle,
-        raft::device_span<vertex_t const>(components.data(), components.size()),
-        root_candidate_first,
-        thrust::minimum<vertex_t>{});
-      auto num_valid_roots = static_cast<vertex_t>(
-        thrust::count_if(handle.get_thrust_policy(),
-                         unique_components.begin(),
-                         unique_components.end(),
-                         cuda::proclaim_return_type<bool>([] __device__(vertex_t component) {
-                           return component != invalid_vertex_id_v<vertex_t>;
-                         })));
-      roots.resize(num_valid_roots, handle.get_stream());
-      thrust::copy_if(handle.get_thrust_policy(),
-                      unique_component_roots.begin(),
-                      unique_component_roots.end(),
-                      unique_components.begin(),
-                      roots.begin(),
-                      cuda::proclaim_return_type<bool>([] __device__(vertex_t component) {
-                        return component != invalid_vertex_id_v<vertex_t>;
-                      }));
-      if constexpr (multi_gpu) {
-        std::tie(roots, std::ignore) =
-          shuffle_int_vertices(handle,
-                               std::move(roots),
-                               std::vector<cugraph::arithmetic_device_uvector_t>{},
-                               scc_graph_view.vertex_partition_range_lasts());
-      }
-      thrust::sort(handle.get_thrust_policy(), roots.begin(), roots.end());
-    }
-
-    // 6-2. Compute the reverse distances from the picked root vertices
-
-    rmm::device_uvector<vertex_t> reverse_distances(
-      scc_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-    {
-      thrust::fill(handle.get_thrust_policy(),
-                   reverse_distances.begin(),
-                   reverse_distances.end(),
-                   std::numeric_limits<vertex_t>::max());
-      rmm::device_uvector<vertex_t> updated_vertices(0, handle.get_stream());
-      thrust::scatter(
-        handle.get_thrust_policy(),
-        cuda::make_constant_iterator(vertex_t{0}),
-        cuda::make_constant_iterator(vertex_t{0}) + roots.size(),
-        cuda::make_transform_iterator(roots.begin(),
-                                      cugraph::detail::shift_left_t<vertex_t>{
-                                        scc_graph_view.local_vertex_partition_range_first()}),
-        reverse_distances.begin());
-      for (vertex_t hop = vertex_t{0}; hop < length_bound; ++hop) {
-        // uint8_t instead of bool as bool is not a supported raft::comms type (necessary for the
-        // multi-GPU reduction in per_v_transform_reduce_outgoing_e)
-        rmm::device_uvector<uint8_t> next_hop_flags(reverse_distances.size(), handle.get_stream());
-        if constexpr (multi_gpu) {
-          auto dst_prev_hop_visited_flags =
-            make_initialized_edge_dst_property(handle, scc_graph_view, false);
-          fill_edge_dst_property(handle,
-                                 scc_graph_view,
-                                 hop == vertex_t{0} ? roots.begin() : updated_vertices.begin(),
-                                 hop == vertex_t{0} ? roots.end() : updated_vertices.end(),
-                                 dst_prev_hop_visited_flags.mutable_view(),
-                                 true,
-                                 do_expensive_check);
-          per_v_transform_reduce_outgoing_e(
-            handle,
-            scc_graph_view,
-            edge_src_dummy_property_t{}.view(),
-            dst_prev_hop_visited_flags.view(),
-            edge_dummy_property_t{}.view(),
-            cuda::proclaim_return_type<uint8_t>(
-              [] __device__(vertex_t, vertex_t, auto, bool dst_prev_hop_visited, auto) {
-                return dst_prev_hop_visited ? uint8_t{1} : uint8_t{0};
-              }),
-            uint8_t{0},
-            cugraph::reduce_op::maximum<uint8_t>{},
-            next_hop_flags.begin());
-        } else {
-          per_v_transform_reduce_outgoing_e(
-            handle,
-            scc_graph_view,
-            edge_src_dummy_property_t{}.view(),
-            make_edge_dst_property_view<vertex_t, vertex_t>(
-              scc_graph_view, reverse_distances.begin(), reverse_distances.size()),
-            edge_dummy_property_t{}.view(),
-            cuda::proclaim_return_type<uint8_t>(
-              [hop] __device__(vertex_t, vertex_t, auto, vertex_t dst_reverse_distance, auto) {
-                return (dst_reverse_distance == hop) ? uint8_t{1} : uint8_t{0};
-              }),
-            uint8_t{0},
-            cugraph::reduce_op::maximum<uint8_t>{},
-            next_hop_flags.begin());
-        }
-        thrust::transform(
+      rmm::device_uvector<vertex_t> roots(0, handle.get_stream());
+      {
+        // if seed vertices are provided, pick a root among the seed vertices in each SCC; every
+        // enumerated cycle includes the root of its SCC, so this guarantees that every enumerated
+        // cycle includes at least one seed vertex. Prefer the candidate with the largest
+        // in-degree * out-degree (then the smaller vertex id).
+        auto root_candidate_first = cuda::make_transform_iterator(
+          cuda::make_counting_iterator(scc_graph_view.local_vertex_partition_range_first()),
+          cuda::proclaim_return_type<vertex_t>(
+            [seed_vertices = scc_graph_seed_vertices
+                               ? cuda::std::make_optional<raft::device_span<vertex_t const>>(
+                                   scc_graph_seed_vertices->data(), scc_graph_seed_vertices->size())
+                               : cuda::std::nullopt] __device__(vertex_t v) {
+              if (seed_vertices &&
+                  !thrust::binary_search(
+                    thrust::seq, seed_vertices->begin(), seed_vertices->end(), v)) {
+                return std::numeric_limits<vertex_t>::max();  // this can never be selected as a
+                                                              // root
+              }
+              return v;
+            }));
+        auto select_root = cuda::proclaim_return_type<cuda::std::tuple<vertex_t, float>>(
+          [] __device__(cuda::std::tuple<vertex_t, float> lhs,
+                        cuda::std::tuple<vertex_t, float> rhs) {
+            auto const lhs_v = cuda::std::get<0>(lhs);
+            auto const rhs_v = cuda::std::get<0>(rhs);
+            if (lhs_v == std::numeric_limits<vertex_t>::max()) { return rhs; }
+            if (rhs_v == std::numeric_limits<vertex_t>::max()) { return lhs; }
+            auto const lhs_p = cuda::std::get<1>(lhs);
+            auto const rhs_p = cuda::std::get<1>(rhs);
+            if (lhs_p > rhs_p) {
+              return lhs;
+            } else if (rhs_p > lhs_p) {
+              return rhs;
+            } else {
+              return lhs_v <= rhs_v ? lhs : rhs;
+            }  // equal products: keep the smaller vertex id
+          });
+        auto [unique_components, unique_values] = reduce_by_component<vertex_t, multi_gpu>(
+          handle,
+          raft::device_span<vertex_t const>(components.data(), components.size()),
+          thrust::make_zip_iterator(root_candidate_first, in_out_degree_products.begin()),
+          select_root);
+        auto unique_component_roots = std::move(std::get<0>(unique_values));
+        auto num_valid_roots        = static_cast<size_t>(thrust::count_if(
           handle.get_thrust_policy(),
-          next_hop_flags.begin(),
-          next_hop_flags.end(),
-          reverse_distances.begin(),
-          next_hop_flags.begin(),
-          cuda::proclaim_return_type<uint8_t>([] __device__(uint8_t flag, vertex_t distance) {
-            if (distance == std::numeric_limits<vertex_t>::max()) {
-              return flag;
-            } else {  // already visited
-              return uint8_t{0};
-            }
-          }));
-
-        auto next_hop_size = thrust::count(
-          handle.get_thrust_policy(), next_hop_flags.begin(), next_hop_flags.end(), uint8_t{1});
-        auto aggregate_next_hop_size = next_hop_size;
-        if constexpr (multi_gpu) {
-          aggregate_next_hop_size = host_scalar_allreduce(handle.get_comms(),
-                                                          aggregate_next_hop_size,
-                                                          raft::comms::op_t::SUM,
-                                                          handle.get_stream());
-        }
-        if (aggregate_next_hop_size == 0) { break; }
-
-        updated_vertices.resize(next_hop_size, handle.get_stream());
+          unique_components.begin(),
+          unique_components.end(),
+          cugraph::detail::is_not_equal_to_t<vertex_t>{invalid_vertex_id_v<vertex_t>}));
+        roots.resize(num_valid_roots, handle.get_stream());
         thrust::copy_if(
           handle.get_thrust_policy(),
-          cuda::make_counting_iterator(scc_graph_view.local_vertex_partition_range_first()),
-          cuda::make_counting_iterator(scc_graph_view.local_vertex_partition_range_first()) +
-            scc_graph_view.local_vertex_partition_range_size(),
-          next_hop_flags.begin(),
-          updated_vertices.begin(),
-          cuda::std::identity{});
+          unique_component_roots.begin(),
+          unique_component_roots.end(),
+          unique_components.begin(),
+          roots.begin(),
+          cugraph::detail::is_not_equal_to_t<vertex_t>{invalid_vertex_id_v<vertex_t>});
+        if (inner_iter > 0) {
+          // seedless leftover SCCs reduce to vertex_t::max(); drop them before shuffle
+          roots.resize(static_cast<size_t>(
+                         cuda::std::distance(roots.begin(),
+                                             thrust::remove(handle.get_thrust_policy(),
+                                                            roots.begin(),
+                                                            roots.end(),
+                                                            std::numeric_limits<vertex_t>::max()))),
+                       handle.get_stream());
+        }
+        if constexpr (multi_gpu) {
+          std::tie(roots, std::ignore) =
+            shuffle_int_vertices(handle,
+                                 std::move(roots),
+                                 std::vector<cugraph::arithmetic_device_uvector_t>{},
+                                 scc_graph_view.vertex_partition_range_lasts());
+        }
+        cugraph::sort(handle.get_thrust_policy(), roots.begin(), roots.end());
+      }
+      auto aggregate_num_roots = roots.size();
+      if constexpr (multi_gpu) {
+        aggregate_num_roots = host_scalar_allreduce(
+          handle.get_comms(), aggregate_num_roots, raft::comms::op_t::SUM, handle.get_stream());
+      }
+      if (aggregate_num_roots == 0) { break; }
 
-        thrust::scatter(
+      if (inner_iter == 0) {
+        // if the number of size 3+ SCCs is small, run more inner iterations (trade-off between the
+        // cost of running cugraph::strongly_connected_components() vs missing an opportunity to
+        // find new SCCs and mask out edges outside size 3+ SCCs)
+        if (aggregate_num_roots < size_t{8}) { max_inner_loop_iters = size_t{16}; }
+      }
+
+      // 6-2. Compute the reverse distances from the picked root vertices
+
+      rmm::device_uvector<vertex_t> reverse_distances(
+        scc_graph_view.local_vertex_partition_range_size(), handle.get_stream());
+      {
+        cugraph::fill(handle.get_thrust_policy(),
+                      reverse_distances.begin(),
+                      reverse_distances.end(),
+                      std::numeric_limits<vertex_t>::max());
+        rmm::device_uvector<vertex_t> updated_vertices(0, handle.get_stream());
+        cugraph::scatter(
           handle.get_thrust_policy(),
-          cuda::make_constant_iterator(hop + vertex_t{1}),
-          cuda::make_constant_iterator(hop + vertex_t{1}) + updated_vertices.size(),
-          cuda::make_transform_iterator(updated_vertices.begin(),
+          cuda::make_constant_iterator(vertex_t{0}),
+          cuda::make_constant_iterator(vertex_t{0}) + roots.size(),
+          cuda::make_transform_iterator(roots.begin(),
                                         cugraph::detail::shift_left_t<vertex_t>{
                                           scc_graph_view.local_vertex_partition_range_first()}),
           reverse_distances.begin());
+        for (vertex_t hop = vertex_t{0}; hop < length_bound; ++hop) {
+          // uint8_t instead of bool as bool is not a supported raft::comms type (necessary for the
+          // multi-GPU reduction in per_v_transform_reduce_outgoing_e)
+          rmm::device_uvector<uint8_t> next_hop_flags(reverse_distances.size(),
+                                                      handle.get_stream());
+          if constexpr (multi_gpu) {
+            auto dst_prev_hop_visited_flags =
+              make_initialized_edge_dst_property(handle, scc_graph_view, false);
+            fill_edge_dst_property(handle,
+                                   scc_graph_view,
+                                   hop == vertex_t{0} ? roots.begin() : updated_vertices.begin(),
+                                   hop == vertex_t{0} ? roots.end() : updated_vertices.end(),
+                                   dst_prev_hop_visited_flags.mutable_view(),
+                                   true,
+                                   do_expensive_check);
+            per_v_transform_reduce_outgoing_e(
+              handle,
+              scc_graph_view,
+              edge_src_dummy_property_t{}.view(),
+              dst_prev_hop_visited_flags.view(),
+              edge_dummy_property_t{}.view(),
+              cuda::proclaim_return_type<uint8_t>(
+                [] __device__(vertex_t, vertex_t, auto, bool dst_prev_hop_visited, auto) {
+                  return dst_prev_hop_visited ? uint8_t{1} : uint8_t{0};
+                }),
+              uint8_t{0},
+              cugraph::reduce_op::maximum<uint8_t>{},
+              next_hop_flags.begin());
+          } else {
+            per_v_transform_reduce_outgoing_e(
+              handle,
+              scc_graph_view,
+              edge_src_dummy_property_t{}.view(),
+              make_edge_dst_property_view<vertex_t, vertex_t>(
+                scc_graph_view, reverse_distances.begin(), reverse_distances.size()),
+              edge_dummy_property_t{}.view(),
+              cuda::proclaim_return_type<uint8_t>(
+                [hop] __device__(vertex_t, vertex_t, auto, vertex_t dst_reverse_distance, auto) {
+                  return (dst_reverse_distance == hop) ? uint8_t{1} : uint8_t{0};
+                }),
+              uint8_t{0},
+              cugraph::reduce_op::maximum<uint8_t>{},
+              next_hop_flags.begin());
+          }
+          thrust::transform(
+            handle.get_thrust_policy(),
+            next_hop_flags.begin(),
+            next_hop_flags.end(),
+            reverse_distances.begin(),
+            next_hop_flags.begin(),
+            cuda::proclaim_return_type<uint8_t>([] __device__(uint8_t flag, vertex_t distance) {
+              if (distance == std::numeric_limits<vertex_t>::max()) {
+                return flag;
+              } else {  // already visited
+                return uint8_t{0};
+              }
+            }));
+
+          auto next_hop_size = thrust::count(
+            handle.get_thrust_policy(), next_hop_flags.begin(), next_hop_flags.end(), uint8_t{1});
+          auto aggregate_next_hop_size = next_hop_size;
+          if constexpr (multi_gpu) {
+            aggregate_next_hop_size = host_scalar_allreduce(handle.get_comms(),
+                                                            aggregate_next_hop_size,
+                                                            raft::comms::op_t::SUM,
+                                                            handle.get_stream());
+          }
+          if (aggregate_next_hop_size == 0) { break; }
+
+          updated_vertices.resize(next_hop_size, handle.get_stream());
+          thrust::copy_if(
+            handle.get_thrust_policy(),
+            cuda::make_counting_iterator(scc_graph_view.local_vertex_partition_range_first()),
+            cuda::make_counting_iterator(scc_graph_view.local_vertex_partition_range_first()) +
+              scc_graph_view.local_vertex_partition_range_size(),
+            next_hop_flags.begin(),
+            updated_vertices.begin(),
+            cuda::std::identity{});
+
+          cugraph::scatter(
+            handle.get_thrust_policy(),
+            cuda::make_constant_iterator(hop + vertex_t{1}),
+            cuda::make_constant_iterator(hop + vertex_t{1}) + updated_vertices.size(),
+            cuda::make_transform_iterator(updated_vertices.begin(),
+                                          cugraph::detail::shift_left_t<vertex_t>{
+                                            scc_graph_view.local_vertex_partition_range_first()}),
+            reverse_distances.begin());
+        }
       }
-    }
 
-    // 6-3. Enumerate length 2+ simple cycles including the picked root vertices
+      // 6-3. Enumerate length 2+ simple cycles including the picked root vertices
 
-    {
-      auto [new_cycle_vertices, new_cycle_lengths] =
-        enumerate_simple_cycles_including_roots<vertex_t, edge_t, multi_gpu>(
+      size_t num_new_cycle_vertices{0};
+      {
+        auto [new_cycle_vertices, new_cycle_lengths] =
+          enumerate_simple_cycles_including_roots<vertex_t, edge_t, multi_gpu>(
+            handle,
+            scc_graph_view,
+            raft::device_span<vertex_t const>(roots.data(), roots.size()),
+            raft::device_span<vertex_t const>(reverse_distances.data(), reverse_distances.size()),
+            length_bound,
+            approx_path_expansion_factor);
+        num_new_cycle_vertices                             = new_cycle_vertices.size();
+        std::tie(cycle_vertex_chunks, cycle_length_chunks) = push_back_cycles<vertex_t, multi_gpu>(
           handle,
-          scc_graph_view,
-          raft::device_span<vertex_t const>(roots.data(), roots.size()),
-          raft::device_span<vertex_t const>(reverse_distances.data(), reverse_distances.size()),
-          length_bound);
-      std::tie(cycle_vertices, cycle_lengths) = append_cycles<vertex_t, multi_gpu>(
-        handle,
-        std::move(cycle_vertices),
-        std::move(cycle_lengths),
-        std::move(new_cycle_vertices),
-        std::move(new_cycle_lengths),
-        std::make_optional(
-          std::make_tuple(raft::device_span<vertex_t const>(scc_graph_renumber_map.data(),
-                                                            scc_graph_renumber_map.size()),
-                          scc_graph_view.vertex_partition_range_lasts())));
-    }
+          std::move(cycle_vertex_chunks),
+          std::move(cycle_length_chunks),
+          std::move(new_cycle_vertices),
+          std::move(new_cycle_lengths),
+          std::make_optional(
+            std::make_tuple(raft::device_span<vertex_t const>(scc_graph_renumber_map.data(),
+                                                              scc_graph_renumber_map.size()),
+                            scc_graph_view.vertex_partition_range_lasts())));
+      }
 
-    // 6-4. Mask out the edges to/from the picked root vertices.
+      // 6-4. Mask out the edges to/from the picked root vertices.
 
-    {
-      auto new_scc_graph_edge_mask =
-        make_initialized_edge_property(handle, scc_graph_view, false, do_expensive_check);
-      if constexpr (multi_gpu) {
-        auto src_root_flags = make_initialized_edge_src_property(handle, scc_graph_view, false);
-        auto dst_root_flags = make_initialized_edge_dst_property(handle, scc_graph_view, false);
-        fill_edge_src_property(handle,
-                               scc_graph_view,
-                               roots.begin(),
-                               roots.end(),
-                               src_root_flags.mutable_view(),
-                               true,
-                               do_expensive_check);
-        fill_edge_dst_property(handle,
-                               scc_graph_view,
-                               roots.begin(),
-                               roots.end(),
-                               dst_root_flags.mutable_view(),
-                               true,
-                               do_expensive_check);
-        transform_e(
-          handle,
-          scc_graph_view,
-          src_root_flags.view(),
-          dst_root_flags.view(),
-          edge_dummy_property_t{}.view(),
-          [] __device__(vertex_t, vertex_t, bool src_root, bool dst_root, auto) {
-            return !src_root && !dst_root;
-          },
-          new_scc_graph_edge_mask.mutable_view(),
-          do_expensive_check);
+      {
+        auto new_scc_graph_edge_mask =
+          make_initialized_edge_property(handle, scc_graph_view, false, do_expensive_check);
+        if constexpr (multi_gpu) {
+          auto src_root_flags = make_initialized_edge_src_property(handle, scc_graph_view, false);
+          auto dst_root_flags = make_initialized_edge_dst_property(handle, scc_graph_view, false);
+          fill_edge_src_property(handle,
+                                 scc_graph_view,
+                                 roots.begin(),
+                                 roots.end(),
+                                 src_root_flags.mutable_view(),
+                                 true,
+                                 do_expensive_check);
+          fill_edge_dst_property(handle,
+                                 scc_graph_view,
+                                 roots.begin(),
+                                 roots.end(),
+                                 dst_root_flags.mutable_view(),
+                                 true,
+                                 do_expensive_check);
+          transform_e(
+            handle,
+            scc_graph_view,
+            src_root_flags.view(),
+            dst_root_flags.view(),
+            edge_dummy_property_t{}.view(),
+            [] __device__(vertex_t, vertex_t, bool src_root, bool dst_root, auto) {
+              return !src_root && !dst_root;
+            },
+            new_scc_graph_edge_mask.mutable_view(),
+            do_expensive_check);
+        } else {
+          transform_e(
+            handle,
+            scc_graph_view,
+            edge_src_dummy_property_t{}.view(),
+            edge_dst_dummy_property_t{}.view(),
+            edge_dummy_property_t{}.view(),
+            cuda::proclaim_return_type<bool>(
+              [roots = raft::device_span<vertex_t const>(roots.data(), roots.size())] __device__(
+                vertex_t src, vertex_t dst, auto, auto, auto) {
+                return !thrust::binary_search(thrust::seq, roots.begin(), roots.end(), src) &&
+                       !thrust::binary_search(thrust::seq, roots.begin(), roots.end(), dst);
+              }),
+            new_scc_graph_edge_mask.mutable_view(),
+            do_expensive_check);
+        }
+        if (scc_graph_view.has_edge_mask()) { scc_graph_view.clear_edge_mask(); }
+        scc_graph_edge_mask = std::move(new_scc_graph_edge_mask);
+        scc_graph_view.attach_edge_mask(scc_graph_edge_mask.view());
+      }
+
+      ++inner_iter;
+
+      bool continue_inner_loop = false;
+      if (inner_iter < max_inner_loop_iters) {
+        auto aggregate_num_new_cycle_vertices = num_new_cycle_vertices;
+        if constexpr (multi_gpu) {
+          aggregate_num_new_cycle_vertices = host_scalar_allreduce(handle.get_comms(),
+                                                                   aggregate_num_new_cycle_vertices,
+                                                                   raft::comms::op_t::SUM,
+                                                                   handle.get_stream());
+        }
+        if (aggregate_num_new_cycle_vertices <
+            std::max(size_t{4}, static_cast<size_t>(scc_graph.number_of_edges() / edge_t{1024}))) {
+          continue_inner_loop = true;
+        }
+      }
+
+      if (continue_inner_loop) {
+        cugraph::scatter(
+          handle.get_thrust_policy(),
+          cuda::make_constant_iterator(invalid_vertex_id_v<vertex_t>),
+          cuda::make_constant_iterator(invalid_vertex_id_v<vertex_t>) + roots.size(),
+          cuda::make_transform_iterator(roots.begin(),
+                                        cugraph::detail::shift_left_t<vertex_t>{
+                                          scc_graph_view.local_vertex_partition_range_first()}),
+          components.begin());
       } else {
-        transform_e(
-          handle,
-          scc_graph_view,
-          edge_src_dummy_property_t{}.view(),
-          edge_dst_dummy_property_t{}.view(),
-          edge_dummy_property_t{}.view(),
-          cuda::proclaim_return_type<bool>(
-            [roots = raft::device_span<vertex_t const>(roots.data(), roots.size())] __device__(
-              vertex_t src, vertex_t dst, auto, auto, auto) {
-              return !thrust::binary_search(thrust::seq, roots.begin(), roots.end(), src) &&
-                     !thrust::binary_search(thrust::seq, roots.begin(), roots.end(), dst);
-            }),
-          new_scc_graph_edge_mask.mutable_view(),
-          do_expensive_check);
+        break;
       }
-      if (scc_graph_view.has_edge_mask()) { scc_graph_view.clear_edge_mask(); }
-      scc_graph_edge_mask = std::move(new_scc_graph_edge_mask);
-      scc_graph_view.attach_edge_mask(scc_graph_edge_mask.view());
     }
 
-    // 6-5. Run strongly_connected_components()
+    /* 6-5. Rebuild the graph if a big percentage of the edges are masked out */
+
+    assert(scc_graph.number_of_edges() > 0);
+    if (static_cast<double>(scc_graph_view.compute_number_of_edges(handle)) /
+          static_cast<double>(scc_graph.number_of_edges()) <
+        0.5 /* tuning parameter */) {
+      rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
+      rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
+      std::tie(edgelist_srcs, edgelist_dsts, std::ignore, std::ignore, std::ignore) =
+        decompress_to_edgelist<vertex_t, edge_t, weight_t, edge_type_t, false, multi_gpu>(
+          handle,
+          scc_graph_view,
+          std::nullopt,
+          std::nullopt,
+          std::nullopt,
+          std::make_optional<raft::device_span<vertex_t const>>(scc_graph_renumber_map.data(),
+                                                                scc_graph_renumber_map.size()),
+          std::nullopt,
+          do_expensive_check);
+      auto aggregate_edge_count = edgelist_srcs.size();
+      if constexpr (multi_gpu) {
+        aggregate_edge_count = host_scalar_allreduce(
+          handle.get_comms(), aggregate_edge_count, raft::comms::op_t::SUM, handle.get_stream());
+      }
+      if (aggregate_edge_count == 0) {
+        return std::make_tuple(std::move(cycle_vertex_chunks), std::move(cycle_length_chunks));
+      }
+
+      std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
+      std::tie(scc_graph, std::ignore, tmp_renumber_map) =
+        create_graph_from_edgelist<vertex_t, edge_t, false, multi_gpu>(
+          handle,
+          std::nullopt,
+          std::move(edgelist_srcs),
+          std::move(edgelist_dsts),
+          std::vector<cugraph::arithmetic_device_uvector_t>{},
+          graph_properties_t{false, false},
+          true /* renumber */);
+      scc_graph_renumber_map = std::move(*tmp_renumber_map);
+      scc_graph_view         = scc_graph.view();
+      scc_graph_edge_mask    = edge_property_t<edge_t, bool>(handle);
+      if (seed_vertices) {
+        scc_graph_seed_vertices = renumber_seed_vertices<vertex_t, edge_t, multi_gpu>(
+          handle,
+          *seed_vertices,
+          scc_graph_view,
+          raft::device_span<vertex_t const>(scc_graph_renumber_map.data(),
+                                            scc_graph_renumber_map.size()),
+          do_expensive_check);
+      }
+      std::tie(in_out_degree_products, sum_in_out_degree_products) =
+        compute_in_out_degree_products<vertex_t, edge_t, multi_gpu>(handle, scc_graph_view);
+      approx_path_expansion_factor =
+        std::max(sum_in_out_degree_products / static_cast<double>(scc_graph.number_of_edges()),
+                 double{1.0});  // in_degree weighted average out-degree considering that high
+                                // in-degre vertices appear more often as path endpointse
+    }
+
+    // 6-6. Run strongly_connected_components()
 
     components = cugraph::strongly_connected_components(handle, scc_graph_view, do_expensive_check);
 
-    // 6-6. Enumerate length 2 SCCs
+    // 6-7. Enumerate length 2 SCCs
 
     auto component_sizes = compute_component_sizes<vertex_t, multi_gpu>(
       handle,
@@ -1278,10 +1634,10 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> simple_
       raft::device_span<vertex_t const>(component_sizes.data(), component_sizes.size()),
       scc_graph_view.local_vertex_partition_range_first());
 
-    std::tie(cycle_vertices, cycle_lengths) = append_cycles<vertex_t, multi_gpu>(
+    std::tie(cycle_vertex_chunks, cycle_length_chunks) = push_back_cycles<vertex_t, multi_gpu>(
       handle,
-      std::move(cycle_vertices),
-      std::move(cycle_lengths),
+      std::move(cycle_vertex_chunks),
+      std::move(cycle_length_chunks),
       std::move(length_2_cycle_vertices),
       vertex_t{2},
       std::make_optional(
@@ -1289,7 +1645,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> simple_
                                                           scc_graph_renumber_map.size()),
                         scc_graph_view.vertex_partition_range_lasts())));
 
-    // 6-7. Keep only the intra SCC edges for length 3+ SCCs
+    // 6-8. Keep only the intra SCC edges for length 3+ SCCs
 
     {
       auto num_remaining_vertices = static_cast<size_t>(
@@ -1359,7 +1715,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> simple_
     }
   }
 
-  return std::make_tuple(std::move(cycle_vertices), std::move(cycle_lengths));
+  return std::make_tuple(std::move(cycle_vertex_chunks), std::move(cycle_length_chunks));
 }
 
 }  // namespace detail
@@ -1372,11 +1728,13 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<size_t>> simple_cy
   vertex_t length_bound,
   bool do_expensive_check)
 {
-  auto [cycle_vertices, cycle_lengths] =
+  auto [cycle_vertex_chunks, cycle_length_chunks] =
     detail::simple_cycles_impl(handle, graph_view, seed_vertices, length_bound, do_expensive_check);
+  auto cycle_vertices = detail::concatenate(handle, std::move(cycle_vertex_chunks));
+  auto cycle_lengths  = detail::concatenate(handle, std::move(cycle_length_chunks));
   rmm::device_uvector<size_t> cycle_offsets(cycle_lengths.size() + 1, handle.get_stream());
   cycle_offsets.set_element_to_zero_async(size_t{0}, handle.get_stream());
-  thrust::inclusive_scan(
+  cugraph::inclusive_scan(
     handle.get_thrust_policy(),
     cuda::make_transform_iterator(cycle_lengths.begin(), detail::typecast_t<vertex_t, size_t>{}),
     cuda::make_transform_iterator(cycle_lengths.end(), detail::typecast_t<vertex_t, size_t>{}),
