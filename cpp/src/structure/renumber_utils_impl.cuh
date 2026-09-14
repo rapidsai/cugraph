@@ -162,7 +162,7 @@ void unrenumber_local_int_edges(
   auto number_of_edges = std::reduce(edgelist_edge_counts.begin(), edgelist_edge_counts.end());
 #if 1  // FIXME: we should add host_allreduce to raft
   number_of_edges =
-    host_scalar_allreduce(comm, number_of_edges, raft::comms::op_t::SUM, handle.get_stream().get());
+    host_scalar_allreduce(comm, number_of_edges, raft::comms::op_t::SUM, handle.get_stream());
 #else
   comm.host_allreduce(std::addressof(number_of_edges),
                       std::addressof(number_of_edges),

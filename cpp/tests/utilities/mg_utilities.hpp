@@ -1,10 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
 #include <raft/core/handle.hpp>
+
+#include <cuda/stream>
 
 #include <memory>
 
@@ -23,7 +25,7 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle(
 
 // NCCL lazily initializes for P2P, and this enforces P2P initialization for better performance
 // measurements
-void enforce_p2p_initialization(raft::comms::comms_t const& comm, rmm::cuda_stream_view stream);
+void enforce_p2p_initialization(raft::comms::comms_t const& comm, cuda::stream_ref stream);
 
 }  // namespace test
 }  // namespace cugraph

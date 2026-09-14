@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Explicit instantiations for cugraph/utilities/partition_scatter_map_wrappers.cuh.
@@ -13,6 +13,7 @@
 
 #include <cuda/functional>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
 
@@ -28,7 +29,7 @@ rmm::device_uvector<size_t> compute_partition_scatter_map_impl(
   offset_t const* intra_partition_displs,
   size_t const* group_displacements,
   size_t num_elements,
-  rmm::cuda_stream_view stream_view)
+  cuda::stream_ref stream_view)
 {
   rmm::device_uvector<size_t> scatter_map(num_elements, stream_view);
   thrust::transform(
@@ -51,7 +52,7 @@ rmm::device_uvector<size_t> compute_partition_scatter_map_impl(
                                                       offset_t const* intra_partition_displs, \
                                                       size_t const* group_displacements,      \
                                                       size_t num_elements,                    \
-                                                      rmm::cuda_stream_view stream_view)
+                                                      cuda::stream_ref stream_view)
 
 CUGRAPH_PARTITION_SCATTER_MAP_INST(std::uint8_t, std::uint32_t);
 CUGRAPH_PARTITION_SCATTER_MAP_INST(int, std::size_t);
