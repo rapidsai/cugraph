@@ -44,6 +44,7 @@
 #include <cuda/std/functional>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
@@ -895,7 +896,7 @@ void copy_valid_offset_value_pairs(
     raft::device_span<typename thrust::iterator_traits<OutputOffsetIterator>::value_type const>>
     hypersparse_key_offsets,
   typename thrust::iterator_traits<OutputValueIterator>::value_type invalid_value,
-  rmm::cuda_stream_view stream)
+  cuda::stream_ref stream)
 {
   using offset_t = std::decay_t<typename thrust::iterator_traits<OutputOffsetIterator>::value_type>;
   using value_t  = std::decay_t<typename thrust::iterator_traits<OutputValueIterator>::value_type>;
@@ -3079,7 +3080,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           }
 #if 1  // FIXME: we should add host_allreduce to raft
           max_size = host_scalar_allreduce(
-            minor_comm, max_size, raft::comms::op_t::MAX, handle.get_stream().get());
+            minor_comm, max_size, raft::comms::op_t::MAX, handle.get_stream());
 #else
           minor_comm.host_allreduce(
             std::addressof(max_size), std::addressof(max_size), size_t{1}, raft::comms::op_t::MAX);

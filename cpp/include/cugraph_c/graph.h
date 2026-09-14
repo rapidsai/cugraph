@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -326,6 +326,41 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_graph_create_with_times_mg(
   bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error);
+
+/**
+ * @brief      Get the number of vertices in a graph
+ *
+ * Returns the global number of vertices.  For multi-GPU graphs this value is
+ * identical on all ranks.
+ *
+ * @param [in]  graph   Pointer to graph
+ * @param [out] result  Where to store the number of vertices
+ * @param [out] error   Pointer to an error object storing details of any error.  Will
+ *                      be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_graph_number_of_vertices(cugraph_graph_t* graph,
+                                                                     size_t* result,
+                                                                     cugraph_error_t** error);
+
+/**
+ * @brief      Get the number of edges in a graph
+ *
+ * Returns the total number of edges in the graph.  For multi-GPU graphs this is the
+ * global edge count, identical on all ranks.
+ *
+ * @param [in]  handle  Handle for accessing resources
+ * @param [in]  graph   Pointer to graph
+ * @param [out] result  Where to store the number of edges
+ * @param [out] error   Pointer to an error object storing details of any error.  Will
+ *                      be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_graph_number_of_edges(const cugraph_resource_handle_t* handle,
+                              cugraph_graph_t* graph,
+                              size_t* result,
+                              cugraph_error_t** error);
 
 /**
  * @brief     Destroy an graph

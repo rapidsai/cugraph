@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -15,6 +15,8 @@ namespace mtmg {
 
 /**
  * @brief Graph view for each GPU
+ *
+ * @deprecated This API is deprecated and will be removed in release 27.02.
  */
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 class graph_view_t : public detail::device_shared_wrapper_t<

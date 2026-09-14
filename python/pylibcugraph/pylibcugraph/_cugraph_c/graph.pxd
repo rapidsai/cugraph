@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -69,6 +69,19 @@ cdef extern from "cugraph_c/graph.h":
             bool_t do_expensive_check,
             cugraph_graph_t** graph,
             cugraph_error_t** error);
+
+    cdef cugraph_error_code_t \
+        cugraph_graph_number_of_vertices(
+            cugraph_graph_t* graph,
+            size_t* result,
+            cugraph_error_t** error)
+
+    cdef cugraph_error_code_t \
+        cugraph_graph_number_of_edges(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            size_t* result,
+            cugraph_error_t** error)
 
     cdef void \
         cugraph_graph_free(

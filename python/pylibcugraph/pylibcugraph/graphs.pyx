@@ -18,6 +18,8 @@ from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_create_with_times_mg,
     cugraph_graph_create_sg_from_csr,
     cugraph_graph_free,
+    cugraph_graph_number_of_vertices,
+    cugraph_graph_number_of_edges,
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_type,
@@ -37,6 +39,58 @@ from pylibcugraph.utils cimport (
 from pylibcugraph.utilities.api_tools import ensure_valid_dtypes
 from libc.stdlib cimport malloc
 
+
+cdef class _GPUGraph:
+
+    def number_of_vertices(self):
+        """
+        Return the total number of vertices in the graph.
+
+        For multi-GPU graphs this value is identical on all ranks.
+
+        Returns
+        -------
+        int
+            The number of vertices in the graph.
+        """
+        cdef size_t result
+        cdef cugraph_error_code_t error_code
+        cdef cugraph_error_t* error_ptr
+
+        error_code = cugraph_graph_number_of_vertices(
+            self.c_graph_ptr, &result, &error_ptr)
+        assert_success(error_code, error_ptr, "cugraph_graph_number_of_vertices")
+
+        return result
+
+    def number_of_edges(self, ResourceHandle resource_handle):
+        """
+        Return the total number of edges in the graph.
+
+        For multi-GPU graphs this value is identical on all ranks.
+
+        Parameters
+        ----------
+        resource_handle : ResourceHandle
+            Handle to the underlying device resources.
+
+        Returns
+        -------
+        int
+            The number of edges in the graph.
+        """
+        cdef size_t result
+        cdef cugraph_error_code_t error_code
+        cdef cugraph_error_t* error_ptr
+
+        error_code = cugraph_graph_number_of_edges(
+            resource_handle.c_resource_handle_ptr,
+            self.c_graph_ptr,
+            &result,
+            &error_ptr)
+        assert_success(error_code, error_ptr, "cugraph_graph_number_of_edges")
+
+        return result
 
 
 cdef class SGGraph(_GPUGraph):

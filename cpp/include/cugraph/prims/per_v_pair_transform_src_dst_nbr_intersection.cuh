@@ -27,6 +27,7 @@
 #include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -206,7 +207,7 @@ void per_v_pair_transform_minor_nbr_intersection(
   auto num_input_pairs =
     static_cast<size_t>(cuda::std::distance(vertex_pair_first, vertex_pair_last));
   std::optional<rmm::device_uvector<vertex_t>> sorted_unique_vertices{std::nullopt};
-  std::optional<decltype(allocate_dataframe_buffer<property_t>(size_t{0}, rmm::cuda_stream_view{}))>
+  std::optional<decltype(allocate_dataframe_buffer<property_t>(size_t{0}, cuda::stream_ref{}))>
     property_buffer_for_sorted_unique_vertices{std::nullopt};
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& comm = handle.get_comms();
@@ -306,7 +307,7 @@ void per_v_pair_transform_minor_nbr_intersection(
     auto max_num_chunks = (h_edge_partition_group_sizes[i] + max_chunk_size - 1) / max_chunk_size;
     if constexpr (GraphViewType::is_multi_gpu) {
       max_num_chunks = host_scalar_allreduce(
-        handle.get_comms(), max_num_chunks, raft::comms::op_t::MAX, handle.get_stream().get());
+        handle.get_comms(), max_num_chunks, raft::comms::op_t::MAX, handle.get_stream());
     }
 
     std::vector<size_t> h_chunk_sizes(max_num_chunks);

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.:
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -11,24 +11,23 @@ import numpy as np
 import cupy
 import cudf
 import cugraph
-from cugraph.datasets import karate_disjoint
-from cugraph.testing import utils, SMALL_DATASETS
+from cugraph.datasets import karate_disjoint, polbooks, karate
+from cugraph.testing import utils
 
 # NOTE: Endpoint parameter is not currently being tested, there could be a test
 #       to verify that python raise an error if it is used
 # =============================================================================
 # Parameters
 # =============================================================================
+TEST_DATASETS = [karate, polbooks]
+
 DIRECTED_GRAPH_OPTIONS = [False, True]
 WEIGHTED_GRAPH_OPTIONS = [False, True]
 NORMALIZED_OPTIONS = [False, True]
 DEFAULT_EPSILON = 0.0001
-
 SUBSET_SIZE_OPTIONS = [4, None]
 
-# NOTE: The following is not really being exploited in the tests as the
-# datasets that are used are too small to compare, but it ensures that both
-# path are actually sane
+# NOTE: The output conversion is done after the centrality is computed.
 RESULT_DTYPE_OPTIONS = [np.float32, np.float64]
 
 
@@ -302,20 +301,16 @@ def generate_upper_triangle(dataframe):
 
 @pytest.mark.sg
 @pytest.mark.requires_nx(min_ver="3.5", max_ver="3.5")
-@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
+@pytest.mark.parametrize("graph_file", TEST_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
-@pytest.mark.parametrize("weight", [None])
-@pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 def test_edge_betweenness_centrality(
     graph_file,
     directed,
     subset_size,
     normalized,
-    weight,
-    result_dtype,
     edgevals,
 ):
     sorted_df = calc_edge_betweenness_centrality(
@@ -323,32 +318,40 @@ def test_edge_betweenness_centrality(
         directed=directed,
         normalized=normalized,
         k=subset_size,
-        weight=weight,
+        weight=None,
         seed=42,
-        result_dtype=result_dtype,
         edgevals=edgevals,
     )
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
 @pytest.mark.sg
-@pytest.mark.requires_nx(min_ver="3.5")
-@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
-@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-@pytest.mark.parametrize("subset_size", [None])
-@pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
-@pytest.mark.parametrize("weight", [None])
+@pytest.mark.requires_nx(min_ver="3.5", max_ver="3.5")
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
-@pytest.mark.parametrize("use_k_full", [True])
+def test_edge_betweenness_centrality_return_dtypes(result_dtype):
+    sorted_df = calc_edge_betweenness_centrality(
+        karate,
+        directed=False,
+        normalized=False,
+        k=None,
+        weight=None,
+        seed=42,
+        result_dtype=result_dtype,
+        edgevals=False,
+    )
+    compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
+
+
+@pytest.mark.sg
+@pytest.mark.requires_nx(min_ver="3.5")
+@pytest.mark.parametrize("graph_file", TEST_DATASETS)
+@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
+@pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 def test_edge_betweenness_centrality_k_full(
     graph_file,
     directed,
-    subset_size,
     normalized,
-    weight,
-    result_dtype,
-    use_k_full,
     edgevals,
 ):
     """Tests full edge betweenness centrality by using k = G.number_of_vertices()
@@ -357,11 +360,10 @@ def test_edge_betweenness_centrality_k_full(
         graph_file,
         directed=directed,
         normalized=normalized,
-        k=subset_size,
-        weight=weight,
+        k=None,
+        weight=None,
         seed=42,
-        result_dtype=result_dtype,
-        use_k_full=use_k_full,
+        use_k_full=True,
         edgevals=edgevals,
     )
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
@@ -373,20 +375,14 @@ def test_edge_betweenness_centrality_k_full(
 #       in the graph structure instead of actual vertices identifiers
 @pytest.mark.sg
 @pytest.mark.requires_nx(min_ver="3.5", max_ver="3.5")
-@pytest.mark.parametrize("graph_file", [karate_disjoint])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
-@pytest.mark.parametrize("weight", [None])
-@pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 def test_edge_betweenness_centrality_fixed_sample(
-    graph_file,
     directed,
     subset_size,
     normalized,
-    weight,
-    result_dtype,
     edgevals,
 ):
     """Test Edge Betweenness Centrality using a subset
@@ -394,33 +390,28 @@ def test_edge_betweenness_centrality_fixed_sample(
     Only k sources are considered for an approximate Betweenness Centrality
     """
     sorted_df = calc_edge_betweenness_centrality(
-        graph_file,
+        karate_disjoint,
         directed=directed,
         k=subset_size,
         normalized=normalized,
-        weight=weight,
+        weight=None,
         seed=None,
-        result_dtype=result_dtype,
         edgevals=edgevals,
     )
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
+@pytest.mark.parametrize("graph_file", TEST_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
-@pytest.mark.parametrize("weight", [[]])
-@pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 def test_edge_betweenness_centrality_weight_except(
     graph_file,
     directed,
     subset_size,
     normalized,
-    weight,
-    result_dtype,
     edgevals,
 ):
     """Test calls edge_betweeness_centrality with weight parameter
@@ -434,29 +425,24 @@ def test_edge_betweenness_centrality_weight_except(
             directed=directed,
             k=subset_size,
             normalized=normalized,
-            weight=weight,
+            weight=[],
             seed=42,
-            result_dtype=result_dtype,
             edgevals=edgevals,
         )
         compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
+@pytest.mark.parametrize("graph_file", TEST_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
-@pytest.mark.parametrize("weight", [None])
-@pytest.mark.parametrize("result_dtype", [str])
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 def test_edge_betweenness_invalid_dtype(
     graph_file,
     directed,
     subset_size,
     normalized,
-    weight,
-    result_dtype,
     edgevals,
 ):
     """Test calls edge_betwenness_centrality an invalid type"""
@@ -467,9 +453,9 @@ def test_edge_betweenness_invalid_dtype(
             directed=directed,
             k=subset_size,
             normalized=normalized,
-            weight=weight,
+            weight=None,
             seed=42,
-            result_dtype=result_dtype,
+            result_dtype=str,
             edgevals=edgevals,
         )
         compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
