@@ -191,11 +191,11 @@ void reference_edge_rescale(result_t* result,
     if (!directed) { rescale_factor /= static_cast<result_t>(2); }
   }
 
-  if (rescale_factor != result_t{1}) {
-    if (number_of_sources > 0) {
-      rescale_factor *= (casted_number_of_vertices / casted_number_of_sources);
-    }
+  if (number_of_sources > 0) {
+    rescale_factor *= (casted_number_of_vertices / casted_number_of_sources);
+  }
 
+  if (rescale_factor != result_t{1}) {
     for (auto idx = 0; idx < number_of_edges; ++idx) {
       result[idx] *= rescale_factor;
     }
