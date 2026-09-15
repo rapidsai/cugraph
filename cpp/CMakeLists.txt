@@ -697,6 +697,8 @@ add_library(cugraph_c
         src/c_api/temporal_neighbor_sampling.cpp
         src/c_api/negative_sampling.cpp
         src/c_api/labeling_result.cpp
+        src/c_api/simple_cycles_result.cpp
+        src/c_api/simple_cycles.cpp
         src/c_api/weakly_connected_components.cpp
         src/c_api/strongly_connected_components.cpp
         src/c_api/allgather.cpp
