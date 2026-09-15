@@ -76,6 +76,17 @@ struct indirection_t {
 };
 
 template <typename index_t, typename Iterator>
+struct shift_left_and_indirection_t {
+  Iterator first{};
+  index_t offset{};
+
+  __device__ typename thrust::iterator_traits<Iterator>::value_type operator()(index_t i) const
+  {
+    return *(first + (i - offset));
+  }
+};
+
+template <typename index_t, typename Iterator>
 struct divide_and_indirection_t {
   Iterator first{};
   index_t divisor{};
