@@ -820,7 +820,7 @@ find_pivots(
 
     auto component_idx_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(vertex_t{0}),
-      detail::segment_id_t<vertex_t>{raft::device_span<vertex_t const>(
+      detail::segment_idx_t<vertex_t>{raft::device_span<vertex_t const>(
         unresolved_component_offsets.data(), unresolved_component_offsets.size())});
     auto ret = thrust::reduce_by_key(
       handle.get_thrust_policy(),
@@ -1133,15 +1133,15 @@ intersect_reachable_sets(
     // Find the component_idx for each vertex based on CSR offsets
     auto unresolved_component_idxs_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(vertex_t{0}),
-      detail::segment_id_t<vertex_t>{raft::device_span<vertex_t const>(
+      detail::segment_idx_t<vertex_t>{raft::device_span<vertex_t const>(
         unresolved_component_offsets.data(), unresolved_component_offsets.size())});
     auto forward_set_component_idxs_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(vertex_t{0}),
-      detail::segment_id_t<vertex_t>{
+      detail::segment_idx_t<vertex_t>{
         raft::device_span<vertex_t const>(forward_set_offsets.data(), forward_set_offsets.size())});
     auto backward_set_component_idxs_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(vertex_t{0}),
-      detail::segment_id_t<vertex_t>{raft::device_span<vertex_t const>(
+      detail::segment_idx_t<vertex_t>{raft::device_span<vertex_t const>(
         backward_set_offsets.data(), backward_set_offsets.size())});
 
     auto unresolved_component_pairs_first = thrust::make_zip_iterator(
@@ -1934,7 +1934,7 @@ forward_backward_intersect(
                                                                 handle.get_stream());
     auto component_idx_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(vertex_t{0}),
-      detail::segment_id_t<vertex_t>{raft::device_span<vertex_t const>(
+      detail::segment_idx_t<vertex_t>{raft::device_span<vertex_t const>(
         backward_set_offsets.data(), backward_set_offsets.size())});
     thrust::copy(handle.get_thrust_policy(),
                  component_idx_first,
