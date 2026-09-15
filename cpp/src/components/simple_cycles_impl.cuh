@@ -449,17 +449,19 @@ enumerate_simple_cycles_expanding_paths(
   for (vertex_t path_length = start_path_length; path_length < length_bound; ++path_length) {
     auto path_count = path_vertices.size() / static_cast<size_t>(path_length);
 
-    std::vector<size_t> path_idx_lasts{};
+    std::vector<size_t> path_idx_offsets{};
     size_t path_idx_start_offset{0};
     if constexpr (multi_gpu) {
       auto const comm_rank = handle.get_comms().get_rank();
-      path_idx_lasts = host_scalar_allgather(handle.get_comms(), path_count, handle.get_stream());
-      std::inclusive_scan(path_idx_lasts.begin(), path_idx_lasts.end(), path_idx_lasts.begin());
-      path_idx_start_offset = path_idx_lasts[comm_rank] - path_count;
+      auto path_counts = host_scalar_allgather(handle.get_comms(), path_count, handle.get_stream());
+      path_idx_offsets.resize(path_counts.size() + 1);
+      path_idx_offsets[0] = 0;
+      std::inclusive_scan(path_counts.begin(), path_counts.end(), path_idx_offsets.begin() + 1);
+      path_idx_start_offset = path_idx_offsets[comm_rank];
     } else {
-      path_idx_lasts = {path_count};
+      path_idx_offsets = {0, path_count};
     }
-    if (path_idx_lasts.back() == 0) { break; }
+    if (path_idx_offsets.back() == 0) { break; }
 
     rmm::device_uvector<vertex_t> last_vs(path_count, handle.get_stream());
     rmm::device_uvector<size_t> path_idxs(path_count, handle.get_stream());
@@ -550,26 +552,20 @@ enumerate_simple_cycles_expanding_paths(
       // shuffle the results to the GPUs storing the paths
 
       {
-        rmm::device_uvector<size_t> d_path_idx_lasts(path_idx_lasts.size(), handle.get_stream());
-        raft::update_device(d_path_idx_lasts.data(),
-                            path_idx_lasts.data(),
-                            path_idx_lasts.size(),
+        rmm::device_uvector<size_t> d_path_idx_offsets(path_idx_offsets.size(),
+                                                       handle.get_stream());
+        raft::update_device(d_path_idx_offsets.data(),
+                            path_idx_offsets.data(),
+                            path_idx_offsets.size(),
                             handle.get_stream());
-        auto pair_first = thrust::make_zip_iterator(nbrs.begin(), nbr_path_idxs.begin());
-        std::forward_as_tuple(std::tie(nbrs, nbr_path_idxs), std::ignore) =
-          groupby_gpu_id_and_shuffle_values(
-            handle.get_comms(),
-            pair_first,
-            pair_first + nbrs.size(),
-            cuda::proclaim_return_type<int>(
-              [lasts = raft::device_span<size_t const>(
-                 d_path_idx_lasts.data(), d_path_idx_lasts.size())] __device__(auto pair) {
-                auto path_idx = cuda::std::get<1>(pair);
-                return static_cast<int>(cuda::std::distance(
-                  lasts.begin(),
-                  thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), path_idx)));
-              }),
-            handle.get_stream());
+        std::tie(nbr_path_idxs, nbrs, std::ignore) = groupby_gpu_id_and_shuffle_kv_pairs(
+          handle.get_comms(),
+          nbr_path_idxs.begin(),
+          nbr_path_idxs.end(),
+          nbrs.begin(),
+          cugraph::detail::segment_id_t<size_t, int>{
+            raft::device_span<size_t const>(d_path_idx_offsets.data(), d_path_idx_offsets.size())},
+          handle.get_stream());
       }
 
       // drop the extensions to the vertices already on the path (this check is skipped in
@@ -702,25 +698,26 @@ enumerate_simple_cycles_expanding_paths(
         // ranks, so the sorted unique path indices are already grouped by the GPUs storing the
         // paths
 
-        std::vector<size_t> tx_counts(path_idx_lasts.size());
+        std::vector<size_t> tx_counts(path_idx_offsets.size() - 1);
         {
-          rmm::device_uvector<size_t> d_path_idx_lasts(path_idx_lasts.size(), handle.get_stream());
-          raft::update_device(d_path_idx_lasts.data(),
-                              path_idx_lasts.data(),
-                              path_idx_lasts.size(),
+          rmm::device_uvector<size_t> d_path_idx_offsets(path_idx_offsets.size(),
+                                                         handle.get_stream());
+          raft::update_device(d_path_idx_offsets.data(),
+                              path_idx_offsets.data(),
+                              path_idx_offsets.size(),
                               handle.get_stream());
-          rmm::device_uvector<size_t> d_tx_lasts(d_path_idx_lasts.size(), handle.get_stream());
+          rmm::device_uvector<size_t> d_tx_lasts(tx_counts.size(), handle.get_stream());
           thrust::lower_bound(handle.get_thrust_policy(),
                               unique_path_idxs.begin(),
                               unique_path_idxs.end(),
-                              d_path_idx_lasts.begin(),
-                              d_path_idx_lasts.end(),
+                              d_path_idx_offsets.begin() + 1,
+                              d_path_idx_offsets.end(),
                               d_tx_lasts.begin());
-          std::vector<size_t> tx_lasts(d_tx_lasts.size());
+          std::vector<size_t> h_tx_lasts(d_tx_lasts.size());
           raft::update_host(
-            tx_lasts.data(), d_tx_lasts.data(), d_tx_lasts.size(), handle.get_stream());
+            h_tx_lasts.data(), d_tx_lasts.data(), d_tx_lasts.size(), handle.get_stream());
           handle.sync_stream();
-          std::adjacent_difference(tx_lasts.begin(), tx_lasts.end(), tx_counts.begin());
+          std::adjacent_difference(h_tx_lasts.begin(), h_tx_lasts.end(), tx_counts.begin());
         }
 
         rmm::device_uvector<size_t> rx_path_idxs(0, handle.get_stream());
