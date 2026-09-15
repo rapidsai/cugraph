@@ -430,13 +430,11 @@ jobs:
       build_type: pull-request
       build-datetime: ${{ needs.build-details.outputs.build-datetime }}
       node_type: cpu8
-      script: ci/build_wheel_pylibcugraph.sh
+      script: "LIBCUGRAPH_FROM_NIGHTLY=${{ !fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph }} ci/build_wheel_pylibcugraph.sh"
       package-name: pylibcugraph
       package-type: python
       # Build a wheel for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
-      env: |
-        LIBCUGRAPH_FROM_NIGHTLY=${{ !fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph }}
     permissions:
       actions: read
       contents: read
@@ -454,9 +452,7 @@ jobs:
       fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_wheels
     with:
       build_type: pull-request
-      script: ci/test_wheel_pylibcugraph.sh
-      env: |
-        LIBCUGRAPH_FROM_NIGHTLY=${{ !fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph }}
+      script: "LIBCUGRAPH_FROM_NIGHTLY=${{ !fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph }} ci/test_wheel_pylibcugraph.sh"
     permissions:
       actions: read
       contents: read
@@ -479,14 +475,14 @@ jobs:
       build_type: pull-request
       build-datetime: ${{ needs.build-details.outputs.build-datetime }}
       node_type: cpu8
-      script: ci/build_wheel_cugraph.sh
+      script: >-
+        LIBCUGRAPH_FROM_NIGHTLY=${{ !fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph }}
+        PYLIBCUGRAPH_FROM_NIGHTLY=${{ !(fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph || fromJSON(needs.changed-files.outputs.changed_file_groups).build_pylibcugraph) }}
+        ci/build_wheel_cugraph.sh
       package-name: cugraph
       package-type: python
       # Build a wheel for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
-      env: |
-        LIBCUGRAPH_FROM_NIGHTLY=${{ !fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph }}
-        PYLIBCUGRAPH_FROM_NIGHTLY=${{ !(fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph || fromJSON(needs.changed-files.outputs.changed_file_groups).build_pylibcugraph) }}
     permissions:
       actions: read
       contents: read
@@ -504,10 +500,10 @@ jobs:
       fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_wheels
     with:
       build_type: pull-request
-      script: ci/test_wheel_cugraph.sh
-      env: |
+      script: >-
         LIBCUGRAPH_FROM_NIGHTLY=${{ !fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph }}
         PYLIBCUGRAPH_FROM_NIGHTLY=${{ !(fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph || fromJSON(needs.changed-files.outputs.changed_file_groups).build_pylibcugraph) }}
+        ci/test_wheel_cugraph.sh
     permissions:
       actions: read
       contents: read
