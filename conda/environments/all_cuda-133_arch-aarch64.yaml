@@ -22,7 +22,7 @@ dependencies:
 - dask-cuda==26.12.*,>=0.0.0a0
 - dask-cudf==26.12.*,>=0.0.0a0
 - dlpack
-- doxygen
+- doxygen=1.18.0
 - fsspec>=0.6.0
 - gcc_linux-aarch64=14.*
 - graphviz
