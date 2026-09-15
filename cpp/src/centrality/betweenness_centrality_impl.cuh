@@ -1585,6 +1585,8 @@ edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
     scale_factor = n * (n - 1);
   } else if (graph_view.is_symmetric()) {
     scale_factor = weight_t{2};
+  } else if (static_cast<vertex_t>(num_sources) < graph_view.number_of_vertices()) {
+    scale_factor = weight_t{1};
   }
 
   if (scale_factor) {
