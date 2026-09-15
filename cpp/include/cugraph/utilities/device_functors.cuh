@@ -195,25 +195,25 @@ struct indirection_and_clamped_subtract_t {
   __device__ T operator()(size_t i) const { return clamped_subtract_t<T>{threshold}(values[i]); }
 };
 
-template <typename T>
-struct segment_id_t {
-  raft::device_span<T const> segment_offsets{};
+template <typename input_t, typename output_t = input_t>
+struct segment_idx_t {
+  raft::device_span<input_t const> segment_offsets{};
 
-  __device__ T operator()(T i) const
+  __device__ output_t operator()(input_t i) const
   {
-    return static_cast<T>(cuda::std::distance(
+    return static_cast<output_t>(cuda::std::distance(
       segment_offsets.begin() + 1,
       thrust::upper_bound(thrust::seq, segment_offsets.begin() + 1, segment_offsets.end(), i)));
   }
 };
 
-template <typename output_t = size_t>
+template <typename input_t, typename output_t = input_t>
 struct segment_local_idx_t {
-  raft::device_span<size_t const> segment_offsets{};
+  raft::device_span<input_t const> segment_offsets{};
 
-  __device__ output_t operator()(size_t i) const
+  __device__ output_t operator()(input_t i) const
   {
-    auto idx = segment_id_t<size_t>{segment_offsets}(i);
+    auto idx = segment_idx_t<input_t>{segment_offsets}(i);
     return static_cast<output_t>(i - segment_offsets[idx]);
   }
 };
