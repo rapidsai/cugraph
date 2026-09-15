@@ -370,6 +370,46 @@ cugraph_graph_number_of_edges(const cugraph_resource_handle_t* handle,
 CUGRAPH_EXPORT void cugraph_graph_free(cugraph_graph_t* graph);
 
 /**
+ * @brief     Return whether the graph was created with per-edge weights
+ *
+ * @param [in]  graph  Pointer to graph (may be NULL)
+ * @return TRUE if edge weights are stored on the graph, else FALSE
+ */
+CUGRAPH_EXPORT bool_t cugraph_graph_has_edge_weights(cugraph_graph_t* graph);
+
+/**
+ * @brief     Return whether the graph was created with per-edge IDs
+ *
+ * @param [in]  graph  Pointer to graph (may be NULL)
+ * @return TRUE if edge IDs are stored on the graph, else FALSE
+ */
+CUGRAPH_EXPORT bool_t cugraph_graph_has_edge_ids(cugraph_graph_t* graph);
+
+/**
+ * @brief     Return whether the graph was created with per-edge type IDs
+ *
+ * @param [in]  graph  Pointer to graph (may be NULL)
+ * @return TRUE if edge type IDs are stored on the graph, else FALSE
+ */
+CUGRAPH_EXPORT bool_t cugraph_graph_has_edge_types(cugraph_graph_t* graph);
+
+/**
+ * @brief     Return whether the graph was created with per-edge start times
+ *
+ * @param [in]  graph  Pointer to graph (may be NULL)
+ * @return TRUE if edge start times are stored on the graph, else FALSE
+ */
+CUGRAPH_EXPORT bool_t cugraph_graph_has_edge_start_times(cugraph_graph_t* graph);
+
+/**
+ * @brief     Return whether the graph was created with per-edge end times
+ *
+ * @param [in]  graph  Pointer to graph (may be NULL)
+ * @return TRUE if edge end times are stored on the graph, else FALSE
+ */
+CUGRAPH_EXPORT bool_t cugraph_graph_has_edge_end_times(cugraph_graph_t* graph);
+
+/**
  * @brief     Create a data mask
  *
  * @param [in]  handle          Handle for accessing resources
