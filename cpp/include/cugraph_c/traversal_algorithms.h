@@ -109,6 +109,57 @@ cugraph_bfs(const cugraph_resource_handle_t* handle,
             cugraph_error_t** error);
 
 /**
+ * @brief     Perform DAWN breadth first search from one or more seed vertices.
+ *
+ * This experimental API computes hop distances using DAWN standard. It currently supports
+ * single-GPU int32/int32 and int64/int64 vertex/edge IDs and does not compute predecessors.
+ * For multi-source input, all sources are used as one initial frontier and distances contain
+ * one graph-sized vector with the nearest-source hop count for each vertex.
+ *
+ * @param [in]  handle       Handle for accessing resources
+ * @param [in]  graph        Pointer to graph
+ * @param [in]  sources      Array containing one or more source vertices
+ * @param depth_limit Maximum number of BFS iterations. SIZE_MAX means unlimited.
+ * @param [in] do_expensive_check A flag to run expensive checks for input arguments.
+ * @param [out] result       Opaque pointer to paths results
+ * @param [out] error        Pointer to an error object storing details of any error.
+ * @return error code
+ */
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_dawn_bfs(const cugraph_resource_handle_t* handle,
+                 cugraph_graph_t* graph,
+                 cugraph_type_erased_device_array_view_t* sources,
+                 size_t depth_limit,
+                 bool_t do_expensive_check,
+                 cugraph_paths_result_t** result,
+                 cugraph_error_t** error);
+
+/**
+ * @brief     Perform DAWN breadth first search into a caller-owned distance buffer.
+ *
+ * This is the DAWN performance API. It assumes an unrenumbered single-GPU graph with contiguous
+ * vertex IDs and writes distances in vertex-id order to @p distances. It does not allocate a
+ * paths result object and does not materialize result vertex IDs.
+ *
+ * @param [in]  handle       Handle for accessing resources
+ * @param [in]  graph        Pointer to graph
+ * @param [in]  sources      Array containing one or more source vertices
+ * @param depth_limit Maximum number of BFS iterations. SIZE_MAX means unlimited.
+ * @param [in] do_expensive_check A flag to run expensive checks for input arguments.
+ * @param [out] distances    Caller-owned graph-sized output distance array
+ * @param [out] error        Pointer to an error object storing details of any error.
+ * @return error code
+ */
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_dawn_bfs_distances(const cugraph_resource_handle_t* handle,
+                           cugraph_graph_t* graph,
+                           cugraph_type_erased_device_array_view_t* sources,
+                           size_t depth_limit,
+                           bool_t do_expensive_check,
+                           cugraph_type_erased_device_array_view_t* distances,
+                           cugraph_error_t** error);
+
+/**
  * @brief     Perform single-source shortest-path to compute the minimum distances
  *            (and predecessors) from the source vertex.
  *
