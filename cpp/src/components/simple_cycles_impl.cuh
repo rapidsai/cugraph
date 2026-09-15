@@ -563,7 +563,7 @@ enumerate_simple_cycles_expanding_paths(
           nbr_path_idxs.begin(),
           nbr_path_idxs.end(),
           nbrs.begin(),
-          cugraph::detail::segment_id_t<size_t, int>{
+          cugraph::detail::segment_idx_t<size_t, int>{
             raft::device_span<size_t const>(d_path_idx_offsets.data(), d_path_idx_offsets.size())},
           handle.get_stream());
       }
