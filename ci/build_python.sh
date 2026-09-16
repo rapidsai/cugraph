@@ -19,16 +19,18 @@ export RAPIDS_PACKAGE_VERSION
 # populates `RATTLER_CHANNELS` array and `RATTLER_ARGS` array
 source rapids-rattler-channel-string
 
-if [[ "${LIBCUGRAPH_FROM_NIGHTLY:-false}" == "true" ]]; then
-  # libcugraph wasn't rebuilt for this PR; let the recipe's own version constraint
-  # resolve it from the rapidsai-nightly channel already present in RATTLER_CHANNELS.
-  rapids-logger "libcugraph unaffected by this PR; resolving it from the nightly channel"
-else
-  CPP_CHANNEL=$(rapids-download-from-github "$(rapids-artifact-name conda_cpp libcugraph cugraph --cuda "$RAPIDS_CUDA_VERSION")")
-
+# A skipped 'conda-cpp-build' job (libcugraph unaffected by this PR) means no
+# artifact was uploaded this run. Fail fast (short retry budget) rather than
+# waiting out the full retry window, then fall back to the recipe's own version
+# constraint resolving libcugraph from the rapidsai-nightly channel already
+# present in RATTLER_CHANNELS.
+if CPP_CHANNEL=$(RAPIDS_RETRY_MAX=1 RAPIDS_RETRY_SLEEP=15 rapids-download-from-github "$(rapids-artifact-name conda_cpp libcugraph cugraph --cuda "$RAPIDS_CUDA_VERSION")" 2>/tmp/libcugraph_channel_download.log); then
   rapids-logger "Prepending channel ${CPP_CHANNEL} to RATTLER_CHANNELS"
 
   RATTLER_CHANNELS=("--channel" "${CPP_CHANNEL}" "${RATTLER_CHANNELS[@]}")
+else
+  cat /tmp/libcugraph_channel_download.log >&2
+  rapids-logger "No libcugraph artifact found for this run; resolving it from the nightly channel"
 fi
 
 sccache --stop-server 2>/dev/null || true

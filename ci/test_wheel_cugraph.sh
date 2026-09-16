@@ -14,28 +14,37 @@ RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen "${RAPIDS_CUDA_VERSION}")"
 # generate constraints (possibly pinning to oldest support versions of dependencies)
 rapids-generate-pip-constraints test_python "${PIP_CONSTRAINT}"
 
-if [[ "${LIBCUGRAPH_FROM_NIGHTLY:-false}" == "true" || "${PYLIBCUGRAPH_FROM_NIGHTLY:-false}" == "true" ]]; then
+# A skipped 'wheel-build-libcugraph'/'wheel-build-pylibcugraph' job (that package
+# unaffected by this PR) means no artifact was uploaded this run. Fail fast (short
+# retry budget) rather than waiting out the full retry window, then fall back to
+# resolving that package from the nightly wheel index instead.
+NEEDS_NIGHTLY_INDEX=false
+
+if LIBCUGRAPH_WHEELHOUSE=$(RAPIDS_RETRY_MAX=1 RAPIDS_RETRY_SLEEP=15 rapids-download-from-github "$(rapids-artifact-name wheel_cpp libcugraph cugraph --cuda "$RAPIDS_CUDA_VERSION")" 2>/tmp/libcugraph_wheel_download.log); then
+  LIBCUGRAPH_SPEC=("${LIBCUGRAPH_WHEELHOUSE}"/libcugraph*.whl)
+else
+  cat /tmp/libcugraph_wheel_download.log >&2
+  rapids-logger "No libcugraph wheel found for this run; resolving it from the nightly wheel index"
   rapids-generate-version > ./VERSION
   RAPIDS_PACKAGE_VERSION=$(head -1 ./VERSION)
-fi
-
-if [[ "${LIBCUGRAPH_FROM_NIGHTLY:-false}" == "true" ]]; then
-  # libcugraph wasn't rebuilt for this PR; resolve it from the nightly wheel index instead.
   LIBCUGRAPH_SPEC=("libcugraph-${RAPIDS_PY_CUDA_SUFFIX}==${RAPIDS_PACKAGE_VERSION}.*")
-else
-  LIBCUGRAPH_WHEELHOUSE=$(rapids-download-from-github "$(rapids-artifact-name wheel_cpp libcugraph cugraph --cuda "$RAPIDS_CUDA_VERSION")")
-  LIBCUGRAPH_SPEC=("${LIBCUGRAPH_WHEELHOUSE}"/libcugraph*.whl)
+  NEEDS_NIGHTLY_INDEX=true
 fi
 
-if [[ "${PYLIBCUGRAPH_FROM_NIGHTLY:-false}" == "true" ]]; then
-  # pylibcugraph wasn't rebuilt for this PR; resolve it from the nightly wheel index instead.
-  PYLIBCUGRAPH_SPEC=("pylibcugraph-${RAPIDS_PY_CUDA_SUFFIX}==${RAPIDS_PACKAGE_VERSION}.*")
-else
-  PYLIBCUGRAPH_WHEELHOUSE=$(rapids-download-from-github "$(rapids-artifact-name wheel_python pylibcugraph cugraph --stable --cuda "$RAPIDS_CUDA_VERSION")")
+if PYLIBCUGRAPH_WHEELHOUSE=$(RAPIDS_RETRY_MAX=1 RAPIDS_RETRY_SLEEP=15 rapids-download-from-github "$(rapids-artifact-name wheel_python pylibcugraph cugraph --stable --cuda "$RAPIDS_CUDA_VERSION")" 2>/tmp/pylibcugraph_wheel_download.log); then
   PYLIBCUGRAPH_SPEC=("${PYLIBCUGRAPH_WHEELHOUSE}"/pylibcugraph*.whl)
+else
+  cat /tmp/pylibcugraph_wheel_download.log >&2
+  rapids-logger "No pylibcugraph wheel found for this run; resolving it from the nightly wheel index"
+  if [[ -z "${RAPIDS_PACKAGE_VERSION:-}" ]]; then
+    rapids-generate-version > ./VERSION
+    RAPIDS_PACKAGE_VERSION=$(head -1 ./VERSION)
+  fi
+  PYLIBCUGRAPH_SPEC=("pylibcugraph-${RAPIDS_PY_CUDA_SUFFIX}==${RAPIDS_PACKAGE_VERSION}.*")
+  NEEDS_NIGHTLY_INDEX=true
 fi
 
-if [[ "${LIBCUGRAPH_FROM_NIGHTLY:-false}" == "true" || "${PYLIBCUGRAPH_FROM_NIGHTLY:-false}" == "true" ]]; then
+if [[ "${NEEDS_NIGHTLY_INDEX}" == "true" ]]; then
   PIP_INSTALL_ARGS+=("--extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple")
 fi
 
