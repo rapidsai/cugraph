@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -160,27 +160,18 @@ int test_edge_betweenness_centrality_sampled_source_scaling()
 
   int result = 0;
   result |= generic_edge_betweenness_centrality_test(h_src,
-                                                      h_dst,
-                                                      h_wgt,
-                                                      h_seeds,
-                                                      h_result_unnormalized,
-                                                      num_vertices,
-                                                      num_edges,
-                                                      1,
-                                                      FALSE,
-                                                      TRUE,
-                                                      0);
-  result |= generic_edge_betweenness_centrality_test(h_src,
-                                                      h_dst,
-                                                      h_wgt,
-                                                      h_seeds,
-                                                      h_result_normalized,
-                                                      num_vertices,
-                                                      num_edges,
-                                                      1,
-                                                      TRUE,
-                                                      TRUE,
-                                                      0);
+                                                     h_dst,
+                                                     h_wgt,
+                                                     h_seeds,
+                                                     h_result_unnormalized,
+                                                     num_vertices,
+                                                     num_edges,
+                                                     1,
+                                                     FALSE,
+                                                     TRUE,
+                                                     0);
+  result |= generic_edge_betweenness_centrality_test(
+    h_src, h_dst, h_wgt, h_seeds, h_result_normalized, num_vertices, num_edges, 1, TRUE, TRUE, 0);
   return result;
 }
 

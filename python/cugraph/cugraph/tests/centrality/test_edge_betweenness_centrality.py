@@ -311,7 +311,9 @@ def test_edge_betweenness_directed_source_scaling(sources, normalized, expected)
         normalized=normalized,
     ).sort_values(["src", "dst"])
 
-    assert cupy.allclose(result["betweenness_centrality"].values, cupy.asarray(expected))
+    assert cupy.allclose(
+        result["betweenness_centrality"].values, cupy.asarray(expected)
+    )
 
 
 @pytest.mark.sg
