@@ -329,7 +329,7 @@ struct zero_bias_degree_decrement_op_t {
     auto bias = cuda::std::get<0>(pair);
     if (bias == 0.0) {
       auto i   = cuda::std::get<1>(pair);
-      auto idx = segment_id_t<size_t>{offsets}(i);
+      auto idx = segment_idx_t<size_t>{offsets}(i);
       cuda::atomic_ref<size_t, cuda::thread_scope_device> degree(degrees[idx]);
       degree.fetch_sub(size_t{1}, cuda::std::memory_order_relaxed);
     }
@@ -2677,10 +2677,11 @@ compute_aggregate_local_frontier_biases(raft::handle_t const& handle,
     auto nz_biases  = rmm::device_uvector<bias_t>(num_nz_bias_nbrs, handle.get_stream());
     auto pair_first = thrust::make_zip_iterator(
       aggregate_local_frontier_biases.begin(),
-      cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
-                                    segment_local_idx_t<edge_t>{raft::device_span<size_t const>(
-                                      aggregate_local_frontier_local_degree_offsets.data(),
-                                      aggregate_local_frontier_local_degree_offsets.size())}));
+      cuda::make_transform_iterator(
+        thrust::make_counting_iterator(size_t{0}),
+        segment_local_idx_t<size_t, edge_t>{
+          raft::device_span<size_t const>(aggregate_local_frontier_local_degree_offsets.data(),
+                                          aggregate_local_frontier_local_degree_offsets.size())}));
     thrust::copy_if(handle.get_thrust_policy(),
                     pair_first,
                     pair_first + aggregate_local_frontier_biases.size(),
@@ -2822,7 +2823,7 @@ compute_aggregate_local_frontier_bias_type_pairs(
   thrust::tabulate(handle.get_thrust_policy(),
                    aggregate_local_frontier_nz_bias_indices.begin(),
                    aggregate_local_frontier_nz_bias_indices.end(),
-                   segment_local_idx_t<edge_t>{raft::device_span<size_t const>(
+                   segment_local_idx_t<size_t, edge_t>{raft::device_span<size_t const>(
                      aggregate_local_frontier_local_degree_offsets.data(),
                      aggregate_local_frontier_local_degree_offsets.size())});
 
@@ -3285,7 +3286,7 @@ biased_sample_with_replacement(
   {
     auto unique_key_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(size_t{0}),
-      segment_id_t<size_t>{raft::device_span<size_t const>(
+      segment_idx_t<size_t>{raft::device_span<size_t const>(
         aggregate_local_frontier_unique_key_per_type_local_degree_offsets.data(),
         aggregate_local_frontier_unique_key_per_type_local_degree_offsets.size())});
     thrust::inclusive_scan_by_key(

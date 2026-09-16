@@ -10,6 +10,7 @@
 #include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -46,16 +47,6 @@ struct e_op_t {
                                cuda::std::nullopt_t) const
   {
     return cuda::std::get<1>(tagged_src);
-  }
-};
-
-struct compute_gpu_id_t {
-  raft::device_span<size_t> lasts{};
-
-  __device__ int operator()(size_t i) const
-  {
-    return static_cast<int>(cuda::std::distance(
-      lasts.begin(), thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), i)));
   }
 };
 
@@ -162,19 +153,17 @@ k_hop_nbrs(raft::handle_t const& handle,
   // 4. update offsets (and sort nbrs accordingly)
 
   if (GraphViewType::is_multi_gpu && (handle.get_comms().get_size() > 1)) {
-    rmm::device_uvector<size_t> lasts(handle.get_comms().get_size(), handle.get_stream());
-    raft::update_device(lasts.data(),
-                        start_vertex_displacements.data() + 1,
-                        start_vertex_displacements.size() - 1,
-                        handle.get_stream());
-    auto num_indices = start_vertex_displacements.back() + start_vertex_counts.back();
-    lasts.set_element(lasts.size() - 1, num_indices, handle.get_stream());
+    auto h_offsets = start_vertex_displacements;
+    h_offsets.push_back(h_offsets.back() + start_vertex_counts.back());
+    rmm::device_uvector<size_t> d_offsets(h_offsets.size(), handle.get_stream());
+    raft::update_device(d_offsets.data(), h_offsets.data(), h_offsets.size(), handle.get_stream());
     std::tie(start_vertex_indices, nbrs, std::ignore) = groupby_gpu_id_and_shuffle_kv_pairs(
       handle.get_comms(),
       start_vertex_indices.begin(),
       start_vertex_indices.end(),
       nbrs.begin(),
-      compute_gpu_id_t{raft::device_span<size_t>(lasts.data(), lasts.size())},
+      segment_idx_t<size_t, int>{
+        raft::device_span<size_t const>(d_offsets.data(), d_offsets.size())},
       handle.get_stream());
   }
   thrust::sort_by_key(handle.get_thrust_policy(),
