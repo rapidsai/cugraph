@@ -117,7 +117,7 @@ def cugraph_call(gpu_benchmark_callable, input_G_or_matrix, source, edgevals=Tru
     return result_dict, max_val
 
 
-def resultset_call(graph_file, source, load_results, edgevals=True):
+def resultset_call(graph_file, source, edgevals=True):
     dataset_path = graph_file.get_path()
     dataset_name = graph_file.metadata["name"]
 
@@ -184,25 +184,25 @@ def load_traversal_results():
 
 
 @pytest.fixture(scope="module", params=fixture_params)
-def dataset_source_goldenresults(request):
+def dataset_source_goldenresults(request, load_traversal_results):
     # request.param is a tuple of params from fixture_params. When expanded
     # with *, will be passed to resultset_call() as args (graph_file, source)
-    return resultset_call(*(request.param), load_traversal_results)
+    return resultset_call(*request.param)
 
 
 @pytest.fixture(scope="module", params=fixture_params_single_dataset)
-def single_dataset_source_goldenresults(request):
-    return resultset_call(*(request.param), load_traversal_results)
+def single_dataset_source_goldenresults(request, load_traversal_results):
+    return resultset_call(*request.param)
 
 
 @pytest.fixture(scope="module", params=fixture_params)
-def dataset_source_goldenresults_weighted(request):
-    return resultset_call(*(request.param), load_traversal_results, edgevals=True)
+def dataset_source_goldenresults_weighted(request, load_traversal_results):
+    return resultset_call(*request.param, edgevals=True)
 
 
 @pytest.fixture(scope="module", params=fixture_params_single_dataset)
-def single_dataset_source_goldenresults_weighted(request):
-    return resultset_call(*(request.param), load_traversal_results, edgevals=True)
+def single_dataset_source_goldenresults_weighted(request, load_traversal_results):
+    return resultset_call(*request.param, edgevals=True)
 
 
 # =============================================================================
