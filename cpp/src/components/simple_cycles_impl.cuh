@@ -126,7 +126,11 @@ reduce_by_component(raft::handle_t const& handle,
       size_t i = 0;
       std::apply(
         [&vertex_properties, &i](auto&... args) {
-          ((args = std::move(std::get<std::decay_t<decltype(args)>>(vertex_properties[i++])), ...));
+          auto unpack = [&](auto& arg) {
+            using vec_t = std::decay_t<decltype(arg)>;
+            arg         = std::move(std::get<vec_t>(vertex_properties[i++]));
+          };
+          (unpack(args), ...);
         },
         unique_values);
     }
