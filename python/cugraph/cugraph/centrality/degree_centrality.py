@@ -8,7 +8,7 @@ def degree_centrality(G, normalized=True) -> cudf.DataFrame:
     """
     Computes the degree centrality of each vertex of the input graph.
     There are two options for computing degree centrality: normalized and unnormalized.
-    The normalized degree centrality of a vertex is the fraction of vertices it is connected to. 
+    The normalized degree centrality of a vertex is the fraction of vertices it is connected to.
     The unnormalized degree centrality of a vertex is the number of vertices it is connected to.
 
     Parameters

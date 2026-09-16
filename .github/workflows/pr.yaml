@@ -328,7 +328,7 @@ jobs:
     with:
       build_type: pull-request
       build-datetime: ${{ needs.build-details.outputs.build-datetime }}
-      script: "LIBCUGRAPH_FROM_NIGHTLY=${{ !fromJSON(needs.changed-files.outputs.changed_file_groups).build_libcugraph }} ci/build_python.sh"
+      script: ci/build_python.sh
       # Build a conda package for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
     permissions:
