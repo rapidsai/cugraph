@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -253,7 +253,7 @@ def get_cu_graph_and_params(dataset, directed):
 
 
 def get_cu_graph_golden_results_and_params(
-    depth_limit, G, dataset_path, dataset_name, directed, _
+    depth_limit, G, dataset_path, dataset_name, directed
 ):
     """
     Helper for fixtures returning golden results and params.
@@ -350,7 +350,7 @@ def dataset_goldenresults_startvertex_spc(
     dataset_golden_results, load_traversal_results, request
 ):
     return get_cu_graph_golden_results_and_params(
-        *request.param, *dataset_golden_results, load_traversal_results
+        *request.param, *dataset_golden_results
     )
 
 
@@ -359,7 +359,7 @@ def single_dataset_goldenresults_startvertex_spc(
     single_small_dataset_golden_results, load_traversal_results, request
 ):
     return get_cu_graph_golden_results_and_params(
-        *request.param, *single_small_dataset_golden_results, load_traversal_results
+        *request.param, *single_small_dataset_golden_results
     )
 
 
