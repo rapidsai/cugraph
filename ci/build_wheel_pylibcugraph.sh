@@ -24,7 +24,6 @@ EOF
 else
   cat /tmp/libcugraph_wheel_download.log >&2
   rapids-logger "No libcugraph wheel found for this run; resolving it from the nightly wheel index"
-  rapids-generate-version > ./VERSION
   RAPIDS_PACKAGE_MINOR_VERSION=$(cut -d. -f1,2 ./VERSION)
   cat >> "${PIP_CONSTRAINT}" <<EOF
 libcugraph-${RAPIDS_PY_CUDA_SUFFIX}==${RAPIDS_PACKAGE_MINOR_VERSION}.*,>=0.0.0a0
