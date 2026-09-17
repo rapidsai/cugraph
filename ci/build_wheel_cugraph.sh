@@ -28,9 +28,9 @@ else
   cat /tmp/libcugraph_wheel_download.log >&2
   rapids-logger "No libcugraph wheel found for this run; resolving it from the nightly wheel index"
   rapids-generate-version > ./VERSION
-  RAPIDS_PACKAGE_VERSION=$(head -1 ./VERSION)
+  RAPIDS_PACKAGE_MINOR_VERSION=$(cut -d. -f1,2 ./VERSION)
   cat >> "${PIP_CONSTRAINT}" <<EOF
-libcugraph-${RAPIDS_PY_CUDA_SUFFIX}==${RAPIDS_PACKAGE_VERSION}.*
+libcugraph-${RAPIDS_PY_CUDA_SUFFIX}==${RAPIDS_PACKAGE_MINOR_VERSION}.*,>=0.0.0a0
 EOF
   NEEDS_NIGHTLY_INDEX=true
 fi
@@ -42,12 +42,12 @@ EOF
 else
   cat /tmp/pylibcugraph_wheel_download.log >&2
   rapids-logger "No pylibcugraph wheel found for this run; resolving it from the nightly wheel index"
-  if [[ -z "${RAPIDS_PACKAGE_VERSION:-}" ]]; then
+  if [[ -z "${RAPIDS_PACKAGE_MINOR_VERSION:-}" ]]; then
     rapids-generate-version > ./VERSION
-    RAPIDS_PACKAGE_VERSION=$(head -1 ./VERSION)
+    RAPIDS_PACKAGE_MINOR_VERSION=$(cut -d. -f1,2 ./VERSION)
   fi
   cat >> "${PIP_CONSTRAINT}" <<EOF
-pylibcugraph-${RAPIDS_PY_CUDA_SUFFIX}==${RAPIDS_PACKAGE_VERSION}.*
+pylibcugraph-${RAPIDS_PY_CUDA_SUFFIX}==${RAPIDS_PACKAGE_MINOR_VERSION}.*,>=0.0.0a0
 EOF
   NEEDS_NIGHTLY_INDEX=true
 fi

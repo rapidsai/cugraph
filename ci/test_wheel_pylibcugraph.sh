@@ -24,8 +24,8 @@ else
   cat /tmp/libcugraph_wheel_download.log >&2
   rapids-logger "No libcugraph wheel found for this run; resolving it from the nightly wheel index"
   rapids-generate-version > ./VERSION
-  RAPIDS_PACKAGE_VERSION=$(head -1 ./VERSION)
-  LIBCUGRAPH_SPEC=("libcugraph-${RAPIDS_PY_CUDA_SUFFIX}==${RAPIDS_PACKAGE_VERSION}.*" "--extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple")
+  RAPIDS_PACKAGE_MINOR_VERSION=$(cut -d. -f1,2 ./VERSION)
+  LIBCUGRAPH_SPEC=("libcugraph-${RAPIDS_PY_CUDA_SUFFIX}==${RAPIDS_PACKAGE_MINOR_VERSION}.*,>=0.0.0a0" "--extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple")
 fi
 
 python -m venv libcugraph-env
