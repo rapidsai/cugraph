@@ -341,7 +341,7 @@ jobs:
     needs: [conda-python-build, changed-files]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@main
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_conda
+    if: "!cancelled() && fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_conda"
     with:
       build_type: pull-request
       script: ci/test_python.sh
@@ -355,7 +355,7 @@ jobs:
     needs: [conda-python-build, changed-files]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_notebooks
+    if: "!cancelled() && fromJSON(needs.changed-files.outputs.changed_file_groups).test_notebooks"
     with:
       build_type: pull-request
       node_type: "gpu-rtxpro6000-latest-1"
@@ -382,7 +382,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.docs-build-matrix.outputs.matrix) }}
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).build_docs
+    if: "!cancelled() && fromJSON(needs.changed-files.outputs.changed_file_groups).build_docs"
     with:
       build_type: pull-request
       node_type: "gpu-${{ matrix.GPU }}-${{ matrix.DRIVER }}-1"
@@ -448,6 +448,7 @@ jobs:
     # only test a pylibcugraph wheel actually built by this PR; a skipped build means
     # pylibcugraph was resolved from nightly and there's nothing PR-specific to test
     if: |
+      !cancelled() &&
       needs.wheel-build-pylibcugraph.result == 'success' &&
       fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_wheels
     with:
@@ -493,6 +494,7 @@ jobs:
     # only test a cugraph wheel actually built by this PR; a skipped build means
     # cugraph was resolved from nightly and there's nothing PR-specific to test
     if: |
+      !cancelled() &&
       needs.wheel-build-cugraph.result == 'success' &&
       fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_wheels
     with:
