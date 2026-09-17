@@ -20,6 +20,11 @@ from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_free,
     cugraph_graph_number_of_vertices,
     cugraph_graph_number_of_edges,
+    cugraph_graph_has_edge_weights,
+    cugraph_graph_has_edge_ids,
+    cugraph_graph_has_edge_types,
+    cugraph_graph_has_edge_start_times,
+    cugraph_graph_has_edge_end_times,
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_type,
@@ -37,10 +42,25 @@ from pylibcugraph.utils cimport (
     create_cugraph_type_erased_device_array_view_from_py_obj,
 )
 from pylibcugraph.utilities.api_tools import ensure_valid_dtypes
-from libc.stdlib cimport malloc
+from libc.stdlib cimport malloc, free
 
 
 cdef class _GPUGraph:
+
+    cdef bint has_edge_weights(self):
+        return cugraph_graph_has_edge_weights(self.c_graph_ptr) != 0
+
+    cdef bint has_edge_ids(self):
+        return cugraph_graph_has_edge_ids(self.c_graph_ptr) != 0
+
+    cdef bint has_edge_types(self):
+        return cugraph_graph_has_edge_types(self.c_graph_ptr) != 0
+
+    cdef bint has_edge_start_times(self):
+        return cugraph_graph_has_edge_start_times(self.c_graph_ptr) != 0
+
+    cdef bint has_edge_end_times(self):
+        return cugraph_graph_has_edge_end_times(self.c_graph_ptr) != 0
 
     def number_of_vertices(self):
         """
@@ -313,10 +333,12 @@ cdef class SGGraph(_GPUGraph):
         self.vertex_type = cugraph_type_erased_device_array_view_type(
             srcs_or_offsets_view_ptr)
 
-        self.weights_view_ptr = create_cugraph_type_erased_device_array_view_from_py_obj(
+        cdef cugraph_type_erased_device_array_view_t* weights_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
                 weight_array
             )
-        self.edge_id_view_ptr = create_cugraph_type_erased_device_array_view_from_py_obj(
+        cdef cugraph_type_erased_device_array_view_t* edge_id_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
                 edge_id_array
             )
         cdef cugraph_type_erased_device_array_view_t* edge_type_view_ptr = \
@@ -339,8 +361,8 @@ cdef class SGGraph(_GPUGraph):
                 vertices_view_ptr,
                 srcs_or_offsets_view_ptr,
                 dsts_or_indices_view_ptr,
-                self.weights_view_ptr,
-                self.edge_id_view_ptr,
+                weights_view_ptr,
+                edge_id_view_ptr,
                 edge_type_view_ptr,
                 edge_start_time_view_ptr,
                 edge_end_time_view_ptr,
@@ -361,8 +383,8 @@ cdef class SGGraph(_GPUGraph):
                 &(graph_properties.c_graph_properties),
                 srcs_or_offsets_view_ptr,
                 dsts_or_indices_view_ptr,
-                self.weights_view_ptr,
-                self.edge_id_view_ptr,
+                weights_view_ptr,
+                edge_id_view_ptr,
                 edge_type_view_ptr,
                 store_transposed,
                 renumber,
@@ -383,12 +405,16 @@ cdef class SGGraph(_GPUGraph):
 
         cugraph_type_erased_device_array_view_free(srcs_or_offsets_view_ptr)
         cugraph_type_erased_device_array_view_free(dsts_or_indices_view_ptr)
-        if self.weights_view_ptr is not NULL:
-            cugraph_type_erased_device_array_view_free(self.weights_view_ptr)
-        if self.edge_id_view_ptr is not NULL:
-            cugraph_type_erased_device_array_view_free(self.edge_id_view_ptr)
+        if weights_view_ptr is not NULL:
+            cugraph_type_erased_device_array_view_free(weights_view_ptr)
+        if edge_id_view_ptr is not NULL:
+            cugraph_type_erased_device_array_view_free(edge_id_view_ptr)
         if edge_type_view_ptr is not NULL:
             cugraph_type_erased_device_array_view_free(edge_type_view_ptr)
+        if edge_start_time_view_ptr is not NULL:
+            cugraph_type_erased_device_array_view_free(edge_start_time_view_ptr)
+        if edge_end_time_view_ptr is not NULL:
+            cugraph_type_erased_device_array_view_free(edge_end_time_view_ptr)
 
     def __dealloc__(self):
         """
@@ -605,6 +631,8 @@ cdef class MGGraph(_GPUGraph):
         cdef cugraph_type_erased_device_array_view_t** srcs_view_ptr_ptr  = NULL
         cdef cugraph_type_erased_device_array_view_t** dsts_view_ptr_ptr  = NULL
         cdef cugraph_type_erased_device_array_view_t** vertices_view_ptr_ptr = NULL
+        cdef cugraph_type_erased_device_array_view_t** weights_view_ptr_ptr = NULL
+        cdef cugraph_type_erased_device_array_view_t** edge_id_view_ptr_ptr = NULL
         cdef cugraph_type_erased_device_array_view_t** edge_type_view_ptr_ptr = NULL
         cdef cugraph_type_erased_device_array_view_t** edge_start_time_view_ptr_ptr = NULL
         cdef cugraph_type_erased_device_array_view_t** edge_end_time_view_ptr_ptr = NULL
@@ -661,18 +689,18 @@ cdef class MGGraph(_GPUGraph):
 
             if weight_array[i] is not None:
                 if i == 0:
-                    self.weights_view_ptr_ptr = \
+                    weights_view_ptr_ptr = \
                         <cugraph_type_erased_device_array_view_t **>malloc(
                             num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
-                self.weights_view_ptr_ptr[i] = \
+                weights_view_ptr_ptr[i] = \
                     create_cugraph_type_erased_device_array_view_from_py_obj(weight_array[i])
 
             if edge_id_array[i] is not None:
                 if i == 0:
-                    self.edge_id_view_ptr_ptr = \
+                    edge_id_view_ptr_ptr = \
                         <cugraph_type_erased_device_array_view_t **>malloc(
                             num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
-                self.edge_id_view_ptr_ptr[i] = \
+                edge_id_view_ptr_ptr[i] = \
                     create_cugraph_type_erased_device_array_view_from_py_obj(edge_id_array[i])
 
             if edge_type_array[i] is not None:
@@ -699,44 +727,72 @@ cdef class MGGraph(_GPUGraph):
                 edge_end_time_view_ptr_ptr[i] = \
                     create_cugraph_type_erased_device_array_view_from_py_obj(edge_end_time_array[i])
 
-        error_code = cugraph_graph_create_with_times_mg(
-            resource_handle.c_resource_handle_ptr,
-            &(graph_properties.c_graph_properties),
-            vertices_view_ptr_ptr,
-            srcs_view_ptr_ptr,
-            dsts_view_ptr_ptr,
-            self.weights_view_ptr_ptr,
-            self.edge_id_view_ptr_ptr,
-            edge_type_view_ptr_ptr,
-            edge_start_time_view_ptr_ptr,
-            edge_end_time_view_ptr_ptr,
-            store_transposed,
-            num_arrays,
-            drop_self_loops,
-            drop_multi_edges,
-            symmetrize,
-            do_expensive_check,
-            &(self.c_graph_ptr),
-            &error_ptr)
+        try:
+            error_code = cugraph_graph_create_with_times_mg(
+                resource_handle.c_resource_handle_ptr,
+                &(graph_properties.c_graph_properties),
+                vertices_view_ptr_ptr,
+                srcs_view_ptr_ptr,
+                dsts_view_ptr_ptr,
+                weights_view_ptr_ptr,
+                edge_id_view_ptr_ptr,
+                edge_type_view_ptr_ptr,
+                edge_start_time_view_ptr_ptr,
+                edge_end_time_view_ptr_ptr,
+                store_transposed,
+                num_arrays,
+                drop_self_loops,
+                drop_multi_edges,
+                symmetrize,
+                do_expensive_check,
+                &(self.c_graph_ptr),
+                &error_ptr)
 
-        assert_success(error_code, error_ptr,
-                       "cugraph_mg_graph_create()")
+            assert_success(error_code, error_ptr,
+                           "cugraph_mg_graph_create()")
+        finally:
+            for i in range(num_arrays):
+                if srcs_view_ptr_ptr is not NULL:
+                    cugraph_type_erased_device_array_view_free(
+                        srcs_view_ptr_ptr[i])
+                if dsts_view_ptr_ptr is not NULL:
+                    cugraph_type_erased_device_array_view_free(
+                        dsts_view_ptr_ptr[i])
+                if vertices_view_ptr_ptr is not NULL:
+                    cugraph_type_erased_device_array_view_free(
+                        vertices_view_ptr_ptr[i])
+                if weights_view_ptr_ptr is not NULL:
+                    cugraph_type_erased_device_array_view_free(
+                        weights_view_ptr_ptr[i])
+                if edge_id_view_ptr_ptr is not NULL:
+                    cugraph_type_erased_device_array_view_free(
+                        edge_id_view_ptr_ptr[i])
+                if edge_type_view_ptr_ptr is not NULL:
+                    cugraph_type_erased_device_array_view_free(
+                        edge_type_view_ptr_ptr[i])
+                if edge_start_time_view_ptr_ptr is not NULL:
+                    cugraph_type_erased_device_array_view_free(
+                        edge_start_time_view_ptr_ptr[i])
+                if edge_end_time_view_ptr_ptr is not NULL:
+                    cugraph_type_erased_device_array_view_free(
+                        edge_end_time_view_ptr_ptr[i])
 
-        for i in range(num_arrays):
-            cugraph_type_erased_device_array_view_free(srcs_view_ptr_ptr[i])
-            cugraph_type_erased_device_array_view_free(dsts_view_ptr_ptr[i])
+            if srcs_view_ptr_ptr is not NULL:
+                free(srcs_view_ptr_ptr)
+            if dsts_view_ptr_ptr is not NULL:
+                free(dsts_view_ptr_ptr)
             if vertices_view_ptr_ptr is not NULL:
-                cugraph_type_erased_device_array_view_free(vertices_view_ptr_ptr[i])
-            if self.weights_view_ptr_ptr is not NULL:
-                cugraph_type_erased_device_array_view_free(self.weights_view_ptr_ptr[i])
-            if self.edge_id_view_ptr_ptr is not NULL:
-                cugraph_type_erased_device_array_view_free(self.edge_id_view_ptr_ptr[i])
+                free(vertices_view_ptr_ptr)
+            if weights_view_ptr_ptr is not NULL:
+                free(weights_view_ptr_ptr)
+            if edge_id_view_ptr_ptr is not NULL:
+                free(edge_id_view_ptr_ptr)
             if edge_type_view_ptr_ptr is not NULL:
-                cugraph_type_erased_device_array_view_free(edge_type_view_ptr_ptr[i])
+                free(edge_type_view_ptr_ptr)
+            if edge_start_time_view_ptr_ptr is not NULL:
+                free(edge_start_time_view_ptr_ptr)
             if edge_end_time_view_ptr_ptr is not NULL:
-                cugraph_type_erased_device_array_view_free(edge_end_time_view_ptr_ptr[i])
-            if edge_end_time_view_ptr_ptr is not NULL:
-                cugraph_type_erased_device_array_view_free(edge_end_time_view_ptr_ptr[i])
+                free(edge_end_time_view_ptr_ptr)
 
     def __dealloc__(self):
         """

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -194,33 +194,42 @@ def dataset(request, rmm_config):
         mg_utils.stop_dask_client(client, cluster)
 
 
+def _dataset_load_kwargs(dataset):
+    # RmatDataset generates data in-memory and does not accept download=.
+    if isinstance(dataset, RmatDataset):
+        return {}
+    return {"download": True}
+
+
 @pytest.fixture(scope="module")
 def edgelist(request, dataset):
-    df = dataset.get_edgelist()
+    df = dataset.get_edgelist(**_dataset_load_kwargs(dataset))
     yield df
 
 
 @pytest.fixture(scope="module")
 def graph(request, dataset):
-    G = dataset.get_graph()
+    G = dataset.get_graph(**_dataset_load_kwargs(dataset))
     yield G
 
 
 @pytest.fixture(scope="module")
 def unweighted_graph(request, dataset):
-    G = dataset.get_graph(ignore_weights=True)
+    G = dataset.get_graph(ignore_weights=True, **_dataset_load_kwargs(dataset))
     yield G
 
 
 @pytest.fixture(scope="module")
 def directed_graph(request, dataset):
-    G = dataset.get_graph(create_using=cugraph.Graph(directed=True))
+    G = dataset.get_graph(
+        create_using=cugraph.Graph(directed=True), **_dataset_load_kwargs(dataset)
+    )
     yield G
 
 
 @pytest.fixture(scope="module")
 def transposed_graph(request, dataset):
-    G = dataset.get_graph(store_transposed=True)
+    G = dataset.get_graph(store_transposed=True, **_dataset_load_kwargs(dataset))
     yield G
 
 

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -123,7 +123,7 @@ def biased_random_walks(ResourceHandle resource_handle,
     cdef cugraph_type_erased_device_array_view_t* path_ptr = \
         cugraph_random_walk_result_get_paths(result_ptr)
 
-    if input_graph.weights_view_ptr is NULL and input_graph.weights_view_ptr_ptr is NULL:
+    if not input_graph.has_edge_weights():
         cupy_weights = None
     else:
         weights_ptr = cugraph_random_walk_result_get_weights(result_ptr)
