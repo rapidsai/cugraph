@@ -404,7 +404,7 @@ dependencies:
       - output_types: [conda]
         packages:
           - breathe>=4.35.0
-          - doxygen
+          - doxygen=1.18.0
           - graphviz
           - ipython
           - nbsphinx
