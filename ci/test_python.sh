@@ -19,7 +19,6 @@ PYTHON_CHANNEL=$(rapids-download-from-github "$(rapids-artifact-name conda_pytho
 # artifact was uploaded this run. Fail fast (short retry budget) rather than
 # waiting out the full retry window, then fall back to resolving libcugraph
 # from the rapidsai-nightly channel (already in the default channel list)
-# via its own '==26.12.*,>=0.0.0a0'-style dependency constraint.
 DEPENDENCY_FILE_GENERATOR_ARGS=(--prepend-channel "${PYTHON_CHANNEL}")
 if CPP_CHANNEL=$(RAPIDS_RETRY_MAX=1 RAPIDS_RETRY_SLEEP=15 rapids-download-from-github "$(rapids-artifact-name conda_cpp libcugraph cugraph --cuda "$RAPIDS_CUDA_VERSION")" 2>/tmp/libcugraph_channel_download.log); then
   DEPENDENCY_FILE_GENERATOR_ARGS+=(--prepend-channel "${CPP_CHANNEL}")
