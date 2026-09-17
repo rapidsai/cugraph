@@ -25,7 +25,7 @@ DIRECTED_GRAPH_OPTIONS = [False, True]
 WEIGHTED_GRAPH_OPTIONS = [False, True]
 NORMALIZED_OPTIONS = [False, True]
 DEFAULT_EPSILON = 0.0001
-SUBSET_SIZE_OPTIONS = [4, None]
+SUBSET_SIZE_OPTIONS = [1, 4, None]
 
 # NOTE: The output conversion is done after the centrality is computed.
 RESULT_DTYPE_OPTIONS = [np.float32, np.float64]
@@ -135,13 +135,6 @@ def calc_edge_betweenness_centrality(
     return sorted_df
 
 
-def _rescale_e(betweenness, num_nodes, k):
-    for e in betweenness:
-        betweenness[e] *= num_nodes / k
-
-    return betweenness
-
-
 def _calc_bc_subset(G, Gnx, normalized, weight, k, seed, result_dtype):
     # NOTE: Networkx API does not allow passing a list of vertices
     # And the sampling is operated on Gnx.nodes() directly
@@ -164,10 +157,6 @@ def _calc_bc_subset(G, Gnx, normalized, weight, k, seed, result_dtype):
     nx_bc_dict = nx.edge_betweenness_centrality(
         Gnx, k=k, normalized=normalized, weight=weight, seed=seed
     )
-
-    if normalized or not Gnx.is_directed():
-        if k is not None:
-            nx_bc_dict = _rescale_e(nx_bc_dict, len(Gnx.nodes()), k)
 
     nx_df = generate_nx_result(nx_bc_dict, type(Gnx) is nx.DiGraph).rename(
         columns={"betweenness_centrality": "ref_bc"}, copy=False
@@ -300,7 +289,35 @@ def generate_upper_triangle(dataframe):
 
 
 @pytest.mark.sg
-@pytest.mark.requires_nx(min_ver="3.5", max_ver="3.5")
+@pytest.mark.parametrize(
+    "sources,normalized,expected",
+    [
+        ([0], False, [6.0, 3.0]),
+        ([0], True, [1.0, 0.5]),
+        ([0, 2], False, [3.0, 1.5]),
+        ([0, 2], True, [0.5, 0.25]),
+        ([0, 1, 2], False, [2.0, 2.0]),
+        ([0, 1, 2], True, [1.0 / 3.0, 1.0 / 3.0]),
+    ],
+)
+def test_edge_betweenness_directed_source_scaling(sources, normalized, expected):
+    edge_df = cudf.DataFrame({"src": [0, 1], "dst": [1, 2]})
+    graph = cugraph.Graph(directed=True)
+    graph.from_cudf_edgelist(edge_df, source="src", destination="dst")
+
+    result = cugraph.edge_betweenness_centrality(
+        graph,
+        k=sources,
+        normalized=normalized,
+    ).sort_values(["src", "dst"])
+
+    assert cupy.allclose(
+        result["betweenness_centrality"].values, cupy.asarray(expected)
+    )
+
+
+@pytest.mark.sg
+@pytest.mark.requires_nx(min_ver="3.6")
 @pytest.mark.parametrize("graph_file", TEST_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
@@ -326,7 +343,7 @@ def test_edge_betweenness_centrality(
 
 
 @pytest.mark.sg
-@pytest.mark.requires_nx(min_ver="3.5", max_ver="3.5")
+@pytest.mark.requires_nx(min_ver="3.5")
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 def test_edge_betweenness_centrality_return_dtypes(result_dtype):
     sorted_df = calc_edge_betweenness_centrality(
@@ -374,7 +391,7 @@ def test_edge_betweenness_centrality_k_full(
 #       to a random sampling over the number of vertices (thus direct offsets)
 #       in the graph structure instead of actual vertices identifiers
 @pytest.mark.sg
-@pytest.mark.requires_nx(min_ver="3.5", max_ver="3.5")
+@pytest.mark.requires_nx(min_ver="3.5")
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)

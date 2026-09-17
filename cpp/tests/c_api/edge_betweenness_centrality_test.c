@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -23,6 +23,7 @@ int generic_edge_betweenness_centrality_test(vertex_t* h_src,
                                              size_t num_vertices,
                                              size_t num_edges,
                                              size_t num_seeds,
+                                             bool_t normalized,
                                              bool_t store_transposed,
                                              size_t num_vertices_to_sample)
 {
@@ -68,7 +69,7 @@ int generic_edge_betweenness_centrality_test(vertex_t* h_src,
   }
 
   ret_code = cugraph_edge_betweenness_centrality(
-    handle, graph, seeds_view, FALSE, FALSE, &result, &ret_error);
+    handle, graph, seeds_view, normalized, FALSE, &result, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(
     test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_edge_betweenness_centrality failed.");
@@ -134,14 +135,44 @@ int test_edge_betweenness_centrality()
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   weight_t h_result[] = {
-    0, 2, 3, 1.83333, 2, 2, 3, 2, 3.16667, 2.83333, 4.33333, 0, 2, 2.83333, 3.66667, 2.33333};
+    0, 2.4, 3.6, 2.2, 2.4, 2.4, 3.6, 2.4, 3.8, 3.4, 5.2, 0, 2.4, 3.4, 4.4, 2.8};
 
   double epsilon        = 1e-6;
   size_t max_iterations = 200;
 
   // Eigenvector centrality wants store_transposed = TRUE
   return generic_edge_betweenness_centrality_test(
-    h_src, h_dst, h_wgt, NULL, h_result, num_vertices, num_edges, 0, TRUE, 5);
+    h_src, h_dst, h_wgt, NULL, h_result, num_vertices, num_edges, 0, FALSE, TRUE, 5);
+}
+
+int test_edge_betweenness_centrality_sampled_source_scaling()
+{
+  size_t num_edges    = 2;
+  size_t num_vertices = 3;
+
+  vertex_t h_src[]   = {0, 1};
+  vertex_t h_dst[]   = {1, 2};
+  weight_t h_wgt[]   = {1.0f, 1.0f};
+  vertex_t h_seeds[] = {0};
+
+  weight_t h_result_unnormalized[] = {6.0f, 3.0f};
+  weight_t h_result_normalized[]   = {1.0f, 0.5f};
+
+  int result = 0;
+  result |= generic_edge_betweenness_centrality_test(h_src,
+                                                     h_dst,
+                                                     h_wgt,
+                                                     h_seeds,
+                                                     h_result_unnormalized,
+                                                     num_vertices,
+                                                     num_edges,
+                                                     1,
+                                                     FALSE,
+                                                     TRUE,
+                                                     0);
+  result |= generic_edge_betweenness_centrality_test(
+    h_src, h_dst, h_wgt, h_seeds, h_result_normalized, num_vertices, num_edges, 1, TRUE, TRUE, 0);
+  return result;
 }
 
 /******************************************************************************/
@@ -150,5 +181,6 @@ int main(int argc, char** argv)
 {
   int result = 0;
   result |= RUN_TEST(test_edge_betweenness_centrality);
+  result |= RUN_TEST(test_edge_betweenness_centrality_sampled_source_scaling);
   return result;
 }
