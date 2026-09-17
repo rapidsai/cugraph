@@ -78,7 +78,7 @@ requirements:
     - cuda-version =${{ cuda_version }}
     - cudf =${{ minor_version }}
     - cython >=3.2.2
-    - libcugraph =${{ version }}
+    - libcugraph =${{ minor_version }}
     - pip
     - pylibcudf =${{ minor_version }}
     - pylibraft =${{ minor_version }}
@@ -96,11 +96,11 @@ requirements:
     - dask-cuda =${{ minor_version }}
     - dask-cudf =${{ minor_version }}
     - fsspec>=0.6.0
-    - libcugraph =${{ version }}
+    - libcugraph =${{ minor_version }}
     - numba >=0.60.0,<0.65.0
     - numba-cuda >=0.22.2
     - pylibcudf =${{ minor_version }}
-    - pylibcugraph =${{ version }}
+    - pylibcugraph =${{ minor_version }}
     - pylibraft =${{ minor_version }}
     - python
     - raft-dask =${{ minor_version }}
