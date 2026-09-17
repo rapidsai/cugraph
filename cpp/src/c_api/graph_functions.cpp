@@ -11,6 +11,7 @@
 #include "c_api/resource_handle.hpp"
 #include "c_api/utils.hpp"
 
+#include <cugraph_c/graph.h>
 #include <cugraph_c/graph_functions.h>
 
 #include <cugraph/algorithms.hpp>
@@ -488,4 +489,42 @@ extern "C" cugraph_error_code_t cugraph_has_vertex(
   has_vertex_functor functor(handle, graph, vertices, do_expensive_check);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
+}
+
+extern "C" bool_t cugraph_graph_has_edge_weights(cugraph_graph_t* graph)
+{
+  if (graph == nullptr) { return FALSE; }
+  return reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_weights_ != nullptr
+           ? TRUE
+           : FALSE;
+}
+
+extern "C" bool_t cugraph_graph_has_edge_ids(cugraph_graph_t* graph)
+{
+  if (graph == nullptr) { return FALSE; }
+  return reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_ids_ != nullptr ? TRUE
+                                                                                         : FALSE;
+}
+
+extern "C" bool_t cugraph_graph_has_edge_types(cugraph_graph_t* graph)
+{
+  if (graph == nullptr) { return FALSE; }
+  return reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_types_ != nullptr ? TRUE
+                                                                                           : FALSE;
+}
+
+extern "C" bool_t cugraph_graph_has_edge_start_times(cugraph_graph_t* graph)
+{
+  if (graph == nullptr) { return FALSE; }
+  return reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_start_times_ != nullptr
+           ? TRUE
+           : FALSE;
+}
+
+extern "C" bool_t cugraph_graph_has_edge_end_times(cugraph_graph_t* graph)
+{
+  if (graph == nullptr) { return FALSE; }
+  return reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_end_times_ != nullptr
+           ? TRUE
+           : FALSE;
 }

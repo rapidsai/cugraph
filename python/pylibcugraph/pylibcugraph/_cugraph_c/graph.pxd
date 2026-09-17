@@ -88,6 +88,16 @@ cdef extern from "cugraph_c/graph.h":
             cugraph_graph_t* graph
         )
 
+    cdef bool_t cugraph_graph_has_edge_weights(cugraph_graph_t* graph)
+
+    cdef bool_t cugraph_graph_has_edge_ids(cugraph_graph_t* graph)
+
+    cdef bool_t cugraph_graph_has_edge_types(cugraph_graph_t* graph)
+
+    cdef bool_t cugraph_graph_has_edge_start_times(cugraph_graph_t* graph)
+
+    cdef bool_t cugraph_graph_has_edge_end_times(cugraph_graph_t* graph)
+
     cdef cugraph_error_code_t \
         cugraph_graph_create_sg_from_csr(
             const cugraph_resource_handle_t* handle,
