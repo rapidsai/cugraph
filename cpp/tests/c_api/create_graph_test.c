@@ -113,6 +113,20 @@ int test_create_sg_graph_simple()
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_graph_number_of_edges failed.");
   TEST_ASSERT(test_ret_value, result_num_edges == num_edges, "number of edges did not match");
 
+  TEST_ASSERT(
+    test_ret_value, cugraph_graph_has_edge_weights(graph) == TRUE, "expected edge weights");
+  TEST_ASSERT(test_ret_value, cugraph_graph_has_edge_ids(graph) == FALSE, "unexpected edge ids");
+  TEST_ASSERT(
+    test_ret_value, cugraph_graph_has_edge_types(graph) == FALSE, "unexpected edge types");
+  TEST_ASSERT(test_ret_value,
+              cugraph_graph_has_edge_start_times(graph) == FALSE,
+              "unexpected edge start times");
+  TEST_ASSERT(
+    test_ret_value, cugraph_graph_has_edge_end_times(graph) == FALSE, "unexpected edge end times");
+  TEST_ASSERT(test_ret_value,
+              cugraph_graph_has_edge_weights(NULL) == FALSE,
+              "NULL graph should not have edge weights");
+
   cugraph_graph_free(graph);
 
   cugraph_type_erased_device_array_view_free(wgt_view);
@@ -244,6 +258,16 @@ int test_create_sg_graph_with_times()
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
+  TEST_ASSERT(
+    test_ret_value, cugraph_graph_has_edge_weights(graph) == TRUE, "expected edge weights");
+  TEST_ASSERT(test_ret_value, cugraph_graph_has_edge_ids(graph) == FALSE, "unexpected edge ids");
+  TEST_ASSERT(
+    test_ret_value, cugraph_graph_has_edge_types(graph) == FALSE, "unexpected edge types");
+  TEST_ASSERT(
+    test_ret_value, cugraph_graph_has_edge_start_times(graph) == TRUE, "expected edge start times");
+  TEST_ASSERT(
+    test_ret_value, cugraph_graph_has_edge_end_times(graph) == TRUE, "expected edge end times");
+
   cugraph_graph_free(graph);
 
   cugraph_type_erased_device_array_view_free(edge_end_times_view);
@@ -254,6 +278,131 @@ int test_create_sg_graph_with_times()
   cugraph_type_erased_device_array_free(edge_end_times);
   cugraph_type_erased_device_array_free(edge_start_times);
   cugraph_type_erased_device_array_free(wgt);
+  cugraph_type_erased_device_array_free(dst);
+  cugraph_type_erased_device_array_free(src);
+
+  cugraph_free_resource_handle(handle);
+  cugraph_error_free(ret_error);
+
+  return test_ret_value;
+}
+
+int test_create_sg_graph_with_edge_ids_and_types()
+{
+  int test_ret_value = 0;
+
+  typedef int32_t vertex_t;
+  typedef int32_t edge_t;
+  typedef int32_t edge_type_t;
+
+  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
+  cugraph_error_t* ret_error;
+  size_t num_edges    = 8;
+  size_t num_vertices = 6;
+
+  vertex_t h_src[]      = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t h_dst[]      = {1, 3, 4, 0, 1, 3, 5, 5};
+  edge_t h_edge_ids[]   = {10, 11, 12, 13, 14, 15, 16, 17};
+  edge_type_t h_types[] = {0, 0, 1, 1, 0, 0, 1, 1};
+
+  cugraph_resource_handle_t* handle = NULL;
+  cugraph_graph_t* graph            = NULL;
+  cugraph_graph_properties_t properties;
+
+  properties.is_symmetric  = FALSE;
+  properties.is_multigraph = FALSE;
+
+  cugraph_data_type_id_t vertex_tid    = INT32;
+  cugraph_data_type_id_t edge_tid      = INT32;
+  cugraph_data_type_id_t edge_type_tid = INT32;
+
+  handle = cugraph_create_resource_handle(NULL);
+  TEST_ASSERT(test_ret_value, handle != NULL, "resource handle creation failed.");
+
+  cugraph_type_erased_device_array_t* src;
+  cugraph_type_erased_device_array_t* dst;
+  cugraph_type_erased_device_array_t* edge_ids;
+  cugraph_type_erased_device_array_t* edge_types;
+  cugraph_type_erased_device_array_view_t* src_view;
+  cugraph_type_erased_device_array_view_t* dst_view;
+  cugraph_type_erased_device_array_view_t* edge_ids_view;
+  cugraph_type_erased_device_array_view_t* edge_types_view;
+
+  ret_code =
+    cugraph_type_erased_device_array_create(handle, num_edges, vertex_tid, &src, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src create failed.");
+
+  ret_code =
+    cugraph_type_erased_device_array_create(handle, num_edges, vertex_tid, &dst, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst create failed.");
+
+  ret_code =
+    cugraph_type_erased_device_array_create(handle, num_edges, edge_tid, &edge_ids, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_ids create failed.");
+
+  ret_code = cugraph_type_erased_device_array_create(
+    handle, num_edges, edge_type_tid, &edge_types, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_types create failed.");
+
+  src_view        = cugraph_type_erased_device_array_view(src);
+  dst_view        = cugraph_type_erased_device_array_view(dst);
+  edge_ids_view   = cugraph_type_erased_device_array_view(edge_ids);
+  edge_types_view = cugraph_type_erased_device_array_view(edge_types);
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, src_view, (byte_t*)h_src, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, dst_view, (byte_t*)h_dst, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst copy_from_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, edge_ids_view, (byte_t*)h_edge_ids, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_ids copy_from_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, edge_types_view, (byte_t*)h_types, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_types copy_from_host failed.");
+
+  ret_code = cugraph_graph_create_with_times_sg(handle,
+                                                &properties,
+                                                NULL,
+                                                src_view,
+                                                dst_view,
+                                                NULL,
+                                                edge_ids_view,
+                                                edge_types_view,
+                                                NULL,
+                                                NULL,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                TRUE,
+                                                &graph,
+                                                &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
+
+  TEST_ASSERT(
+    test_ret_value, cugraph_graph_has_edge_weights(graph) == FALSE, "unexpected edge weights");
+  TEST_ASSERT(test_ret_value, cugraph_graph_has_edge_ids(graph) == TRUE, "expected edge ids");
+  TEST_ASSERT(test_ret_value, cugraph_graph_has_edge_types(graph) == TRUE, "expected edge types");
+  TEST_ASSERT(test_ret_value,
+              cugraph_graph_has_edge_start_times(graph) == FALSE,
+              "unexpected edge start times");
+  TEST_ASSERT(
+    test_ret_value, cugraph_graph_has_edge_end_times(graph) == FALSE, "unexpected edge end times");
+
+  cugraph_graph_free(graph);
+
+  cugraph_type_erased_device_array_view_free(edge_types_view);
+  cugraph_type_erased_device_array_view_free(edge_ids_view);
+  cugraph_type_erased_device_array_view_free(dst_view);
+  cugraph_type_erased_device_array_view_free(src_view);
+  cugraph_type_erased_device_array_free(edge_types);
+  cugraph_type_erased_device_array_free(edge_ids);
   cugraph_type_erased_device_array_free(dst);
   cugraph_type_erased_device_array_free(src);
 
@@ -1036,6 +1185,7 @@ int main(int argc, char** argv)
   int result = 0;
   result |= RUN_TEST(test_create_sg_graph_simple);
   result |= RUN_TEST(test_create_sg_graph_with_times);
+  result |= RUN_TEST(test_create_sg_graph_with_edge_ids_and_types);
   result |= RUN_TEST(test_create_sg_graph_csr);
   result |= RUN_TEST(test_create_sg_graph_symmetric_error);
   result |= RUN_TEST(test_create_sg_graph_with_isolated_vertices);
