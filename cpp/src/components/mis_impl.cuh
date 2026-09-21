@@ -17,6 +17,7 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <cuda/functional>
 #include <cuda/std/functional>
@@ -90,7 +91,8 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
     }
 
     sorted_vertices = rmm::device_uvector<vertex_t>(local_vtx_partition_size, handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(), vertex_begin, vertex_end, (*sorted_vertices).begin());
+    cugraph::sequence(
+      handle.get_thrust_policy(), (*sorted_vertices).begin(), (*sorted_vertices).end(), v_first);
 
     // sort local vertices by degree (descending)
     thrust::sort_by_key(handle.get_thrust_policy(),
@@ -143,8 +145,10 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
                    (*sorted_vertices).end(),
                    sorted_vertex_ranks.begin());
     } else {
-      thrust::copy(
-        handle.get_thrust_policy(), vertex_begin, vertex_end, sorted_vertex_ranks.begin());
+      cugraph::sequence(handle.get_thrust_policy(),
+                        sorted_vertex_ranks.begin(),
+                        sorted_vertex_ranks.end(),
+                        v_first);
     }
   } else {
     //
