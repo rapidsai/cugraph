@@ -41,6 +41,7 @@
 
 #include <algorithm>
 #include <optional>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -48,62 +49,20 @@ namespace cugraph {
 
 namespace detail {
 
+// Rank of a vertex is its priority. Ranks are unique, so two adjacent vertices can never be
+// included in the MIS in the same iteration. Returns the ranks in the local vertex partition
+// order, along with the offset of the first vertex with degree zero in the degree ordering.
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-rmm::device_uvector<vertex_t> maximal_independent_set(
+std::tuple<rmm::device_uvector<vertex_t>, vertex_t> compute_ranks(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state)
 {
-  using GraphViewType = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
+  auto symmetric                    = graph_view.is_symmetric();
+  vertex_t local_vtx_partition_size = graph_view.local_vertex_partition_range_size();
+  auto v_first                      = graph_view.local_vertex_partition_range_first();
 
-  auto cur_graph_view = graph_view;
-
-  //
-  // Neither a self-loop nor a repeated edge changes the neighborhood of a vertex, but both are
-  // counted in its degree, which decides its priority. They are masked out so that the priorities
-  // reflect the number of distinct neighbors.
-  //
-  edge_property_t<edge_t, bool> simple_graph_mask(handle);
-
-  if (cur_graph_view.is_multigraph() || (cur_graph_view.count_self_loops(handle) > edge_t{0})) {
-    simple_graph_mask = make_initialized_edge_property(handle, cur_graph_view, false);
-
-    if (cur_graph_view.is_multigraph()) {
-      edge_multi_index_property_t<edge_t, vertex_t> edge_multi_indices(handle, cur_graph_view);
-      transform_e(handle,
-                  cur_graph_view,
-                  edge_src_dummy_property_t{}.view(),
-                  edge_dst_dummy_property_t{}.view(),
-                  edge_multi_indices.view(),
-                  cuda::proclaim_return_type<bool>(
-                    [] __device__(auto src, auto dst, auto, auto, auto multi_edge_index) {
-                      return (src != dst) && (multi_edge_index == 0);
-                    }),
-                  simple_graph_mask.mutable_view());
-    } else {
-      transform_e(handle,
-                  cur_graph_view,
-                  edge_src_dummy_property_t{}.view(),
-                  edge_dst_dummy_property_t{}.view(),
-                  edge_dummy_property_t{}.view(),
-                  cuda::proclaim_return_type<bool>(
-                    [] __device__(auto src, auto dst, auto, auto, auto) { return src != dst; }),
-                  simple_graph_mask.mutable_view());
-    }
-
-    // The edges masked out by the caller were skipped above, so they are masked out here as well
-    if (cur_graph_view.has_edge_mask()) { cur_graph_view.clear_edge_mask(); }
-    cur_graph_view.attach_edge_mask(simple_graph_mask.view());
-  }
-
-  // A vertex is adjacent to both its incoming and its outgoing neighbors. For a symmetric graph
-  // the outgoing edges alone cover both, otherwise the incoming edges are traversed as well.
-  auto symmetric = cur_graph_view.is_symmetric();
-
-  vertex_t local_vtx_partition_size = cur_graph_view.local_vertex_partition_range_size();
-  auto v_first                      = cur_graph_view.local_vertex_partition_range_first();
-
-  auto segment_offsets = cur_graph_view.local_vertex_partition_segment_offsets();
+  auto segment_offsets = graph_view.local_vertex_partition_segment_offsets();
 
   //
   // Degree segment offsets of the local vertex partition, and the vertices in the degree
@@ -119,11 +78,11 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
   if (segment_offsets && symmetric) {
     h_segment_offsets = *segment_offsets;
   } else {
-    auto degrees = cur_graph_view.compute_out_degrees(handle);
+    auto degrees = graph_view.compute_out_degrees(handle);
 
     if (!symmetric) {
       // The degree of a vertex is the number of its incoming and outgoing neighbors
-      auto in_degrees = cur_graph_view.compute_in_degrees(handle);
+      auto in_degrees = graph_view.compute_in_degrees(handle);
       thrust::transform(handle.get_thrust_policy(),
                         degrees.begin(),
                         degrees.end(),
@@ -263,6 +222,70 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
   } else {
     ranks = std::move(sorted_vertex_ranks);
   }
+
+  return std::make_tuple(std::move(ranks), isolated_v_start);
+}
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> maximal_independent_set(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  raft::random::RngState& rng_state)
+{
+  using GraphViewType = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
+
+  auto cur_graph_view = graph_view;
+
+  //
+  // Neither a self-loop nor a repeated edge changes the neighborhood of a vertex, but both are
+  // counted in its degree, which decides its priority. They are masked out so that the priorities
+  // reflect the number of distinct neighbors.
+  //
+  edge_property_t<edge_t, bool> simple_graph_mask(handle);
+
+  if (cur_graph_view.is_multigraph() || (cur_graph_view.count_self_loops(handle) > edge_t{0})) {
+    simple_graph_mask = make_initialized_edge_property(handle, cur_graph_view, false);
+
+    if (cur_graph_view.is_multigraph()) {
+      edge_multi_index_property_t<edge_t, vertex_t> edge_multi_indices(handle, cur_graph_view);
+      transform_e(handle,
+                  cur_graph_view,
+                  edge_src_dummy_property_t{}.view(),
+                  edge_dst_dummy_property_t{}.view(),
+                  edge_multi_indices.view(),
+                  cuda::proclaim_return_type<bool>(
+                    [] __device__(auto src, auto dst, auto, auto, auto multi_edge_index) {
+                      return (src != dst) && (multi_edge_index == 0);
+                    }),
+                  simple_graph_mask.mutable_view());
+    } else {
+      transform_e(handle,
+                  cur_graph_view,
+                  edge_src_dummy_property_t{}.view(),
+                  edge_dst_dummy_property_t{}.view(),
+                  edge_dummy_property_t{}.view(),
+                  cuda::proclaim_return_type<bool>(
+                    [] __device__(auto src, auto dst, auto, auto, auto) { return src != dst; }),
+                  simple_graph_mask.mutable_view());
+    }
+
+    // The edges masked out by the caller were skipped above, so they are masked out here as well
+    if (cur_graph_view.has_edge_mask()) { cur_graph_view.clear_edge_mask(); }
+    cur_graph_view.attach_edge_mask(simple_graph_mask.view());
+  }
+
+  // A vertex is adjacent to both its incoming and its outgoing neighbors. For a symmetric graph
+  // the outgoing edges alone cover both, otherwise the incoming edges are traversed as well.
+  auto symmetric = cur_graph_view.is_symmetric();
+
+  vertex_t local_vtx_partition_size = cur_graph_view.local_vertex_partition_range_size();
+  auto v_first                      = cur_graph_view.local_vertex_partition_range_first();
+
+  //
+  // Rank of a vertex is its priority, and the vertices with degree zero, which are always part
+  // of the MIS, are the tail of the degree ordering the ranks are assigned in.
+  //
+  auto [ranks, isolated_v_start] = compute_ranks(handle, cur_graph_view, rng_state);
 
   //
   // Vertices with degree zero are already part of MIS, the rest are to be checked
