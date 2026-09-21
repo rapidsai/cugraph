@@ -26,6 +26,7 @@
 #include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
+#include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/fill.h>
@@ -35,6 +36,7 @@
 #include <thrust/partition.h>
 #include <thrust/scatter.h>
 #include <thrust/sort.h>
+#include <thrust/tabulate.h>
 #include <thrust/transform.h>
 
 #include <algorithm>
@@ -101,10 +103,6 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
   vertex_t local_vtx_partition_size = cur_graph_view.local_vertex_partition_range_size();
   auto v_first                      = cur_graph_view.local_vertex_partition_range_first();
 
-  auto vertex_begin = thrust::make_counting_iterator(v_first);
-  auto vertex_end =
-    thrust::make_counting_iterator(cur_graph_view.local_vertex_partition_range_last());
-
   auto segment_offsets = cur_graph_view.local_vertex_partition_segment_offsets();
 
   //
@@ -147,19 +145,42 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
 
     static_assert(num_sparse_segments_per_vertex_partition == 3);
 
-    h_segment_offsets.resize(num_sparse_segments_per_vertex_partition + 2);
-    h_segment_offsets.front() = vertex_t{0};
-    h_segment_offsets.back()  = local_vtx_partition_size;
-    for (size_t i = 0; i < num_sparse_segments_per_vertex_partition; ++i) {
-      auto threshold = static_cast<edge_t>((i == 0)   ? mid_degree_threshold  // high, mid
-                                           : (i == 1) ? low_degree_threshold  // mid, low
-                                                      : size_t{1});           // low, zero
-      h_segment_offsets[i + 1] =
-        static_cast<vertex_t>(thrust::count_if(handle.get_thrust_policy(),
-                                               degrees.begin(),
-                                               degrees.end(),
-                                               is_greater_than_or_equal_to_t<edge_t>{threshold}));
-    }
+    // The degrees are sorted in decreasing order, so every segment boundary is the first vertex
+    // with a degree below the threshold of the segment
+    rmm::device_uvector<edge_t> d_thresholds(num_sparse_segments_per_vertex_partition,
+                                             handle.get_stream());
+    thrust::tabulate(handle.get_thrust_policy(),
+                     d_thresholds.begin(),
+                     d_thresholds.end(),
+                     [] __device__(size_t i) {
+                       if (i == 0) {
+                         return static_cast<edge_t>(mid_degree_threshold);  // high, mid
+                       } else if (i == 1) {
+                         return static_cast<edge_t>(low_degree_threshold);  // mid, low
+                       } else {
+                         return edge_t{1};  // low, zero
+                       }
+                     });
+
+    rmm::device_uvector<vertex_t> d_segment_offsets(num_sparse_segments_per_vertex_partition + 2,
+                                                    handle.get_stream());
+    d_segment_offsets.set_element_to_zero_async(0, handle.get_stream());
+    d_segment_offsets.set_element(
+      d_segment_offsets.size() - 1, local_vtx_partition_size, handle.get_stream());
+    thrust::upper_bound(handle.get_thrust_policy(),
+                        degrees.begin(),
+                        degrees.end(),
+                        d_thresholds.begin(),
+                        d_thresholds.end(),
+                        d_segment_offsets.begin() + 1,
+                        cuda::std::greater<edge_t>{});
+
+    h_segment_offsets.resize(d_segment_offsets.size());
+    raft::update_host(h_segment_offsets.data(),
+                      d_segment_offsets.data(),
+                      d_segment_offsets.size(),
+                      handle.get_stream());
+    handle.sync_stream();
 
     degrees.resize(0, handle.get_stream());
     degrees.shrink_to_fit(handle.get_stream());
@@ -251,12 +272,13 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
   remaining_vertices.resize(
     cuda::std::distance(
       remaining_vertices.begin(),
-      thrust::copy_if(handle.get_thrust_policy(),
-                      vertex_begin,
-                      vertex_end,
-                      ranks.begin(),
-                      remaining_vertices.begin(),
-                      is_less_than_to_t<vertex_t>{std::numeric_limits<vertex_t>::max()})),
+      thrust::copy_if(
+        handle.get_thrust_policy(),
+        thrust::make_counting_iterator(cur_graph_view.local_vertex_partition_range_first()),
+        thrust::make_counting_iterator(cur_graph_view.local_vertex_partition_range_last()),
+        ranks.begin(),
+        remaining_vertices.begin(),
+        is_less_than_to_t<vertex_t>{std::numeric_limits<vertex_t>::max()})),
     handle.get_stream());
 
   // Only the ranks of the undecided vertices are queried, and they are kept in the front of
@@ -479,12 +501,13 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
 
   // Build MIS and return
   rmm::device_uvector<vertex_t> mis(nr_vertices_included_in_mis, handle.get_stream());
-  thrust::copy_if(handle.get_thrust_policy(),
-                  vertex_begin,
-                  vertex_end,
-                  ranks.begin(),
-                  mis.begin(),
-                  is_greater_than_or_equal_to_t<vertex_t>{std::numeric_limits<vertex_t>::max()});
+  thrust::copy_if(
+    handle.get_thrust_policy(),
+    thrust::make_counting_iterator(cur_graph_view.local_vertex_partition_range_first()),
+    thrust::make_counting_iterator(cur_graph_view.local_vertex_partition_range_last()),
+    ranks.begin(),
+    mis.begin(),
+    is_greater_than_or_equal_to_t<vertex_t>{std::numeric_limits<vertex_t>::max()});
 
   ranks.resize(0, handle.get_stream());
   ranks.shrink_to_fit(handle.get_stream());
