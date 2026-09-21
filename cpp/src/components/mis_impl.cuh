@@ -10,13 +10,16 @@
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/make_initialized_edge_property.cuh>
 #include <cugraph/prims/per_v_transform_reduce_if_incoming_outgoing_e.cuh>
 #include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <cugraph/prims/transform_e.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
 #include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <cuda/functional>
@@ -51,17 +54,58 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
 {
   using GraphViewType = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
 
+  auto cur_graph_view = graph_view;
+
+  //
+  // Neither a self-loop nor a repeated edge changes the neighborhood of a vertex, but both are
+  // counted in its degree, which decides its priority. They are masked out so that the priorities
+  // reflect the number of distinct neighbors.
+  //
+  edge_property_t<edge_t, bool> simple_graph_mask(handle);
+
+  if (cur_graph_view.is_multigraph() || (cur_graph_view.count_self_loops(handle) > edge_t{0})) {
+    simple_graph_mask = make_initialized_edge_property(handle, cur_graph_view, false);
+
+    if (cur_graph_view.is_multigraph()) {
+      edge_multi_index_property_t<edge_t, vertex_t> edge_multi_indices(handle, cur_graph_view);
+      transform_e(handle,
+                  cur_graph_view,
+                  edge_src_dummy_property_t{}.view(),
+                  edge_dst_dummy_property_t{}.view(),
+                  edge_multi_indices.view(),
+                  cuda::proclaim_return_type<bool>(
+                    [] __device__(auto src, auto dst, auto, auto, auto multi_edge_index) {
+                      return (src != dst) && (multi_edge_index == 0);
+                    }),
+                  simple_graph_mask.mutable_view());
+    } else {
+      transform_e(handle,
+                  cur_graph_view,
+                  edge_src_dummy_property_t{}.view(),
+                  edge_dst_dummy_property_t{}.view(),
+                  edge_dummy_property_t{}.view(),
+                  cuda::proclaim_return_type<bool>(
+                    [] __device__(auto src, auto dst, auto, auto, auto) { return src != dst; }),
+                  simple_graph_mask.mutable_view());
+    }
+
+    // The edges masked out by the caller were skipped above, so they are masked out here as well
+    if (cur_graph_view.has_edge_mask()) { cur_graph_view.clear_edge_mask(); }
+    cur_graph_view.attach_edge_mask(simple_graph_mask.view());
+  }
+
   // A vertex is adjacent to both its incoming and its outgoing neighbors. For a symmetric graph
   // the outgoing edges alone cover both, otherwise the incoming edges are traversed as well.
-  auto symmetric = graph_view.is_symmetric();
+  auto symmetric = cur_graph_view.is_symmetric();
 
-  vertex_t local_vtx_partition_size = graph_view.local_vertex_partition_range_size();
-  auto v_first                      = graph_view.local_vertex_partition_range_first();
+  vertex_t local_vtx_partition_size = cur_graph_view.local_vertex_partition_range_size();
+  auto v_first                      = cur_graph_view.local_vertex_partition_range_first();
 
   auto vertex_begin = thrust::make_counting_iterator(v_first);
-  auto vertex_end = thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last());
+  auto vertex_end =
+    thrust::make_counting_iterator(cur_graph_view.local_vertex_partition_range_last());
 
-  auto segment_offsets = graph_view.local_vertex_partition_segment_offsets();
+  auto segment_offsets = cur_graph_view.local_vertex_partition_segment_offsets();
 
   //
   // Degree segment offsets of the local vertex partition, and the vertices in the degree
@@ -77,11 +121,11 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
   if (segment_offsets && symmetric) {
     h_segment_offsets = *segment_offsets;
   } else {
-    auto degrees = graph_view.compute_out_degrees(handle);
+    auto degrees = cur_graph_view.compute_out_degrees(handle);
 
     if (!symmetric) {
       // The degree of a vertex is the number of its incoming and outgoing neighbors
-      auto in_degrees = graph_view.compute_in_degrees(handle);
+      auto in_degrees = cur_graph_view.compute_in_degrees(handle);
       thrust::transform(handle.get_thrust_policy(),
                         degrees.begin(),
                         degrees.end(),
@@ -235,13 +279,14 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
     if constexpr (multi_gpu) {
       if (loop_counter == 1) {
         // Update the rank of every edge endpoint during the first iteration
-        dst_rank_cache = edge_dst_property_t<vertex_t, vertex_t>(handle, graph_view);
-        update_edge_dst_property(handle, graph_view, ranks.begin(), dst_rank_cache.mutable_view());
+        dst_rank_cache = edge_dst_property_t<vertex_t, vertex_t>(handle, cur_graph_view);
+        update_edge_dst_property(
+          handle, cur_graph_view, ranks.begin(), dst_rank_cache.mutable_view());
 
         if (!symmetric) {
-          src_rank_cache = edge_src_property_t<vertex_t, vertex_t>(handle, graph_view);
+          src_rank_cache = edge_src_property_t<vertex_t, vertex_t>(handle, cur_graph_view);
           update_edge_src_property(
-            handle, graph_view, ranks.begin(), src_rank_cache.mutable_view());
+            handle, cur_graph_view, ranks.begin(), src_rank_cache.mutable_view());
         }
       } else {
         // Update the ranks of the vertices decided in the previous iteration only. They are the
@@ -249,20 +294,21 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
         auto processed_vertex_first =
           remaining_vertices.begin() + nr_remaining_local_vertices_to_check;
 
+        auto processed_offset_first =
+          thrust::make_transform_iterator(processed_vertex_first, shift_left_t<vertex_t>{v_first});
+
         rmm::device_uvector<vertex_t> processed_ranks(num_processed_vertices, handle.get_stream());
-        thrust::transform(handle.get_thrust_policy(),
-                          processed_vertex_first,
-                          processed_vertex_first + num_processed_vertices,
-                          processed_ranks.begin(),
-                          cuda::proclaim_return_type<vertex_t>(
-                            [ranks = raft::device_span<vertex_t const>(ranks.data(), ranks.size()),
-                             v_first = v_first] __device__(auto v) { return ranks[v - v_first]; }));
+        cugraph::gather(handle.get_thrust_policy(),
+                        processed_offset_first,
+                        processed_offset_first + num_processed_vertices,
+                        ranks.begin(),
+                        processed_ranks.begin());
 
         // FIXME: Since the ranks being updated are either std::numeric_limits<vertex_t>::max() or
         // std::numeric_limits<vertex_t>::lowest(), explore 'fill_edge_dst_property' which is
         // faster
         update_edge_dst_property(handle,
-                                 graph_view,
+                                 cur_graph_view,
                                  processed_vertex_first,
                                  processed_vertex_first + num_processed_vertices,
                                  processed_ranks.begin(),
@@ -270,7 +316,7 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
 
         if (!symmetric) {
           update_edge_src_property(handle,
-                                   graph_view,
+                                   cur_graph_view,
                                    processed_vertex_first,
                                    processed_vertex_first + num_processed_vertices,
                                    processed_ranks.begin(),
@@ -297,10 +343,12 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
       // neighbor, stop the traversal of a vertex as soon as a higher ranked neighbor is found.
       per_v_transform_reduce_if_outgoing_e(
         handle,
-        graph_view,
+        cur_graph_view,
         vertex_frontier.bucket(0),
-        make_edge_src_property_view<vertex_t, vertex_t>(graph_view, ranks.begin(), ranks.size()),
-        make_edge_dst_property_view<vertex_t, vertex_t>(graph_view, ranks.begin(), ranks.size()),
+        make_edge_src_property_view<vertex_t, vertex_t>(
+          cur_graph_view, ranks.begin(), ranks.size()),
+        make_edge_dst_property_view<vertex_t, vertex_t>(
+          cur_graph_view, ranks.begin(), ranks.size()),
         edge_dummy_property_t{}.view(),
         [] __device__(auto src, auto dst, auto src_rank, auto dst_rank, auto wt) {
           return dst_rank;
@@ -314,12 +362,12 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
     } else {
       per_v_transform_reduce_outgoing_e(
         handle,
-        graph_view,
+        cur_graph_view,
         vertex_frontier.bucket(0),
         edge_src_dummy_property_t{}.view(),
         multi_gpu ? dst_rank_cache.view()
                   : make_edge_dst_property_view<vertex_t, vertex_t>(
-                      graph_view, ranks.begin(), ranks.size()),
+                      cur_graph_view, ranks.begin(), ranks.size()),
         edge_dummy_property_t{}.view(),
         [] __device__(auto src, auto dst, auto src_rank, auto dst_rank, auto wt) {
           return dst_rank;
@@ -341,10 +389,10 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
 
       per_v_transform_reduce_incoming_e(
         handle,
-        graph_view,
+        cur_graph_view,
         multi_gpu ? src_rank_cache.view()
                   : make_edge_src_property_view<vertex_t, vertex_t>(
-                      graph_view, ranks.begin(), ranks.size()),
+                      cur_graph_view, ranks.begin(), ranks.size()),
         edge_dst_dummy_property_t{}.view(),
         edge_dummy_property_t{}.view(),
         [] __device__(auto src, auto dst, auto src_rank, auto dst_rank, auto wt) {
