@@ -19,7 +19,7 @@ namespace cugraph {
 namespace dynamic {
 
 /**
- * @brief Handle returned by block_array_manager_t::insert() to locate an allocated block.
+ * @brief Handle returned by block_array_manager_t::allocate() to locate an allocated block.
  */
 struct block_access_data_t {
   std::byte const* block_array_key{nullptr};
@@ -55,7 +55,7 @@ class block_array_manager_t {
   block_array_manager_t(block_array_manager_t&&)            = default;
   block_array_manager_t& operator=(block_array_manager_t&&) = default;
 
-  block_access_data_t insert(size_t num_elements_per_block, cuda::stream_ref stream)
+  block_access_data_t allocate(size_t num_elements_per_block, cuda::stream_ref stream)
   {
     CUGRAPH_EXPECTS(
       num_elements_per_block <= max_elements_per_block_array_,
@@ -65,7 +65,7 @@ class block_array_manager_t {
     auto const bin_index = std::bit_width(num_elements_per_block - size_t{1});
     for (auto& entry : block_arrays_[bin_index]) {
       if (!entry.second.full()) {
-        auto block_index = entry.second.insert();
+        auto block_index = entry.second.allocate();
         return {entry.second.block_array_key(), block_index, entry.second.num_elements_per_block()};
       }
     }
@@ -76,22 +76,22 @@ class block_array_manager_t {
     size_t const num_blocks = max_elements_per_block_array_ / elements_per_block;
 
     block_array_t<T> new_block_array(elements_per_block, num_blocks, stream);
-    size_t block_index = new_block_array.insert();
+    size_t block_index = new_block_array.allocate();
 
     auto block_array_key = new_block_array.block_array_key();
     block_arrays_[bin_index].emplace(block_array_key, std::move(new_block_array));
     return {block_array_key, block_index, elements_per_block};
   }
 
-  void remove(block_access_data_t const& access_data)
+  void release(block_access_data_t const& access_data)
   {
     CUGRAPH_EXPECTS(access_data.num_elements_per_block > size_t{0},
                     "num_elements_per_block must be greater than 0.");
     auto const bin_index = std::bit_width(access_data.num_elements_per_block - size_t{1});
-    block_arrays_[bin_index].at(access_data.block_array_key).remove(access_data.block_index);
+    block_arrays_[bin_index].at(access_data.block_array_key).release(access_data.block_index);
   }
 
-  void remove_all() noexcept
+  void release_all() noexcept
   {
     for (auto& bin : block_arrays_) {
       bin.clear();

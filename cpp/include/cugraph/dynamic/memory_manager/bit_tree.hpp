@@ -19,8 +19,8 @@ namespace dynamic {
  * @brief Tracks which fixed-size blocks are free in a block array.
  *
  * A block array is a large fixed-capacity buffer split into equally-sized blocks. This host-side
- * bitmap records which blocks are available so insert() can hand out a free block quickly and
- * remove() can return one.
+ * bitmap records which blocks are available so allocate() can hand out a free block quickly and
+ * release() can return one.
  *
  * Based on Hornet's Vec-Tree bitmap.
  */
@@ -61,9 +61,9 @@ class bit_tree_t {
 
   bit_tree_t() = delete;
 
-  size_t insert()
+  size_t allocate()
   {
-    CUGRAPH_EXPECTS(num_occupied_blocks_ < num_blocks_, "Cannot insert into a full bit tree.");
+    CUGRAPH_EXPECTS(num_occupied_blocks_ < num_blocks_, "Cannot allocate from a full bit tree.");
     ++num_occupied_blocks_;
 
     size_t index = 0;
@@ -88,9 +88,9 @@ class bit_tree_t {
     return block_index;
   }
 
-  void remove(size_t block_index)
+  void release(size_t block_index)
   {
-    CUGRAPH_EXPECTS(num_occupied_blocks_ != 0, "Cannot remove from an empty bit tree.");
+    CUGRAPH_EXPECTS(num_occupied_blocks_ != 0, "Cannot release from an empty bit tree.");
     --num_occupied_blocks_;
 
     CUGRAPH_EXPECTS(block_index < num_blocks_,

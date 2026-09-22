@@ -117,9 +117,9 @@ class block_array_t {
     return column_data<I>() + element_index;
   }
 
-  size_t insert() { return bit_tree_.insert(); }
+  size_t allocate() { return bit_tree_.allocate(); }
 
-  void remove(size_t block_index) { bit_tree_.remove(block_index); }
+  void release(size_t block_index) { bit_tree_.release(block_index); }
 
   size_t num_elements_per_block() const { return bit_tree_.num_elements_per_block(); }
 
