@@ -21,8 +21,6 @@ But which vertices are most important? The answer depends on which measure/algor
 |Katz Centrality|[Centrality](./Centrality.ipynb) |Similar to Eigenvector but has tweaks to measure more weakly connected graph  |
 |Pagerank|[Centrality](./Centrality.ipynb) |Classified as both a link analysis and centrality measure by quantifying incoming links from central vertices.  |
 
-[System Requirements](https://docs.rapids.ai/install/#system-req)
-
 ## Copyright
 
 Copyright (c) 2019-2026, NVIDIA CORPORATION.  All rights reserved.

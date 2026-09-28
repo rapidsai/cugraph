@@ -28,7 +28,7 @@ body:
     id: correction_location
     attributes:
       label: Please provide a link or source to the relevant docs
-      placeholder: "ex: https://docs.rapids.ai/api/cugraph/stable/api_docs/centrality.html"
+      placeholder: "ex: https://docs.nvidia.com/cugraph/latest/api_docs/cugraph/centrality/"
     validations:
       required: true
 
@@ -50,7 +50,7 @@ body:
     id: terms
     attributes:
       label: Code of Conduct
-      description: By submitting this issue, you agree to follow our [Code of Conduct](https://docs.rapids.ai/resources/conduct/)
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://docs.nvidia.com/datascience/resources/conduct/)
       options:
         - label: I agree to follow cuGraph's Code of Conduct
           required: true

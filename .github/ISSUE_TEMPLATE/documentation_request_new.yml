@@ -37,14 +37,13 @@ body:
     attributes:
       label: Where have you looked?
       placeholder: |
-       https://docs.rapids.ai/api/cugraph/stable/ and
-       https://docs.rapids.ai/api/cugraph/nightly
+       https://docs.rapids.ai/api/cugraph/latest
 
   - type: checkboxes
     id: terms
     attributes:
       label: Code of Conduct
-      description: By submitting this issue, you agree to follow our [Code of Conduct](https://docs.rapids.ai/resources/conduct/)
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://docs.nvidia.com/datascience/resources/conduct/)
       options:
         - label: I agree to follow cuGraph's Code of Conduct
           required: true

@@ -23,8 +23,6 @@
 | Induced Subgraph                                            | [Induced Subgraph](./Induced-Subgraph.ipynb)   | Create a subgraph of the existing graph including only the specified vertices |
 | Triangle Counting                                           | [Triangle Counting](./Triangle-Counting.ipynb)       | Count the number of size three cliques in a graph                      |
 
-[System Requirements](https://docs.rapids.ai/install/#system-req)
-
 ## Copyright
 
 Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.

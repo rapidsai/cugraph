@@ -12,8 +12,6 @@ CuGraph Traversal notebooks demonstrate various algorithms for finding paths thr
 |Breadth First Search  | [BFS](BFS.ipynb)   | Traverses all vertices reachable from a seed by exploring one hop at a time. |
 |Single Source Shortest Path | [SSSP](SSSP.ipynb)   | Computes the shortest path from a single seed vertex to all the  reachable vertices in the graph. |
 
-[System Requirements](https://docs.rapids.ai/install/#system-req)
-
 ## Copyright
 
 Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.
