@@ -19,7 +19,7 @@
 
 <br>
 
-[CUDA-X](https://developer.nvidia.com/topics/ai/data-science/cuda-x-for-data-science) cuGraph is a repo that represents a collection of packages focused on GPU-accelerated graph analytics. cuGraph supports the creation and manipulation of graphs followed by the execution of scalable fast graph algorithms.
+[NVIDIA cuGraph](https://docs.nvidia.com/cugraph/latest/) is a collection of packages focused on GPU-accelerated graph analytics. cuGraph supports the creation and manipulation of graphs followed by the execution of scalable fast graph algorithms.
 
 -----
 
