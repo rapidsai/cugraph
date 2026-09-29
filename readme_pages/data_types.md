@@ -23,6 +23,6 @@ __Results__
 Results which are not simple types (ints, floats) are typically cuDF Dataframes.
 
 ## Pandas
-The RAPIDS cuDF library can be thought of as accelerated Pandas
+The [NVIDIA cuDF](https://docs.nvidia.com/cudf/latest/) library can be thought of as accelerated Pandas
 
 ## NetworkX Graph Objects
