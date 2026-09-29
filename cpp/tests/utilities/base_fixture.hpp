@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -9,6 +9,7 @@
 #include "utilities/mg_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 
+#include <cugraph/resource_ref.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <rmm/exec_policy.hpp>
@@ -17,7 +18,6 @@
 #include <rmm/mr/managed_memory_resource.hpp>
 #include <rmm/mr/per_device_resource.hpp>
 #include <rmm/mr/pool_memory_resource.hpp>
-#include <rmm/resource_ref.hpp>
 
 #include <cuda/memory_resource>
 
@@ -43,14 +43,14 @@ namespace test {
  * ```
  **/
 class BaseFixture : public ::testing::Test {
-  rmm::device_async_resource_ref _mr{rmm::mr::get_current_device_resource_ref()};
+  cugraph::device_resource_ref _mr{rmm::mr::get_current_device_resource_ref()};
 
  public:
   /**
    * @brief Returns pointer to `device_memory_resource` that should be used for all tests inheriting
    *from this fixture
    **/
-  rmm::device_async_resource_ref mr() { return _mr; }
+  cugraph::device_resource_ref mr() { return _mr; }
 };
 
 /// MR factory functions

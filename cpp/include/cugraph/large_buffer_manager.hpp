@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cugraph/export.hpp>
+#include <cugraph/resource_ref.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
 
@@ -12,7 +13,6 @@
 
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/pinned_host_memory_resource.hpp>
-#include <rmm/resource_ref.hpp>
 
 #include <cuda/stream>
 
@@ -27,7 +27,7 @@ class large_memory_buffer_resource_t {
   large_memory_buffer_resource_t() = delete;
   large_memory_buffer_resource_t(rmm::mr::pinned_host_memory_resource mr) : mr_(std::move(mr)) {}
 
-  rmm::device_async_resource_ref get() { return mr_; }
+  cugraph::device_resource_ref get() { return mr_; }
 
  private:
   rmm::mr::pinned_host_memory_resource

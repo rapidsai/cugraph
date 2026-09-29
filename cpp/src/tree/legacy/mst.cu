@@ -6,12 +6,12 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/export.hpp>
 #include <cugraph/legacy/graph.hpp>
+#include <cugraph/resource_ref.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/sparse/solver/mst.cuh>
 
 #include <rmm/exec_policy.hpp>
-#include <rmm/resource_ref.hpp>
 
 #include <thrust/transform.h>
 
@@ -27,7 +27,7 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 std::unique_ptr<legacy::GraphCOO<vertex_t, edge_t, weight_t>> mst_impl(
   raft::handle_t const& handle,
   legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
-  rmm::device_async_resource_ref mr)
+  cugraph::device_resource_ref mr)
 
 {
   auto stream = handle.get_stream().get();
@@ -57,7 +57,7 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 std::unique_ptr<legacy::GraphCOO<vertex_t, edge_t, weight_t>> minimum_spanning_tree(
   raft::handle_t const& handle,
   legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
-  rmm::device_async_resource_ref mr)
+  cugraph::device_resource_ref mr)
 {
   return detail::mst_impl(handle, graph, mr);
 }
@@ -65,9 +65,9 @@ std::unique_ptr<legacy::GraphCOO<vertex_t, edge_t, weight_t>> minimum_spanning_t
 template CUGRAPH_EXPORT std::unique_ptr<legacy::GraphCOO<int, int, float>>
 minimum_spanning_tree<int, int, float>(raft::handle_t const& handle,
                                        legacy::GraphCSRView<int, int, float> const& graph,
-                                       rmm::device_async_resource_ref mr);
+                                       cugraph::device_resource_ref mr);
 template CUGRAPH_EXPORT std::unique_ptr<legacy::GraphCOO<int, int, double>>
 minimum_spanning_tree<int, int, double>(raft::handle_t const& handle,
                                         legacy::GraphCSRView<int, int, double> const& graph,
-                                        rmm::device_async_resource_ref mr);
+                                        cugraph::device_resource_ref mr);
 }  // namespace cugraph
