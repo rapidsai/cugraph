@@ -8,6 +8,7 @@
 #include <cugraph/resource_ref.hpp>
 
 #include <rmm/device_uvector.hpp>
+#include <rmm/mr/per_device_resource.hpp>
 
 #include <cuda/stream>
 

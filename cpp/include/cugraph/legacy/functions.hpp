@@ -11,6 +11,7 @@
 #include <raft/core/handle.hpp>
 
 #include <rmm/device_buffer.hpp>
+#include <rmm/mr/per_device_resource.hpp>
 
 namespace CUGRAPH_EXPORT cugraph {
 
