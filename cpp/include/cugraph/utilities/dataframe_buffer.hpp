@@ -11,6 +11,7 @@
 #include <raft/core/handle.hpp>
 
 #include <rmm/device_uvector.hpp>
+#include <rmm/mr/per_device_resource.hpp>
 
 #include <cuda/std/tuple>
 #include <cuda/stream>

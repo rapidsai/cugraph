@@ -18,6 +18,8 @@
 #include <raft/core/handle.hpp>
 #include <raft/random/rng_state.hpp>
 
+#include <rmm/mr/per_device_resource.hpp>
+
 #include <optional>
 #include <tuple>
 
