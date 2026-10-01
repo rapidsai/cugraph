@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -91,7 +91,7 @@ def bfs(input_graph, start, depth_limit=None, return_distances=True, check_start
     >>> import cugraph.dask as dcg
     >>> import dask_cudf
     >>> # ... Init a DASK Cluster
-    >>> #    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
+    >>> #    see https://docs.nvidia.com/cugraph/latest/dask-cugraph.html
     >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
     >>> chunksize = dcg.get_chunksize(datasets_path / "karate.csv")
     >>> ddf = dask_cudf.read_csv(datasets_path / "karate.csv",

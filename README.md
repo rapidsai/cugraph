@@ -13,28 +13,25 @@
     <img src="https://img.shields.io/github/stars/rapidsai/cugraph"></a>
 <img alt="Conda" src="https://img.shields.io/conda/dn/rapidsai/cugraph">
 <img alt="GitHub last commit" src="https://img.shields.io/github/last-commit/rapidsai/cugraph">
-
 <img alt="Conda" src="https://img.shields.io/conda/pn/rapidsai/cugraph" />
-
-<a href="https://rapids.ai/"><img src="img/rapids_logo.png" alt="RAPIDS" width="125"></a>
 
 </div>
 
 <br>
 
-[RAPIDS](https://rapids.ai) cuGraph is a repo that represents a collection of packages focused on GPU-accelerated graph analytics.  cuGraph supports the creation and manipulation of graphs followed by the execution of scalable fast graph algorithms.
+[NVIDIA cuGraph](https://docs.nvidia.com/cugraph/latest/) is a collection of packages focused on GPU-accelerated graph analytics. cuGraph supports the creation and manipulation of graphs followed by the execution of scalable fast graph algorithms.
 
 -----
 
 ## Table of contents
 - Installation
-  - [Getting cuGraph Packages](https://docs.rapids.ai/api/cugraph/stable/installation/getting_cugraph/)
-  - [Building from Source](https://docs.rapids.ai/api/cugraph/stable/installation/source_build/)
-  - [Contributing to cuGraph](https://docs.rapids.ai/contributing/)
+  - [Getting cuGraph Packages](https://docs.nvidia.com/cugraph/latest/installation/getting_cugraph/)
+  - [Building from Source](https://docs.nvidia.com/cugraph/latest/installation/source_build/)
+  - [Contributing to cuGraph](./readme_pages/CONTRIBUTING.md)
 - General
-  - [Latest News](https://docs.rapids.ai/api/cugraph/nightly/)
-  - [Current list of algorithms](https://docs.rapids.ai/api/cugraph/stable/graph_support/algorithms/)
-  - [Blogs and Presentation](https://docs.rapids.ai/api/cugraph/nightly/tutorials/cugraph_blogs/)
+  - [Latest News](https://docs.nvidia.com/cugraph/latest/)
+  - [Current list of algorithms](https://docs.nvidia.com/cugraph/latest/graph_support/algorithms/)
+  - [Blogs and Presentation](https://docs.nvidia.com/cugraph/latest/tutorials/cugraph_blogs/)
 - Packages
   - [cuGraph Python](./readme_pages/cugraph_python.md)
     - [External Data Types](./readme_pages/data_types.md)
@@ -43,16 +40,13 @@
   - [nx-cugraph](https://rapids.ai/nx-cugraph/)
 - API Docs
   - Python
-    - [Python Nightly](https://docs.rapids.ai/api/cugraph/nightly/api_docs/cugraph/)
-    - [Python Stable](https://docs.rapids.ai/api/cugraph/stable/api_docs/cugraph/)
+    - [Python](https://docs.nvidia.com/cugraph/latest/api_docs/cugraph/)
   - C
-    -  [C Nightly](https://docs.rapids.ai/api/cugraph/nightly/api_docs/cugraph_c/)
-    -  [C Stable](https://docs.rapids.ai/api/cugraph/stable/api_docs/cugraph_c/)
+    -  [C](https://docs.nvidia.com/cugraph/latest/api_docs/cugraph_c/)
   - C++
-    - [C++ Nightly](https://docs.rapids.ai/api/cugraph/nightly/api_docs/cugraph_cpp/)
-    - [C++ Stable](https://docs.rapids.ai/api/cugraph/stable/api_docs/cugraph_cpp/)
+    - [C++](https://docs.nvidia.com/cugraph/latest/api_docs/cugraph_cpp/)
 - References
-  - [RAPIDS](https://rapids.ai/)
+  - [CUDA-X](https://developer.nvidia.com/topics/ai/data-science/cuda-x-for-data-science)
   - [ARROW](https://arrow.apache.org/)
   - [DASK](https://www.dask.org/)
 
@@ -60,7 +54,7 @@
 
 -----
 
-[RAPIDS](https://rapids.ai) cuGraph is a collection of GPU-accelerated graph algorithms. At the Python layer, cuGraph operates on [GPU DataFrames](https://github.com/rapidsai/cudf), thereby allowing for seamless passing of data between ETL tasks in [cuDF](https://github.com/rapidsai/cudf) and machine learning tasks in [cuML](https://github.com/rapidsai/cuml). Data scientists familiar with Python will quickly pick up how cuGraph integrates with the Pandas-like API of cuDF.  Likewise, users familiar with NetworkX will quickly recognize the NetworkX-like API provided in cuGraph, with the goal to allow existing code to be ported with minimal effort into RAPIDS. To simplify integration, cuGraph also supports data found in [Pandas DataFrame](https://pandas.pydata.org/), [NetworkX Graph Objects](https://networkx.org/) and several other formats.
+[cuGraph](https://docs.nvidia.com/cugraph/latest/) is a collection of GPU-accelerated graph algorithms. At the Python layer, cuGraph operates on [GPU DataFrames](https://docs.nvidia.com/cudf/latest/), thereby allowing for seamless passing of data between ETL tasks in [cuDF](https://docs.nvidia.com/cudf/latest/) and machine learning tasks in [cuML](https://docs.nvidia.com/cuml/latest/). Data scientists familiar with Python will quickly pick up how cuGraph integrates with the Pandas-like API of cuDF.  Likewise, users familiar with NetworkX will quickly recognize the NetworkX-like API provided in cuGraph, with the goal to allow existing code to be ported with minimal effort. To simplify integration, cuGraph also supports data found in [Pandas DataFrame](https://pandas.pydata.org/), [NetworkX Graph Objects](https://networkx.org/) and several other formats.
 
 While the high-level cugraph python API provides an easy-to-use and familiar interface for data scientists that's consistent with other RAPIDS libraries in their workflow, some use cases require access to lower-level graph theory concepts.  For these users, we provide an additional Python API called pylibcugraph, intended for applications that require a tighter integration with cuGraph at the Python layer with fewer dependencies.  Users familiar with C/C++/CUDA and graph structures can access libcugraph and libcugraph_c for low level integration outside of python.
 
@@ -94,7 +88,7 @@ df_page.sort_values('pagerank', ascending=False).head(10)
 # Projects that use cuGraph
 
 (alphabetical order)
-* ArangoDB - a free and open-source native multi-model database system  - https://www.arangodb.com/
+* ArangoDB - a free and open-source native multi-model database system  - https://arango.ai/
 * CuPy - "NumPy/SciPy-compatible Array Library for GPU-accelerated Computing with Python" -  https://cupy.dev/
 * Memgraph - In-memory Graph database - https://memgraph.com/
 * NetworkX (via [nx-cugraph](https://rapids.ai/nx-cugraph/) backend) - an extremely popular, free and open-source package for the creation, manipulation, and study of the structure, dynamics, and functions of complex networks - https://networkx.org/

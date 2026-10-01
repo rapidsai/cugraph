@@ -1,7 +1,5 @@
 # External Data Types
-cuGraph Python strives to make getting data into and out of cuGraph simple.  To that end, the Python interface accepts
-
-
+cuGraph Python strives to make getting data into and out of cuGraph simple.  To that end, the Python interface accepts a variety of common data formats.
 
 ## Supported Data Types
 cuGraph supports graph creation with Source and Destination being expressed as:
@@ -21,26 +19,10 @@ __Loading data__
   * Graph.from_cudf_adjlist
   * Graph.from_cudf_edgelist
 
-
-__Results__<br>
+__Results__
 Results which are not simple types (ints, floats) are typically cuDF Dataframes.
 
-
-
 ## Pandas
-The RAPIDS cuDF library can be thought of as accelerated Pandas
-
+The [NVIDIA cuDF](https://docs.nvidia.com/cudf/latest/) library can be thought of as accelerated Pandas
 
 ## NetworkX Graph Objects
-
-
-##
-
-
-
-
-
-
-</br></br>
-
----
