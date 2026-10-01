@@ -2344,6 +2344,190 @@ int test_uniform_temporal_neighbor_sample_last_int64_increasing_small_times(
     sizeof(expected_edges) / sizeof(expected_edges[0]));
 }
 
+int test_uniform_temporal_neighbor_sample_missing_time_keeps_frontier(
+  const cugraph_resource_handle_t* handle)
+{
+  size_t num_edges        = 3;
+  size_t num_vertices     = 4;
+  size_t fan_out_size     = 3;
+  size_t num_starts       = 1;
+  size_t num_start_labels = 2;
+
+  // 0->1 (t=50), 1->2 (t=INT32_MIN, no time), 2->3 (t=40). Seed window [0, 100].
+  // INT32_MIN passes the filter even though it is outside the window and below 50.
+  // The next hop keeps the frontier bound 50, so 2->3 (t=40) stays ineligible.
+  // Adopting INT32_MIN as the next bound would make 40 eligible.
+  vertex_t src[]                          = {0, 1, 2};
+  vertex_t dst[]                          = {1, 2, 3};
+  edge_t edge_ids[]                       = {0, 1, 2};
+  weight_t weight[]                       = {0.1, 0.2, 0.3};
+  int32_t edge_types[]                    = {0, 0, 0};
+  time_stamp_t edge_start_times[]         = {50, INT32_MIN, 40};
+  time_stamp_t edge_end_times[]           = {51, INT32_MIN, 41};
+  vertex_t start[]                        = {0};
+  time_stamp_t start_vertex_start_times[] = {0};
+  time_stamp_t start_vertex_end_times[]   = {100};
+  size_t start_vertex_label_offsets[]     = {0, 1};
+  int fan_out[]                           = {1, 1, 1};
+
+  expected_temporal_sample_edge_t expected_edges[] = {
+    {0, 1, 50, 0},
+    {1, 2, INT32_MIN, 1},
+  };
+
+  return generic_uniform_temporal_neighbor_sample_test(
+    handle,
+    src,
+    dst,
+    weight,
+    edge_ids,
+    edge_types,
+    edge_start_times,
+    edge_end_times,
+    num_vertices,
+    num_edges,
+    start,
+    start_vertex_start_times,
+    start_vertex_end_times,
+    start_vertex_label_offsets,
+    num_starts,
+    num_start_labels,
+    fan_out,
+    fan_out_size,
+    FALSE,
+    TRUE,
+    DEFAULT,
+    FALSE,
+    STRICTLY_INCREASING,
+    CUGRAPH_NEIGHBOR_SELECTION_RANDOM,
+    FALSE,
+    FALSE,
+    expected_edges,
+    sizeof(expected_edges) / sizeof(expected_edges[0]));
+}
+
+int test_uniform_temporal_neighbor_sample_missing_time_keeps_decreasing_frontier(
+  const cugraph_resource_handle_t* handle)
+{
+  size_t num_edges        = 4;
+  size_t num_vertices     = 5;
+  size_t fan_out_size     = 3;
+  size_t num_starts       = 1;
+  size_t num_start_labels = 2;
+
+  // 0->1 (t=80), then 1->2 has no time. The frontier bound stays 80, so 2->3 (t=40) is still
+  // before that bound and 2->4 (t=90) is not. Resetting the bound to INT32_MIN would drop 2->3.
+  vertex_t src[]                          = {0, 1, 2, 2};
+  vertex_t dst[]                          = {1, 2, 3, 4};
+  edge_t edge_ids[]                       = {0, 1, 2, 3};
+  weight_t weight[]                       = {0.1, 0.2, 0.3, 0.4};
+  int32_t edge_types[]                    = {0, 0, 0, 0};
+  time_stamp_t edge_start_times[]         = {80, INT32_MIN, 40, 90};
+  time_stamp_t edge_end_times[]           = {81, INT32_MIN, 41, 91};
+  vertex_t start[]                        = {0};
+  time_stamp_t start_vertex_start_times[] = {0};
+  time_stamp_t start_vertex_end_times[]   = {100};
+  size_t start_vertex_label_offsets[]     = {0, 1};
+  int fan_out[]                           = {-1, -1, -1};
+
+  expected_temporal_sample_edge_t expected_edges[] = {
+    {0, 1, 80, 0},
+    {1, 2, INT32_MIN, 1},
+    {2, 3, 40, 2},
+  };
+
+  return generic_uniform_temporal_neighbor_sample_test(
+    handle,
+    src,
+    dst,
+    weight,
+    edge_ids,
+    edge_types,
+    edge_start_times,
+    edge_end_times,
+    num_vertices,
+    num_edges,
+    start,
+    start_vertex_start_times,
+    start_vertex_end_times,
+    start_vertex_label_offsets,
+    num_starts,
+    num_start_labels,
+    fan_out,
+    fan_out_size,
+    FALSE,
+    TRUE,
+    DEFAULT,
+    FALSE,
+    STRICTLY_DECREASING,
+    CUGRAPH_NEIGHBOR_SELECTION_RANDOM,
+    FALSE,
+    FALSE,
+    expected_edges,
+    sizeof(expected_edges) / sizeof(expected_edges[0]));
+}
+
+int test_uniform_temporal_neighbor_sample_missing_time_fixed_window(
+  const cugraph_resource_handle_t* handle)
+{
+  size_t num_edges        = 3;
+  size_t num_vertices     = 4;
+  size_t fan_out_size     = 3;
+  size_t num_starts       = 1;
+  size_t num_start_labels = 2;
+
+  // fixed_window keeps the seed window [0, 100]. The missing-time edge passes, and 2->3 (t=40)
+  // stays eligible because the frontier is not advanced to 50.
+  vertex_t src[]                          = {0, 1, 2};
+  vertex_t dst[]                          = {1, 2, 3};
+  edge_t edge_ids[]                       = {0, 1, 2};
+  weight_t weight[]                       = {0.1, 0.2, 0.3};
+  int32_t edge_types[]                    = {0, 0, 0};
+  time_stamp_t edge_start_times[]         = {50, INT32_MIN, 40};
+  time_stamp_t edge_end_times[]           = {51, INT32_MIN, 41};
+  vertex_t start[]                        = {0};
+  time_stamp_t start_vertex_start_times[] = {0};
+  time_stamp_t start_vertex_end_times[]   = {100};
+  size_t start_vertex_label_offsets[]     = {0, 1};
+  int fan_out[]                           = {-1, -1, -1};
+
+  expected_temporal_sample_edge_t expected_edges[] = {
+    {0, 1, 50, 0},
+    {1, 2, INT32_MIN, 1},
+    {2, 3, 40, 2},
+  };
+
+  return generic_uniform_temporal_neighbor_sample_test(
+    handle,
+    src,
+    dst,
+    weight,
+    edge_ids,
+    edge_types,
+    edge_start_times,
+    edge_end_times,
+    num_vertices,
+    num_edges,
+    start,
+    start_vertex_start_times,
+    start_vertex_end_times,
+    start_vertex_label_offsets,
+    num_starts,
+    num_start_labels,
+    fan_out,
+    fan_out_size,
+    FALSE,
+    TRUE,
+    DEFAULT,
+    FALSE,
+    STRICTLY_INCREASING,
+    CUGRAPH_NEIGHBOR_SELECTION_RANDOM,
+    TRUE,
+    FALSE,
+    expected_edges,
+    sizeof(expected_edges) / sizeof(expected_edges[0]));
+}
+
 int main(int argc, char** argv)
 {
   cugraph_resource_handle_t* handle = NULL;
@@ -2377,6 +2561,10 @@ int main(int argc, char** argv)
     test_uniform_temporal_neighbor_sample_last_refills_after_duplicate_destination, handle);
   result |=
     RUN_TEST_NEW(test_uniform_temporal_neighbor_sample_last_int64_increasing_small_times, handle);
+  result |= RUN_TEST_NEW(test_uniform_temporal_neighbor_sample_missing_time_keeps_frontier, handle);
+  result |= RUN_TEST_NEW(
+    test_uniform_temporal_neighbor_sample_missing_time_keeps_decreasing_frontier, handle);
+  result |= RUN_TEST_NEW(test_uniform_temporal_neighbor_sample_missing_time_fixed_window, handle);
 
   cugraph_free_resource_handle(handle);
 

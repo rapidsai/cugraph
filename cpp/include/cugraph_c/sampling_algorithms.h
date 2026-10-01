@@ -426,7 +426,10 @@ CUGRAPH_EXPORT void cugraph_sampling_options_free(cugraph_sampling_options_t* op
  * tie.
  *
  * Sampling is non-temporal unless cugraph_sampling_set_temporal_sampling_comparison has been
- * called on @p sampling_options; all temporal arguments must then be NULL. When temporal,
+ * called on @p sampling_options; all temporal arguments must then be NULL. When temporal, an edge
+ * start time equal to the minimum value of the timestamp type (INT32_MIN or INT64_MIN) means the
+ * edge has no time: it passes the temporal filter, and unless fixed_window is set the next
+ * frontier bound stays at the source's current bound instead of adopting that minimum.
  * cugraph_sampling_set_fixed_window(TRUE) reapplies each seed's original window at every hop
  * instead of propagating sampled edge times; it is orthogonal to increasing vs decreasing.
  * Sampling is homogeneous when @p num_edge_types is 1; otherwise @p fan_out contains one value per

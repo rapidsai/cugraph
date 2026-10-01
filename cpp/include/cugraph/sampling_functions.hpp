@@ -973,7 +973,10 @@ heterogeneous_biased_temporal_neighbor_sample(
  * same rank. Equal timestamps always tie.
  *
  * Sampling is temporal when @p sampling_options.temporal_sampling_comparison is set; in that case
- * @p edge_start_time_view is required. When @p sampling_options.fixed_window is true, each seed's
+ * @p edge_start_time_view is required. An edge start time equal to
+ * std::numeric_limits<time_stamp_t>::lowest() means the edge has no time: it passes the temporal
+ * filter, and on a propagating walk the next frontier bound stays at the source's current bound
+ * instead of adopting that sentinel. When @p sampling_options.fixed_window is true, each seed's
  * original time window is reapplied at every hop; otherwise increasing and decreasing modes
  * propagate sampled edge times as the next frontier bound.
  */

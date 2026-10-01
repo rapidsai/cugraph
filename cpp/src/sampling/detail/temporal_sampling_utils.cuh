@@ -67,6 +67,10 @@ __host__ __device__ inline bool passes_temporal_filter(
   time_stamp_t window_end,
   time_stamp_t edge_time)
 {
+  // lowest() marks an edge with no time. It is eligible regardless of the frontier bound and the
+  // window. Callers that propagate sampled times must not install this sentinel as the next bound.
+  if (edge_time == std::numeric_limits<time_stamp_t>::lowest()) { return true; }
+
   switch (temporal_sampling_comparison) {
     case temporal_sampling_comparison_t::STRICTLY_INCREASING:
       return (key_time < edge_time) && (edge_time <= window_end);
