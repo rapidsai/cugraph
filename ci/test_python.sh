@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 set -euo pipefail
@@ -13,16 +13,26 @@ rapids-logger "Configuring conda strict channel priority"
 conda config --set channel_priority strict
 
 rapids-logger "Downloading artifacts from previous jobs"
-CPP_CHANNEL=$(rapids-download-from-github "$(rapids-artifact-name conda_cpp libcugraph cugraph --cuda "$RAPIDS_CUDA_VERSION")")
 PYTHON_CHANNEL=$(rapids-download-from-github "$(rapids-artifact-name conda_python cugraph cugraph --stable --cuda "$RAPIDS_CUDA_VERSION")")
+
+# A skipped 'conda-cpp-build' job (libcugraph unaffected by this PR) means no
+# artifact was uploaded this run. Fail fast (short retry budget) rather than
+# waiting out the full retry window, then fall back to resolving libcugraph
+# from the rapidsai-nightly channel (already in the default channel list)
+DEPENDENCY_FILE_GENERATOR_ARGS=(--prepend-channel "${PYTHON_CHANNEL}")
+if CPP_CHANNEL=$(RAPIDS_RETRY_MAX=1 RAPIDS_RETRY_SLEEP=15 rapids-download-from-github "$(rapids-artifact-name conda_cpp libcugraph cugraph --cuda "$RAPIDS_CUDA_VERSION")" 2>/tmp/libcugraph_channel_download.log); then
+  DEPENDENCY_FILE_GENERATOR_ARGS+=(--prepend-channel "${CPP_CHANNEL}")
+else
+  cat /tmp/libcugraph_channel_download.log >&2
+  rapids-logger "No libcugraph artifact found for this run; resolving it from the nightly channel"
+fi
 
 rapids-logger "Generate Python testing dependencies"
 rapids-dependency-file-generator \
   --output conda \
   --file-key test_python \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch);py=${RAPIDS_PY_VERSION};dependencies=${RAPIDS_DEPENDENCIES};require_gpu=true" \
-  --prepend-channel "${CPP_CHANNEL}" \
-  --prepend-channel "${PYTHON_CHANNEL}" \
+  "${DEPENDENCY_FILE_GENERATOR_ARGS[@]}" \
   | tee env.yaml
 
 rapids-mamba-retry env create --yes -f env.yaml -n test
