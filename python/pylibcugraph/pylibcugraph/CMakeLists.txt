@@ -52,6 +52,7 @@ set(cython_sources
     utils.pyx
     weakly_connected_components.pyx
     strongly_connected_components.pyx
+    simple_cycles.pyx
     replicate_edgelist.pyx
     degrees.pyx
     all_pairs_jaccard_coefficients.pyx
