@@ -37,7 +37,8 @@
 
 #include <rmm/exec_policy.hpp>
 
-#include <cub/cub.cuh>
+#include <cub/block/block_reduce.cuh>
+#include <cub/warp/warp_reduce.cuh>
 #include <cuda/atomic>
 #include <cuda/functional>
 #include <cuda/iterator>

@@ -20,6 +20,8 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cub/block/block_scan.cuh>
+#include <cub/warp/warp_scan.cuh>
 #include <cuda/std/functional>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>

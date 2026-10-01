@@ -32,7 +32,7 @@
 #include <rmm/mr/per_device_resource.hpp>
 #include <rmm/mr/polymorphic_allocator.hpp>
 
-#include <cub/cub.cuh>
+#include <cub/device/device_segmented_sort.cuh>
 #include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/functional>
