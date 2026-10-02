@@ -32,7 +32,7 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/exec_policy.hpp>
 
-#include <cub/cub.cuh>
+#include <cub/warp/warp_scan.cuh>
 #include <cuda/atomic>
 #include <cuda/functional>
 #include <cuda/iterator>

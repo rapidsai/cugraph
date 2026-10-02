@@ -27,6 +27,7 @@
 #include <raft/util/cudart_utils.hpp>
 #include <raft/util/integer_utils.hpp>
 
+#include <cub/block/block_scan.cuh>
 #include <cuda/atomic>
 #include <cuda/iterator>
 #include <cuda/std/functional>

@@ -23,7 +23,6 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
-#include <cub/cub.cuh>
 #include <cuda/atomic>
 #include <cuda/iterator>
 #include <cuda/std/tuple>

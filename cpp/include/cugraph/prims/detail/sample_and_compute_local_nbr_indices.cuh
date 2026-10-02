@@ -32,7 +32,8 @@
 
 #include <raft/random/rng.cuh>
 
-#include <cub/cub.cuh>
+#include <cub/block/block_scan.cuh>
+#include <cub/warp/warp_scan.cuh>
 #include <cuda/atomic>
 #include <cuda/functional>
 #include <cuda/iterator>

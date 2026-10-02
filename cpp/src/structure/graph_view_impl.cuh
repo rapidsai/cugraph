@@ -27,6 +27,7 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cub/block/block_reduce.cuh>
 #include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/optional>

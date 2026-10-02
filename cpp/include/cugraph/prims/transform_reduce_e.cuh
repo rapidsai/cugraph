@@ -24,6 +24,7 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cub/block/block_reduce.cuh>
 #include <cuda/std/functional>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
