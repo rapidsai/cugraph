@@ -27,7 +27,7 @@ class Tests_BitTree : public ::testing::Test {
   {
     cugraph::dynamic::bit_tree_t tree(size_t{4}, size_t{4});
 
-    EXPECT_EQ(tree.log_elements_per_block(), size_t{2});
+    EXPECT_EQ(tree.log_block_capacity(), size_t{2});
     EXPECT_EQ(tree.num_occupied_blocks(), size_t{0});
     EXPECT_FALSE(tree.full());
 

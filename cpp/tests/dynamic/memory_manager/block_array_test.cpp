@@ -40,7 +40,7 @@ class Tests_BlockArray : public ::testing::Test {
       k_elements_per_block, k_num_blocks, handle.get_stream());
 
     EXPECT_NE(block_array.block_array_key(), nullptr);
-    EXPECT_EQ(block_array.num_elements_per_block(), k_elements_per_block);
+    EXPECT_EQ(block_array.block_capacity(), k_elements_per_block);
     EXPECT_EQ(block_array.num_blocks(), k_num_blocks);
     EXPECT_EQ(block_array.num_elements(), k_num_elements);
     EXPECT_FALSE(block_array.full());

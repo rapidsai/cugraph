@@ -30,9 +30,9 @@ class block_array_t {
 
   using buffer_type = dataframe_buffer_type_t<T>;
 
-  block_array_t(size_t elements_per_block, size_t num_blocks, cuda::stream_ref stream)
-    : bit_tree_(elements_per_block, num_blocks),
-      block_storage_(allocate_dataframe_buffer<T>(num_blocks * elements_per_block, stream))
+  block_array_t(size_t block_capacity, size_t num_blocks, cuda::stream_ref stream)
+    : bit_tree_(block_capacity, num_blocks),
+      block_storage_(allocate_dataframe_buffer<T>(num_blocks * block_capacity, stream))
   {
   }
 
@@ -72,25 +72,25 @@ class block_array_t {
   template <typename U = T, std::enable_if_t<std::is_arithmetic_v<U>, int> = 0>
   auto block_data(size_t block_index)
   {
-    return column_data() + block_index * num_elements_per_block();
+    return column_data() + block_index * block_capacity();
   }
 
   template <typename U = T, std::enable_if_t<std::is_arithmetic_v<U>, int> = 0>
   auto block_data(size_t block_index) const
   {
-    return column_data() + block_index * num_elements_per_block();
+    return column_data() + block_index * block_capacity();
   }
 
   template <size_t I, typename U = T, std::enable_if_t<is_thrust_tuple_v<U>, int> = 0>
   auto block_data(size_t block_index)
   {
-    return column_data<I>() + block_index * num_elements_per_block();
+    return column_data<I>() + block_index * block_capacity();
   }
 
   template <size_t I, typename U = T, std::enable_if_t<is_thrust_tuple_v<U>, int> = 0>
   auto block_data(size_t block_index) const
   {
-    return column_data<I>() + block_index * num_elements_per_block();
+    return column_data<I>() + block_index * block_capacity();
   }
 
   template <typename U = T, std::enable_if_t<std::is_arithmetic_v<U>, int> = 0>
@@ -121,7 +121,9 @@ class block_array_t {
 
   void release(size_t block_index) { bit_tree_.release(block_index); }
 
-  size_t num_elements_per_block() const { return bit_tree_.num_elements_per_block(); }
+  size_t block_capacity() const { return bit_tree_.block_capacity(); }
+
+  size_t log_block_capacity() const { return bit_tree_.log_block_capacity(); }
 
   size_t num_blocks() const { return bit_tree_.num_blocks(); }
 

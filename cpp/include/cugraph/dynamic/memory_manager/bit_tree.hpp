@@ -26,19 +26,19 @@ namespace dynamic {
  */
 class bit_tree_t {
  public:
-  bit_tree_t(size_t elements_per_block, size_t num_blocks)
+  bit_tree_t(size_t block_capacity, size_t num_blocks)
   {
-    CUGRAPH_EXPECTS(std::has_single_bit(elements_per_block),
-                    "Invalid input argument: elements_per_block must be a power of 2.");
+    CUGRAPH_EXPECTS(std::has_single_bit(block_capacity),
+                    "Invalid input argument: block_capacity must be a power of 2.");
     CUGRAPH_EXPECTS(std::has_single_bit(num_blocks),
                     "Invalid input argument: num_blocks must be a power of 2.");
 
-    elements_per_block_ = elements_per_block;
-    num_blocks_         = num_blocks;
+    block_capacity_ = block_capacity;
+    num_blocks_     = num_blocks;
 
-    log_elements_per_block_ = std::bit_width(static_cast<size_t>(elements_per_block)) - size_t{1};
-    auto log_num_blocks     = std::bit_width(num_blocks) - size_t{1};
-    auto log_fanout         = std::bit_width(packed_bools_per_word()) - size_t{1};
+    log_block_capacity_ = std::bit_width(static_cast<size_t>(block_capacity)) - size_t{1};
+    auto log_num_blocks = std::bit_width(num_blocks) - size_t{1};
+    auto log_fanout     = std::bit_width(packed_bools_per_word()) - size_t{1};
 
     auto ceil_log_fanout = (log_num_blocks + log_fanout - size_t{1}) / log_fanout;
     num_internal_levels_ =
@@ -116,11 +116,11 @@ class bit_tree_t {
 
   bool full() const { return num_occupied_blocks_ == num_blocks_; }
 
-  size_t num_elements_per_block() const { return elements_per_block_; }
+  size_t block_capacity() const { return block_capacity_; }
+
+  size_t log_block_capacity() const { return log_block_capacity_; }
 
   size_t num_blocks() const { return num_blocks_; }
-
-  size_t log_elements_per_block() const { return log_elements_per_block_; }
 
  private:
   uint32_t* last_level_ptr() { return array_.data() + internal_words_; }
@@ -145,8 +145,8 @@ class bit_tree_t {
            packed_bool_empty_mask();
   }
 
-  size_t elements_per_block_{0};
-  size_t log_elements_per_block_{0};
+  size_t block_capacity_{0};
+  size_t log_block_capacity_{0};
   size_t num_blocks_{0};
   size_t num_internal_levels_{0};
   size_t internal_summary_bits_{0};
