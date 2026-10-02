@@ -9,7 +9,6 @@
 #include "utilities/mg_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 
-#include <cugraph/resource_ref.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <rmm/exec_policy.hpp>
@@ -43,14 +42,14 @@ namespace test {
  * ```
  **/
 class BaseFixture : public ::testing::Test {
-  cugraph::device_resource_ref _mr{rmm::mr::get_current_device_resource_ref()};
+  cuda::mr::device_resource_ref _mr{rmm::mr::get_current_device_resource_ref()};
 
  public:
   /**
    * @brief Returns pointer to `device_memory_resource` that should be used for all tests inheriting
    *from this fixture
    **/
-  cugraph::device_resource_ref mr() { return _mr; }
+  cuda::mr::device_resource_ref mr() { return _mr; }
 };
 
 /// MR factory functions
@@ -96,8 +95,7 @@ inline auto make_binning()
  *        "maxpool" only.
  * @return Memory resource instance
  */
-inline cuda::mr::any_resource<cuda::mr::device_accessible> create_memory_resource(
-  std::string const& allocation_mode)
+inline cuda::mr::any_device_resource create_memory_resource(std::string const& allocation_mode)
 {
   if (allocation_mode == "binning") return make_binning();
   if (allocation_mode == "cuda") return make_cuda();
