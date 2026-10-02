@@ -17,6 +17,8 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/sampling_functions.hpp>
+#include <cugraph/utilities/atomic_ops.cuh>
+#include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
@@ -36,6 +38,7 @@
 #include <thrust/count.h>
 #include <thrust/fill.h>
 #include <thrust/find.h>
+#include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
@@ -481,6 +484,83 @@ std::optional<rmm::device_uvector<time_stamp_t>> frontier_times_keeping_bound_fo
   return std::optional<rmm::device_uvector<time_stamp_t>>{std::move(next_times)};
 }
 
+// LAST heterogeneous sampling treats numeric_limits<time_stamp_t>::lowest() as "this edge type
+// has no times" and ranks those edges by a uniform key. A type that mixes the sentinel with real
+// timestamps would let the real timestamps outrank every uniform key. Each type must be entirely
+// one or the other: if its minimum time is the sentinel, its maximum must be the sentinel too.
+template <typename edge_t, typename time_stamp_t, typename edge_type_t, bool multi_gpu>
+void validate_last_n_heterogeneous_edge_times(
+  raft::handle_t const& handle,
+  edge_property_view_t<edge_t, time_stamp_t const*> edge_start_time_view,
+  edge_property_view_t<edge_t, edge_type_t const*> edge_type_view,
+  edge_type_t num_edge_types)
+{
+  auto const num_types    = static_cast<size_t>(num_edge_types);
+  auto const missing_time = std::numeric_limits<time_stamp_t>::lowest();
+  // Identities for a later MIN/MAX allreduce. A type with no edges keeps these, and
+  // missing_time != max(), so an empty type does not look mixed.
+  rmm::device_uvector<time_stamp_t> min_time(num_types, handle.get_stream());
+  rmm::device_uvector<time_stamp_t> max_time(num_types, handle.get_stream());
+  cugraph::fill(handle.get_thrust_policy(),
+                min_time.begin(),
+                min_time.end(),
+                std::numeric_limits<time_stamp_t>::max());
+  cugraph::fill(handle.get_thrust_policy(), max_time.begin(), max_time.end(), missing_time);
+
+  auto const& time_firsts = edge_start_time_view.value_firsts();
+  auto const& type_firsts = edge_type_view.value_firsts();
+  auto const& edge_counts = edge_start_time_view.edge_counts();
+  for (size_t partition = 0; partition < edge_counts.size(); ++partition) {
+    auto const count = static_cast<size_t>(edge_counts[partition]);
+    if (count == 0) { continue; }
+    thrust::for_each(handle.get_thrust_policy(),
+                     thrust::make_counting_iterator(size_t{0}),
+                     thrust::make_counting_iterator(count),
+                     [times    = time_firsts[partition],
+                      types    = type_firsts[partition],
+                      min_time = min_time.data(),
+                      max_time = max_time.data(),
+                      num_types] __device__(size_t i) {
+                       auto const type = types[i];
+                       if ((type < edge_type_t{0}) || (static_cast<size_t>(type) >= num_types)) {
+                         return;
+                       }
+                       auto const idx       = static_cast<size_t>(type);
+                       auto const edge_time = times[i];
+                       elementwise_atomic_min(min_time + idx, edge_time);
+                       elementwise_atomic_max(max_time + idx, edge_time);
+                     });
+  }
+
+  if constexpr (multi_gpu) {
+    device_allreduce(handle.get_comms(),
+                     min_time.begin(),
+                     min_time.begin(),
+                     num_types,
+                     raft::comms::op_t::MIN,
+                     handle.get_stream());
+    device_allreduce(handle.get_comms(),
+                     max_time.begin(),
+                     max_time.begin(),
+                     num_types,
+                     raft::comms::op_t::MAX,
+                     handle.get_stream());
+  }
+
+  auto const bounds          = thrust::make_zip_iterator(min_time.begin(), max_time.begin());
+  auto const num_mixed_types = static_cast<size_t>(thrust::count_if(
+    handle.get_thrust_policy(), bounds, bounds + num_types, [missing_time] __device__(auto pair) {
+      auto const type_min = cuda::std::get<0>(pair);
+      auto const type_max = cuda::std::get<1>(pair);
+      return (type_min == missing_time) && (type_max != missing_time);
+    }));
+
+  CUGRAPH_EXPECTS(num_mixed_types == 0,
+                  "Invalid input argument: each edge type in heterogeneous LAST sampling must "
+                  "store either all missing times (numeric_limits<time_stamp_t>::lowest()) or no "
+                  "missing times.");
+}
+
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -593,6 +673,14 @@ temporal_neighbor_sample_impl(
     (sampling_flags.neighbor_selection == neighbor_selection_t::RANDOM) || !edge_bias_view,
     "Invalid input argument: LAST neighbor selection does not accept edge "
     "biases.");
+
+  if (do_expensive_check && (sampling_flags.neighbor_selection == neighbor_selection_t::LAST) &&
+      num_edge_types && (*num_edge_types > 1)) {
+    CUGRAPH_EXPECTS(edge_type_view.has_value(),
+                    "Invalid input argument: heterogeneous LAST sampling requires edge types.");
+    validate_last_n_heterogeneous_edge_times<edge_t, time_stamp_t, edge_type_t, multi_gpu>(
+      handle, edge_start_time_view, *edge_type_view, *num_edge_types);
+  }
 
   // LAST ranks eligible edges by converting timestamps to double bias values
   // (detail::last_n_time_bias) for per_v_top_k_select_transform_outgoing_e.

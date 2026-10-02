@@ -415,11 +415,15 @@ CUGRAPH_EXPORT void cugraph_sampling_options_free(cugraph_sampling_options_t* op
  * RANDOM selection samples according to @p edge_biases when provided. If @p edge_biases is NULL,
  * sampling is uniform unless cugraph_sampling_set_use_edge_weights_as_biases has been set, in which
  * case graph edge weights are used as biases (the graph must be weighted). LAST (PyG
- * temporal_strategy='last') deterministically selects the last-n temporally eligible edges
+ * temporal_strategy='last') selects the last-n temporally eligible edges
  * along the walk order: later times for increasing comparisons, earlier times (last in
- * decreasing order) for decreasing comparisons. LAST requires temporal sampling, ignores
- * edge biases, and rejects with-replacement. int32 start times rank exactly over the full
- * signed range; int64 ranks exactly on [-2^52, 2^52 - 1] (typical unix
+ * decreasing order) for decreasing comparisons. An edge start time equal to the minimum
+ * value of the timestamp type is ranked by a uniform key in [1, 2) instead, so an edge
+ * type stored entirely as that minimum is a uniform sample of its fanout. An edge type must
+ * not mix that minimum with real timestamps. When do_expensive_check is true, heterogeneous
+ * LAST sampling rejects a type that does. LAST requires
+ * temporal sampling, ignores edge biases, and rejects with-replacement. int32 start times
+ * rank exactly over the full signed range; int64 ranks exactly on [-2^52, 2^52 - 1] (typical unix
  * seconds/milliseconds/microseconds). Beyond that, int64 ordering is preserved but values
  * may tie, so fanout edges are still returned yet the chosen set may be wrong when more
  * than fanout K eligible edges on one source share the same rank. Equal timestamps always

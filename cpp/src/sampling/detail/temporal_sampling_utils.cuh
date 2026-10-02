@@ -200,5 +200,19 @@ __device__ inline last_n_bias_t last_n_time_bias(
   }
 }
 
+// uniform_key comes from uniform_random_fill of [0, 1), one value per edge. Adding 1 places a
+// missing-time edge in [1, 2), below every ordinary time rank and selectable (bias 0 is rejected).
+template <typename time_stamp_t>
+__device__ inline last_n_bias_t last_n_selection_bias(
+  time_stamp_t edge_time,
+  temporal_sampling_comparison_t temporal_sampling_comparison,
+  last_n_bias_t uniform_key)
+{
+  if (edge_time == std::numeric_limits<time_stamp_t>::lowest()) {
+    return uniform_key + last_n_bias_t{1};
+  }
+  return last_n_time_bias(edge_time, temporal_sampling_comparison);
+}
+
 }  // namespace detail
 }  // namespace cugraph

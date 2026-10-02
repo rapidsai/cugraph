@@ -51,7 +51,7 @@ enum class temporal_sampling_comparison_t {
  */
 enum class neighbor_selection_t {
   RANDOM = 0, /** Random selection. Uniform if no bias view is supplied, biased otherwise. */
-  LAST        /** Deterministically select the last-n eligible edges (temporal only).
+  LAST        /** Select the last-n eligible edges (temporal only).
                   Named to match PyTorch Geometric's temporal_strategy='last'. "Last" is
                   relative to the temporal walk order in @p temporal_sampling_comparison,
                   not unconditionally the latest timestamp: among edges that pass the
@@ -59,7 +59,10 @@ enum class neighbor_selection_t {
                   (per edge type when heterogeneous) ranked by edge start time — later
                   times for STRICTLY_INCREASING and MONOTONICALLY_INCREASING (same as PyG);
                   earlier times for STRICTLY_DECREASING and MONOTONICALLY_DECREASING (the
-                  last elements in decreasing time order). Does not accept edge biases or
+                  last elements in decreasing time order). An edge time equal to
+                  numeric_limits<time_stamp_t>::lowest() is ranked by a uniform key in [1, 2)
+                  instead, so a heterogeneous edge type stored entirely as that sentinel is a
+                  uniform sample of size K. Does not accept edge biases or
                   with_replacement. Start times are ranked via double conversion: int32
                   ranks exactly over the full signed range; int64 ranks exactly on
                   [-2^52, 2^52 - 1] (typical unix seconds/milliseconds/microseconds).
@@ -116,8 +119,10 @@ struct sampling_options_t {
    * LAST (PyG temporal_strategy='last') keeps fanout-K edges ranked by start time
    * along the walk implied by @p temporal_sampling_comparison: later times for
    * increasing modes, earlier times (last in decreasing order) for decreasing modes.
-   * int32 start times rank exactly over the full signed range; int64 ranks exactly
-   * on [-2^52, 2^52 - 1]. Outside that int64 range, ordering is preserved but ties
+   * A start time equal to the minimum of the timestamp type is ranked by a uniform key in
+   * [1, 2) instead, which uniformly samples an edge type stored entirely as that sentinel.
+   * int32 start times rank exactly over the full signed range; int64 ranks exactly on
+   * [-2^52, 2^52 - 1]. Outside that int64 range, ordering is preserved but ties
    * are possible (see neighbor_selection_t::LAST).
    */
   neighbor_selection_t neighbor_selection{neighbor_selection_t::RANDOM};
@@ -966,7 +971,11 @@ heterogeneous_biased_temporal_neighbor_sample(
  * selects the last-n eligible edges along the temporal walk order (temporal only; no bias;
  * no with-replacement): later @p edge_start_time_view values for increasing comparisons,
  * earlier values for decreasing comparisons (last in decreasing time order, not latest
- * timestamp). int32 start times rank exactly over the full signed range; int64 ranks exactly
+ * timestamp). A start time equal to std::numeric_limits<time_stamp_t>::lowest() is ranked
+ * by a uniform key in [1, 2) instead, so an edge type stored entirely as that sentinel is
+ * a uniform sample of its fanout. An edge type must not mix that sentinel with real timestamps.
+ * When @p do_expensive_check is true, heterogeneous LAST sampling rejects a type that does.
+ * int32 start times rank exactly over the full signed range; int64 ranks exactly
  * on [-2^52, 2^52 - 1] (typical unix seconds/milliseconds/microseconds). Beyond that, int64
  * ordering is preserved but values may tie, so fanout edges are still returned yet the
  * chosen set may be wrong when more than fanout K eligible edges on one source share the

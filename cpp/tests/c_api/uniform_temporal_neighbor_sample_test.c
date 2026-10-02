@@ -2528,6 +2528,576 @@ int test_uniform_temporal_neighbor_sample_missing_time_fixed_window(
     sizeof(expected_edges) / sizeof(expected_edges[0]));
 }
 
+int test_uniform_temporal_neighbor_sample_last_missing_times(
+  const cugraph_resource_handle_t* handle)
+{
+  size_t num_edges        = 3;
+  size_t num_vertices     = 4;
+  size_t fan_out_size     = 1;
+  size_t num_starts       = 1;
+  size_t num_start_labels = 2;
+
+  // Every edge time is the missing-time sentinel. LAST ranks those edges by a uniform key, and
+  // fanout 3 keeps all of them. The seed window [10, 100] would reject the sentinel without the
+  // filter bypass.
+  vertex_t src[]                          = {0, 0, 0};
+  vertex_t dst[]                          = {1, 2, 3};
+  edge_t edge_ids[]                       = {0, 1, 2};
+  weight_t weight[]                       = {0.1, 0.2, 0.3};
+  int32_t edge_types[]                    = {0, 0, 0};
+  time_stamp_t edge_start_times[]         = {INT32_MIN, INT32_MIN, INT32_MIN};
+  time_stamp_t edge_end_times[]           = {INT32_MIN, INT32_MIN, INT32_MIN};
+  vertex_t start[]                        = {0};
+  time_stamp_t start_vertex_start_times[] = {10};
+  time_stamp_t start_vertex_end_times[]   = {100};
+  size_t start_vertex_label_offsets[]     = {0, 1};
+  int fan_out[]                           = {3};
+
+  expected_temporal_sample_edge_t expected_edges[] = {
+    {0, 1, INT32_MIN, 0},
+    {0, 2, INT32_MIN, 0},
+    {0, 3, INT32_MIN, 0},
+  };
+
+  return generic_uniform_temporal_neighbor_sample_test(
+    handle,
+    src,
+    dst,
+    weight,
+    edge_ids,
+    edge_types,
+    edge_start_times,
+    edge_end_times,
+    num_vertices,
+    num_edges,
+    start,
+    start_vertex_start_times,
+    start_vertex_end_times,
+    start_vertex_label_offsets,
+    num_starts,
+    num_start_labels,
+    fan_out,
+    fan_out_size,
+    FALSE,
+    TRUE,
+    DEFAULT,
+    FALSE,
+    STRICTLY_INCREASING,
+    CUGRAPH_NEIGHBOR_SELECTION_LAST,
+    FALSE,
+    FALSE,
+    expected_edges,
+    sizeof(expected_edges) / sizeof(expected_edges[0]));
+}
+
+int test_uniform_temporal_neighbor_sample_last_heterogeneous_missing_times(
+  const cugraph_resource_handle_t* handle)
+{
+  // One hop from vertex 0, two edge types.
+  // Type 0 has real times. Window [15, 45] leaves 20, 30, and 40 eligible (10 and 50 are outside).
+  // Increasing LAST keeps the later two (30, 40). Decreasing LAST keeps the earlier two (20, 30).
+  // Type 1 is stored entirely as INT32_MIN. Fanout 2 of those 8 edges is a uniform sample, so
+  // different seeds must not keep returning the same pair.
+  size_t const num_edges        = 13;
+  size_t const num_starts       = 1;
+  size_t const num_start_labels = 2;
+  int const num_edge_types      = 2;
+  int const num_seeds           = 16;
+  int const timed_fanout        = 2;
+  int const untimed_fanout      = 2;
+  vertex_t const untimed_dst_lo = 6;
+  vertex_t const untimed_dst_hi = 13;
+
+  vertex_t src[]       = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  vertex_t dst[]       = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
+  edge_t edge_ids[]    = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+  weight_t weight[]    = {0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1};
+  int32_t edge_types[] = {0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1};
+  time_stamp_t edge_start_times[]         = {10,
+                                             20,
+                                             30,
+                                             40,
+                                             50,
+                                             INT32_MIN,
+                                             INT32_MIN,
+                                             INT32_MIN,
+                                             INT32_MIN,
+                                             INT32_MIN,
+                                             INT32_MIN,
+                                             INT32_MIN,
+                                             INT32_MIN};
+  time_stamp_t edge_end_times[]           = {11,
+                                             21,
+                                             31,
+                                             41,
+                                             51,
+                                             INT32_MIN,
+                                             INT32_MIN,
+                                             INT32_MIN,
+                                             INT32_MIN,
+                                             INT32_MIN,
+                                             INT32_MIN,
+                                             INT32_MIN,
+                                             INT32_MIN};
+  vertex_t start[]                        = {0};
+  time_stamp_t start_vertex_start_times[] = {15};
+  time_stamp_t start_vertex_end_times[]   = {45};
+  size_t start_vertex_label_offsets[]     = {0, 1};
+  int fan_out[]                           = {timed_fanout, untimed_fanout};
+
+  cugraph_temporal_sampling_comparison_t const comparisons[] = {MONOTONICALLY_INCREASING,
+                                                                MONOTONICALLY_DECREASING};
+  // Sorted timestamps LAST must return for type 0 under each comparison.
+  time_stamp_t const expected_timed_times[][2] = {{30, 40}, {20, 30}};
+
+  int test_ret_value            = 0;
+  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
+  cugraph_error_t* ret_error    = NULL;
+  cugraph_graph_t* graph        = NULL;
+
+  cugraph_type_erased_device_array_t* d_start                              = NULL;
+  cugraph_type_erased_device_array_view_t* d_start_view                    = NULL;
+  cugraph_type_erased_device_array_t* d_start_vertex_start_times           = NULL;
+  cugraph_type_erased_device_array_view_t* d_start_vertex_start_times_view = NULL;
+  cugraph_type_erased_device_array_t* d_start_vertex_end_times             = NULL;
+  cugraph_type_erased_device_array_view_t* d_start_vertex_end_times_view   = NULL;
+  cugraph_type_erased_device_array_t* d_start_label_offsets                = NULL;
+  cugraph_type_erased_device_array_view_t* d_start_label_offsets_view      = NULL;
+  cugraph_type_erased_host_array_view_t* h_fan_out_view                    = NULL;
+  cugraph_sampling_options_t* sampling_options                             = NULL;
+  cugraph_rng_state_t* rng_state                                           = NULL;
+  cugraph_sample_result_t* result                                          = NULL;
+
+  ret_code = create_sg_test_graph(handle,
+                                  vertex_tid,
+                                  edge_tid,
+                                  src,
+                                  dst,
+                                  weight_tid,
+                                  weight,
+                                  edge_type_tid,
+                                  edge_types,
+                                  edge_id_tid,
+                                  edge_ids,
+                                  edge_time_tid,
+                                  edge_start_times,
+                                  edge_end_times,
+                                  num_edges,
+                                  FALSE,
+                                  TRUE,
+                                  FALSE,
+                                  FALSE,
+                                  &graph,
+                                  &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
+  if (test_ret_value != 0) { goto cleanup; }
+
+  ret_code =
+    cugraph_type_erased_device_array_create(handle, num_starts, INT32, &d_start, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start create failed.");
+  d_start_view = cugraph_type_erased_device_array_view(d_start);
+  ret_code     = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, d_start_view, (byte_t*)start, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "start copy_from_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_create(
+    handle, num_starts, INT32, &d_start_vertex_start_times, &ret_error);
+  TEST_ASSERT(
+    test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start_vertex_start_times create failed.");
+  d_start_vertex_start_times_view =
+    cugraph_type_erased_device_array_view(d_start_vertex_start_times);
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, d_start_vertex_start_times_view, (byte_t*)start_vertex_start_times, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "start time copy_from_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_create(
+    handle, num_starts, INT32, &d_start_vertex_end_times, &ret_error);
+  TEST_ASSERT(
+    test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start_vertex_end_times create failed.");
+  d_start_vertex_end_times_view = cugraph_type_erased_device_array_view(d_start_vertex_end_times);
+  ret_code                      = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, d_start_vertex_end_times_view, (byte_t*)start_vertex_end_times, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "end time copy_from_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_create(
+    handle, num_start_labels, SIZE_T, &d_start_label_offsets, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start_labels create failed.");
+  d_start_label_offsets_view = cugraph_type_erased_device_array_view(d_start_label_offsets);
+  ret_code                   = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, d_start_label_offsets_view, (byte_t*)start_vertex_label_offsets, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "label offsets copy_from_host failed.");
+
+  h_fan_out_view = cugraph_type_erased_host_array_view_create(fan_out, num_edge_types, INT32);
+
+  if (test_ret_value != 0) { goto cleanup; }
+
+  for (int comparison_idx = 0; comparison_idx < 2; ++comparison_idx) {
+    uint32_t seen_untimed_pairs[16];
+    int num_unique_untimed_pairs = 0;
+
+    ret_code = cugraph_sampling_options_create(&sampling_options, &ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "sampling_options create failed.");
+    if (test_ret_value != 0) { goto cleanup; }
+
+    cugraph_sampling_set_with_replacement(sampling_options, FALSE);
+    cugraph_sampling_set_return_hops(sampling_options, FALSE);
+    cugraph_sampling_set_prior_sources_behavior(sampling_options, DEFAULT);
+    cugraph_sampling_set_dedupe_sources(sampling_options, FALSE);
+    cugraph_sampling_set_renumber_results(sampling_options, FALSE);
+    cugraph_sampling_set_temporal_sampling_comparison(sampling_options,
+                                                      comparisons[comparison_idx]);
+    cugraph_sampling_set_disjoint_sampling(sampling_options, TRUE);
+    cugraph_sampling_set_neighbor_selection(sampling_options, CUGRAPH_NEIGHBOR_SELECTION_LAST);
+    cugraph_sampling_set_fixed_window(sampling_options, FALSE);
+
+    for (int seed = 0; seed < num_seeds; ++seed) {
+      ret_code = cugraph_rng_state_create(handle, (uint64_t)seed, &rng_state, &ret_error);
+      TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
+      if (test_ret_value != 0) { goto cleanup; }
+
+      ret_code = cugraph_neighbor_sample(handle,
+                                         rng_state,
+                                         graph,
+                                         NULL,
+                                         d_start_view,
+                                         d_start_vertex_start_times_view,
+                                         d_start_vertex_end_times_view,
+                                         d_start_label_offsets_view,
+                                         NULL,
+                                         h_fan_out_view,
+                                         num_edge_types,
+                                         sampling_options,
+                                         TRUE,
+                                         &result,
+                                         &ret_error);
+      TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+      if (test_ret_value != 0) { goto cleanup; }
+
+      cugraph_type_erased_device_array_view_t* result_srcs =
+        cugraph_sample_result_get_majors(result);
+      cugraph_type_erased_device_array_view_t* result_dsts =
+        cugraph_sample_result_get_destinations(result);
+      cugraph_type_erased_device_array_view_t* result_times =
+        cugraph_sample_result_get_edge_start_time(result);
+      cugraph_type_erased_device_array_view_t* result_types =
+        cugraph_sample_result_get_edge_type(result);
+
+      size_t const result_size = cugraph_type_erased_device_array_view_size(result_srcs);
+      TEST_ASSERT(test_ret_value,
+                  result_size == (size_t)(timed_fanout + untimed_fanout),
+                  "unexpected number of sampled edges");
+      TEST_ASSERT(
+        test_ret_value, result_types != NULL, "heterogeneous sample did not return edge types");
+      if (test_ret_value != 0) { goto cleanup; }
+
+      vertex_t h_srcs[4];
+      vertex_t h_dsts[4];
+      time_stamp_t h_times[4];
+      int32_t h_types[4];
+
+      ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+        handle, (byte_t*)h_srcs, result_srcs, &ret_error);
+      TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_to_host failed.");
+      ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+        handle, (byte_t*)h_dsts, result_dsts, &ret_error);
+      TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst copy_to_host failed.");
+      ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+        handle, (byte_t*)h_times, result_times, &ret_error);
+      TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "time copy_to_host failed.");
+      ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+        handle, (byte_t*)h_types, result_types, &ret_error);
+      TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "type copy_to_host failed.");
+      if (test_ret_value != 0) { goto cleanup; }
+
+      int n_timed   = 0;
+      int n_untimed = 0;
+      time_stamp_t timed_times[2];
+      vertex_t untimed_dsts[2];
+      for (size_t i = 0; i < result_size; ++i) {
+        TEST_ASSERT(test_ret_value, h_srcs[i] == 0, "sampled edge source is not the seed");
+        if (h_types[i] == 0) {
+          TEST_ASSERT(test_ret_value, n_timed < timed_fanout, "too many timed edges");
+          if (test_ret_value != 0) { goto cleanup; }
+          timed_times[n_timed++] = h_times[i];
+        } else if (h_types[i] == 1) {
+          TEST_ASSERT(test_ret_value, n_untimed < untimed_fanout, "too many untimed edges");
+          TEST_ASSERT(test_ret_value,
+                      h_times[i] == INT32_MIN,
+                      "untimed edge time is not the missing-time sentinel");
+          TEST_ASSERT(test_ret_value,
+                      h_dsts[i] >= untimed_dst_lo && h_dsts[i] <= untimed_dst_hi,
+                      "untimed edge destination is outside the untimed type");
+          if (test_ret_value != 0) { goto cleanup; }
+          untimed_dsts[n_untimed++] = h_dsts[i];
+        } else {
+          TEST_ASSERT(test_ret_value, false, "sampled edge has an unexpected type");
+          goto cleanup;
+        }
+      }
+      TEST_ASSERT(
+        test_ret_value, n_timed == timed_fanout, "timed type did not return fanout edges");
+      TEST_ASSERT(
+        test_ret_value, n_untimed == untimed_fanout, "untimed type did not return fanout edges");
+      if (test_ret_value != 0) { goto cleanup; }
+
+      if (timed_times[0] > timed_times[1]) {
+        time_stamp_t const swap = timed_times[0];
+        timed_times[0]          = timed_times[1];
+        timed_times[1]          = swap;
+      }
+      TEST_ASSERT(test_ret_value,
+                  timed_times[0] == expected_timed_times[comparison_idx][0] &&
+                    timed_times[1] == expected_timed_times[comparison_idx][1],
+                  "timed type did not keep the last-n timestamps for this walk order");
+      if (test_ret_value != 0) { goto cleanup; }
+
+      if (untimed_dsts[0] > untimed_dsts[1]) {
+        vertex_t const swap = untimed_dsts[0];
+        untimed_dsts[0]     = untimed_dsts[1];
+        untimed_dsts[1]     = swap;
+      }
+      TEST_ASSERT(test_ret_value,
+                  untimed_dsts[0] != untimed_dsts[1],
+                  "untimed type returned the same destination twice");
+      if (test_ret_value != 0) { goto cleanup; }
+
+      uint32_t const pair = ((uint32_t)untimed_dsts[0] << 16) | (uint32_t)untimed_dsts[1];
+      int already_seen    = 0;
+      for (int i = 0; i < num_unique_untimed_pairs; ++i) {
+        if (seen_untimed_pairs[i] == pair) { already_seen = 1; }
+      }
+      if (!already_seen) { seen_untimed_pairs[num_unique_untimed_pairs++] = pair; }
+
+      cugraph_sample_result_free(result);
+      result = NULL;
+      cugraph_rng_state_free(rng_state);
+      rng_state = NULL;
+    }
+
+    if (num_unique_untimed_pairs < 2) {
+      printf(
+        "ASSERTION FAILED: untimed type returned the same edges for every seed "
+        "(%d unique pair)\n",
+        num_unique_untimed_pairs);
+      test_ret_value = 1;
+      goto cleanup;
+    }
+
+    cugraph_sampling_options_free(sampling_options);
+    sampling_options = NULL;
+  }
+
+cleanup:
+  if (result) { cugraph_sample_result_free(result); }
+  if (rng_state) { cugraph_rng_state_free(rng_state); }
+  if (sampling_options) { cugraph_sampling_options_free(sampling_options); }
+  cugraph_type_erased_host_array_view_free(h_fan_out_view);
+  cugraph_type_erased_device_array_view_free(d_start_label_offsets_view);
+  cugraph_type_erased_device_array_view_free(d_start_vertex_end_times_view);
+  cugraph_type_erased_device_array_view_free(d_start_vertex_start_times_view);
+  cugraph_type_erased_device_array_view_free(d_start_view);
+  cugraph_type_erased_device_array_free(d_start_label_offsets);
+  cugraph_type_erased_device_array_free(d_start_vertex_end_times);
+  cugraph_type_erased_device_array_free(d_start_vertex_start_times);
+  cugraph_type_erased_device_array_free(d_start);
+  cugraph_graph_free(graph);
+  cugraph_error_free(ret_error);
+  return test_ret_value;
+}
+
+int test_uniform_temporal_neighbor_sample_last_heterogeneous_mixed_times(
+  const cugraph_resource_handle_t* handle)
+{
+  // Type 0 stores both a real timestamp and INT32_MIN. Heterogeneous LAST rejects that mix when
+  // do_expensive_check is set, and still samples when the check is off.
+  size_t const num_edges        = 4;
+  size_t const num_starts       = 1;
+  size_t const num_start_labels = 2;
+  int const num_edge_types      = 2;
+
+  vertex_t src[]                          = {0, 0, 0, 0};
+  vertex_t dst[]                          = {1, 2, 3, 4};
+  edge_t edge_ids[]                       = {0, 1, 2, 3};
+  weight_t weight[]                       = {0.1, 0.1, 0.1, 0.1};
+  int32_t edge_types[]                    = {0, 0, 1, 1};
+  time_stamp_t edge_start_times[]         = {10, INT32_MIN, INT32_MIN, INT32_MIN};
+  time_stamp_t edge_end_times[]           = {11, INT32_MIN, INT32_MIN, INT32_MIN};
+  vertex_t start[]                        = {0};
+  time_stamp_t start_vertex_start_times[] = {0};
+  time_stamp_t start_vertex_end_times[]   = {100};
+  size_t start_vertex_label_offsets[]     = {0, 1};
+  int fan_out[]                           = {1, 1};
+
+  int test_ret_value            = 0;
+  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
+  cugraph_error_t* ret_error    = NULL;
+  cugraph_graph_t* graph        = NULL;
+
+  cugraph_type_erased_device_array_t* d_start                              = NULL;
+  cugraph_type_erased_device_array_view_t* d_start_view                    = NULL;
+  cugraph_type_erased_device_array_t* d_start_vertex_start_times           = NULL;
+  cugraph_type_erased_device_array_view_t* d_start_vertex_start_times_view = NULL;
+  cugraph_type_erased_device_array_t* d_start_vertex_end_times             = NULL;
+  cugraph_type_erased_device_array_view_t* d_start_vertex_end_times_view   = NULL;
+  cugraph_type_erased_device_array_t* d_start_label_offsets                = NULL;
+  cugraph_type_erased_device_array_view_t* d_start_label_offsets_view      = NULL;
+  cugraph_type_erased_host_array_view_t* h_fan_out_view                    = NULL;
+  cugraph_sampling_options_t* sampling_options                             = NULL;
+  cugraph_rng_state_t* rng_state                                           = NULL;
+  cugraph_sample_result_t* result                                          = NULL;
+
+  ret_code = create_sg_test_graph(handle,
+                                  vertex_tid,
+                                  edge_tid,
+                                  src,
+                                  dst,
+                                  weight_tid,
+                                  weight,
+                                  edge_type_tid,
+                                  edge_types,
+                                  edge_id_tid,
+                                  edge_ids,
+                                  edge_time_tid,
+                                  edge_start_times,
+                                  edge_end_times,
+                                  num_edges,
+                                  FALSE,
+                                  TRUE,
+                                  FALSE,
+                                  FALSE,
+                                  &graph,
+                                  &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
+  if (test_ret_value != 0) { goto cleanup; }
+
+  ret_code =
+    cugraph_type_erased_device_array_create(handle, num_starts, INT32, &d_start, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start create failed.");
+  d_start_view = cugraph_type_erased_device_array_view(d_start);
+  ret_code     = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, d_start_view, (byte_t*)start, &ret_error);
+
+  ret_code = cugraph_type_erased_device_array_create(
+    handle, num_starts, INT32, &d_start_vertex_start_times, &ret_error);
+  TEST_ASSERT(
+    test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start_vertex_start_times create failed.");
+  d_start_vertex_start_times_view =
+    cugraph_type_erased_device_array_view(d_start_vertex_start_times);
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, d_start_vertex_start_times_view, (byte_t*)start_vertex_start_times, &ret_error);
+
+  ret_code = cugraph_type_erased_device_array_create(
+    handle, num_starts, INT32, &d_start_vertex_end_times, &ret_error);
+  TEST_ASSERT(
+    test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start_vertex_end_times create failed.");
+  d_start_vertex_end_times_view = cugraph_type_erased_device_array_view(d_start_vertex_end_times);
+  ret_code                      = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, d_start_vertex_end_times_view, (byte_t*)start_vertex_end_times, &ret_error);
+
+  ret_code = cugraph_type_erased_device_array_create(
+    handle, num_start_labels, SIZE_T, &d_start_label_offsets, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start_labels create failed.");
+  d_start_label_offsets_view = cugraph_type_erased_device_array_view(d_start_label_offsets);
+  ret_code                   = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, d_start_label_offsets_view, (byte_t*)start_vertex_label_offsets, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "label offsets copy_from_host failed.");
+  if (test_ret_value != 0) { goto cleanup; }
+
+  h_fan_out_view = cugraph_type_erased_host_array_view_create(fan_out, num_edge_types, INT32);
+
+  ret_code = cugraph_sampling_options_create(&sampling_options, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "sampling_options create failed.");
+  if (test_ret_value != 0) { goto cleanup; }
+
+  cugraph_sampling_set_with_replacement(sampling_options, FALSE);
+  cugraph_sampling_set_return_hops(sampling_options, FALSE);
+  cugraph_sampling_set_prior_sources_behavior(sampling_options, DEFAULT);
+  cugraph_sampling_set_dedupe_sources(sampling_options, FALSE);
+  cugraph_sampling_set_renumber_results(sampling_options, FALSE);
+  cugraph_sampling_set_temporal_sampling_comparison(sampling_options, MONOTONICALLY_INCREASING);
+  cugraph_sampling_set_disjoint_sampling(sampling_options, TRUE);
+  cugraph_sampling_set_neighbor_selection(sampling_options, CUGRAPH_NEIGHBOR_SELECTION_LAST);
+  cugraph_sampling_set_fixed_window(sampling_options, FALSE);
+
+  ret_code = cugraph_rng_state_create(handle, 0, &rng_state, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
+  if (test_ret_value != 0) { goto cleanup; }
+
+  ret_code = cugraph_neighbor_sample(handle,
+                                     rng_state,
+                                     graph,
+                                     NULL,
+                                     d_start_view,
+                                     d_start_vertex_start_times_view,
+                                     d_start_vertex_end_times_view,
+                                     d_start_label_offsets_view,
+                                     NULL,
+                                     h_fan_out_view,
+                                     num_edge_types,
+                                     sampling_options,
+                                     TRUE,
+                                     &result,
+                                     &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code != CUGRAPH_SUCCESS, "mixed edge times were accepted");
+  TEST_ASSERT(
+    test_ret_value,
+    ret_error != NULL && strstr(cugraph_error_message(ret_error), "missing times") != NULL,
+    "mixed edge times did not report the per-type check");
+  if (test_ret_value != 0) { goto cleanup; }
+
+  cugraph_error_free(ret_error);
+  ret_error = NULL;
+  if (result) {
+    cugraph_sample_result_free(result);
+    result = NULL;
+  }
+  cugraph_rng_state_free(rng_state);
+  rng_state = NULL;
+
+  ret_code = cugraph_rng_state_create(handle, 0, &rng_state, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
+  if (test_ret_value != 0) { goto cleanup; }
+
+  ret_code = cugraph_neighbor_sample(handle,
+                                     rng_state,
+                                     graph,
+                                     NULL,
+                                     d_start_view,
+                                     d_start_vertex_start_times_view,
+                                     d_start_vertex_end_times_view,
+                                     d_start_label_offsets_view,
+                                     NULL,
+                                     h_fan_out_view,
+                                     num_edge_types,
+                                     sampling_options,
+                                     FALSE,
+                                     &result,
+                                     &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+  if (test_ret_value != 0) { goto cleanup; }
+  TEST_ASSERT(
+    test_ret_value,
+    cugraph_type_erased_device_array_view_size(cugraph_sample_result_get_majors(result)) == 2,
+    "mixed edge times without the check did not return fanout edges");
+
+cleanup:
+  if (result) { cugraph_sample_result_free(result); }
+  if (rng_state) { cugraph_rng_state_free(rng_state); }
+  if (sampling_options) { cugraph_sampling_options_free(sampling_options); }
+  cugraph_type_erased_host_array_view_free(h_fan_out_view);
+  cugraph_type_erased_device_array_view_free(d_start_label_offsets_view);
+  cugraph_type_erased_device_array_view_free(d_start_vertex_end_times_view);
+  cugraph_type_erased_device_array_view_free(d_start_vertex_start_times_view);
+  cugraph_type_erased_device_array_view_free(d_start_view);
+  cugraph_type_erased_device_array_free(d_start_label_offsets);
+  cugraph_type_erased_device_array_free(d_start_vertex_end_times);
+  cugraph_type_erased_device_array_free(d_start_vertex_start_times);
+  cugraph_type_erased_device_array_free(d_start);
+  cugraph_graph_free(graph);
+  cugraph_error_free(ret_error);
+  return test_ret_value;
+}
+
 int main(int argc, char** argv)
 {
   cugraph_resource_handle_t* handle = NULL;
@@ -2565,6 +3135,11 @@ int main(int argc, char** argv)
   result |= RUN_TEST_NEW(
     test_uniform_temporal_neighbor_sample_missing_time_keeps_decreasing_frontier, handle);
   result |= RUN_TEST_NEW(test_uniform_temporal_neighbor_sample_missing_time_fixed_window, handle);
+  result |= RUN_TEST_NEW(test_uniform_temporal_neighbor_sample_last_missing_times, handle);
+  result |=
+    RUN_TEST_NEW(test_uniform_temporal_neighbor_sample_last_heterogeneous_missing_times, handle);
+  result |=
+    RUN_TEST_NEW(test_uniform_temporal_neighbor_sample_last_heterogeneous_mixed_times, handle);
 
   cugraph_free_resource_handle(handle);
 
