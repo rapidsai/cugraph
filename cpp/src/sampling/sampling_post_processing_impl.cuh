@@ -22,7 +22,7 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <cub/cub.cuh>
+#include <cub/device/device_segmented_sort.cuh>
 #include <cuda/atomic>
 #include <cuda/functional>
 #include <cuda/iterator>
