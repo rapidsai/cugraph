@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -22,10 +22,9 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/functional>
 #include <thrust/count.h>
 #include <thrust/iterator/counting_iterator.h>
-
-#include <cuco/hash_functions.cuh>
 
 #include <gtest/gtest.h>
 
@@ -37,7 +36,7 @@ struct test_predicate {
   test_predicate(int mod_count) : mod(mod_count) {}
   __device__ bool operator()(vertex_t, const vertex_t& val)
   {
-    cuco::murmurhash3_32<vertex_t> hash_func{};
+    cuda::hash<vertex_t, cuda::hash_algorithm::murmurhash3_32> hash_func{};
     return (0 == (hash_func(val) % mod));
   }
 };

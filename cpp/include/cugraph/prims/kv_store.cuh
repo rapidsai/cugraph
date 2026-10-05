@@ -20,6 +20,7 @@
 #include <rmm/mr/polymorphic_allocator.hpp>
 
 #include <cuda/atomic>
+#include <cuda/functional>
 #include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
@@ -310,7 +311,7 @@ class kv_cuco_store_view_t {
                      cuda::thread_scope_device,
                      cuda::std::equal_to<key_t>,
                      cuco::linear_probing<1,  // CG size
-                                          cuco::murmurhash3_32<key_t>>,
+                                          cuda::hash<key_t, cuda::hash_algorithm::murmurhash3_32>>,
                      rmm::mr::polymorphic_allocator<std::byte>,
                      cuco_storage_type>;
 
@@ -505,7 +506,7 @@ class kv_cuco_store_t {
                      cuda::thread_scope_device,
                      cuda::std::equal_to<key_t>,
                      cuco::linear_probing<1,  // CG size
-                                          cuco::murmurhash3_32<key_t>>,
+                                          cuda::hash<key_t, cuda::hash_algorithm::murmurhash3_32>>,
                      rmm::mr::polymorphic_allocator<std::byte>,
                      cuco_storage_type>;
 
@@ -860,17 +861,17 @@ class kv_cuco_store_t {
       static_cast<size_t>(num_keys) + 1);  // cuco::static_map requires at least one empty slot
 
     if constexpr (std::is_arithmetic_v<value_t>) {
-      cuco_store_ =
-        std::make_unique<cuco_map_type>(cuco_size,
-                                        cuco::empty_key<key_t>{invalid_key},
-                                        cuco::empty_value<value_t>{invalid_value},
-                                        cuda::std::equal_to<key_t>{},
-                                        cuco::linear_probing<1,  // CG size
-                                                             cuco::murmurhash3_32<key_t>>{},
-                                        cuco::thread_scope_device,
-                                        cuco_storage_type{},
-                                        rmm::mr::polymorphic_allocator<std::byte>{},
-                                        stream.get());
+      cuco_store_ = std::make_unique<cuco_map_type>(
+        cuco_size,
+        cuco::empty_key<key_t>{invalid_key},
+        cuco::empty_value<value_t>{invalid_value},
+        cuda::std::equal_to<key_t>{},
+        cuco::linear_probing<1,  // CG size
+                             cuda::hash<key_t, cuda::hash_algorithm::murmurhash3_32>>{},
+        cuco::thread_scope_device,
+        cuco_storage_type{},
+        rmm::mr::polymorphic_allocator<std::byte>{},
+        stream.get());
     } else {
       cuco_store_ = std::make_unique<cuco_map_type>(
         cuco_size,
@@ -878,7 +879,7 @@ class kv_cuco_store_t {
         cuco::empty_value<size_t>{std::numeric_limits<size_t>::max()},
         cuda::std::equal_to<key_t>{},
         cuco::linear_probing<1,  // CG size
-                             cuco::murmurhash3_32<key_t>>{},
+                             cuda::hash<key_t, cuda::hash_algorithm::murmurhash3_32>>{},
         cuco::thread_scope_device,
         cuco_storage_type{},
         rmm::mr::polymorphic_allocator<std::byte>{},
