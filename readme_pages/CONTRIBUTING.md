@@ -7,7 +7,7 @@ There are multiple ways to be involved and contribute to the cuGraph community, 
 * [Propose a New Feature](#new_feature)
 * [Work on an Existing Issue](#existing_issue)
 
-If you are ready to contribute, jump right to the [Contribute Code](https://docs.nvidia.com/datascience/resources/conduct/) section.
+If you are ready to contribute, jump right to the [Contribute Code](#so-you-want-to-contribute-code) section.
 
 
 __Style Formatting Tools:__
@@ -60,7 +60,7 @@ If you need more context on a particular issue, please ask.
 ----
 
 
-# So you want to contribute code
+# So you want to contribute code<a name="so-you-want-to-contribute-code"></a>
 
 **TL;DR General Development Process**
 1. Read the documentation on [building from source](../docs/cugraph/source/installation/source_build.md) to learn how to setup, and validate, the development environment
@@ -122,7 +122,7 @@ There is no recommended or preferred development environment.  There are a few *
 
 **Hardware**
 
-* You need to have access to an NVIDIA GPU that is Pascal or later.
+* You need to have access to an NVIDIA GPU that is Volta or later.
 
 
 **IDEs**
@@ -134,9 +134,6 @@ There is no recommended IDE, here is just a list of what cuGraph developers curr
 * VSCode
 * VIM / VI (old school programming)
   * With plug-ins like [FZF](https://github.com/junegunn/fzf), [Rg](https://github.com/BurntSushi/ripgrep)
-
-
-Using VSCode, you can develop remotely from the hardware if you so wish.  Alex Fender has notes on setting up remote development:  https://github.com/afender/cugraph-vscode
 
 
 **Debug**
