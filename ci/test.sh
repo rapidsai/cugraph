@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Any failing command will set EXITCODE to non-zero
@@ -69,6 +69,14 @@ if hasArg "--run-cpp-tests"; then
         echo "Running C API test $test_name"
         ${ct}
         echo "Ran C API test $test_name : return code was: $?, test script exit code is now: $EXITCODE"
+    done
+    for gt in "${CONDA_PREFIX}/bin/gtests/libcugraph_etl/"*_TEST; do
+        # Directory may be empty on older packages that predate ETL gtests.
+        [[ -e "${gt}" ]] || continue
+        test_name=$(basename "$gt")
+        echo "Running gtest $test_name"
+        ${gt} "${GTEST_FILTER}" "${GTEST_ARGS}"
+        echo "Ran gtest $test_name : return code was: $?, test script exit code is now: $EXITCODE"
     done
 fi
 

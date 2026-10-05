@@ -34,3 +34,8 @@ rapids_test_add(
     PERCENT 100
     INSTALL_COMPONENT_SET testing
 )
+
+rapids_test_install_relocatable(
+    INSTALL_COMPONENT_SET testing
+    DESTINATION bin/gtests/libcugraph_etl
+)
