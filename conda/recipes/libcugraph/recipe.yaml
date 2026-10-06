@@ -219,6 +219,7 @@ outputs:
         - ${{ stdlib("c") }}
       host:
         - ${{ pin_subpackage("libcugraph", exact=True) }}
+        - ${{ pin_subpackage("libcugraph_etl", exact=True) }}
         - cuda-version =${{ cuda_version }}
         - cuda-cudart-dev
         - nccl ${{ nccl_version }}
