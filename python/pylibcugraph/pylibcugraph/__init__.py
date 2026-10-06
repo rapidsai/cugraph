@@ -84,6 +84,8 @@ from pylibcugraph.weakly_connected_components import weakly_connected_components
 
 from pylibcugraph.strongly_connected_components import strongly_connected_components
 
+from pylibcugraph.simple_cycles import simple_cycles
+
 from pylibcugraph.uniform_random_walks import uniform_random_walks
 
 from pylibcugraph.biased_random_walks import biased_random_walks
