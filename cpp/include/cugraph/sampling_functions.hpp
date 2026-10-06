@@ -119,7 +119,7 @@ struct sampling_options_t {
    * LAST (PyG temporal_strategy='last') keeps fanout-K edges ranked by start time
    * along the walk implied by @p temporal_sampling_comparison: later times for
    * increasing modes, earlier times (last in decreasing order) for decreasing modes.
-   * A start time equal to the minimum of the timestamp type is ranked by a uniform key in
+   * A start time equal to numeric_limits<time_stamp_t>::lowest() is ranked by a uniform key in
    * [1, 2) instead, which uniformly samples an edge type stored entirely as that sentinel.
    * int32 start times rank exactly over the full signed range; int64 ranks exactly on
    * [-2^52, 2^52 - 1]. Outside that int64 range, ordering is preserved but ties

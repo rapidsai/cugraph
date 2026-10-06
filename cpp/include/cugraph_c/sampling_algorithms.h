@@ -417,10 +417,10 @@ CUGRAPH_EXPORT void cugraph_sampling_options_free(cugraph_sampling_options_t* op
  * case graph edge weights are used as biases (the graph must be weighted). LAST (PyG
  * temporal_strategy='last') selects the last-n temporally eligible edges
  * along the walk order: later times for increasing comparisons, earlier times (last in
- * decreasing order) for decreasing comparisons. An edge start time equal to the minimum
- * value of the timestamp type is ranked by a uniform key in [1, 2) instead, so an edge
- * type stored entirely as that minimum is a uniform sample of its fanout. An edge type must
- * not mix that minimum with real timestamps. When do_expensive_check is true, heterogeneous
+ * decreasing order) for decreasing comparisons. An edge start time equal to
+ * numeric_limits<time_stamp_t>::lowest() is ranked by a uniform key in [1, 2) instead, so an edge
+ * type stored entirely as that sentinel is a uniform sample of its fanout. An edge type must
+ * not mix that sentinel with real timestamps. When do_expensive_check is true, heterogeneous
  * LAST sampling rejects a type that does. LAST requires
  * temporal sampling, ignores edge biases, and rejects with-replacement. int32 start times
  * rank exactly over the full signed range; int64 ranks exactly on [-2^52, 2^52 - 1] (typical unix
@@ -431,9 +431,9 @@ CUGRAPH_EXPORT void cugraph_sampling_options_free(cugraph_sampling_options_t* op
  *
  * Sampling is non-temporal unless cugraph_sampling_set_temporal_sampling_comparison has been
  * called on @p sampling_options; all temporal arguments must then be NULL. When temporal, an edge
- * start time equal to the minimum value of the timestamp type (INT32_MIN or INT64_MIN) means the
+ * start time equal to numeric_limits<time_stamp_t>::lowest() means the
  * edge has no time: it passes the temporal filter, and unless fixed_window is set the next
- * frontier bound stays at the source's current bound instead of adopting that minimum.
+ * frontier bound stays at the source's current bound instead of adopting that sentinel.
  * cugraph_sampling_set_fixed_window(TRUE) reapplies each seed's original window at every hop
  * instead of propagating sampled edge times; it is orthogonal to increasing vs decreasing.
  * Sampling is homogeneous when @p num_edge_types is 1; otherwise @p fan_out contains one value per
