@@ -72,9 +72,9 @@ if hasArg "--run-cpp-tests"; then
     done
     for gt in "${CONDA_PREFIX}/bin/gtests/libcugraph_etl/"*_TEST; do
         test_name=$(basename "$gt")
-        echo "Running gtest $test_name"
+        echo "Running ETL test $test_name"
         ${gt} "${GTEST_FILTER}" "${GTEST_ARGS}"
-        echo "Ran gtest $test_name : return code was: $?, test script exit code is now: $EXITCODE"
+        echo "Ran ETL test $test_name : return code was: $?, test script exit code is now: $EXITCODE"
     done
 fi
 
