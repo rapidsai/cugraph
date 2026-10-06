@@ -71,8 +71,6 @@ if hasArg "--run-cpp-tests"; then
         echo "Ran C API test $test_name : return code was: $?, test script exit code is now: $EXITCODE"
     done
     for gt in "${CONDA_PREFIX}/bin/gtests/libcugraph_etl/"*_TEST; do
-        # Directory may be empty on older packages that predate ETL gtests.
-        [[ -e "${gt}" ]] || continue
         test_name=$(basename "$gt")
         echo "Running gtest $test_name"
         ${gt} "${GTEST_FILTER}" "${GTEST_ARGS}"
