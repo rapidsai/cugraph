@@ -564,10 +564,6 @@ dependencies:
       - output_types: conda
         packages:
           - &cugraph_unsuffixed cugraph==26.12.*,>=0.0.0a0
-      - output_types: requirements
-        packages:
-          # pip recognizes the index as a global option for the requirements.txt file
-          - --extra-index-url=https://pypi.nvidia.com
     specific:
       - output_types: [requirements, pyproject]
         matrices:
@@ -824,10 +820,6 @@ dependencies:
       - output_types: conda
         packages:
           - &libcugraph_unsuffixed libcugraph==26.12.*,>=0.0.0a0
-      - output_types: requirements
-        packages:
-          # pip recognizes the index as a global option for the requirements.txt file
-          - --extra-index-url=https://pypi.nvidia.com
     specific:
       - output_types: [requirements, pyproject]
         matrices:
@@ -850,10 +842,6 @@ dependencies:
       - output_types: conda
         packages:
           - &pylibcugraph_unsuffixed pylibcugraph==26.12.*,>=0.0.0a0
-      - output_types: requirements
-        packages:
-          # pip recognizes the index as a global option for the requirements.txt file
-          - --extra-index-url=https://pypi.nvidia.com
     specific:
       - output_types: [requirements, pyproject]
         matrices:
