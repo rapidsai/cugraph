@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -16,8 +16,8 @@
 
 #include <cugraph_c/centrality_algorithms.h>
 #include <cugraph_c/community_algorithms.h>
+#include <cugraph_c/components_algorithms.h>
 #include <cugraph_c/core_algorithms.h>
-#include <cugraph_c/labeling_algorithms.h>
 #include <cugraph_c/lookup_src_dst.h>
 #include <cugraph_c/sampling_algorithms.h>
 #include <cugraph_c/similarity_algorithms.h>
