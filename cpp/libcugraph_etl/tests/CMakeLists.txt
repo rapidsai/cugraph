@@ -12,8 +12,9 @@ rapids_test_init()
 add_executable(RENUMBER_CUDF_TABLES_TEST renumber_cudf_tables_test.cpp)
 
 target_link_libraries(RENUMBER_CUDF_TABLES_TEST
-    PRIVATE
+    PUBLIC
         cugraph::cugraph_etl
+    PRIVATE
         cudf::cudf
         GTest::gtest
         GTest::gtest_main
