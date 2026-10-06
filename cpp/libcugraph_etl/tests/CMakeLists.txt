@@ -15,6 +15,7 @@ target_link_libraries(RENUMBER_CUDF_TABLES_TEST
     PRIVATE
         cugraph::cugraph_etl
         cudf::cudf
+        raft::raft
         GTest::gtest
         GTest::gtest_main
 )
