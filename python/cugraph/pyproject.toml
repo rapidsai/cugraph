@@ -22,7 +22,7 @@ authors = [
     { name = "NVIDIA Corporation" },
 ]
 license = "Apache-2.0"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "cuda-bindings>=13.0.2,<14.0",
     "cudf==26.12.*,>=0.0.0a0",
@@ -44,7 +44,6 @@ dependencies = [
 classifiers = [
     "Intended Audience :: Developers",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
 
@@ -78,7 +77,7 @@ minimum-version = "build-system.requires"
 ninja.make-fallback = false
 sdist.reproducible = true
 wheel.packages = ["cugraph"]
-wheel.py-api = "cp311" # overridden in CI builds by arguments from `ci/build_wheel_*.sh` scripts.
+wheel.py-api = "cp312" # overridden in CI builds by arguments from `ci/build_wheel_*.sh` scripts.
 
 [tool.scikit-build.metadata.version]
 provider = "scikit_build_core.metadata.regex"
