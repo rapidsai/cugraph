@@ -72,6 +72,8 @@ jobs:
       files_yaml: |
         build_docs:
           - '**'
+          - '!**/REVIEW_GUIDELINES.md'
+          - '!.coderabbit.yaml'
           - '!.devcontainer/**'
           - '!.dockerignore'
           - '!.git-blame-ignore-revs'
@@ -103,6 +105,8 @@ jobs:
           - '!ci/wheel*.py'
         test_cpp:
           - '**'
+          - '!**/REVIEW_GUIDELINES.md'
+          - '!.coderabbit.yaml'
           - '!.devcontainer/**'
           - '!.dockerignore'
           - '!.git-blame-ignore-revs'
@@ -141,6 +145,8 @@ jobs:
           - '!readme_pages/**'
         test_notebooks:
           - '**'
+          - '!**/REVIEW_GUIDELINES.md'
+          - '!.coderabbit.yaml'
           - '!.devcontainer/**'
           - '!.dockerignore'
           - '!.git-blame-ignore-revs'
@@ -173,6 +179,8 @@ jobs:
           - '!docs/**'
         test_python_conda:
           - '**'
+          - '!**/REVIEW_GUIDELINES.md'
+          - '!.coderabbit.yaml'
           - '!.devcontainer/**'
           - '!.dockerignore'
           - '!.git-blame-ignore-revs'
@@ -209,6 +217,7 @@ jobs:
           - '!readme_pages/**'
         test_python_wheels:
           - '**'
+          - '!.coderabbit.yaml'
           - '!.devcontainer/**'
           - '!.dockerignore'
           - '!.git-blame-ignore-revs'
