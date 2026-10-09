@@ -15,9 +15,6 @@ Manipulation of the data before or after the graph analytic is not covered here.
 |HITS (Hyperlink-Induced Topic Search)  | [HITS](HITS.ipynb)   | Identifies hubs and authoritative sources within the graph. Originally meant to evaluate citations and reference lists in web pages. |
 |PageRank | [PageRank](Pagerank.ipynb)               |Determines the importance, also called centrality, of all the vertices based on the relative importance of their neighbors.|
 
-
-[System Requirements](https://docs.rapids.ai/install/#system-req)
-
 ## Copyright
 
 Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.

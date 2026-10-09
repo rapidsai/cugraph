@@ -68,7 +68,7 @@ cugraph_smoke_check = "cugraph._doctor_check:cugraph_smoke_check"
 
 [project.urls]
 Homepage = "https://github.com/rapidsai/cugraph"
-Documentation = "https://docs.rapids.ai/api/cugraph/stable/"
+Documentation = "https://docs.nvidia.com/cugraph/latest/"
 
 [tool.scikit-build]
 build-dir = "build/{wheel_tag}"
