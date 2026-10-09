@@ -70,7 +70,7 @@ requirements:
   host:
     - cuda-version =${{ cuda_version }}
     - cython >=3.2.2
-    - libcugraph =${{ version }}
+    - libcugraph =${{ minor_version }}
     - pip
     - pylibraft =${{ minor_version }}
     - python =${{ py_abi_min }}
@@ -80,7 +80,7 @@ requirements:
   run:
     - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
     - cupy >=14.0.1,!=14.1.0
-    - libcugraph =${{ version }}
+    - libcugraph =${{ minor_version }}
     - numpy>=2.0,<3.0
     - pylibraft =${{ minor_version }}
     - python
