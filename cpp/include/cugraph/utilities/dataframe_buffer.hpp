@@ -10,7 +10,9 @@
 #include <raft/core/handle.hpp>
 
 #include <rmm/device_uvector.hpp>
+#include <rmm/mr/per_device_resource.hpp>
 
+#include <cuda/memory_resource>
 #include <cuda/std/tuple>
 #include <cuda/stream>
 #include <thrust/iterator/zip_iterator.h>
@@ -26,7 +28,7 @@ auto allocate_dataframe_buffer_tuple_impl(
   std::index_sequence<Is...>,
   size_t buffer_size,
   cuda::stream_ref stream_view,
-  rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource_ref())
+  cuda::mr::device_resource_ref mr = rmm::mr::get_current_device_resource_ref())
 {
   return std::make_tuple(
     rmm::device_uvector<typename cuda::std::tuple_element<Is, TupleType>::type>(
@@ -65,7 +67,7 @@ template <
 auto allocate_dataframe_buffer(
   size_t buffer_size,
   cuda::stream_ref stream_view,
-  rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource_ref())
+  cuda::mr::device_resource_ref mr = rmm::mr::get_current_device_resource_ref())
 {
   return rmm::device_uvector<T>(buffer_size, stream_view, mr);
 }
@@ -74,7 +76,7 @@ template <typename T, typename std::enable_if_t<is_thrust_tuple_of_arithmetic<T>
 auto allocate_dataframe_buffer(
   size_t buffer_size,
   cuda::stream_ref stream_view,
-  rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource_ref())
+  cuda::mr::device_resource_ref mr = rmm::mr::get_current_device_resource_ref())
 {
   size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
   return detail::allocate_dataframe_buffer_tuple_impl<T>(
@@ -93,7 +95,7 @@ template <typename T>
 std::optional<dataframe_buffer_type_t<T>> try_allocate_dataframe_buffer(
   size_t buffer_size,
   cuda::stream_ref stream_view,
-  rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource_ref())
+  cuda::mr::device_resource_ref mr = rmm::mr::get_current_device_resource_ref())
 {
   try {
     return allocate_dataframe_buffer<T>(buffer_size, stream_view, mr);
