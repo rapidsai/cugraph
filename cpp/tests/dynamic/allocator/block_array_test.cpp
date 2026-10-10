@@ -6,7 +6,7 @@
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
 
-#include <cugraph/dynamic/memory_manager/block_array.hpp>
+#include <cugraph/dynamic/allocator/block_array.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -14,7 +14,6 @@
 
 #include <gtest/gtest.h>
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <numeric>
@@ -33,61 +32,18 @@ class Tests_BlockArray : public ::testing::Test {
 
   virtual void SetUp() {}
   virtual void TearDown() {}
-
-  void run_allocate_until_full_test(raft::handle_t const& handle)
-  {
-    cugraph::dynamic::block_array_t<int32_t> block_array(
-      k_elements_per_block, k_num_blocks, handle.get_stream());
-
-    EXPECT_NE(block_array.block_array_key(), nullptr);
-    EXPECT_EQ(block_array.block_capacity(), k_elements_per_block);
-    EXPECT_EQ(block_array.num_blocks(), k_num_blocks);
-    EXPECT_EQ(block_array.num_elements(), k_num_elements);
-    EXPECT_FALSE(block_array.full());
-
-    std::vector<size_t> block_indices;
-    block_indices.reserve(k_num_blocks);
-    for (size_t i = 0; i < k_num_blocks; ++i) {
-      auto const block_index = block_array.allocate();
-      EXPECT_EQ(std::find(block_indices.begin(), block_indices.end(), block_index),
-                block_indices.end());
-      block_indices.push_back(block_index);
-      EXPECT_EQ(block_index, i);
-    }
-
-    EXPECT_TRUE(block_array.full());
-  }
-
-  void run_release_and_reuse_test(raft::handle_t const& handle)
-  {
-    cugraph::dynamic::block_array_t<int32_t> block_array(
-      k_elements_per_block, k_num_blocks, handle.get_stream());
-
-    std::vector<size_t> block_indices;
-    block_indices.reserve(k_num_blocks);
-    for (size_t i = 0; i < k_num_blocks; ++i) {
-      block_indices.push_back(block_array.allocate());
-    }
-
-    block_array.release(block_indices[1]);
-    EXPECT_FALSE(block_array.full());
-
-    auto const reused = block_array.allocate();
-    EXPECT_EQ(reused, block_indices[1]);
-    EXPECT_TRUE(block_array.full());
-  }
 };
 
-TEST_F(Tests_BlockArray, AllocateUntilFull)
+TEST_F(Tests_BlockArray, BufferSize)
 {
   raft::handle_t handle;
-  run_allocate_until_full_test(handle);
-}
 
-TEST_F(Tests_BlockArray, ReleaseAndReuse)
-{
-  raft::handle_t handle;
-  run_release_and_reuse_test(handle);
+  cugraph::dynamic::block_array_t<int32_t> block_array(
+    Tests_BlockArray::k_elements_per_block, Tests_BlockArray::k_num_blocks, handle.get_stream());
+
+  EXPECT_EQ(block_array.block_capacity(), Tests_BlockArray::k_elements_per_block);
+  EXPECT_EQ(block_array.num_blocks(), Tests_BlockArray::k_num_blocks);
+  EXPECT_EQ(block_array.num_elements(), Tests_BlockArray::k_num_elements);
 }
 
 TEST_F(Tests_BlockArray, BlockAndElementDataPointers)
@@ -136,7 +92,7 @@ TEST_F(Tests_BlockArray, BlockColumnReadWrite)
   cugraph::dynamic::block_array_t<int32_t> block_array(
     Tests_BlockArray::k_elements_per_block, Tests_BlockArray::k_num_blocks, handle.get_stream());
 
-  auto const block_index = block_array.allocate();
+  auto const block_index = size_t{0};
 
   std::vector<int32_t> expected(Tests_BlockArray::k_elements_per_block);
   std::iota(expected.begin(), expected.end(), static_cast<int32_t>(block_index * 10));
@@ -195,10 +151,6 @@ TEST_F(Tests_BlockArray, MultiColumnBlockDataPointers)
   EXPECT_EQ(block_array.block_data<1>(0), block_array.column_data<1>());
   EXPECT_EQ(block_array.element_data<0>(2), block_array.column_data<0>() + 2);
   EXPECT_EQ(block_array.element_data<1>(2), block_array.column_data<1>() + 2);
-  EXPECT_NE(block_array.block_array_key(),
-            reinterpret_cast<std::byte const*>(block_array.column_data<1>()));
-  EXPECT_EQ(block_array.block_array_key(),
-            reinterpret_cast<std::byte const*>(block_array.column_data<0>()));
 }
 
 CUGRAPH_TEST_PROGRAM_MAIN()

@@ -5,7 +5,7 @@
 
 #include "utilities/base_fixture.hpp"
 
-#include <cugraph/dynamic/memory_manager/bit_tree.hpp>
+#include <cugraph/dynamic/allocator/bit_tree.hpp>
 
 #include <gtest/gtest.h>
 

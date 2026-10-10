@@ -114,6 +114,8 @@ class bit_tree_t {
 
   size_t num_occupied_blocks() const { return num_occupied_blocks_; }
 
+  size_t num_available_blocks() const { return num_blocks_ - num_occupied_blocks_; }
+
   bool full() const { return num_occupied_blocks_ == num_blocks_; }
 
   size_t block_capacity() const { return block_capacity_; }

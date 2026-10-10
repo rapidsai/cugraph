@@ -4,7 +4,6 @@
  */
 #pragma once
 
-#include <cugraph/dynamic/memory_manager/bit_tree.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
@@ -18,7 +17,9 @@ namespace cugraph {
 namespace dynamic {
 
 /**
- * @brief Block array of fixed-size blocks with a host-side bit tree to track available blocks.
+ * @brief GPU buffer split into fixed-size blocks.
+ *
+ * Free-block tracking lives in `block_allocator_t`. This object only stores the values.
  *
  * @tparam T Arithmetic type or cuda::std::tuple of arithmetic types.
  */
@@ -31,7 +32,8 @@ class block_array_t {
   using buffer_type = dataframe_buffer_type_t<T>;
 
   block_array_t(size_t block_capacity, size_t num_blocks, cuda::stream_ref stream)
-    : bit_tree_(block_capacity, num_blocks),
+    : block_capacity_(block_capacity),
+      num_blocks_(num_blocks),
       block_storage_(allocate_dataframe_buffer<T>(num_blocks * block_capacity, stream))
   {
   }
@@ -117,31 +119,15 @@ class block_array_t {
     return column_data<I>() + element_index;
   }
 
-  size_t allocate() { return bit_tree_.allocate(); }
+  size_t block_capacity() const { return block_capacity_; }
 
-  void release(size_t block_index) { bit_tree_.release(block_index); }
-
-  size_t block_capacity() const { return bit_tree_.block_capacity(); }
-
-  size_t log_block_capacity() const { return bit_tree_.log_block_capacity(); }
-
-  size_t num_blocks() const { return bit_tree_.num_blocks(); }
+  size_t num_blocks() const { return num_blocks_; }
 
   size_t num_elements() const { return size_dataframe_buffer(block_storage_); }
 
-  bool full() const { return bit_tree_.full(); }
-
-  std::byte const* block_array_key() const
-  {
-    if constexpr (is_thrust_tuple_v<T>) {
-      return reinterpret_cast<std::byte const*>(column_data<0>());
-    } else {
-      return reinterpret_cast<std::byte const*>(column_data());
-    }
-  }
-
  private:
-  bit_tree_t bit_tree_;
+  size_t block_capacity_{0};
+  size_t num_blocks_{0};
   buffer_type block_storage_;
 };
 
