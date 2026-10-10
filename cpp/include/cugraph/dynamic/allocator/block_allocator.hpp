@@ -74,21 +74,34 @@ class block_allocator_t {
   }
 
   /**
-   * @brief Allocate `count` blocks in one bin.
+   * @brief Bulk allocate `count` blocks in one bin.
    *
    * The vector of slab ids has one entry per slab buffer allocated by this call.
    */
   std::tuple<std::vector<block_location_t>, std::vector<size_t>> allocate(size_t block_capacity,
                                                                           size_t count)
   {
+    auto const bin = checked_bin(block_capacity);
     std::vector<block_location_t> blocks;
     std::vector<size_t> slab_ids;
     blocks.reserve(count);
-    for (size_t i = 0; i < count; ++i) {
-      auto [block, slab_id] = allocate(block_capacity);
-      blocks.push_back(block);
-      if (slab_id.has_value()) { slab_ids.push_back(*slab_id); }
+
+    while (blocks.size() < count) {
+      auto const remaining = count - blocks.size();
+      auto& trees          = bit_trees_[bin];
+      auto slab_id         = find_live_slab(bin);
+      if (!slab_id.has_value()) {
+        slab_id = acquire_slab(bin, block_capacity);
+        slab_ids.push_back(*slab_id);
+      }
+
+      auto const request       = std::min(remaining, trees[*slab_id].num_available_blocks());
+      auto const block_indices = trees[*slab_id].allocate(request);
+      for (auto const block_index : block_indices) {
+        blocks.push_back(block_location_t{bin, *slab_id, block_index});
+      }
     }
+
     return std::make_tuple(std::move(blocks), std::move(slab_ids));
   }
 
@@ -141,14 +154,21 @@ class block_allocator_t {
     return std::find(freed.begin(), freed.end(), slab_id) != freed.end();
   }
 
-  std::optional<std::tuple<size_t, size_t>> allocate_from_live_slab(size_t bin)
+  std::optional<size_t> find_live_slab(size_t bin) const
   {
-    auto& trees = bit_trees_[bin];
+    auto const& trees = bit_trees_[bin];
     for (size_t slab_id = 0; slab_id < trees.size(); ++slab_id) {
       if (is_slab_freed(bin, slab_id) || trees[slab_id].full()) { continue; }
-      return std::make_tuple(slab_id, trees[slab_id].allocate());
+      return slab_id;
     }
     return std::nullopt;
+  }
+
+  std::optional<std::tuple<size_t, size_t>> allocate_from_live_slab(size_t bin)
+  {
+    auto const slab_id = find_live_slab(bin);
+    if (!slab_id.has_value()) { return std::nullopt; }
+    return std::make_tuple(*slab_id, bit_trees_[bin][*slab_id].allocate());
   }
 
   size_t acquire_slab(size_t bin, size_t block_capacity)

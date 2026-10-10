@@ -7,9 +7,11 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 
+#include <algorithm>
 #include <bit>
 #include <cstddef>
 #include <cstdint>
+#include <numeric>
 #include <vector>
 
 namespace cugraph {
@@ -66,11 +68,7 @@ class bit_tree_t {
     CUGRAPH_EXPECTS(num_occupied_blocks_ < num_blocks_, "Cannot allocate from a full bit tree.");
     ++num_occupied_blocks_;
 
-    size_t index = 0;
-    for (size_t i = 0; i < num_internal_levels_; ++i) {
-      auto pos = static_cast<size_t>(std::countr_zero(array_[index / packed_bools_per_word()]));
-      index    = (index + pos + size_t{1}) * packed_bools_per_word();
-    }
+    size_t index = first_available_leaf_bit_index();
     index += static_cast<size_t>(std::countr_zero(array_[index / packed_bools_per_word()]));
 
     clear_available_bit(index);
@@ -86,6 +84,80 @@ class bit_tree_t {
 
     auto block_index = index - internal_summary_bits_;
     return block_index;
+  }
+
+  /**
+   * @brief Bulk allocate `count` blocks.
+   *
+   * Fails when fewer than `count` blocks are free. The caller checks `num_available_blocks()` and
+   * asks only for that many, then continues in another slab. A new slab filled completely skips
+   * the bit walk. Taking every remaining free block starts at the first leaf word that still has
+   * a free block, then clears the tree.
+   */
+  std::vector<size_t> allocate(size_t count)
+  {
+    CUGRAPH_EXPECTS(count <= num_available_blocks(),
+                    "Cannot allocate from a bit tree with fewer free blocks than requested.");
+    if (count == size_t{0}) { return {}; }
+
+    if (num_occupied_blocks_ == size_t{0} && count == num_blocks_) {
+      std::fill(array_.begin(), array_.end(), packed_bool_empty_mask());
+      num_occupied_blocks_ = num_blocks_;
+      std::vector<size_t> block_indices(num_blocks_);
+      std::iota(block_indices.begin(), block_indices.end(), size_t{0});
+      return block_indices;
+    } else if (count == num_available_blocks()) {
+      std::vector<size_t> block_indices;
+      block_indices.reserve(count);
+      auto const index      = first_available_leaf_bit_index();
+      auto* const leaves    = last_level_ptr();
+      auto const leaf_begin = (index - internal_summary_bits_) / packed_bools_per_word();
+      for (size_t leaf_word = leaf_begin; leaf_word < leaf_words_; ++leaf_word) {
+        auto word             = leaves[leaf_word];
+        auto const block_base = leaf_word * packed_bools_per_word();
+        while (word != packed_bool_empty_mask()) {
+          auto const bit = static_cast<size_t>(std::countr_zero(word));
+          if (block_base + bit >= num_blocks_) { break; }
+          word &= ~packed_bool_mask(bit);
+          block_indices.push_back(block_base + bit);
+        }
+      }
+      std::fill(array_.begin(), array_.end(), packed_bool_empty_mask());
+      num_occupied_blocks_ = num_blocks_;
+      return block_indices;
+    }
+
+    std::vector<size_t> block_indices;
+    block_indices.reserve(count);
+
+    while (block_indices.size() < count) {
+      auto const index       = first_available_leaf_bit_index();
+      auto const word_offset = index / packed_bools_per_word();
+      auto word              = array_[word_offset];
+      auto const block_base  = index - internal_summary_bits_;
+      auto const remaining   = count - block_indices.size();
+      size_t taken           = 0;
+      while (taken < remaining && word != packed_bool_empty_mask()) {
+        auto const bit = static_cast<size_t>(std::countr_zero(word));
+        if (block_base + bit >= num_blocks_) { break; }
+        word &= ~packed_bool_mask(bit);
+        block_indices.push_back(block_base + bit);
+        ++taken;
+      }
+      array_[word_offset] = word;
+      num_occupied_blocks_ += taken;
+
+      if (word == packed_bool_empty_mask()) {
+        for (size_t parent_index = index / packed_bools_per_word(); parent_index != size_t{0};
+             parent_index /= packed_bools_per_word()) {
+          --parent_index;
+          clear_available_bit(parent_index);
+          if (array_[parent_index / packed_bools_per_word()] != packed_bool_empty_mask()) { break; }
+        }
+      }
+    }
+
+    return block_indices;
   }
 
   void release(size_t block_index)
@@ -128,6 +200,18 @@ class bit_tree_t {
   uint32_t* last_level_ptr() { return array_.data() + internal_words_; }
 
   uint32_t const* last_level_ptr() const { return array_.data() + internal_words_; }
+
+  // Bit index where the first leaf word with an available block begins.
+  size_t first_available_leaf_bit_index() const
+  {
+    size_t index = 0;
+    for (size_t level = 0; level < num_internal_levels_; ++level) {
+      auto const pos =
+        static_cast<size_t>(std::countr_zero(array_[index / packed_bools_per_word()]));
+      index = (index + pos + size_t{1}) * packed_bools_per_word();
+    }
+    return index;
+  }
 
   void clear_available_bit(size_t bit_index)
   {
