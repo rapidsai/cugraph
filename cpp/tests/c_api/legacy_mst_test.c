@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -121,7 +121,41 @@ int generic_minimum_spanning_tree_test(vertex_t* h_src,
         test_ret_value, h_expected_offsets[i] == h_result_offsets[i], "graph offsets should match");
     }
 
-    for (size_t i = 0; (i < num_expected_edges) && (test_ret_value == 0); ++i) {
+    // With unit weights, any spanning tree is a minimum spanning tree.
+    if (h_wgt == NULL) {
+      vertex_t component[num_vertices];
+      for (size_t i = 0; i < num_vertices; ++i)
+        component[i] = i;
+
+      for (size_t i = 0; (i < num_result_edges) && (test_ret_value == 0); ++i) {
+        vertex_t src = h_result_src[i];
+        vertex_t dst = h_result_dst[i];
+        bool_t found = FALSE;
+        for (size_t j = 0; (j < num_edges) && !found; ++j)
+          found = (h_src[j] == src) && (h_dst[j] == dst);
+        TEST_ASSERT(test_ret_value, found, "MST edge is not in the input graph");
+        TEST_ASSERT(test_ret_value,
+                    (wgt != NULL) && nearlyEqual(h_result_wgt[i], 1.0f, 0.001f),
+                    "unweighted MST edge should have weight 1");
+
+        size_t reverse_count = 0;
+        for (size_t j = 0; j < num_result_edges; ++j)
+          reverse_count += (h_result_src[j] == dst) && (h_result_dst[j] == src);
+        TEST_ASSERT(test_ret_value, reverse_count == 1, "MST edges should be symmetric");
+
+        if ((test_ret_value == 0) && (src < dst)) {
+          vertex_t src_component = component[src];
+          vertex_t dst_component = component[dst];
+          TEST_ASSERT(test_ret_value, src_component != dst_component, "MST contains a cycle");
+          for (size_t j = 0; j < num_vertices; ++j)
+            if (component[j] == dst_component) component[j] = src_component;
+        }
+      }
+      for (size_t i = 0; (i < num_vertices) && (test_ret_value == 0); ++i)
+        TEST_ASSERT(test_ret_value, component[i] == component[0], "MST should span all vertices");
+    }
+
+    for (size_t i = 0; (h_wgt != NULL) && (i < num_expected_edges) && (test_ret_value == 0); ++i) {
       bool_t found = FALSE;
       for (size_t j = 0; (j < num_expected_edges) && !found; ++j) {
         if ((h_expected_src[i] == h_result_src[j]) && (h_expected_dst[i] == h_result_dst[j]))
@@ -187,9 +221,6 @@ int test_minimum_spanning_tree_no_weights()
   vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
 
-  vertex_t h_result_src[]     = {0, 1, 2, 3, 4, 5, 2, 3, 5, 3};
-  vertex_t h_result_dst[]     = {2, 3, 3, 2, 5, 3, 0, 1, 4, 5};
-  weight_t h_result_wgt[]     = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
   size_t h_result_offsets[]   = {0, 10};
   size_t num_expected_edges   = 10;
   size_t num_expected_offsets = 2;
@@ -197,9 +228,9 @@ int test_minimum_spanning_tree_no_weights()
   return generic_minimum_spanning_tree_test(h_src,
                                             h_dst,
                                             NULL,
-                                            h_result_src,
-                                            h_result_dst,
-                                            h_result_wgt,
+                                            NULL,
+                                            NULL,
+                                            NULL,
                                             h_result_offsets,
                                             num_vertices,
                                             num_edges,
