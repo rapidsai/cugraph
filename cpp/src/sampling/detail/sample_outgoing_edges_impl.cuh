@@ -153,9 +153,11 @@ struct sample_unvisited_edge_biases_op_t {
 // edge fails the temporal window filter.
 //
 // When last_n is false (RANDOM), an eligible edge returns the edge bias (1 when unbiased).
-// When last_n is true (LAST), an eligible edge returns last_n_time_bias so
-// per_v_top_k_select_transform_outgoing_e keeps the K latest edges in the
-// temporal_sampling_comparison rank order.  Instantiate with bias_t = last_n_bias_t.
+// When last_n is true (LAST), an eligible edge returns last_n_selection_bias so
+// per_v_top_k_select_transform_outgoing_e keeps the K highest biases in the
+// temporal_sampling_comparison rank order.  A time of numeric_limits<time_stamp_t>::lowest()
+// uses the prefilled per-edge uniform key (shifted into [1, 2)) instead of the time rank.
+// Instantiate with bias_t = last_n_bias_t.
 //
 // The per-source window bounds are looked up from spans keyed on the frontier entry.
 // Under always-disjoint sampling each vertex appears at most once per label in the frontier, so the
@@ -180,7 +182,8 @@ struct sample_unvisited_temporal_edge_biases_op_t {
   cuda::std::optional<raft::device_span<int32_t const>> visited_minor_labels{};  // sorted parallel
 
   // Extract the edge time from the (possibly concatenated) edge property passed by the selection
-  // primitive.  Shapes: time_stamp_t | (bias, time) | (time, type) | (bias, time, type).
+  // primitive.  Shapes: time_stamp_t | (bias, time) | (time, type) | (bias, time, type)
+  // | (time, uniform_key) for LAST.
   template <typename edge_property_t>
   static __device__ time_stamp_t extract_edge_time(edge_property_t edge_property)
   {
@@ -204,6 +207,23 @@ struct sample_unvisited_temporal_edge_biases_op_t {
       } else {
         // (bias, time, type)
         return cuda::std::get<1>(edge_property);
+      }
+    }
+  }
+
+  // LAST concatenates a per-edge uniform key after the time. Other shapes have no such key.
+  template <typename edge_property_t>
+  static __device__ last_n_bias_t extract_uniform_key(edge_property_t edge_property)
+  {
+    if constexpr (std::is_arithmetic_v<edge_property_t>) {
+      return last_n_bias_t{0};
+    } else {
+      constexpr auto n = cuda::std::tuple_size<edge_property_t>::value;
+      using last_t     = std::decay_t<decltype(cuda::std::get<n - 1>(edge_property))>;
+      if constexpr (std::is_same_v<last_t, last_n_bias_t>) {
+        return cuda::std::get<n - 1>(edge_property);
+      } else {
+        return last_n_bias_t{0};
       }
     }
   }
@@ -267,7 +287,8 @@ struct sample_unvisited_temporal_edge_biases_op_t {
       passes_temporal_filter(temporal_sampling_comparison, major_time, window_end, edge_time);
     if (!passes) { return bias_t{0}; }
     if constexpr (last_n) {
-      return last_n_time_bias(edge_time, temporal_sampling_comparison);
+      return last_n_selection_bias(
+        edge_time, temporal_sampling_comparison, extract_uniform_key(edge_property));
     } else {
       return extract_edge_bias(edge_property);
     }
@@ -295,7 +316,8 @@ struct sample_unvisited_temporal_edge_biases_op_t {
       passes_temporal_filter(temporal_sampling_comparison, major_time, window_end, edge_time);
     if (!passes) { return bias_t{0}; }
     if constexpr (last_n) {
-      return last_n_time_bias(edge_time, temporal_sampling_comparison);
+      return last_n_selection_bias(
+        edge_time, temporal_sampling_comparison, extract_uniform_key(edge_property));
     } else {
       return extract_edge_bias(edge_property);
     }
@@ -1079,6 +1101,39 @@ sample_unvisited_outgoing_edges(
   std::optional<rmm::device_uvector<edge_type_t>> carryover_frontier_types{std::nullopt};
   rmm::device_uvector<size_t> carryover_frontier_capacity(0, handle.get_stream());
 
+  // One uniform key per local edge for LAST. uniform_random_fill advances rng_state by the
+  // subsequences that launch consumes. The buffer outlives the disjoint-resample loop so a retry
+  // reuses the same keys.
+  std::optional<rmm::device_uvector<last_n_bias_t>> last_n_uniform_keys{};
+  std::optional<edge_property_view_t<edge_t, last_n_bias_t const*>> last_n_uniform_key_view{};
+  if constexpr (is_temporal) {
+    if (temporal_params.neighbor_selection == neighbor_selection_t::LAST) {
+      auto const& edge_counts = temporal_params.edge_time_view.edge_counts();
+      size_t num_keys{0};
+      for (auto count : edge_counts) {
+        num_keys += static_cast<size_t>(count);
+      }
+      last_n_uniform_keys = rmm::device_uvector<last_n_bias_t>(num_keys, handle.get_stream());
+      if (num_keys > 0) {
+        cugraph::detail::uniform_random_fill(handle.get_stream(),
+                                             last_n_uniform_keys->data(),
+                                             num_keys,
+                                             last_n_bias_t{0},
+                                             last_n_bias_t{1},
+                                             rng_state);
+      }
+      std::vector<last_n_bias_t const*> value_firsts;
+      value_firsts.reserve(edge_counts.size());
+      size_t offset{0};
+      for (auto count : edge_counts) {
+        value_firsts.push_back(last_n_uniform_keys->data() + offset);
+        offset += static_cast<size_t>(count);
+      }
+      last_n_uniform_key_view =
+        edge_property_view_t<edge_t, last_n_bias_t const*>(value_firsts, edge_counts);
+    }
+  }
+
   auto active_bucket_view = key_bucket_view;
 
   // FIXME: We could explore increasing the rate of convergency by oversampling to allow
@@ -1221,12 +1276,14 @@ sample_unvisited_outgoing_edges(
         } else {
           CUGRAPH_EXPECTS(temporal_params.neighbor_selection == neighbor_selection_t::LAST,
                           "Unknown neighbor selection mode.");
+          auto const last_n_edge_value_view =
+            view_concat(temporal_params.edge_time_view, *last_n_uniform_key_view);
           std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
             call_biased_per_v_top_k_select_transform_outgoing_e(
               handle,
               graph_view,
               active_bucket_view,
-              temporal_params.edge_time_view,
+              last_n_edge_value_view,
               has_output_edge_properties,
               sample_unvisited_temporal_edge_biases_op_t<vertex_t,
                                                          last_n_bias_t,
@@ -1300,13 +1357,26 @@ sample_unvisited_outgoing_edges(
               std::move(prop),
               temporal_params.edge_time_view);
           auto const comparison = temporal_params.temporal_sampling_comparison;
+          rmm::device_uvector<last_n_bias_t> uniform_keys(0, handle.get_stream());
+          std::tie(uniform_keys, majors, minors, prop) =
+            gather_scalar_edge_property_for_edgelist<vertex_t, edge_t, last_n_bias_t, multi_gpu>(
+              handle,
+              graph_view,
+              std::move(majors),
+              std::move(minors),
+              std::move(prop),
+              *last_n_uniform_key_view);
+          // Same key as the top-k bias, including the uniform draw for a missing time, so a
+          // disjoint retry keeps that order instead of collapsing every lowest() edge to one rank.
+          auto const* times_ptr = times.data();
+          auto const* keys_ptr  = uniform_keys.data();
           thrust::transform(handle.get_thrust_policy(),
-                            times.begin(),
-                            times.end(),
+                            thrust::make_counting_iterator(size_t{0}),
+                            thrust::make_counting_iterator(times.size()),
                             order_keys.begin(),
-                            [comparison] __device__(time_stamp_t edge_time) {
+                            [comparison, times_ptr, keys_ptr] __device__(size_t i) {
                               // Ascending sort then keep the first needed_count, so negate rank.
-                              return -last_n_time_bias(edge_time, comparison);
+                              return -last_n_selection_bias(times_ptr[i], comparison, keys_ptr[i]);
                             });
         }
       }

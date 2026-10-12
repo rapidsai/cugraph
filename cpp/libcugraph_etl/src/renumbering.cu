@@ -624,6 +624,7 @@ __global__ static void set_output_col_offsets(str_hash_value* row_col_pair,
                                               int32_t* out_col1_offset,
                                               int32_t* out_col2_offset,
                                               int dst_pair_match,
+                                              int zero_unmatched,
                                               int32_t* in_col1_offset,
                                               int32_t* in_col2_offset,
                                               accum_type total_elements)
@@ -636,7 +637,7 @@ __global__ static void set_output_col_offsets(str_hash_value* row_col_pair,
       int32_t row          = row_col_pair[idx].row_;
       out_col1_offset[idx] = in_col1_offset[row + 1] - in_col1_offset[row];
       out_col2_offset[idx] = in_col2_offset[row + 1] - in_col2_offset[row];
-    } else {
+    } else if (zero_unmatched) {
       out_col1_offset[idx] = 0;
       out_col2_offset[idx] = 0;
     }
@@ -707,7 +708,7 @@ __global__ static void select_unrenumber_string(str_hash_value* idx_to_col_row,
       int32_t col1_out_offset     = col1_out_offsets[idx];
 
       for (int32_t i = 0; i < col1_dst_str_length; i++) {
-        col1_out[col1_out_offset + i] = src_col1[col1_dst_str_start + i];
+        col1_out[col1_out_offset + i] = dst_col1[col1_dst_str_start + i];
       }
 
       int32_t col2_dst_str_start  = dst_col2_offsets[row];
@@ -715,7 +716,7 @@ __global__ static void select_unrenumber_string(str_hash_value* idx_to_col_row,
       int32_t col2_out_offset     = col2_out_offsets[idx];
 
       for (int32_t i = 0; i < col2_dst_str_length; i++) {
-        col2_out[col2_out_offset + i] = src_col2[col2_dst_str_start + i];
+        col2_out[col2_out_offset + i] = dst_col2[col2_dst_str_start + i];
       }
     }
   }
@@ -789,7 +790,7 @@ struct renumber_functor {
     float load_factor = 0.7;
 
     rmm::device_uvector<accum_type> atomic_agg(32, exec_strm);  // just padded to 32
-    RAFT_CHECK_CUDA(cudaMemsetAsync(atomic_agg.data(), 0, sizeof(accum_type), exec_strm));
+    RAFT_CUDA_TRY(cudaMemsetAsync(atomic_agg.data(), 0, sizeof(accum_type), exec_strm));
 
     auto cuda_map_obj = cudf_map_type::create(
                           std::max(static_cast<size_t>(static_cast<double>(num_rows) / load_factor),
@@ -827,9 +828,9 @@ struct renumber_functor {
                                                                          *cuda_map_obj,
                                                                          atomic_agg.data());
 
-    RAFT_CHECK_CUDA(cudaMemcpy(
+    RAFT_CUDA_TRY(cudaMemcpy(
       hist_insert_counter, atomic_agg.data(), sizeof(accum_type), cudaMemcpyDeviceToHost));
-    RAFT_CHECK_CUDA(cudaStreamSynchronize(exec_strm));
+    RAFT_CUDA_TRY(cudaStreamSynchronize(exec_strm));
 
     accum_type key_value_count = hist_insert_counter[0];
     // {row, count} pairs, sortDesecending on count w/ custom comparator
@@ -872,6 +873,7 @@ struct renumber_functor {
                                                           out_col1_length.data(),
                                                           out_col2_length.data(),
                                                           0,
+                                                          1,
                                                           src_vertex_offset_ptrs[0],
                                                           src_vertex_offset_ptrs[1],
                                                           key_value_count);
@@ -880,6 +882,7 @@ struct renumber_functor {
                                                           out_col1_length.data(),
                                                           out_col2_length.data(),
                                                           1,
+                                                          0,
                                                           dst_vertex_offset_ptrs[0],
                                                           dst_vertex_offset_ptrs[1],
                                                           key_value_count);
@@ -919,7 +922,7 @@ struct renumber_functor {
                                                      key_value_count,
                                                      hist_insert_counter);
 
-    RAFT_CHECK_CUDA(cudaStreamSynchronize(exec_strm));
+    RAFT_CUDA_TRY(cudaStreamSynchronize(exec_strm));
     // allocate output columns buffers
     rmm::device_buffer unrenumber_col1_chars(hist_insert_counter[0], exec_strm);
     rmm::device_buffer unrenumber_col2_chars(hist_insert_counter[1], exec_strm);
@@ -943,7 +946,7 @@ struct renumber_functor {
       reinterpret_cast<char_type*>(unrenumber_col2_chars.data()),
       out_col1_offsets.data(),
       out_col2_offsets.data());
-    RAFT_CHECK_CUDA(cudaStreamSynchronize(exec_strm));  // do we need sync here??
+    RAFT_CUDA_TRY(cudaStreamSynchronize(exec_strm));  // do we need sync here??
 
     std::vector<std::unique_ptr<cudf::column>> renumber_table_vectors;
 
@@ -1003,7 +1006,7 @@ struct renumber_functor {
     grid.x = (key_value_count - 1) / block.x + 1;
     create_mapping_histogram<<<grid, block, 0, exec_strm>>>(
       sort_value.data(), sort_key.data(), *cuda_map_obj_mapping, key_value_count);
-    RAFT_CHECK_CUDA(cudaStreamSynchronize(exec_strm));
+    RAFT_CUDA_TRY(cudaStreamSynchronize(exec_strm));
 
     rmm::device_buffer src_buffer(sizeof(Dtype) * num_rows, exec_strm);
     rmm::device_buffer dst_buffer(sizeof(Dtype) * num_rows, exec_strm);
@@ -1019,7 +1022,7 @@ struct renumber_functor {
       num_rows,
       *cuda_map_obj_mapping,
       reinterpret_cast<Dtype*>(src_buffer.data()));
-    RAFT_CHECK_CUDA(cudaStreamSynchronize(exec_strm));
+    RAFT_CUDA_TRY(cudaStreamSynchronize(exec_strm));
     set_dst_vertex_idx<<<grid, block, smem_size, exec_strm>>>(
       dst_vertex_chars_ptrs[0],
       dst_vertex_offset_ptrs[0],
@@ -1033,22 +1036,23 @@ struct renumber_functor {
       *cuda_map_obj_mapping,
       reinterpret_cast<Dtype*>(dst_buffer.data()));
 
+    auto const vertex_type = cudf::data_type{cudf::type_to_id<Dtype>()};
     std::vector<std::unique_ptr<cudf::column>> cols_vector;
     cols_vector.push_back(
-      std::make_unique<cudf::column>(cudf::data_type(cudf::type_id::INT32),
+      std::make_unique<cudf::column>(vertex_type,
                                      num_rows,
                                      std::move(src_buffer),
                                      cudf::create_null_mask(0, cudf::mask_state::UNALLOCATED),
                                      0));
 
     cols_vector.push_back(
-      std::make_unique<cudf::column>(cudf::data_type(cudf::type_id::INT32),
+      std::make_unique<cudf::column>(vertex_type,
                                      num_rows,
                                      std::move(dst_buffer),
                                      cudf::create_null_mask(0, cudf::mask_state::UNALLOCATED),
                                      0));
 
-    RAFT_CHECK_CUDA(cudaDeviceSynchronize());
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
     mr.deallocate(exec_strm, hist_insert_counter, hist_size);
 
