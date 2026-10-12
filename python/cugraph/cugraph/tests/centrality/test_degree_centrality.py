@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -29,8 +29,8 @@ def test_degree_centrality_multi_column(graph_file):
     dataset_path = graph_file.get_path()
     cu_M = utils.read_csv_file(dataset_path)
     cu_M.rename(columns={"0": "src_0", "1": "dst_0"}, inplace=True)
-    cu_M["src_1"] = cu_M["src_0"] + 1000
-    cu_M["dst_1"] = cu_M["dst_0"] + 1000
+    cu_M["src_1"] = cu_M["src_0"] + 100000
+    cu_M["dst_1"] = cu_M["dst_0"] + 100000
 
     G1 = cugraph.Graph(directed=True)
     G1.from_cudf_edgelist(
