@@ -212,7 +212,7 @@ class edge_bucket_t {
                                                 merged_pair_first,
                                                 merged_pair_first + merged_majors.size())));
         }
-        merged_minors.resize(new_size, handle_ptr_->get_stream());
+        merged_majors.resize(new_size, handle_ptr_->get_stream());
         merged_minors.resize(new_size, handle_ptr_->get_stream());
         merged_majors.shrink_to_fit(handle_ptr_->get_stream());
         merged_minors.shrink_to_fit(handle_ptr_->get_stream());
