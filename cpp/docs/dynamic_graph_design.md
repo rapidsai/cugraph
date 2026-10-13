@@ -188,26 +188,42 @@ By default, the property for majors is one `rmm::device_uvector` per edge partit
 ## 8. Allocator
 
 ```
-graph_t
-  └── std::array<std::vector<bit_tree_t>, num_bins_v>     ← the only block layout
-        bin k: slabs whose blocks hold 2^k elements
-              each slab: bit_tree_t (which blocks are free)
+block_allocator_t                                         ← owned by graph_t; decides allocate/release
+  ├── std::array<std::vector<bit_tree_t>, num_bins_v>
+  │     bin k: slabs whose blocks hold 2^k elements
+  │           each slab: bit_tree_t (which blocks are free)
+  └── std::array<std::vector<size_t>, num_bins_v>
+        freed slab ids, one list per bin
 
-block_array_manager_t<T>                                  ← owned by graph_t (adjacency) and
-  └── per bin k: std::vector<block_array_t<T>>               by each live edge_property_t<T>
+block_storage_t<T>                                        ← passive buffers and device iterator directory, owned by graph_t (adjacency) and by each live edge_property_t<T>
+  └── std::array<std::vector<block_array_t<T>>, num_bins_v>
+        bin k: one slot per slab_id
         block_array_t<T> = one GPU buffer, no bit_tree_t;
-        indexed by the same (bin, slab_id) as the graph_t layout
+        a freed middle slot has block capacity 0
+        indexed by the same (bin, slab_id) from block_allocator_t
 ```
 
 Many vertices share a slab; each vertex owns a private power-of-two **block** in that slab. Default slab: `1 << 23` **elements** (\(\times sizeof(T)\) bytes: ~32 MB for a 4-byte `T`, ~8 MB only if `T` is 1 byte). Hornet **rejects** degree ≥ that; we will **chain multiple blocks** for high degree.
 
-**One layout, many buffers.** `graph_t` owns the bit trees. `allocate` / `release` on that layout returns `(bin, slab_id, block_index)`. The adjacency `block_array_manager_t` and the one in every live `edge_property_t` use that same triplet, so their block arrays stay aligned. Neither the manager nor `block_array_t` tracks free blocks.
+**One allocator, many storages.** `graph_t` owns one `block_allocator_t`. The adjacency `block_storage_t` and the one in every live `edge_property_t` are indexed by the same `(bin, slab_id, block_index)`. `block_storage_t` holds the buffers and a device directory of slab iterators. An allocate or release that stays inside existing slabs does not change it. The directory changes only when a slab buffer is created or a completely empty slab buffer is freed.
 
-A live `edge_property_t` created after the graph already has edges copies this layout: the same bins, slab IDs, and occupied blocks. After that, every insert and delete updates `graph_t` and every live `edge_property_t` together. The property has no layout of its own. Destroying `graph_t` makes the property uninterpretable, which is acceptable: the property is meaningless without that graph. Do not share one layout across graphs.
+`block_allocator_t` is host-side. It does not allocate device memory. Each bin keeps a list of freed `slab_id`s only when those ids are smaller than `vector size - 1`. The tail slot is not kept on that list.
 
-**`slab_id`:** not a device pointer. When the layout creates a new slab in bin \(k\) (`elements_per_block = 2^k`), assign the next integer from a **per-bin counter** (0, 1, 2, …). The per-vertex word stores that id with the bin and `block_index` (§4). Kernels address a slab through `base[k][slab_id]`. Do not reuse an id while any packed word still names it (monotonic IDs by default).
+- `allocate(block_capacity)` returns a `std::tuple<block_location_t, std::optional<size_t>>`. The optional has a `slab_id` when a slab buffer is allocated for that call.
+- `allocate(block_capacity, count)` is the bulk form, one bin. It returns a `std::tuple<std::vector<block_location_t>, std::vector<size_t>>`. The vector of slab ids has one entry per slab buffer allocated by that call.
+- `release(block_location_t)` frees one block and returns a `std::optional<size_t>`. The optional has a `slab_id` when that block leaves the slab completely empty and the slab buffer is freed.
 
-**Bulk allocate** many blocks of one power-of-two size in one call when building a graph with many edges. One-block allocate in a loop is too slow.
+A new slab uses an id from that bin's freed list before the `std::vector` of slab buffers grows. If the freed slab is the tail (`slab_id == vector size - 1`), pop it, then pop any already-freed slabs that become the tail. If it is in the middle, free the GPU memory and put the `slab_id` on the freed list. Later `slab_id` values do not move.
+
+`block_storage_t<T>` allocates or frees the device buffer for each returned `slab_id`. Apply those updates before using the returned blocks. Every live storage, including each `edge_property_t`, receives the same slab ids.
+
+Compacting slabs that are only lightly filled is not part of this. Blocks in such a slab are still allocated, so moving them changes metadata and adds latency. Add that only if it turns out to be necessary.
+
+A live `edge_property_t` created after the graph already has edges copies the occupied blocks from `block_allocator_t`: the same bins, slab IDs, and occupied blocks. After that, every insert and delete updates `graph_t` and every live `edge_property_t` together. The property has no allocator of its own. Destroying `graph_t` makes the property uninterpretable, which is acceptable: the property is meaningless without that graph. Do not share one `block_allocator_t` across graphs.
+
+**`slab_id`:** not a device pointer. It is the index of the slab slot in `block_storage_t`. A new id is the next integer in that bin (0, 1, 2, …) when the freed list is empty. The per-vertex word stores that id with the bin and `block_index` (§4). Kernels address a slab through `slab_iterator_ptrs[bin][slab_id]`. An id is reused only after its slab is completely empty and its buffer has been freed.
+
+**Bulk allocate** many blocks of one power-of-two size in one call when building a graph with many edges.
 
 ---
 
@@ -228,7 +244,7 @@ Dynamic → dynamic keeps the input’s \(V_{\max}\) (including omitted: the ver
 
 ## 10. Implementation plan
 
-1. **Allocator.** Move block ownership to the layout `graph_t` will hold: `bit_tree_t` leaves `block_array_t`, and `block_array_manager_t` holds the typed block arrays (§8).
+1. **Allocator.** Split free-block tracking from the buffers (§8). `block_allocator_t` holds the `bit_tree_t` objects and decides `allocate` / `release`. `block_storage_t<T>` holds the `block_array_t<T>` buffers and device iterator directory. `bit_tree_t` leaves `block_array_t`.
 2. **`vertex_property_t` and vertex primitives.** Add `vertex_property_t` and update the vertex primitives to use it.
 3. **`is_dynamic = false`.** Add the non-type template parameter to `graph_t` and `graph_view_t`, default `false` (§2.1). Current instantiations stay the static path.
 4. **Edge insert and delete.** Dynamic `graph_t` and `graph_view_t` support edge insert and delete: per-vertex adjacency metadata (§4), and a live `edge_property_t` that shares the `graph_t` layout (§6.1). Add `graph_snapshot_index_t` so a snapshot can create an `edge_property_t` (§2.1, §6.2).
