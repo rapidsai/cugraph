@@ -888,13 +888,11 @@ class vertex_frontier_t {
         next_bucket_size,
         static_cast<size_t>(cuda::std::distance(pair_first + next_bucket_size, pair_last))};
     } else {
-      thrust::stable_sort(  // stable_sort to maintain sorted order within each bucket
+      thrust::stable_sort_by_key(  // stable_sort_by_key to maintain sorted order within each bucket
         handle_ptr_->get_thrust_policy(),
-        pair_first,
-        pair_last,
-        [] __device__(auto lhs, auto rhs) {
-          return cuda::std::get<0>(lhs) < cuda::std::get<0>(rhs);
-        });
+        bucket_idx_first,
+        bucket_idx_last,
+        key_first);
       rmm::device_uvector<uint8_t> d_indices(to_bucket_indices.size(), handle_ptr_->get_stream());
       rmm::device_uvector<size_t> d_counts(d_indices.size(), handle_ptr_->get_stream());
       // FIXME: thrust::lower_bound & thrust::upper_bound will be faster
