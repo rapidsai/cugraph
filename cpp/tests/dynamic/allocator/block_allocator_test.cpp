@@ -35,7 +35,8 @@ TEST_F(Tests_BlockAllocator, AllocateReusesBlockInLiveSlab)
 {
   raft::handle_t handle;
   cugraph::dynamic::block_allocator_t allocator(Tests_BlockAllocator::k_max_elements_per_slab);
-  cugraph::dynamic::block_storage_t<int32_t> storage(Tests_BlockAllocator::k_max_elements_per_slab);
+  cugraph::dynamic::block_storage_t<int32_t> storage(Tests_BlockAllocator::k_max_elements_per_slab,
+                                                     handle.get_stream());
 
   auto const [first, first_slab]   = allocator.allocate(size_t{4});
   auto const [second, second_slab] = allocator.allocate(size_t{4});
@@ -48,15 +49,15 @@ TEST_F(Tests_BlockAllocator, AllocateReusesBlockInLiveSlab)
   EXPECT_NE(first.block_index, second.block_index);
   EXPECT_EQ(first_slab, std::optional<size_t>{size_t{0}});
   EXPECT_FALSE(second_slab.has_value());
-  EXPECT_TRUE(storage.contains(first.bin, first.slab_id));
-  EXPECT_EQ(storage.num_slabs(first.bin), size_t{1});
+  EXPECT_EQ(allocator.num_slabs(first.bin), size_t{1});
 }
 
 TEST_F(Tests_BlockAllocator, BulkAllocateReportsEachNewSlab)
 {
   raft::handle_t handle;
   cugraph::dynamic::block_allocator_t allocator(Tests_BlockAllocator::k_max_elements_per_slab);
-  cugraph::dynamic::block_storage_t<int32_t> storage(Tests_BlockAllocator::k_max_elements_per_slab);
+  cugraph::dynamic::block_storage_t<int32_t> storage(Tests_BlockAllocator::k_max_elements_per_slab,
+                                                     handle.get_stream());
 
   auto const [blocks, slab_ids] = allocator.allocate(size_t{4}, size_t{3});
   for (auto const slab_id : slab_ids) {
@@ -67,15 +68,15 @@ TEST_F(Tests_BlockAllocator, BulkAllocateReportsEachNewSlab)
   EXPECT_EQ(slab_ids.size(), size_t{2});
   EXPECT_EQ(slab_ids[0], size_t{0});
   EXPECT_EQ(slab_ids[1], size_t{1});
-  EXPECT_EQ(storage.num_slabs(blocks.front().bin), size_t{2});
-  EXPECT_EQ(storage.block_array(blocks.front().bin, size_t{0}).block_capacity(), size_t{4});
+  EXPECT_EQ(allocator.num_slabs(blocks.front().bin), size_t{2});
 }
 
 TEST_F(Tests_BlockAllocator, ReleaseEmptyMiddleSlabKeepsId)
 {
   raft::handle_t handle;
   cugraph::dynamic::block_allocator_t allocator(Tests_BlockAllocator::k_max_elements_per_slab);
-  cugraph::dynamic::block_storage_t<int32_t> storage(Tests_BlockAllocator::k_max_elements_per_slab);
+  cugraph::dynamic::block_storage_t<int32_t> storage(Tests_BlockAllocator::k_max_elements_per_slab,
+                                                     handle.get_stream());
 
   auto const [blocks, slab_ids] = allocator.allocate(size_t{4}, size_t{4});
   for (auto const slab_id : slab_ids) {
@@ -87,11 +88,8 @@ TEST_F(Tests_BlockAllocator, ReleaseEmptyMiddleSlabKeepsId)
   auto const freed = allocator.release(blocks[1]);
   ASSERT_TRUE(freed.has_value());
   EXPECT_EQ(*freed, size_t{0});
-  storage.release_slab(bin, *freed);
+  storage.release_slab(bin, *freed, handle.get_stream());
 
-  EXPECT_EQ(storage.num_slabs(bin), size_t{2});
-  EXPECT_FALSE(storage.contains(bin, size_t{0}));
-  EXPECT_TRUE(storage.contains(bin, size_t{1}));
   EXPECT_EQ(allocator.num_slabs(bin), size_t{2});
 }
 
@@ -99,7 +97,8 @@ TEST_F(Tests_BlockAllocator, ReusesFreedMiddleSlabBeforeGrowing)
 {
   raft::handle_t handle;
   cugraph::dynamic::block_allocator_t allocator(Tests_BlockAllocator::k_max_elements_per_slab);
-  cugraph::dynamic::block_storage_t<int32_t> storage(Tests_BlockAllocator::k_max_elements_per_slab);
+  cugraph::dynamic::block_storage_t<int32_t> storage(Tests_BlockAllocator::k_max_elements_per_slab,
+                                                     handle.get_stream());
 
   auto const [blocks, slab_ids] = allocator.allocate(size_t{4}, size_t{4});
   auto const bin                = blocks.front().bin;
@@ -110,7 +109,7 @@ TEST_F(Tests_BlockAllocator, ReusesFreedMiddleSlabBeforeGrowing)
   auto const freed_slab  = allocator.release(blocks[1]);
   EXPECT_FALSE(freed_first.has_value());
   ASSERT_TRUE(freed_slab.has_value());
-  storage.release_slab(bin, *freed_slab);
+  storage.release_slab(bin, *freed_slab, handle.get_stream());
 
   auto const [block, slab_id] = allocator.allocate(size_t{4});
   ASSERT_TRUE(slab_id.has_value());
@@ -118,8 +117,6 @@ TEST_F(Tests_BlockAllocator, ReusesFreedMiddleSlabBeforeGrowing)
   EXPECT_EQ(block.slab_id, size_t{0});
   storage.allocate_slab(bin, *slab_id, handle.get_stream());
 
-  EXPECT_EQ(storage.num_slabs(bin), size_t{2});
-  EXPECT_TRUE(storage.contains(bin, size_t{0}));
   EXPECT_EQ(allocator.num_slabs(bin), size_t{2});
 }
 
@@ -127,7 +124,8 @@ TEST_F(Tests_BlockAllocator, ReleaseEmptyTailPopsAndCollapsesHoles)
 {
   raft::handle_t handle;
   cugraph::dynamic::block_allocator_t allocator(Tests_BlockAllocator::k_max_elements_per_slab);
-  cugraph::dynamic::block_storage_t<int32_t> storage(Tests_BlockAllocator::k_max_elements_per_slab);
+  cugraph::dynamic::block_storage_t<int32_t> storage(Tests_BlockAllocator::k_max_elements_per_slab,
+                                                     handle.get_stream());
 
   auto const [blocks, slab_ids] = allocator.allocate(size_t{4}, size_t{4});
   auto const bin                = blocks.front().bin;
@@ -138,16 +136,15 @@ TEST_F(Tests_BlockAllocator, ReleaseEmptyTailPopsAndCollapsesHoles)
   EXPECT_FALSE(allocator.release(blocks[1]).has_value());
   auto const freed_middle = allocator.release(blocks[0]);
   ASSERT_TRUE(freed_middle.has_value());
-  storage.release_slab(bin, *freed_middle);
+  storage.release_slab(bin, *freed_middle, handle.get_stream());
 
   EXPECT_FALSE(allocator.release(blocks[2]).has_value());
   auto const freed_tail = allocator.release(blocks[3]);
   ASSERT_TRUE(freed_tail.has_value());
   EXPECT_EQ(*freed_tail, size_t{1});
-  storage.release_slab(bin, *freed_tail);
+  storage.release_slab(bin, *freed_tail, handle.get_stream());
 
   EXPECT_EQ(allocator.num_slabs(bin), size_t{0});
-  EXPECT_EQ(storage.num_slabs(bin), size_t{0});
 }
 
 TEST_F(Tests_BlockAllocator, BulkAllocateDrainsLiveSlabBeforeOpeningAnother)
@@ -155,7 +152,7 @@ TEST_F(Tests_BlockAllocator, BulkAllocateDrainsLiveSlabBeforeOpeningAnother)
   raft::handle_t handle;
   constexpr size_t max_elements = size_t{32};
   cugraph::dynamic::block_allocator_t allocator(max_elements);
-  cugraph::dynamic::block_storage_t<int32_t> storage(max_elements);
+  cugraph::dynamic::block_storage_t<int32_t> storage(max_elements, handle.get_stream());
 
   auto const [first, first_slab] = allocator.allocate(size_t{4});
   Tests_BlockAllocator::apply(storage, first, first_slab, handle.get_stream());
@@ -173,7 +170,7 @@ TEST_F(Tests_BlockAllocator, BulkAllocateDrainsLiveSlabBeforeOpeningAnother)
     if (block.slab_id == first.slab_id) { ++from_first_slab; }
   }
   EXPECT_EQ(from_first_slab, size_t{7});
-  EXPECT_EQ(storage.num_slabs(first.bin), size_t{2});
+  EXPECT_EQ(allocator.num_slabs(first.bin), size_t{2});
 }
 
 TEST_F(Tests_BlockAllocator, AllocateRejectsNonPowerOfTwo)
