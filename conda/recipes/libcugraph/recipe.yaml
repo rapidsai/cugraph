@@ -232,6 +232,9 @@ outputs:
         - openmpi <5.0.3 # Required for building cpp-mgtests (multi-GPU tests)
         - rapids-logger =0.3
       run:
+        - openmpi <5.0.3
+        - librmm =${{ minor_version }}
+        - nccl ${{ nccl_version }}
         - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
         - ${{ pin_subpackage("libcugraph", exact=True) }}
         - ${{ pin_subpackage("libcugraph_etl", exact=True) }}
