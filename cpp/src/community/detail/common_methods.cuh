@@ -306,8 +306,11 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
                                                                 vertex_to_gpu_id_op);
 
     src_cluster_weights = edge_src_property_t<vertex_t, weight_t>(handle, graph_view);
-    update_edge_src_property(
-      handle, graph_view, vertex_cluster_weights_v.begin(), src_cluster_weights->mutable_view());
+    update_edge_src_property(handle,
+                             graph_view,
+                             vertex_property_view_t{vertex_cluster_weights_v.begin(),
+                                                    graph_view.local_vertex_partition_range_size()},
+                             src_cluster_weights->mutable_view());
     vertex_cluster_weights_v.resize(0, handle.get_stream());
     vertex_cluster_weights_v.shrink_to_fit(handle.get_stream());
   } else {
@@ -371,7 +374,9 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
     update_edge_src_property(
       handle,
       graph_view,
-      thrust::make_zip_iterator(old_cluster_sum_v.begin(), cluster_subtract_v.begin()),
+      vertex_property_view_t{
+        thrust::make_zip_iterator(old_cluster_sum_v.begin(), cluster_subtract_v.begin()),
+        graph_view.local_vertex_partition_range_size()},
       src_old_cluster_sum_subtract_pairs->mutable_view());
     old_cluster_sum_v.resize(0, handle.get_stream());
     old_cluster_sum_v.shrink_to_fit(handle.get_stream());

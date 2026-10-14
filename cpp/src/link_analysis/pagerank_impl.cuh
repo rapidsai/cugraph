@@ -252,7 +252,10 @@ centrality_algorithm_metadata_t pagerank(
       });
 
     update_edge_src_property(
-      handle, pull_graph_view, pageranks.data(), edge_src_pageranks.mutable_view());
+      handle,
+      pull_graph_view,
+      vertex_property_view_t{pageranks.data(), pull_graph_view.local_vertex_partition_range_size()},
+      edge_src_pageranks.mutable_view());
 
     auto unvarying_part = aggregate_personalization_vector_size == 0
                             ? (dangling_sum * alpha + static_cast<result_t>(1.0 - alpha)) /

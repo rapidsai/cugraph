@@ -316,14 +316,18 @@ void triangle_count(raft::handle_t const& handle,
 
     edge_src_property_t<vertex_t, bool> edge_src_within_two_hop_flags(handle, cur_graph_view);
     edge_dst_property_t<vertex_t, bool> edge_dst_within_two_hop_flags(handle, cur_graph_view);
-    update_edge_src_property(handle,
-                             cur_graph_view,
-                             within_two_hop_flags.begin(),
-                             edge_src_within_two_hop_flags.mutable_view());
-    update_edge_dst_property(handle,
-                             cur_graph_view,
-                             within_two_hop_flags.begin(),
-                             edge_dst_within_two_hop_flags.mutable_view());
+    update_edge_src_property(
+      handle,
+      cur_graph_view,
+      vertex_property_view_t{within_two_hop_flags.begin(),
+                             cur_graph_view.local_vertex_partition_range_size()},
+      edge_src_within_two_hop_flags.mutable_view());
+    update_edge_dst_property(
+      handle,
+      cur_graph_view,
+      vertex_property_view_t{within_two_hop_flags.begin(),
+                             cur_graph_view.local_vertex_partition_range_size()},
+      edge_dst_within_two_hop_flags.mutable_view());
 
     transform_e(
       handle,
@@ -380,9 +384,17 @@ void triangle_count(raft::handle_t const& handle,
                  in_two_core_first + core_numbers.size(),
                  in_two_core_flags.begin());
     update_edge_src_property(
-      handle, cur_graph_view, in_two_core_flags.begin(), edge_src_in_two_cores.mutable_view());
+      handle,
+      cur_graph_view,
+      vertex_property_view_t{in_two_core_flags.begin(),
+                             cur_graph_view.local_vertex_partition_range_size()},
+      edge_src_in_two_cores.mutable_view());
     update_edge_dst_property(
-      handle, cur_graph_view, in_two_core_flags.begin(), edge_dst_in_two_cores.mutable_view());
+      handle,
+      cur_graph_view,
+      vertex_property_view_t{in_two_core_flags.begin(),
+                             cur_graph_view.local_vertex_partition_range_size()},
+      edge_dst_in_two_cores.mutable_view());
 
     transform_e(
       handle,
@@ -411,9 +423,17 @@ void triangle_count(raft::handle_t const& handle,
     edge_src_property_t<vertex_t, edge_t> edge_src_out_degrees(handle, cur_graph_view);
     edge_dst_property_t<vertex_t, edge_t> edge_dst_out_degrees(handle, cur_graph_view);
     update_edge_src_property(
-      handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees.mutable_view());
+      handle,
+      cur_graph_view,
+      vertex_property_view_t{out_degrees.begin(),
+                             cur_graph_view.local_vertex_partition_range_size()},
+      edge_src_out_degrees.mutable_view());
     update_edge_dst_property(
-      handle, cur_graph_view, out_degrees.begin(), edge_dst_out_degrees.mutable_view());
+      handle,
+      cur_graph_view,
+      vertex_property_view_t{out_degrees.begin(),
+                             cur_graph_view.local_vertex_partition_range_size()},
+      edge_dst_out_degrees.mutable_view());
     auto [srcs, dsts] =
       extract_transform_if_e(handle,
                              cur_graph_view,

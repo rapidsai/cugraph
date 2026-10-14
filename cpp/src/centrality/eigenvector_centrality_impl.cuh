@@ -87,7 +87,11 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
                  old_centralities.data());
 
     update_edge_src_property(
-      handle, pull_graph_view, old_centralities.begin(), edge_src_centralities.mutable_view());
+      handle,
+      pull_graph_view,
+      vertex_property_view_t{old_centralities.begin(),
+                             pull_graph_view.local_vertex_partition_range_size()},
+      edge_src_centralities.mutable_view());
 
     if (edge_weight_view) {
       per_v_transform_reduce_incoming_e(

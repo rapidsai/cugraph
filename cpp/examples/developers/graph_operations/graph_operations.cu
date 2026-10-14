@@ -199,10 +199,18 @@ void perform_example_graph_operations(
     cugraph::edge_dst_property_t<edge_t, result_t> dst_vertex_weights_cache(handle, graph_view);
 
     cugraph::update_edge_src_property(
-      handle, graph_view, vertex_weights.begin(), src_vertex_weights_cache.mutable_view());
+      handle,
+      graph_view,
+      cugraph::vertex_property_view_t{vertex_weights.begin(),
+                                      graph_view.local_vertex_partition_range_size()},
+      src_vertex_weights_cache.mutable_view());
 
     cugraph::update_edge_dst_property(
-      handle, graph_view, vertex_weights.begin(), dst_vertex_weights_cache.mutable_view());
+      handle,
+      graph_view,
+      cugraph::vertex_property_view_t{vertex_weights.begin(),
+                                      graph_view.local_vertex_partition_range_size()},
+      dst_vertex_weights_cache.mutable_view());
 
     rmm::device_uvector<result_t> weighted_averages(
       size_of_the_vertex_partition_assigned_to_this_process, handle.get_stream());
@@ -241,10 +249,18 @@ void perform_example_graph_operations(
     cugraph::edge_dst_property_t<edge_t, result_t> dst_vertex_weights_cache(handle, graph_view);
 
     cugraph::update_edge_src_property(
-      handle, graph_view, vertex_weights.begin(), src_vertex_weights_cache.mutable_view());
+      handle,
+      graph_view,
+      cugraph::vertex_property_view_t{vertex_weights.begin(),
+                                      graph_view.local_vertex_partition_range_size()},
+      src_vertex_weights_cache.mutable_view());
 
     cugraph::update_edge_dst_property(
-      handle, graph_view, vertex_weights.begin(), dst_vertex_weights_cache.mutable_view());
+      handle,
+      graph_view,
+      cugraph::vertex_property_view_t{vertex_weights.begin(),
+                                      graph_view.local_vertex_partition_range_size()},
+      dst_vertex_weights_cache.mutable_view());
 
     rmm::device_uvector<result_t> weighted_averages(
       size_of_the_vertex_partition_assigned_to_this_process, handle.get_stream());

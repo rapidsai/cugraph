@@ -333,7 +333,11 @@ all_pairs_similarity(raft::handle_t const& handle,
     // FIXME: If vertices is specified, this could be done on a subset of the vertices
     //
     edge_dst_property_t<vertex_t, edge_t> edge_dst_degrees(handle, graph_view);
-    update_edge_dst_property(handle, graph_view, degrees.begin(), edge_dst_degrees.mutable_view());
+    update_edge_dst_property(
+      handle,
+      graph_view,
+      vertex_property_view_t{degrees.begin(), graph_view.local_vertex_partition_range_size()},
+      edge_dst_degrees.mutable_view());
 
     per_v_transform_reduce_incoming_e(
       handle,

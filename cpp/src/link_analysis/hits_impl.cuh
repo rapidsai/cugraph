@@ -102,7 +102,11 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
 
   // Initialize hubs from user input if provided
   if (has_initial_hubs_guess) {
-    update_edge_src_property(handle, graph_view, prev_hubs, prev_src_hubs.mutable_view());
+    update_edge_src_property(
+      handle,
+      graph_view,
+      vertex_property_view_t{prev_hubs, graph_view.local_vertex_partition_range_size()},
+      prev_src_hubs.mutable_view());
   } else {
     fill_edge_src_property(
       handle, graph_view, prev_src_hubs.mutable_view(), result_t{1.0} / num_vertices);
@@ -126,7 +130,11 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
       reduce_op::plus<result_t>{},
       authorities);
 
-    update_edge_dst_property(handle, graph_view, authorities, curr_dst_auth.mutable_view());
+    update_edge_dst_property(
+      handle,
+      graph_view,
+      vertex_property_view_t{authorities, graph_view.local_vertex_partition_range_size()},
+      curr_dst_auth.mutable_view());
 
     // Update current source hubs property
     per_v_transform_reduce_outgoing_e(
@@ -166,7 +174,11 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
       },
       result_t{0});
 
-    update_edge_src_property(handle, graph_view, curr_hubs, prev_src_hubs.mutable_view());
+    update_edge_src_property(
+      handle,
+      graph_view,
+      vertex_property_view_t{curr_hubs, graph_view.local_vertex_partition_range_size()},
+      prev_src_hubs.mutable_view());
 
     // Swap pointers for the next iteration
     // After this swap call, prev_hubs has the latest value of hubs

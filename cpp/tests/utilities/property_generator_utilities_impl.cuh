@@ -80,7 +80,8 @@ generate<GraphViewType, property_t>::src_property(raft::handle_t const& handle,
                                                                                   graph_view);
   update_edge_src_property(handle,
                            graph_view,
-                           cugraph::get_dataframe_buffer_begin(property),
+                           vertex_property_view_t{cugraph::get_dataframe_buffer_begin(property),
+                                                  graph_view.local_vertex_partition_range_size()},
                            output_property.mutable_view());
   return output_property;
 }
@@ -96,7 +97,8 @@ generate<GraphViewType, property_t>::dst_property(raft::handle_t const& handle,
                                                                                   graph_view);
   update_edge_dst_property(handle,
                            graph_view,
-                           cugraph::get_dataframe_buffer_begin(property),
+                           vertex_property_view_t{cugraph::get_dataframe_buffer_begin(property),
+                                                  graph_view.local_vertex_partition_range_size()},
                            output_property.mutable_view());
   return output_property;
 }

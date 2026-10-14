@@ -102,9 +102,17 @@ class Tests_MGGraphColoring
         src_color_cache = cugraph::edge_src_property_t<vertex_t, vertex_t>(*handle_, mg_graph_view);
         dst_color_cache = cugraph::edge_dst_property_t<vertex_t, vertex_t>(*handle_, mg_graph_view);
         update_edge_src_property(
-          *handle_, mg_graph_view, d_colors.begin(), src_color_cache.mutable_view());
+          *handle_,
+          mg_graph_view,
+          cugraph::vertex_property_view_t{d_colors.begin(),
+                                          mg_graph_view.local_vertex_partition_range_size()},
+          src_color_cache.mutable_view());
         update_edge_dst_property(
-          *handle_, mg_graph_view, d_colors.begin(), dst_color_cache.mutable_view());
+          *handle_,
+          mg_graph_view,
+          cugraph::vertex_property_view_t{d_colors.begin(),
+                                          mg_graph_view.local_vertex_partition_range_size()},
+          dst_color_cache.mutable_view());
       }
 
       rmm::device_uvector<uint8_t> d_color_conflicts(

@@ -178,8 +178,16 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
   edge_t hop{0};
 
   while (true) {
-    update_edge_src_property(handle, graph_view, sigmas.begin(), src_sigmas.mutable_view());
-    update_edge_dst_property(handle, graph_view, distances.begin(), dst_distances.mutable_view());
+    update_edge_src_property(
+      handle,
+      graph_view,
+      vertex_property_view_t{sigmas.begin(), graph_view.local_vertex_partition_range_size()},
+      src_sigmas.mutable_view());
+    update_edge_dst_property(
+      handle,
+      graph_view,
+      vertex_property_view_t{distances.begin(), graph_view.local_vertex_partition_range_size()},
+      dst_distances.mutable_view());
 
     auto [new_frontier, new_sigma] = cugraph::transform_reduce_if_v_frontier_outgoing_e_by_dst(
       handle,
@@ -271,11 +279,17 @@ void accumulate_vertex_results(
   edge_dst_property_t<vertex_t, weight_t> dst_deltas(handle, graph_view);
 
   // Update all 3 properties initially (deltas start as 0)
-  update_edge_src_property(handle, graph_view, sigmas.begin(), src_sigmas.mutable_view());
-  update_edge_dst_property(handle,
-                           graph_view,
-                           thrust::make_zip_iterator(distances.begin(), sigmas.begin()),
-                           view_concat(dst_distances.mutable_view(), dst_sigmas.mutable_view()));
+  update_edge_src_property(
+    handle,
+    graph_view,
+    vertex_property_view_t{sigmas.begin(), graph_view.local_vertex_partition_range_size()},
+    src_sigmas.mutable_view());
+  update_edge_dst_property(
+    handle,
+    graph_view,
+    vertex_property_view_t{thrust::make_zip_iterator(distances.begin(), sigmas.begin()),
+                           graph_view.local_vertex_partition_range_size()},
+    view_concat(dst_distances.mutable_view(), dst_sigmas.mutable_view()));
   fill_edge_dst_property(handle, graph_view, dst_deltas.mutable_view(), weight_t{0.0});
 
   // Use binary search method to find frontier boundaries more efficiently
@@ -428,12 +442,16 @@ void accumulate_edge_results(
   update_edge_src_property(
     handle,
     graph_view,
-    thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
+    vertex_property_view_t{
+      thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
+      graph_view.local_vertex_partition_range_size()},
     src_properties.mutable_view());
   update_edge_dst_property(
     handle,
     graph_view,
-    thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
+    vertex_property_view_t{
+      thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
+      graph_view.local_vertex_partition_range_size()},
     dst_properties.mutable_view());
 
   //
@@ -530,12 +548,16 @@ void accumulate_edge_results(
     update_edge_src_property(
       handle,
       graph_view,
-      thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
+      vertex_property_view_t{
+        thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
+        graph_view.local_vertex_partition_range_size()},
       src_properties.mutable_view());
     update_edge_dst_property(
       handle,
       graph_view,
-      thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
+      vertex_property_view_t{
+        thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
+        graph_view.local_vertex_partition_range_size()},
       dst_properties.mutable_view());
   }
 }

@@ -91,7 +91,11 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
     src_key_cache = cugraph::edge_src_property_t<vertex_t, vertex_t>(handle, current_graph_view);
 
     update_edge_src_property(
-      handle, current_graph_view, local_vertices.begin(), src_key_cache.mutable_view());
+      handle,
+      current_graph_view,
+      vertex_property_view_t{local_vertices.begin(),
+                             current_graph_view.local_vertex_partition_range_size()},
+      src_key_cache.mutable_view());
 
     src_match_flags = cugraph::edge_src_property_t<vertex_t, bool>(handle, current_graph_view);
     dst_match_flags = cugraph::edge_dst_property_t<vertex_t, bool>(handle, current_graph_view);
@@ -271,9 +275,17 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
 
     if constexpr (multi_gpu) {
       cugraph::update_edge_src_property(
-        handle, current_graph_view, is_vertex_matched.begin(), src_match_flags.mutable_view());
+        handle,
+        current_graph_view,
+        cugraph::vertex_property_view_t{is_vertex_matched.begin(),
+                                        current_graph_view.local_vertex_partition_range_size()},
+        src_match_flags.mutable_view());
       cugraph::update_edge_dst_property(
-        handle, current_graph_view, is_vertex_matched.begin(), dst_match_flags.mutable_view());
+        handle,
+        current_graph_view,
+        cugraph::vertex_property_view_t{is_vertex_matched.begin(),
+                                        current_graph_view.local_vertex_partition_range_size()},
+        dst_match_flags.mutable_view());
     }
 
     if (loop_counter % 2 == 0) {

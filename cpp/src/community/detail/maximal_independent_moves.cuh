@@ -153,9 +153,17 @@ rmm::device_uvector<vertex_t> maximal_independent_moves(
       src_rank_cache = edge_src_property_t<vertex_t, vertex_t>(handle, graph_view);
       dst_rank_cache = edge_dst_property_t<vertex_t, vertex_t>(handle, graph_view);
       update_edge_src_property(
-        handle, graph_view, temporary_ranks.begin(), src_rank_cache.mutable_view());
+        handle,
+        graph_view,
+        vertex_property_view_t{temporary_ranks.begin(),
+                               graph_view.local_vertex_partition_range_size()},
+        src_rank_cache.mutable_view());
       update_edge_dst_property(
-        handle, graph_view, temporary_ranks.begin(), dst_rank_cache.mutable_view());
+        handle,
+        graph_view,
+        vertex_property_view_t{temporary_ranks.begin(),
+                               graph_view.local_vertex_partition_range_size()},
+        dst_rank_cache.mutable_view());
     }
 
     //

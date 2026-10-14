@@ -127,11 +127,19 @@ find_trees_from_2cores(
   cugraph::edge_src_property_t<vertex_t, bool> edge_src_reachable_from_2cores(handle,
                                                                               mg_graph_view);
   cugraph::update_edge_src_property(
-    handle, mg_graph_view, in_2cores.begin(), edge_src_reachable_from_2cores.mutable_view());
+    handle,
+    mg_graph_view,
+    cugraph::vertex_property_view_t{in_2cores.begin(),
+                                    mg_graph_view.local_vertex_partition_range_size()},
+    edge_src_reachable_from_2cores.mutable_view());
   cugraph::edge_dst_property_t<vertex_t, bool> edge_dst_reachable_from_2cores(handle,
                                                                               mg_graph_view);
   cugraph::update_edge_dst_property(
-    handle, mg_graph_view, in_2cores.begin(), edge_dst_reachable_from_2cores.mutable_view());
+    handle,
+    mg_graph_view,
+    cugraph::vertex_property_view_t{in_2cores.begin(),
+                                    mg_graph_view.local_vertex_partition_range_size()},
+    edge_dst_reachable_from_2cores.mutable_view());
   in_2cores.resize(0, handle.get_stream());
   in_2cores.shrink_to_fit(handle.get_stream());
 
@@ -347,9 +355,17 @@ extract_forest_pruned_graph_and_isolated_trees(
                           return cuda::std::get<0>(pair) == cuda::std::get<1>(pair);
                         }));
       cugraph::update_edge_src_property(
-        handle, mg_graph_view, in_2cores.begin(), edge_src_in_2cores.mutable_view());
+        handle,
+        mg_graph_view,
+        cugraph::vertex_property_view_t{in_2cores.begin(),
+                                        mg_graph_view.local_vertex_partition_range_size()},
+        edge_src_in_2cores.mutable_view());
       cugraph::update_edge_dst_property(
-        handle, mg_graph_view, in_2cores.begin(), edge_dst_in_2cores.mutable_view());
+        handle,
+        mg_graph_view,
+        cugraph::vertex_property_view_t{in_2cores.begin(),
+                                        mg_graph_view.local_vertex_partition_range_size()},
+        edge_dst_in_2cores.mutable_view());
     }
     for (size_t i = 0; i < num_chunks; ++i) {
       cugraph::edge_property_t<edge_t, bool> edge_mask(handle, mg_graph_view);
@@ -409,10 +425,12 @@ extract_forest_pruned_graph_and_isolated_trees(
                       }));
     cugraph::edge_src_property_t<vertex_t, bool> edge_src_reachable_from_2cores(handle,
                                                                                 mg_graph_view);
-    cugraph::update_edge_src_property(handle,
-                                      mg_graph_view,
-                                      reachable_from_2cores.begin(),
-                                      edge_src_reachable_from_2cores.mutable_view());
+    cugraph::update_edge_src_property(
+      handle,
+      mg_graph_view,
+      cugraph::vertex_property_view_t{reachable_from_2cores.begin(),
+                                      mg_graph_view.local_vertex_partition_range_size()},
+      edge_src_reachable_from_2cores.mutable_view());
     cugraph::edge_property_t<edge_t, bool> edge_mask(handle, mg_graph_view);
     cugraph::transform_e(
       handle,
