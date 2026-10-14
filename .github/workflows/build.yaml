@@ -35,7 +35,7 @@ jobs:
     uses: rapidsai/shared-workflows/.github/workflows/compute-build-details.yaml@main
   cpp-build:
     needs: [build-details]
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@10c48afab35c7a70c3c4b1fcccaab11356b7720f
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@90e352c37eba6b22b8706b32bf9ceb264421af37
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       build-datetime: ${{ needs.build-details.outputs.build-datetime }}
@@ -52,7 +52,7 @@ jobs:
       pull-requests: read
   python-build:
     needs: [build-details, cpp-build]
-    uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@10c48afab35c7a70c3c4b1fcccaab11356b7720f
+    uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@90e352c37eba6b22b8706b32bf9ceb264421af37
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       build-datetime: ${{ needs.build-details.outputs.build-datetime }}
@@ -119,7 +119,7 @@ jobs:
       pull-requests: read
   wheel-build-libcugraph:
     needs: [build-details]
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@10c48afab35c7a70c3c4b1fcccaab11356b7720f
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@90e352c37eba6b22b8706b32bf9ceb264421af37
     with:
       # build for every combination of arch and CUDA version, but only for the latest Python version
       matrix_filter: group_by([.ARCH, (.CUDA_VER|split(".")|map(tonumber)|.[0])]) | map(max_by(.PY_VER|split(".")|map(tonumber)))
@@ -161,7 +161,7 @@ jobs:
       pull-requests: read
   wheel-build-pylibcugraph:
     needs: [build-details, wheel-build-libcugraph]
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@10c48afab35c7a70c3c4b1fcccaab11356b7720f
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@90e352c37eba6b22b8706b32bf9ceb264421af37
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       build-datetime: ${{ needs.build-details.outputs.build-datetime }}
@@ -203,7 +203,7 @@ jobs:
       pull-requests: read
   wheel-build-cugraph:
     needs: [build-details, wheel-build-pylibcugraph]
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@10c48afab35c7a70c3c4b1fcccaab11356b7720f
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@90e352c37eba6b22b8706b32bf9ceb264421af37
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       build-datetime: ${{ needs.build-details.outputs.build-datetime }}
