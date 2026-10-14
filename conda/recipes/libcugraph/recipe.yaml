@@ -124,6 +124,7 @@ outputs:
         - libcusolver-dev
         - libcusparse-dev
       run:
+        - rapids-logger =0.3
         - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
         - libraft =${{ minor_version }}
         - librmm =${{ minor_version }}
