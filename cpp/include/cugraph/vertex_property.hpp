@@ -7,6 +7,7 @@
 
 #include <cugraph/export.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
+#include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
@@ -38,18 +39,18 @@ class vertex_property_view_t {
 
   vertex_property_view_t() = default;
 
-  vertex_property_view_t(ValueIterator value_first, vertex_t vertex_count)
-    : value_first_(value_first), vertex_count_(vertex_count)
+  vertex_property_view_t(ValueIterator value_first, vertex_t range_size)
+    : value_first_(value_first), range_size_(range_size)
   {
   }
 
   ValueIterator value_first() const { return value_first_; }
 
-  vertex_t vertex_count() const { return vertex_count_; }
+  vertex_t range_size() const { return range_size_; }
 
  private:
   ValueIterator value_first_{};
-  vertex_t vertex_count_{0};
+  vertex_t range_size_{0};
 };
 
 class vertex_dummy_property_view_t {
@@ -69,8 +70,8 @@ class vertex_property_t {
     dataframe_buffer_type_t<std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>;
 
   explicit vertex_property_t(raft::handle_t const& handle)
-    : vertex_count_(vertex_t{0}),
-      vertex_buffer_(
+    : range_size_(vertex_t{0}),
+      value_buffer_(
         allocate_dataframe_buffer<std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>(
           size_t{0}, handle.get_stream()))
   {
@@ -78,8 +79,8 @@ class vertex_property_t {
 
   template <typename GraphViewType>
   vertex_property_t(raft::handle_t const& handle, GraphViewType const& graph_view)
-    : vertex_count_(graph_view.local_vertex_partition_range_size()),
-      vertex_buffer_(
+    : range_size_(graph_view.local_vertex_partition_range_size()),
+      value_buffer_(
         allocate_dataframe_buffer<std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>(
           std::is_same_v<T, bool>
             ? packed_bool_size(static_cast<size_t>(graph_view.local_vertex_partition_range_size()))
@@ -89,42 +90,50 @@ class vertex_property_t {
     static_assert(std::is_same_v<vertex_t, typename GraphViewType::vertex_type>);
   }
 
-  template <typename value_type = T, typename = std::enable_if_t<!std::is_same_v<value_type, bool>>>
-  explicit vertex_property_t(buffer_type&& vertex_buffer)
-    : vertex_count_(static_cast<vertex_t>(size_dataframe_buffer(vertex_buffer))),
-      vertex_buffer_(std::move(vertex_buffer))
+  vertex_property_t(buffer_type&& value_buffer, vertex_t range_size)
+    : value_buffer_(std::move(value_buffer)), range_size_(range_size)
   {
+    auto const buffer_size = size_dataframe_buffer(value_buffer_);
+    if constexpr (std::is_same_v<T, bool>) {
+      CUGRAPH_EXPECTS(buffer_size == packed_bool_size(static_cast<size_t>(range_size)),
+                      "Invalid input argument: range_size does not match the packed bool "
+                      "buffer size.");
+    } else {
+      CUGRAPH_EXPECTS(buffer_size == static_cast<size_t>(range_size),
+                      "Invalid input argument: range_size does not match the buffer size.");
+    }
   }
 
-  vertex_property_t(buffer_type&& vertex_buffer, vertex_t vertex_count)
-    : vertex_count_(vertex_count), vertex_buffer_(std::move(vertex_buffer))
+  buffer_type release_buffer()
   {
+    range_size_ = vertex_t{0};
+    return std::move(value_buffer_);
   }
 
   void clear(raft::handle_t const& handle)
   {
-    resize_dataframe_buffer(vertex_buffer_, size_t{0}, handle.get_stream());
-    shrink_to_fit_dataframe_buffer(vertex_buffer_, handle.get_stream());
-    vertex_count_ = vertex_t{0};
+    resize_dataframe_buffer(value_buffer_, size_t{0}, handle.get_stream());
+    shrink_to_fit_dataframe_buffer(value_buffer_, handle.get_stream());
+    range_size_ = vertex_t{0};
   }
 
   auto view() const
   {
-    using const_value_iterator = decltype(get_dataframe_buffer_cbegin(vertex_buffer_));
+    using const_value_iterator = decltype(get_dataframe_buffer_cbegin(value_buffer_));
     return vertex_property_view_t<vertex_type, const_value_iterator, T>(
-      get_dataframe_buffer_cbegin(vertex_buffer_), vertex_count_);
+      get_dataframe_buffer_cbegin(value_buffer_), range_size_);
   }
 
   auto mutable_view()
   {
-    using value_iterator = decltype(get_dataframe_buffer_begin(vertex_buffer_));
+    using value_iterator = decltype(get_dataframe_buffer_begin(value_buffer_));
     return vertex_property_view_t<vertex_type, value_iterator, T>(
-      get_dataframe_buffer_begin(vertex_buffer_), vertex_count_);
+      get_dataframe_buffer_begin(value_buffer_), range_size_);
   }
 
  private:
-  vertex_t vertex_count_{0};
-  buffer_type vertex_buffer_;
+  buffer_type value_buffer_;
+  vertex_t range_size_{0};
 };
 
 class vertex_dummy_property_t {
@@ -169,7 +178,7 @@ auto view_concat(vertex_property_view_t<vertex_t, Iters, Types> const&... views)
   auto const first_view = get_first_of_pack(views...);
   return vertex_property_view_t<vertex_t, concat_value_iterator, concat_value_type>(
     thrust::make_zip_iterator(thrust_tuple_cat(to_thrust_iterator_tuple(views.value_first())...)),
-    first_view.vertex_count());
+    first_view.range_size());
 }
 
 }  // namespace CUGRAPH_EXPORT cugraph
