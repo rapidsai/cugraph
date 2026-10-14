@@ -74,7 +74,10 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   // Check validity of initial guess if supplied
   if (has_initial_hubs_guess && do_expensive_check) {
     auto num_negative_values =
-      count_if_v(handle, graph_view, hubs, [] __device__(auto, auto val) { return val < 0.0; });
+      count_if_v(handle,
+                 graph_view,
+                 vertex_property_view_t{hubs, graph_view.local_vertex_partition_range_size()},
+                 [] __device__(auto, auto val) { return val < 0.0; });
     CUGRAPH_EXPECTS(num_negative_values == 0,
                     "Invalid input argument: initial guess values should be non-negative.");
   }

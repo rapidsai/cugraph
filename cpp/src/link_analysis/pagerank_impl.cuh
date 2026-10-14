@@ -92,7 +92,8 @@ centrality_algorithm_metadata_t pagerank(
       auto num_negative_precomputed_vertex_out_weight_sums =
         count_if_v(handle,
                    pull_graph_view,
-                   precomputed_vertex_out_weight_sums->data(),
+                   vertex_property_view_t{precomputed_vertex_out_weight_sums->data(),
+                                          pull_graph_view.local_vertex_partition_range_size()},
                    [] __device__(auto, auto val) { return val < result_t{0.0}; });
       CUGRAPH_EXPECTS(
         num_negative_precomputed_vertex_out_weight_sums == 0,
@@ -356,7 +357,10 @@ void pagerank(raft::handle_t const& handle,
   if (has_initial_guess) {
     if (do_expensive_check) {
       auto num_negative_values = count_if_v(
-        handle, graph_view, pageranks, [] __device__(auto, auto val) { return val < 0.0; });
+        handle,
+        graph_view,
+        vertex_property_view_t{pageranks, graph_view.local_vertex_partition_range_size()},
+        [] __device__(auto, auto val) { return val < 0.0; });
       CUGRAPH_EXPECTS(num_negative_values == 0,
                       "Invalid input argument: initial guess values should be non-negative.");
     }

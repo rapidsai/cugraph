@@ -245,7 +245,7 @@ void accumulate_vertex_results(
     vertex_t count = count_if_v(
       handle,
       graph_view,
-      distances.begin(),
+      vertex_property_view_t{distances.begin(), graph_view.local_vertex_partition_range_size()},
       [] __device__(auto, auto d) { return (d != invalid_distance); },
       do_expensive_check);
 
