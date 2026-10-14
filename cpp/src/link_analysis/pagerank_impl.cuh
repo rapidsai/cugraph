@@ -365,7 +365,11 @@ void pagerank(raft::handle_t const& handle,
                       "Invalid input argument: initial guess values should be non-negative.");
     }
 
-    auto sum = reduce_v(handle, graph_view, pageranks, result_t{0.0});
+    auto sum =
+      reduce_v(handle,
+               graph_view,
+               vertex_property_view_t{pageranks, graph_view.local_vertex_partition_range_size()},
+               result_t{0.0});
     CUGRAPH_EXPECTS(sum > 0.0,
                     "Invalid input argument: sum of the PageRank initial "
                     "guess values should be positive.");

@@ -87,10 +87,12 @@ T transform_reduce_v(raft::handle_t const& handle,
   return reduce_v(
     handle,
     graph_view,
-    cuda::make_transform_iterator(
-      thrust::make_counting_iterator(vertex_t{0}),
-      detail::transform_reduce_call_v_op_t<vertex_t, VertexValueInputIterator, VertexOp, T>{
-        graph_view.local_vertex_partition_range_first(), vertex_value_input_first, v_op}),
+    vertex_property_view_t{
+      cuda::make_transform_iterator(
+        thrust::make_counting_iterator(vertex_t{0}),
+        detail::transform_reduce_call_v_op_t<vertex_t, VertexValueInputIterator, VertexOp, T>{
+          graph_view.local_vertex_partition_range_first(), vertex_value_input_first, v_op}),
+      graph_view.local_vertex_partition_range_size()},
     init,
     reduce_op);
 }

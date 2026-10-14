@@ -116,25 +116,31 @@ class Tests_MGReduceV
 
       switch (reduction_type) {
         case reduction_type_t::PLUS:
-          results[reduction_type] = reduce_v(*handle_,
-                                             mg_graph_view,
-                                             property_iter,
-                                             property_initial_value,
-                                             cugraph::reduce_op::plus<result_t>{});
+          results[reduction_type] =
+            reduce_v(*handle_,
+                     mg_graph_view,
+                     cugraph::vertex_property_view_t{
+                       property_iter, mg_graph_view.local_vertex_partition_range_size()},
+                     property_initial_value,
+                     cugraph::reduce_op::plus<result_t>{});
           break;
         case reduction_type_t::MINIMUM:
-          results[reduction_type] = reduce_v(*handle_,
-                                             mg_graph_view,
-                                             property_iter,
-                                             property_initial_value,
-                                             cugraph::reduce_op::minimum<result_t>{});
+          results[reduction_type] =
+            reduce_v(*handle_,
+                     mg_graph_view,
+                     cugraph::vertex_property_view_t{
+                       property_iter, mg_graph_view.local_vertex_partition_range_size()},
+                     property_initial_value,
+                     cugraph::reduce_op::minimum<result_t>{});
           break;
         case reduction_type_t::MAXIMUM:
-          results[reduction_type] = reduce_v(*handle_,
-                                             mg_graph_view,
-                                             property_iter,
-                                             property_initial_value,
-                                             cugraph::reduce_op::maximum<result_t>{});
+          results[reduction_type] =
+            reduce_v(*handle_,
+                     mg_graph_view,
+                     cugraph::vertex_property_view_t{
+                       property_iter, mg_graph_view.local_vertex_partition_range_size()},
+                     property_initial_value,
+                     cugraph::reduce_op::maximum<result_t>{});
           break;
         default: FAIL() << "should not be reached.";
       }
@@ -177,25 +183,31 @@ class Tests_MGReduceV
           result_t expected_result{};
           switch (reduction_type) {
             case reduction_type_t::PLUS:
-              expected_result = reduce_v(*handle_,
-                                         sg_graph_view,
-                                         sg_property_iter,
-                                         property_initial_value,
-                                         cugraph::reduce_op::plus<result_t>{});
+              expected_result =
+                reduce_v(*handle_,
+                         sg_graph_view,
+                         cugraph::vertex_property_view_t{
+                           sg_property_iter, sg_graph_view.local_vertex_partition_range_size()},
+                         property_initial_value,
+                         cugraph::reduce_op::plus<result_t>{});
               break;
             case reduction_type_t::MINIMUM:
-              expected_result = reduce_v(*handle_,
-                                         sg_graph_view,
-                                         sg_property_iter,
-                                         property_initial_value,
-                                         cugraph::reduce_op::minimum<result_t>{});
+              expected_result =
+                reduce_v(*handle_,
+                         sg_graph_view,
+                         cugraph::vertex_property_view_t{
+                           sg_property_iter, sg_graph_view.local_vertex_partition_range_size()},
+                         property_initial_value,
+                         cugraph::reduce_op::minimum<result_t>{});
               break;
             case reduction_type_t::MAXIMUM:
-              expected_result = reduce_v(*handle_,
-                                         sg_graph_view,
-                                         sg_property_iter,
-                                         property_initial_value,
-                                         cugraph::reduce_op::maximum<result_t>{});
+              expected_result =
+                reduce_v(*handle_,
+                         sg_graph_view,
+                         cugraph::vertex_property_view_t{
+                           sg_property_iter, sg_graph_view.local_vertex_partition_range_size()},
+                         property_initial_value,
+                         cugraph::reduce_op::maximum<result_t>{});
               break;
             default: FAIL() << "should not be reached.";
           }

@@ -33,7 +33,12 @@ void normalize(raft::handle_t const& handle,
                result_t init,
                ReduceOp reduce_op)
 {
-  auto hubs_norm = reduce_v(handle, graph_view, hubs, init, reduce_op);
+  auto hubs_norm =
+    reduce_v(handle,
+             graph_view,
+             vertex_property_view_t{hubs, graph_view.local_vertex_partition_range_size()},
+             init,
+             reduce_op);
   CUGRAPH_EXPECTS(hubs_norm > 0, "Norm is required to be a positive value.");
   thrust::transform(handle.get_thrust_policy(),
                     hubs,
