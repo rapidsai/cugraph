@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -13,8 +13,8 @@ namespace cugraph {
 template CUGRAPH_EXPORT std::tuple<float, size_t> hits(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, true, true> const& graph_view,
-  float* const hubs,
-  float* const authorities,
+  vertex_property_view_t<int32_t, float*> hubs,
+  vertex_property_view_t<int32_t, float*> authorities,
   float epsilon,
   size_t max_iterations,
   bool has_initial_hubs_guess,
@@ -24,8 +24,8 @@ template CUGRAPH_EXPORT std::tuple<float, size_t> hits(
 template CUGRAPH_EXPORT std::tuple<double, size_t> hits(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, true, true> const& graph_view,
-  double* const hubs,
-  double* const authorities,
+  vertex_property_view_t<int32_t, double*> hubs,
+  vertex_property_view_t<int32_t, double*> authorities,
   double epsilon,
   size_t max_iterations,
   bool has_initial_hubs_guess,

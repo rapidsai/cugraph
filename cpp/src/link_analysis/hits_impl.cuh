@@ -7,57 +7,50 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/copy_v.cuh>
 #include <cugraph/prims/count_if_v.cuh>
 #include <cugraph/prims/fill_edge_src_dst_property.cuh>
+#include <cugraph/prims/fill_v.cuh>
 #include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/prims/reduce_v.cuh>
 #include <cugraph/prims/transform_reduce_v.cuh>
+#include <cugraph/prims/transform_v.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
-#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/vertex_property.hpp>
 
-#include <cuda/iterator>
-#include <cuda/std/functional>
 #include <cuda/std/tuple>
-#include <thrust/copy.h>
-#include <thrust/fill.h>
-#include <thrust/iterator/zip_iterator.h>
-#include <thrust/transform.h>
 
 namespace cugraph {
 namespace detail {
 template <typename GraphViewType, typename ReduceOp, typename result_t>
 void normalize(raft::handle_t const& handle,
                GraphViewType const& graph_view,
-               result_t* hubs,
+               vertex_property_view_t<typename GraphViewType::vertex_type, result_t*> vertex_values,
                result_t init,
                ReduceOp reduce_op)
 {
-  auto hubs_norm =
-    reduce_v(handle,
-             graph_view,
-             vertex_property_view_t{hubs, graph_view.local_vertex_partition_range_size()},
-             init,
-             reduce_op);
+  auto hubs_norm = reduce_v(handle, graph_view, vertex_values, init, reduce_op);
   CUGRAPH_EXPECTS(hubs_norm > 0, "Norm is required to be a positive value.");
-  thrust::transform(handle.get_thrust_policy(),
-                    hubs,
-                    hubs + graph_view.local_vertex_partition_range_size(),
-                    cuda::make_constant_iterator(hubs_norm),
-                    hubs,
-                    cuda::std::divides<result_t>());
+  transform_v(
+    handle,
+    graph_view,
+    vertex_values,
+    [hubs_norm] __device__(auto val) { return val / hubs_norm; },
+    vertex_values);
 }
 
 template <typename GraphViewType, typename result_t>
-std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
-                                  GraphViewType const& graph_view,
-                                  result_t* const hubs,
-                                  result_t* const authorities,
-                                  result_t epsilon,
-                                  size_t max_iterations,
-                                  bool has_initial_hubs_guess,
-                                  bool normalize,
-                                  bool do_expensive_check)
+std::tuple<result_t, size_t> hits(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  vertex_property_view_t<typename GraphViewType::vertex_type, result_t*> hubs,
+  vertex_property_view_t<typename GraphViewType::vertex_type, result_t*> authorities,
+  result_t epsilon,
+  size_t max_iterations,
+  bool has_initial_hubs_guess,
+  bool normalize,
+  bool do_expensive_check)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   static_assert(std::is_integral<vertex_t>::value,
@@ -79,10 +72,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   // Check validity of initial guess if supplied
   if (has_initial_hubs_guess && do_expensive_check) {
     auto num_negative_values =
-      count_if_v(handle,
-                 graph_view,
-                 vertex_property_view_t{hubs, graph_view.local_vertex_partition_range_size()},
-                 [] __device__(auto, auto val) { return val < 0.0; });
+      count_if_v(handle, graph_view, hubs, [] __device__(auto, auto val) { return val < 0.0; });
     CUGRAPH_EXPECTS(num_negative_values == 0,
                     "Invalid input argument: initial guess values should be non-negative.");
   }
@@ -94,26 +84,18 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   // Property wrappers
   edge_src_property_t<vertex_t, result_t> prev_src_hubs(handle, graph_view);
   edge_dst_property_t<vertex_t, result_t> curr_dst_auth(handle, graph_view);
-  rmm::device_uvector<result_t> temp_hubs(graph_view.local_vertex_partition_range_size(),
-                                          handle.get_stream());
+  vertex_property_t<vertex_t, result_t> temp_hubs(handle, graph_view);
 
-  result_t* prev_hubs = hubs;
-  result_t* curr_hubs = temp_hubs.data();
+  auto prev_hubs = hubs;
+  auto curr_hubs = temp_hubs.mutable_view();
 
   // Initialize hubs from user input if provided
   if (has_initial_hubs_guess) {
-    update_edge_src_property(
-      handle,
-      graph_view,
-      vertex_property_view_t{prev_hubs, graph_view.local_vertex_partition_range_size()},
-      prev_src_hubs.mutable_view());
+    update_edge_src_property(handle, graph_view, prev_hubs, prev_src_hubs.mutable_view());
   } else {
     fill_edge_src_property(
       handle, graph_view, prev_src_hubs.mutable_view(), result_t{1.0} / num_vertices);
-    cugraph::fill(handle.get_thrust_policy(),
-                  prev_hubs,
-                  prev_hubs + graph_view.local_vertex_partition_range_size(),
-                  result_t{1.0} / num_vertices);
+    fill_v(handle, graph_view, prev_hubs, result_t{1.0} / num_vertices);
   }
 
   size_t iter{0};
@@ -128,13 +110,9 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
       [] __device__(auto, auto, auto prev_src_hub_value, auto, auto) { return prev_src_hub_value; },
       result_t{0},
       reduce_op::plus<result_t>{},
-      vertex_property_view_t{authorities, graph_view.local_vertex_partition_range_size()});
+      authorities);
 
-    update_edge_dst_property(
-      handle,
-      graph_view,
-      vertex_property_view_t{authorities, graph_view.local_vertex_partition_range_size()},
-      curr_dst_auth.mutable_view());
+    update_edge_dst_property(handle, graph_view, authorities, curr_dst_auth.mutable_view());
 
     // Update current source hubs property
     per_v_transform_reduce_outgoing_e(
@@ -148,7 +126,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
       },
       result_t{0},
       reduce_op::plus<result_t>{},
-      vertex_property_view_t{curr_hubs, graph_view.local_vertex_partition_range_size()});
+      curr_hubs);
 
     // Normalize current hub values
     detail::normalize(handle,
@@ -168,20 +146,15 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
     diff_sum = transform_reduce_v(
       handle,
       graph_view,
-      thrust::make_zip_iterator(curr_hubs, prev_hubs),
+      view_concat(curr_hubs, prev_hubs),
       [] __device__(auto, auto val) {
         return std::abs(cuda::std::get<0>(val) - cuda::std::get<1>(val));
       },
       result_t{0});
 
-    update_edge_src_property(
-      handle,
-      graph_view,
-      vertex_property_view_t{curr_hubs, graph_view.local_vertex_partition_range_size()},
-      prev_src_hubs.mutable_view());
+    update_edge_src_property(handle, graph_view, curr_hubs, prev_src_hubs.mutable_view());
 
-    // Swap pointers for the next iteration
-    // After this swap call, prev_hubs has the latest value of hubs
+    // After this swap, prev_hubs has the latest hub values
     std::swap(prev_hubs, curr_hubs);
     iter++;
 
@@ -197,12 +170,9 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
     detail::normalize(handle, graph_view, authorities, result_t{0.0}, reduce_op::plus<result_t>{});
   }
 
-  // Copy calculated hubs to in/out parameter if necessary
-  if (hubs != prev_hubs) {
-    thrust::copy(handle.get_thrust_policy(),
-                 prev_hubs,
-                 prev_hubs + graph_view.local_vertex_partition_range_size(),
-                 hubs);
+  // Copy calculated hubs to the in/out property if the latest values are in the temporary buffer
+  if (prev_hubs.value_first() != hubs.value_first()) {
+    copy_v(handle, graph_view, prev_hubs, hubs);
   }
 
   return std::make_tuple(diff_sum, iter);
@@ -213,8 +183,8 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename result_t, bool multi_gpu>
 std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
                                   graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
-                                  result_t* const hubs,
-                                  result_t* const authorities,
+                                  vertex_property_view_t<vertex_t, result_t*> hubs,
+                                  vertex_property_view_t<vertex_t, result_t*> authorities,
                                   result_t epsilon,
                                   size_t max_iterations,
                                   bool has_initial_hubs_guess,

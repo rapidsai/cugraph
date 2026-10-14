@@ -12,6 +12,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/legacy/internals.hpp>
+#include <cugraph/vertex_property.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -1434,14 +1435,16 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- * @param hubs Pointer to the input/output hub score array.
- * @param authorities Pointer to the output authorities score array.
+ * @param hubs Mutable view of hub scores for the vertices assigned to this process. Use
+ * `vertex_property_t::mutable_view()`. If @p has_initial_hubs_guess is `true`, these values are
+ * used as the initial hub scores.
+ * @param authorities Mutable view where authority scores for the vertices assigned to this process
+ * are written. Use `vertex_property_t::mutable_view()`.
  * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
  * differences in hub values between two consecutive iterations is less than @p epsilon
  * @param max_iterations Maximum number of HITS iterations.
- * @param has_initial_guess If set to `true`, values in the hubs output array (pointed by @p
- * hubs) is used as initial hub values. If false, initial hub values are set to 1.0
- * divided by the number of vertices in the graph.
+ * @param has_initial_guess If set to `true`, values in @p hubs are used as initial hub values. If
+ * false, initial hub values are set to 1.0 divided by the number of vertices in the graph.
  * @param normalize If set to `true`, final hub and authority scores are normalized (the L1-norm of
  * the returned hub and authority score arrays is 1.0) before returning.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
@@ -1451,8 +1454,8 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
 template <typename vertex_t, typename edge_t, typename result_t, bool multi_gpu>
 std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
                                   graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
-                                  result_t* hubs,
-                                  result_t* authorities,
+                                  vertex_property_view_t<vertex_t, result_t*> hubs,
+                                  vertex_property_view_t<vertex_t, result_t*> authorities,
                                   result_t epsilon,
                                   size_t max_iterations,
                                   bool has_initial_hubs_guess,
