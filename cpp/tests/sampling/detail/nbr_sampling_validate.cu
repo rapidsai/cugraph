@@ -1,15 +1,19 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "nbr_sampling_validate_empty_result.cuh"
+
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_partition_device_view.cuh>
-#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/transform_e.cuh>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -35,15 +39,19 @@
 
 #include <utilities/conversion_utilities.hpp>
 
+#include <algorithm>
 #include <functional>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <numeric>
 #include <optional>
 #include <queue>
 #include <random>
 #include <tuple>
 #include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 // utilities for testing / verification of Nbr Sampling functionality:
@@ -115,9 +123,9 @@ bool validate_extracted_graph_is_subgraph(
     raft::copy(wgt_v.data(), wgt->data(), wgt->size(), handle.get_stream());
 
     auto graph_iter = thrust::make_zip_iterator(src_v.begin(), dst_v.begin(), wgt_v.begin());
-    cugraph::sort_wrapper(
+    cugraph::sort(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipLess{});
-    auto graph_iter_end = thrust::unique(
+    auto graph_iter_end = cugraph::unique(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipEqual{});
     auto new_size = cuda::std::distance(graph_iter, graph_iter_end);
 
@@ -137,9 +145,9 @@ bool validate_extracted_graph_is_subgraph(
                        });
   } else {
     auto graph_iter = thrust::make_zip_iterator(src_v.begin(), dst_v.begin());
-    cugraph::sort_wrapper(
+    cugraph::sort(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipLess{});
-    auto graph_iter_end = thrust::unique(
+    auto graph_iter_end = cugraph::unique(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipEqual{});
     auto new_size = cuda::std::distance(graph_iter, graph_iter_end);
 
@@ -229,7 +237,7 @@ bool validate_sampling_depth(raft::handle_t const& handle,
                                          graph_view.local_vertex_partition_range_last());
 
   rmm::device_uvector<vertex_t> d_distances(graph_view.number_of_vertices(), handle.get_stream());
-  thrust::fill(
+  cugraph::fill(
     handle.get_thrust_policy(), d_distances.begin(), d_distances.end(), vertex_t{max_depth + 1});
 
   rmm::device_uvector<vertex_t> d_local_distances(graph_view.number_of_vertices(),
@@ -310,9 +318,9 @@ bool validate_temporal_integrity(
   raft::copy(sorted_dsts.begin(), dsts.begin(), dsts.size(), handle.get_stream());
   raft::copy(sorted_dst_times.begin(), edge_times.begin(), edge_times.size(), handle.get_stream());
 
-  cugraph::sort_wrapper(handle.get_thrust_policy(),
-                        thrust::make_zip_iterator(sorted_dsts.begin(), sorted_dst_times.begin()),
-                        thrust::make_zip_iterator(sorted_dsts.end(), sorted_dst_times.end()));
+  cugraph::sort(handle.get_thrust_policy(),
+                thrust::make_zip_iterator(sorted_dsts.begin(), sorted_dst_times.begin()),
+                thrust::make_zip_iterator(sorted_dsts.end(), sorted_dst_times.end()));
 
   if ((temporal_sampling_comparison ==
        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING) ||
@@ -424,6 +432,586 @@ template bool validate_temporal_integrity(
   raft::device_span<int64_t const> source_vertices,
   cugraph::temporal_sampling_comparison_t temporal_sampling_comparison);
 
+template <typename vertex_t, typename time_stamp_t>
+bool validate_temporal_time_windows(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> srcs,
+  raft::device_span<vertex_t const> dsts,
+  raft::device_span<time_stamp_t const> edge_times,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_start_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_end_times,
+  std::optional<raft::device_span<size_t const>> label_offsets,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+  std::optional<raft::device_span<int32_t const>> edge_labels,
+  cugraph::temporal_sampling_comparison_t temporal_sampling_comparison)
+{
+  if ((srcs.size() != dsts.size()) || (srcs.size() != edge_times.size()) ||
+      (starting_vertex_start_times &&
+       (starting_vertices.size() != starting_vertex_start_times->size())) ||
+      (starting_vertex_end_times &&
+       (starting_vertex_end_times->size() != starting_vertices.size())) ||
+      ((label_offsets.has_value() || edge_labels.has_value()) !=
+       starting_vertex_labels.has_value()) ||
+      (label_offsets && edge_labels) ||
+      (starting_vertex_labels && (starting_vertex_labels->size() != starting_vertices.size())) ||
+      (edge_labels && (edge_labels->size() != srcs.size()))) {
+    return false;
+  }
+
+  auto h_srcs              = cugraph::test::to_host(handle, srcs);
+  auto h_dsts              = cugraph::test::to_host(handle, dsts);
+  auto h_edge_times        = cugraph::test::to_host(handle, edge_times);
+  auto h_starting_vertices = cugraph::test::to_host(handle, starting_vertices);
+  auto h_starting_vertex_start_times =
+    starting_vertex_start_times
+      ? std::make_optional(cugraph::test::to_host(handle, *starting_vertex_start_times))
+      : std::nullopt;
+  auto h_starting_vertex_end_times =
+    starting_vertex_end_times
+      ? std::make_optional(cugraph::test::to_host(handle, *starting_vertex_end_times))
+      : std::nullopt;
+  auto h_starting_vertex_labels =
+    starting_vertex_labels
+      ? std::make_optional(cugraph::test::to_host(handle, *starting_vertex_labels))
+      : std::nullopt;
+  auto h_edge_labels =
+    edge_labels ? std::make_optional(cugraph::test::to_host(handle, *edge_labels)) : std::nullopt;
+
+  std::vector<std::vector<size_t>> label_edge_indices{};
+  if (label_offsets) {
+    auto h_label_offsets = cugraph::test::to_host(handle, *label_offsets);
+    if ((h_label_offsets.size() < 2) || (h_label_offsets.front() != 0) ||
+        (h_label_offsets.back() != h_srcs.size()) ||
+        !std::is_sorted(h_label_offsets.begin(), h_label_offsets.end())) {
+      return false;
+    }
+    label_edge_indices.resize(h_label_offsets.size() - 1);
+    for (size_t label = 0; label < label_edge_indices.size(); ++label) {
+      for (size_t i = h_label_offsets[label]; i < h_label_offsets[label + 1]; ++i) {
+        label_edge_indices[label].push_back(i);
+      }
+    }
+  } else if (h_edge_labels) {
+    int32_t max_label{-1};
+    for (auto label : *h_starting_vertex_labels) {
+      if (label < 0) { return false; }
+      max_label = std::max(max_label, label);
+    }
+    for (auto label : *h_edge_labels) {
+      if (label < 0) { return false; }
+      max_label = std::max(max_label, label);
+    }
+    label_edge_indices.resize(static_cast<size_t>(max_label) + 1);
+    for (size_t i = 0; i < h_edge_labels->size(); ++i) {
+      label_edge_indices[static_cast<size_t>((*h_edge_labels)[i])].push_back(i);
+    }
+  } else {
+    label_edge_indices.resize(1);
+    label_edge_indices.front().resize(h_srcs.size());
+    std::iota(label_edge_indices.front().begin(), label_edge_indices.front().end(), size_t{0});
+  }
+
+  if (h_starting_vertex_labels && std::any_of(h_starting_vertex_labels->begin(),
+                                              h_starting_vertex_labels->end(),
+                                              [num_labels = label_edge_indices.size()](auto label) {
+                                                return (label < 0) ||
+                                                       (static_cast<size_t>(label) >= num_labels);
+                                              })) {
+    return false;
+  }
+
+  bool const strictly_increasing =
+    temporal_sampling_comparison == cugraph::temporal_sampling_comparison_t::STRICTLY_INCREASING;
+  bool const strictly_decreasing =
+    temporal_sampling_comparison == cugraph::temporal_sampling_comparison_t::STRICTLY_DECREASING;
+
+  struct time_window_t {
+    std::optional<time_stamp_t> lower{};
+    std::optional<time_stamp_t> upper{};
+  };
+
+  for (size_t label = 0; label < label_edge_indices.size(); ++label) {
+    std::unordered_map<vertex_t, time_window_t> vertex_windows{};
+
+    for (size_t i = 0; i < h_starting_vertices.size(); ++i) {
+      if (h_starting_vertex_labels &&
+          ((*h_starting_vertex_labels)[i] != static_cast<int32_t>(label))) {
+        continue;
+      }
+
+      time_window_t window{};
+      if (h_starting_vertex_start_times && h_starting_vertex_end_times) {
+        if ((*h_starting_vertex_start_times)[i] > (*h_starting_vertex_end_times)[i]) {
+          return false;
+        }
+        window.lower = (*h_starting_vertex_start_times)[i];
+        window.upper = (*h_starting_vertex_end_times)[i];
+      } else {
+        if (h_starting_vertex_start_times) { window.lower = (*h_starting_vertex_start_times)[i]; }
+        if (h_starting_vertex_end_times) { window.upper = (*h_starting_vertex_end_times)[i]; }
+      }
+      if (!vertex_windows.emplace(h_starting_vertices[i], window).second) { return false; }
+    }
+
+    auto const& edge_indices = label_edge_indices[label];
+    std::vector<bool> validated(edge_indices.size(), false);
+    size_t num_validated{0};
+
+    // Output ordering is not part of this validator's contract. Repeatedly consume every edge
+    // whose source has already been connected to a starting vertex, propagating that seed's window
+    // to the destination.
+    while (num_validated < validated.size()) {
+      bool made_progress{false};
+      for (size_t j = 0; j < edge_indices.size(); ++j) {
+        if (validated[j]) { continue; }
+        auto const i = edge_indices[j];
+
+        auto window_it = vertex_windows.find(h_srcs[i]);
+        if (window_it == vertex_windows.end()) { continue; }
+
+        auto const time   = h_edge_times[i];
+        auto const window = window_it->second;
+        auto const below_lower =
+          window.lower &&
+          ((strictly_increasing && (time <= *window.lower)) || (time < *window.lower));
+        auto const above_upper =
+          window.upper &&
+          ((strictly_decreasing && (time >= *window.upper)) || (time > *window.upper));
+        if (below_lower || above_upper) { return false; }
+
+        auto [dst_window_it, inserted] = vertex_windows.emplace(h_dsts[i], window);
+        if (!inserted && ((dst_window_it->second.lower != window.lower) ||
+                          (dst_window_it->second.upper != window.upper))) {
+          return false;
+        }
+
+        validated[j] = true;
+        ++num_validated;
+        made_progress = true;
+      }
+      if (!made_progress) { return false; }
+    }
+  }
+
+  return true;
+}
+
+template bool validate_temporal_time_windows(raft::handle_t const&,
+                                             raft::device_span<int32_t const>,
+                                             raft::device_span<int32_t const>,
+                                             raft::device_span<int32_t const>,
+                                             raft::device_span<int32_t const>,
+                                             std::optional<raft::device_span<int32_t const>>,
+                                             std::optional<raft::device_span<int32_t const>>,
+                                             std::optional<raft::device_span<size_t const>>,
+                                             std::optional<raft::device_span<int32_t const>>,
+                                             std::optional<raft::device_span<int32_t const>>,
+                                             cugraph::temporal_sampling_comparison_t);
+
+template bool validate_temporal_time_windows(raft::handle_t const&,
+                                             raft::device_span<int64_t const>,
+                                             raft::device_span<int64_t const>,
+                                             raft::device_span<int32_t const>,
+                                             raft::device_span<int64_t const>,
+                                             std::optional<raft::device_span<int32_t const>>,
+                                             std::optional<raft::device_span<int32_t const>>,
+                                             std::optional<raft::device_span<size_t const>>,
+                                             std::optional<raft::device_span<int32_t const>>,
+                                             std::optional<raft::device_span<int32_t const>>,
+                                             cugraph::temporal_sampling_comparison_t);
+
+namespace {
+
+template <typename time_stamp_t>
+bool passes_temporal_window(cugraph::temporal_sampling_comparison_t comparison,
+                            time_stamp_t key_time,
+                            time_stamp_t window_end,
+                            time_stamp_t edge_time)
+{
+  switch (comparison) {
+    case cugraph::temporal_sampling_comparison_t::STRICTLY_INCREASING:
+      return key_time < edge_time && edge_time <= window_end;
+    case cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING:
+      return key_time <= edge_time && edge_time <= window_end;
+    case cugraph::temporal_sampling_comparison_t::STRICTLY_DECREASING:
+      return key_time > edge_time && edge_time >= window_end;
+    case cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
+      return key_time >= edge_time && edge_time >= window_end;
+    case cugraph::temporal_sampling_comparison_t::LAST: return false;
+  }
+  return false;
+}
+
+}  // namespace
+
+template <typename vertex_t, typename edge_t, typename time_stamp_t>
+bool validate_last_n_selection(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
+  cugraph::edge_property_view_t<edge_t, time_stamp_t const*> edge_start_time_view,
+  raft::device_span<vertex_t const> sampled_srcs,
+  raft::device_span<vertex_t const> sampled_dsts,
+  raft::device_span<time_stamp_t const> sampled_edge_times,
+  raft::device_span<int32_t const> sampled_hops,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_start_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_end_times,
+  raft::device_span<size_t const> label_offsets,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+  std::vector<int32_t> const& fanout,
+  cugraph::temporal_sampling_comparison_t temporal_sampling_comparison,
+  bool fixed_window)
+{
+  std::cerr << "[LAST debug] validate_last_n_selection entered: sampled_edges="
+            << sampled_srcs.size() << " fanout_levels=" << fanout.size()
+            << " fixed_window=" << fixed_window << '\n';
+
+  if ((sampled_srcs.size() != sampled_dsts.size()) ||
+      (sampled_srcs.size() != sampled_edge_times.size()) ||
+      (sampled_srcs.size() != sampled_hops.size()) || fanout.empty() ||
+      (starting_vertex_start_times &&
+       starting_vertex_start_times->size() != starting_vertices.size()) ||
+      (starting_vertex_end_times &&
+       starting_vertex_end_times->size() != starting_vertices.size()) ||
+      (starting_vertex_labels && starting_vertex_labels->size() != starting_vertices.size()) ||
+      label_offsets.empty()) {
+    return false;
+  }
+
+  auto h_offsets = cugraph::test::to_host(handle, label_offsets);
+  if (h_offsets.empty() || h_offsets.front() != size_t{0} ||
+      h_offsets.back() != sampled_srcs.size()) {
+    return false;
+  }
+
+  std::vector<int32_t> h_local_edge_labels(sampled_srcs.size());
+  for (size_t segment = 0; segment + 1 < h_offsets.size(); ++segment) {
+    auto const label = static_cast<int32_t>(segment);
+    std::fill(h_local_edge_labels.begin() + static_cast<std::ptrdiff_t>(h_offsets[segment]),
+              h_local_edge_labels.begin() + static_cast<std::ptrdiff_t>(h_offsets[segment + 1]),
+              label);
+  }
+
+  auto double_edge_times = cugraph::edge_property_t<edge_t, double>(handle, graph_view);
+  cugraph::transform_e(
+    handle,
+    graph_view,
+    cugraph::edge_src_dummy_property_t{}.view(),
+    cugraph::edge_dst_dummy_property_t{}.view(),
+    edge_start_time_view,
+    [] __device__(auto, auto, auto, auto, time_stamp_t edge_time) {
+      return static_cast<double>(edge_time);
+    },
+    double_edge_times.mutable_view());
+
+  auto h_sampled_srcs      = cugraph::test::to_host(handle, sampled_srcs);
+  auto h_sampled_dsts      = cugraph::test::to_host(handle, sampled_dsts);
+  auto h_sampled_times     = cugraph::test::to_host(handle, sampled_edge_times);
+  auto h_edge_hops         = cugraph::test::to_host(handle, sampled_hops);
+  auto h_starting_vertices = cugraph::test::to_host(handle, starting_vertices);
+  auto h_start_times       = starting_vertex_start_times
+                               ? cugraph::test::to_host(handle, *starting_vertex_start_times)
+                               : std::vector<time_stamp_t>{};
+  auto h_end_times         = starting_vertex_end_times
+                               ? cugraph::test::to_host(handle, *starting_vertex_end_times)
+                               : std::vector<time_stamp_t>{};
+  auto h_start_labels      = starting_vertex_labels
+                               ? cugraph::test::to_host(handle, *starting_vertex_labels)
+                               : std::vector<int32_t>{};
+
+  struct frontier_state_t {
+    time_stamp_t key_time;
+    time_stamp_t window_end;
+  };
+
+  auto const decreasing =
+    temporal_sampling_comparison == cugraph::temporal_sampling_comparison_t::STRICTLY_DECREASING ||
+    temporal_sampling_comparison ==
+      cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING;
+  std::unordered_map<int32_t, std::unordered_map<vertex_t, frontier_state_t>> frontier_by_label;
+  std::unordered_map<int32_t, std::unordered_set<vertex_t>> visited_by_label;
+  for (size_t i = 0; i < h_starting_vertices.size(); ++i) {
+    auto const label = h_start_labels.empty() ? int32_t{0} : h_start_labels[i];
+    auto const lower =
+      h_start_times.empty() ? std::numeric_limits<time_stamp_t>::lowest() : h_start_times[i];
+    auto const upper =
+      h_end_times.empty() ? std::numeric_limits<time_stamp_t>::max() : h_end_times[i];
+    auto const state = decreasing ? frontier_state_t{upper, lower} : frontier_state_t{lower, upper};
+    if (!frontier_by_label[label].emplace(h_starting_vertices[i], state).second) { return false; }
+    visited_by_label[label].insert(h_starting_vertices[i]);
+  }
+
+  raft::random::RngState rng_state{0};
+  std::vector<int32_t> all_neighbors_fanout{-1};
+
+  for (size_t hop = 0; hop < fanout.size(); ++hop) {
+    for (auto& [label, frontier] : frontier_by_label) {
+      std::vector<vertex_t> h_frontier_vertices;
+      h_frontier_vertices.reserve(frontier.size());
+      for (auto const& entry : frontier) {
+        h_frontier_vertices.push_back(entry.first);
+      }
+
+      // Match sampler semantics: an empty frontier ends the walk for this label.
+      if (h_frontier_vertices.empty()) { continue; }
+
+      rmm::device_uvector<vertex_t> d_frontier_vertices(h_frontier_vertices.size(),
+                                                        handle.get_stream());
+      raft::update_device(d_frontier_vertices.data(),
+                          h_frontier_vertices.data(),
+                          h_frontier_vertices.size(),
+                          handle.get_stream());
+
+      rmm::device_uvector<vertex_t> candidate_srcs(0, handle.get_stream());
+      rmm::device_uvector<vertex_t> candidate_dsts(0, handle.get_stream());
+      std::optional<rmm::device_uvector<double>> candidate_times{std::nullopt};
+      std::cerr << "[LAST debug] validate_last_n_selection: calling neighbor_sample for hop=" << hop
+                << " label=" << label << " frontier_size=" << h_frontier_vertices.size() << '\n';
+      std::tie(candidate_srcs,
+               candidate_dsts,
+               candidate_times,
+               std::ignore,
+               std::ignore,
+               std::ignore,
+               std::ignore,
+               std::ignore,
+               std::ignore) =
+        cugraph::neighbor_sample<vertex_t, edge_t, double, int32_t, time_stamp_t, false, false>(
+          handle,
+          rng_state,
+          graph_view,
+          std::make_optional(double_edge_times.view()),
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, time_stamp_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, time_stamp_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, double const*>>{std::nullopt},
+          raft::device_span<vertex_t const>{d_frontier_vertices.data(), d_frontier_vertices.size()},
+          std::nullopt,
+          std::nullopt,
+          std::nullopt,
+          std::nullopt,
+          raft::host_span<int32_t const>{all_neighbors_fanout.data(), all_neighbors_fanout.size()},
+          std::nullopt,
+          cugraph::sampling_options_t{},
+          false);
+
+      if (!candidate_times) { return false; }
+      std::cerr << "[LAST debug] validate_last_n_selection: neighbor_sample returned "
+                << candidate_srcs.size() << " candidate edges for hop=" << hop << " label=" << label
+                << '\n';
+      cugraph::sort(handle.get_thrust_policy(),
+                    thrust::make_zip_iterator(
+                      candidate_srcs.begin(), candidate_times->begin(), candidate_dsts.begin()),
+                    thrust::make_zip_iterator(
+                      candidate_srcs.end(), candidate_times->end(), candidate_dsts.end()));
+
+      auto h_candidate_srcs    = cugraph::test::to_host(handle, candidate_srcs);
+      auto h_candidate_dsts    = cugraph::test::to_host(handle, candidate_dsts);
+      auto h_candidate_times_d = cugraph::test::to_host(handle, *candidate_times);
+
+      std::unordered_map<vertex_t, std::vector<size_t>> sampled_by_src;
+      std::unordered_map<vertex_t, vertex_t> chosen_dst_owner;
+      for (size_t i = 0; i < h_sampled_srcs.size(); ++i) {
+        if (h_local_edge_labels[i] != label || h_edge_hops[i] != static_cast<int32_t>(hop)) {
+          continue;
+        }
+        if (!frontier.contains(h_sampled_srcs[i])) { return false; }
+        chosen_dst_owner.emplace(h_sampled_dsts[i], h_sampled_srcs[i]);
+        sampled_by_src[h_sampled_srcs[i]].push_back(i);
+      }
+
+      std::unordered_map<vertex_t, frontier_state_t> next_frontier;
+      for (auto const& [src, state] : frontier) {
+        auto const src_begin =
+          std::lower_bound(h_candidate_srcs.begin(), h_candidate_srcs.end(), src);
+        auto const src_end = std::upper_bound(src_begin, h_candidate_srcs.end(), src);
+
+        std::vector<time_stamp_t> eligible_times;
+        eligible_times.reserve(static_cast<size_t>(std::distance(src_begin, src_end)));
+        for (auto candidate_it = src_begin; candidate_it != src_end; ++candidate_it) {
+          auto const candidate_index =
+            static_cast<size_t>(std::distance(h_candidate_srcs.begin(), candidate_it));
+          auto const dst       = h_candidate_dsts[candidate_index];
+          auto const edge_time = static_cast<time_stamp_t>(h_candidate_times_d[candidate_index]);
+          if (visited_by_label[label].contains(dst)) { continue; }
+          auto owner_it = chosen_dst_owner.find(dst);
+          if (owner_it != chosen_dst_owner.end() && owner_it->second != src) { continue; }
+          if (passes_temporal_window(
+                temporal_sampling_comparison, state.key_time, state.window_end, edge_time)) {
+            eligible_times.push_back(edge_time);
+          }
+        }
+
+        auto const expected_count =
+          fanout[hop] < 0 ? eligible_times.size()
+                          : std::min(eligible_times.size(), static_cast<size_t>(fanout[hop]));
+        // Times are already sorted ascending. Decreasing LAST keeps the earliest K
+        // (distance from the first eligible entry); increasing LAST keeps the latest K
+        // (distance from the last eligible entry).
+        auto expected_begin =
+          decreasing ? eligible_times.begin()
+                     : eligible_times.end() - static_cast<std::ptrdiff_t>(expected_count);
+        std::vector<time_stamp_t> expected_times(expected_begin, expected_begin + expected_count);
+
+        std::vector<time_stamp_t> actual_times;
+        auto sampled_it = sampled_by_src.find(src);
+        if (sampled_it != sampled_by_src.end()) {
+          actual_times.reserve(sampled_it->second.size());
+          for (auto index : sampled_it->second) {
+            actual_times.push_back(h_sampled_times[index]);
+            auto const next_state = frontier_state_t{
+              fixed_window ? state.key_time : h_sampled_times[index], state.window_end};
+            if (!next_frontier.emplace(h_sampled_dsts[index], next_state).second) { return false; }
+          }
+        }
+        std::sort(actual_times.begin(), actual_times.end());
+        std::sort(expected_times.begin(), expected_times.end());
+        if (actual_times != expected_times) {
+          std::cerr << "LAST validation mismatch for label " << label << ", hop " << hop
+                    << ", source " << src << ": expected times [";
+          for (size_t i = 0; i < expected_times.size(); ++i) {
+            std::cerr << (i == 0 ? "" : ",") << expected_times[i];
+          }
+          std::cerr << "], actual times [";
+          for (size_t i = 0; i < actual_times.size(); ++i) {
+            std::cerr << (i == 0 ? "" : ",") << actual_times[i];
+          }
+          std::cerr << "]\n";
+          return false;
+        }
+      }
+
+      for (auto const& [dst, state] : next_frontier) {
+        visited_by_label[label].insert(dst);
+      }
+      frontier = std::move(next_frontier);
+    }
+  }
+
+  return true;
+}
+
+template bool validate_last_n_selection(
+  raft::handle_t const&,
+  cugraph::graph_view_t<int32_t, int32_t, false, false> const&,
+  cugraph::edge_property_view_t<int32_t, int32_t const*>,
+  raft::device_span<int32_t const>,
+  raft::device_span<int32_t const>,
+  raft::device_span<int32_t const>,
+  raft::device_span<int32_t const>,
+  raft::device_span<int32_t const>,
+  std::optional<raft::device_span<int32_t const>>,
+  std::optional<raft::device_span<int32_t const>>,
+  raft::device_span<size_t const>,
+  std::optional<raft::device_span<int32_t const>>,
+  std::vector<int32_t> const&,
+  cugraph::temporal_sampling_comparison_t,
+  bool);
+
+template bool validate_last_n_selection(
+  raft::handle_t const&,
+  cugraph::graph_view_t<int64_t, int64_t, false, false> const&,
+  cugraph::edge_property_view_t<int64_t, int32_t const*>,
+  raft::device_span<int64_t const>,
+  raft::device_span<int64_t const>,
+  raft::device_span<int32_t const>,
+  raft::device_span<int32_t const>,
+  raft::device_span<int64_t const>,
+  std::optional<raft::device_span<int32_t const>>,
+  std::optional<raft::device_span<int32_t const>>,
+  raft::device_span<size_t const>,
+  std::optional<raft::device_span<int32_t const>>,
+  std::vector<int32_t> const&,
+  cugraph::temporal_sampling_comparison_t,
+  bool);
+
+template <typename vertex_t, typename time_stamp_t>
+bool validate_fixed_window_temporal_sampling(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> srcs,
+  raft::device_span<vertex_t const> dsts,
+  raft::device_span<time_stamp_t const> edge_times,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_start_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_end_times,
+  std::optional<raft::device_span<size_t const>> label_offsets,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+  std::optional<raft::device_span<int32_t const>> edge_labels)
+{
+  return validate_temporal_time_windows(
+    handle,
+    srcs,
+    dsts,
+    edge_times,
+    starting_vertices,
+    starting_vertex_start_times,
+    starting_vertex_end_times,
+    label_offsets,
+    starting_vertex_labels,
+    edge_labels,
+    cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING);
+}
+
+template bool validate_fixed_window_temporal_sampling(
+  raft::handle_t const&,
+  raft::device_span<int32_t const>,
+  raft::device_span<int32_t const>,
+  raft::device_span<int32_t const>,
+  raft::device_span<int32_t const>,
+  std::optional<raft::device_span<int32_t const>>,
+  std::optional<raft::device_span<int32_t const>>,
+  std::optional<raft::device_span<size_t const>>,
+  std::optional<raft::device_span<int32_t const>>,
+  std::optional<raft::device_span<int32_t const>>);
+
+template bool validate_fixed_window_temporal_sampling(
+  raft::handle_t const&,
+  raft::device_span<int64_t const>,
+  raft::device_span<int64_t const>,
+  raft::device_span<int32_t const>,
+  raft::device_span<int64_t const>,
+  std::optional<raft::device_span<int32_t const>>,
+  std::optional<raft::device_span<int32_t const>>,
+  std::optional<raft::device_span<size_t const>>,
+  std::optional<raft::device_span<int32_t const>>,
+  std::optional<raft::device_span<int32_t const>>);
+
+template bool validate_sampling_empty_result(
+  raft::handle_t const&,
+  cugraph::graph_view_t<int32_t, int32_t, false, false> const&,
+  raft::device_span<int32_t const>,
+  size_t,
+  bool);
+
+template bool validate_sampling_empty_result(
+  raft::handle_t const&,
+  cugraph::graph_view_t<int64_t, int64_t, false, false> const&,
+  raft::device_span<int64_t const>,
+  size_t,
+  bool);
+
+template bool validate_sampling_empty_result(
+  raft::handle_t const&,
+  cugraph::graph_view_t<int32_t, int32_t, false, false> const&,
+  cugraph::edge_property_view_t<int32_t, int32_t const*>,
+  raft::device_span<int32_t const>,
+  std::optional<raft::device_span<int32_t const>>,
+  std::optional<raft::device_span<int32_t const>>,
+  size_t,
+  cugraph::temporal_sampling_comparison_t);
+
+template bool validate_sampling_empty_result(
+  raft::handle_t const&,
+  cugraph::graph_view_t<int64_t, int64_t, false, false> const&,
+  cugraph::edge_property_view_t<int64_t, int32_t const*>,
+  raft::device_span<int64_t const>,
+  std::optional<raft::device_span<int32_t const>>,
+  std::optional<raft::device_span<int32_t const>>,
+  size_t,
+  cugraph::temporal_sampling_comparison_t);
+
 template <typename vertex_t>
 bool validate_disjoint_sampling(
   raft::handle_t const& handle,
@@ -431,45 +1019,89 @@ bool validate_disjoint_sampling(
   raft::device_span<vertex_t const> dsts,
   raft::device_span<vertex_t const> starting_vertices,
   std::optional<raft::device_span<size_t const>> label_offsets,
-  std::optional<raft::device_span<int32_t const>> starting_batch_numbers)
+  std::optional<raft::device_span<int32_t const>> starting_batch_numbers,
+  std::optional<raft::device_span<int32_t const>> edge_labels)
 {
+  if (srcs.size() != dsts.size()) { return false; }
+  if (label_offsets && edge_labels) { return false; }
+  if (edge_labels && edge_labels->size() != dsts.size()) { return false; }
+
   auto h_starting_vertices = cugraph::test::to_host(handle, starting_vertices);
-  auto h_srcs              = cugraph::test::to_host(handle, srcs);
   auto h_dsts              = cugraph::test::to_host(handle, dsts);
 
-  if (label_offsets) {
+  if (edge_labels) {
+    if (!starting_batch_numbers) { return false; }
     auto h_starting_batch_numbers = cugraph::test::to_host(handle, *starting_batch_numbers);
-    auto h_label_offsets          = cugraph::test::to_host(handle, *label_offsets);
+    auto h_edge_labels            = cugraph::test::to_host(handle, *edge_labels);
 
-    // Validate that no destination is duplicated within a batch
-    for (int32_t label_index = 0; label_index < (static_cast<int32_t>(h_label_offsets.size()) - 1);
-         ++label_index) {
-      auto start_index = h_label_offsets[label_index];
-      auto end_index   = h_label_offsets[label_index + 1];
+    if (h_starting_batch_numbers.size() != h_starting_vertices.size()) { return false; }
 
-      std::sort(h_dsts.begin() + start_index, h_dsts.begin() + end_index);
-      auto last = std::unique(h_dsts.begin() + start_index, h_dsts.begin() + end_index);
-      if (last != h_dsts.begin() + end_index) { return false; }
+    std::unordered_map<int32_t, std::vector<vertex_t>> dsts_by_label;
+    dsts_by_label.reserve(h_edge_labels.size());
+    for (size_t i = 0; i < h_edge_labels.size(); ++i) {
+      dsts_by_label[h_edge_labels[i]].push_back(h_dsts[i]);
+    }
 
-      // Now check that the source vertices for this batch are not in the destinations
+    for (auto& [label_index, batch_dsts] : dsts_by_label) {
+      auto batch_dsts_sorted = batch_dsts;
+      std::sort(batch_dsts_sorted.begin(), batch_dsts_sorted.end());
+      auto last = std::unique(batch_dsts_sorted.begin(), batch_dsts_sorted.end());
+      if (last != batch_dsts_sorted.end()) { return false; }
+
       for (size_t i = 0; i < h_starting_vertices.size(); ++i) {
         if (h_starting_batch_numbers[i] == label_index) {
           if (std::binary_search(
-                h_dsts.begin() + start_index, h_dsts.begin() + end_index, h_starting_vertices[i])) {
+                batch_dsts_sorted.begin(), batch_dsts_sorted.end(), h_starting_vertices[i])) {
+            return false;
+          }
+        }
+      }
+    }
+  } else if (label_offsets) {
+    if (!starting_batch_numbers) { return false; }
+    auto h_starting_batch_numbers = cugraph::test::to_host(handle, *starting_batch_numbers);
+    auto h_label_offsets          = cugraph::test::to_host(handle, *label_offsets);
+
+    if (h_starting_batch_numbers.size() != h_starting_vertices.size()) { return false; }
+    if (h_label_offsets.size() < 2) { return false; }
+    if (h_label_offsets.front() != size_t{0}) { return false; }
+    if (h_label_offsets.back() != h_dsts.size()) { return false; }
+    if (!std::is_sorted(h_label_offsets.begin(), h_label_offsets.end())) { return false; }
+
+    auto const num_labels = static_cast<int32_t>(h_label_offsets.size()) - 1;
+    for (size_t i = 0; i < h_starting_batch_numbers.size(); ++i) {
+      auto const batch = h_starting_batch_numbers[i];
+      if (batch < 0 || batch >= num_labels) { return false; }
+    }
+
+    for (int32_t label_index = 0; label_index < num_labels; ++label_index) {
+      auto start_index = h_label_offsets[static_cast<size_t>(label_index)];
+      auto end_index   = h_label_offsets[static_cast<size_t>(label_index) + 1];
+
+      std::sort(h_dsts.begin() + static_cast<std::ptrdiff_t>(start_index),
+                h_dsts.begin() + static_cast<std::ptrdiff_t>(end_index));
+      auto last = std::unique(h_dsts.begin() + static_cast<std::ptrdiff_t>(start_index),
+                              h_dsts.begin() + static_cast<std::ptrdiff_t>(end_index));
+      if (last != h_dsts.begin() + static_cast<std::ptrdiff_t>(end_index)) { return false; }
+
+      for (size_t i = 0; i < h_starting_vertices.size(); ++i) {
+        if (h_starting_batch_numbers[i] == label_index) {
+          if (std::binary_search(h_dsts.begin() + static_cast<std::ptrdiff_t>(start_index),
+                                 h_dsts.begin() + static_cast<std::ptrdiff_t>(end_index),
+                                 h_starting_vertices[i])) {
             return false;
           }
         }
       }
     }
   } else {
-    // Validate that no destination is duplicated
-    std::sort(h_dsts.begin(), h_dsts.end());
-    auto last = std::unique(h_dsts.begin(), h_dsts.end());
-    if (last != h_dsts.end()) { return false; }
+    auto h_dsts_sorted = h_dsts;
+    std::sort(h_dsts_sorted.begin(), h_dsts_sorted.end());
+    auto last = std::unique(h_dsts_sorted.begin(), h_dsts_sorted.end());
+    if (last != h_dsts_sorted.end()) { return false; }
 
-    // Now check that the source vertices for this batch are not in the destinations
     for (size_t i = 0; i < h_starting_vertices.size(); ++i) {
-      if (std::binary_search(h_dsts.begin(), h_dsts.end(), h_starting_vertices[i])) {
+      if (std::binary_search(h_dsts_sorted.begin(), h_dsts_sorted.end(), h_starting_vertices[i])) {
         return false;
       }
     }
@@ -483,6 +1115,7 @@ template bool validate_disjoint_sampling(raft::handle_t const&,
                                          raft::device_span<int32_t const>,
                                          raft::device_span<int32_t const>,
                                          std::optional<raft::device_span<size_t const>>,
+                                         std::optional<raft::device_span<int32_t const>>,
                                          std::optional<raft::device_span<int32_t const>>);
 
 template bool validate_disjoint_sampling(raft::handle_t const&,
@@ -490,6 +1123,7 @@ template bool validate_disjoint_sampling(raft::handle_t const&,
                                          raft::device_span<int64_t const>,
                                          raft::device_span<int64_t const>,
                                          std::optional<raft::device_span<size_t const>>,
+                                         std::optional<raft::device_span<int32_t const>>,
                                          std::optional<raft::device_span<int32_t const>>);
 
 }  // namespace test

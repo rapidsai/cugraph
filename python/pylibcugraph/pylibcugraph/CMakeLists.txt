@@ -1,6 +1,6 @@
 # =============================================================================
 # cmake-format: off
-# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 # cmake-format: on
 # =============================================================================
@@ -52,6 +52,7 @@ set(cython_sources
     utils.pyx
     weakly_connected_components.pyx
     strongly_connected_components.pyx
+    simple_cycles.pyx
     replicate_edgelist.pyx
     degrees.pyx
     all_pairs_jaccard_coefficients.pyx
@@ -66,6 +67,7 @@ set(cython_sources
     homogeneous_biased_temporal_neighbor_sample.pyx
     homogeneous_uniform_neighbor_sample.pyx
     homogeneous_uniform_temporal_neighbor_sample.pyx
+    neighbor_sample.pyx
     edge_id_lookup_table.pyx
     decompress_to_edgelist.pyx
     renumber_arbitrary_edgelist.pyx
@@ -82,3 +84,8 @@ rapids_cython_create_modules(
   LINKED_LIBRARIES ${linked_libraries}
   ASSOCIATED_TARGETS cugraph
 )
+
+# utils.pyx uses the DLPack interop API and includes dlpack/dlpack.h, which is
+# not provided by an installed libcugraph. Provide the downloaded/located dlpack
+# headers to that module.
+target_include_directories(utils PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>")

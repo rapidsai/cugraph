@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -14,8 +14,11 @@
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/core/device_span.hpp>
+
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/sort.h>
 
@@ -320,8 +323,10 @@ mg_graph_to_sg_graph(
   if (handle.get_comms().get_rank() == 0) {
     if (!renumber_map) {
       vertices.resize(graph_view.number_of_vertices(), handle.get_stream());
-      cugraph::detail::sequence_fill(
-        handle.get_stream(), vertices.data(), vertices.size(), vertex_t{0});
+      cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                        vertices.data(),
+                        vertices.data() + vertices.size(),
+                        vertex_t{0});
     }
 
     std::vector<cugraph::edge_arithmetic_property_t<edge_t>> sg_edge_properties{};
@@ -414,10 +419,10 @@ mg_vertex_property_values_to_sg_vertex_property_values(
       rmm::device_uvector<vertex_t> local_vertices(
         std::get<1>(mg_local_vertex_partition_range) - std::get<0>(mg_local_vertex_partition_range),
         handle.get_stream());
-      thrust::sequence(handle.get_thrust_policy(),
-                       local_vertices.begin(),
-                       local_vertices.end(),
-                       std::get<0>(mg_local_vertex_partition_range));
+      cugraph::sequence(handle.get_thrust_policy(),
+                        local_vertices.begin(),
+                        local_vertices.end(),
+                        std::get<0>(mg_local_vertex_partition_range));
       mg_aggregate_vertices = cugraph::test::device_gatherv(
         handle, raft::device_span<vertex_t const>(local_vertices.data(), local_vertices.size()));
     }

@@ -22,3 +22,4 @@ is_symmetric: true
 number_of_edges: 882
 number_of_nodes: 105
 url: https://data.rapids.ai/cugraph/datasets/polbooks.csv
+sha256: fba8a14552167e087497d8ea0b8b56b7806463da2592ce986c98948d4e9414bf

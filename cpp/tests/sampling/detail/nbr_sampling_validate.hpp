@@ -1,10 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
+#include <cugraph/edge_property.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/sampling_functions.hpp>
 
 #include <raft/core/device_span.hpp>
@@ -13,6 +15,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <optional>
+#include <vector>
 
 // utilities for testing / verification of Nbr Sampling functionality:
 //
@@ -46,18 +49,159 @@ bool validate_temporal_integrity(
   cugraph::temporal_sampling_comparison_t temporal_sampling_comparison);
 
 /**
+ * @brief Validate sampled edge times against each starting vertex's time window.
+ *
+ * Every sampled edge must be within the bounds supplied for the seed from which it descends.
+ * Either bound may be omitted, in which case that side of the window is unbounded. Note that for
+ * decreasing walks the hop-0 frontier originates at the end bound (or +inf if omitted), while the
+ * start bound remains a floor on eligible edge times; for increasing walks the frontier originates
+ * at the start bound.
+ */
+template <typename vertex_t, typename time_stamp_t>
+bool validate_temporal_time_windows(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> srcs,
+  raft::device_span<vertex_t const> dsts,
+  raft::device_span<time_stamp_t const> edge_times,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_start_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_end_times,
+  std::optional<raft::device_span<size_t const>> label_offsets,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+  std::optional<raft::device_span<int32_t const>> edge_labels,
+  cugraph::temporal_sampling_comparison_t temporal_sampling_comparison);
+
+/**
+ * @brief Validate that LAST selected the highest-ranked eligible edges at every hop.
+ *
+ * This replays the sampled traversal one hop at a time. At each hop, a fanout of -1 gathers every
+ * outgoing edge from the current frontier and sorts those edges by (src, time, dst). For each
+ * source, LAST is the first K eligible times (decreasing) or last K eligible times (increasing) in
+ * that already-sorted range. Candidates whose destination was visited, or claimed at this hop by a
+ * different source, are not eligible; destination uniqueness itself is checked separately by
+ * validate_disjoint_sampling. Equal timestamps are interchangeable because the top-k primitive has
+ * no secondary tie-breaker.
+ *
+ * Like the other temporal validators, this inspects already-complete sampled arrays. MG tests
+ * gather results to rank 0 before calling those helpers; this one follows the same contract and
+ * expects an SG graph view so the original edgelist is available on the host.
+ */
+template <typename vertex_t, typename edge_t, typename time_stamp_t>
+bool validate_last_n_selection(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
+  cugraph::edge_property_view_t<edge_t, time_stamp_t const*> edge_start_time_view,
+  raft::device_span<vertex_t const> sampled_srcs,
+  raft::device_span<vertex_t const> sampled_dsts,
+  raft::device_span<time_stamp_t const> sampled_edge_times,
+  raft::device_span<int32_t const> sampled_hops,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_start_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_end_times,
+  raft::device_span<size_t const> label_offsets,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+  std::vector<int32_t> const& fanout,
+  cugraph::temporal_sampling_comparison_t temporal_sampling_comparison,
+  bool fixed_window);
+
+/**
+ * @brief Validate fixed-window temporal sampling against each seed's original window.
+ *
+ * Unlike increasing/decreasing temporal sampling, the bounds never change as a sampled path
+ * advances. The validator reconstructs each label's sampled forest from its seeds, associates every
+ * reachable vertex with its seed's window, and checks every edge time against that same inclusive
+ * window. Label partitioning may use either output offsets or per-edge labels after an MG gather.
+ */
+template <typename vertex_t, typename time_stamp_t>
+bool validate_fixed_window_temporal_sampling(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> srcs,
+  raft::device_span<vertex_t const> dsts,
+  raft::device_span<time_stamp_t const> edge_times,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_start_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_end_times,
+  std::optional<raft::device_span<size_t const>> label_offsets,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+  std::optional<raft::device_span<int32_t const>> edge_labels);
+
+/**
+ * @brief Validate that an empty sampling result was justified.
+ *
+ * Every other validator here checks that the edges which came back are legal, so all of them pass
+ * trivially when nothing came back.  This one checks the other direction: it counts the hop-0 edges
+ * that were eligible for selection and fails only when edges were eligible yet the result is empty.
+ *
+ * An edge (s, d) counts as eligible when s is a starting vertex.  When @p exclude_seed_destinations
+ * is true (disjoint sampling), d must not itself be a starting vertex, because disjoint sampling
+ * seeds the visited set with the starting vertices.  Excluding every starting vertex rather than
+ * only those sharing a label undercounts when a destination seeds a different label, which keeps
+ * the check one-sided: it can miss a bug but cannot report one that isn't there.
+ *
+ * Edge masks attached to @p graph_view are respected.  Edge-type restrictions used by heterogeneous
+ * sampling are not; that can overcount eligibility when a seed has out-edges of types outside the
+ * fanout, so a false failure is possible in that case.
+ *
+ * @param num_sampled_edges Number of edges in the sampling result.  In multi-GPU this must be the
+ * count aggregated over all ranks, since a rank can legitimately produce no edges on its own.
+ * @param exclude_seed_destinations When true, edges into starting vertices are not counted as
+ * eligible (disjoint sampling).
+ */
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+bool validate_sampling_empty_result(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  raft::device_span<vertex_t const> starting_vertices,
+  size_t num_sampled_edges,
+  bool exclude_seed_destinations);
+
+/**
+ * @brief Validate that an empty temporal sampling result was justified.
+ *
+ * Same contract as the non-temporal overload, with the additional requirement that each hop-0
+ * edge's start time must satisfy the seed's time window under @p temporal_sampling_comparison.
+ * Temporal sampling is always disjoint, so edges into starting vertices are never counted.
+ *
+ * The eligibility predicate is shared with the implementation, so this validates the machinery
+ * around the time filter (window derivation, seeding, offsets) rather than the filter itself.
+ *
+ * @param num_sampled_edges Number of edges in the sampling result.  In multi-GPU this must be the
+ * count aggregated over all ranks, since a rank can legitimately produce no edges on its own.
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename time_stamp_t,
+          bool store_transposed,
+          bool multi_gpu>
+bool validate_sampling_empty_result(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  cugraph::edge_property_view_t<edge_t, time_stamp_t const*> edge_start_time_view,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_start_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_end_times,
+  size_t num_sampled_edges,
+  cugraph::temporal_sampling_comparison_t temporal_sampling_comparison);
+
+/**
  * @brief Validate disjoint sampling constraints.
  *
  * For disjoint sampling, batches (labels) of sources should expand without overlapping destinations
- * across batches for the same hop.
+ * within each batch.
+ *
+ * Label partitioning may be provided either as CSR-style @p label_offsets into the edge list, or as
+ * a per-edge @p edge_labels array (useful after MG gather, where edges are no longer label-sorted).
+ * At most one of @p label_offsets / @p edge_labels should be provided.
  */
 template <typename vertex_t>
-bool validate_disjoint_sampling(raft::handle_t const& handle,
-                                raft::device_span<vertex_t const> srcs,
-                                raft::device_span<vertex_t const> dsts,
-                                raft::device_span<vertex_t const> starting_vertices,
-                                std::optional<raft::device_span<size_t const>> label_offsets,
-                                std::optional<raft::device_span<int32_t const>> batch_numbers);
+bool validate_disjoint_sampling(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> srcs,
+  raft::device_span<vertex_t const> dsts,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<size_t const>> label_offsets,
+  std::optional<raft::device_span<int32_t const>> batch_numbers,
+  std::optional<raft::device_span<int32_t const>> edge_labels = std::nullopt);
 
 }  // namespace test
 }  // namespace cugraph

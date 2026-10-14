@@ -3,7 +3,7 @@
 
 <img src="../../img/zachary_graph_centrality.png" width="35%"/>
 
-cuGraph Centrality notebooks contain a collection of Jupyter Notebooks that demonstrate algorithms to identify and quantify importance of vertices to the structure of the graph.  In the diagram above, the highlighted vertices are highly important and are likely answers to questions like:
+cuGraph Centrality notebook contain a Jupyter Notebook that demonstrate all the centrality algorithms to identify and quantify importance of vertices to the structure of the graph.  In the diagram above, the highlighted vertices are highly important and are likely answers to questions like:
 
 * Which vertices have the highest degree (most direct links) ?
 * Which vertices are on the most efficient paths through the graph?
@@ -15,17 +15,17 @@ But which vertices are most important? The answer depends on which measure/algor
 
 |Algorithm          |Notebooks Containing                                                     |Description                                                  |
 | --------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-|Degree Centrality| [Centrality](./Centrality.ipynb), [Degree](./Degree.ipynb)                   |Measure based on counting direct connections for each vertex|
-|Betweenness Centrality| [Centrality](./Centrality.ipynb), [Betweenness](./Betweenness.ipynb)                    |Number of shortest paths through the vertex|
-|Eigenvector Centrality|[Centrality](./Centrality.ipynb), [Eigenvector](./Eigenvector.ipynb)|Measure of connectivity to other important vertices (which also have high connectivity) often referred to as the influence measure of a vertex|
-|Katz Centrality|[Centrality](./Centrality.ipynb), [Katz](./Katz.ipynb)                                         |Similar to Eigenvector but has tweaks to measure more weakly connected graph  |
-|Pagerank|[Centrality](./Centrality.ipynb), [Pagerank](../../link_analysis/Pagerank.ipynb)                                         |Classified as both a link analysis and centrality measure by quantifying incoming links from central vertices.  |
+|Degree Centrality| [Centrality](./Centrality.ipynb)          |Measure based on counting direct connections for each vertex|
+|Betweenness Centrality| [Centrality](./Centrality.ipynb) |Number of shortest paths through the vertex|
+|Eigenvector Centrality|[Centrality](./Centrality.ipynb), |Measure of connectivity to other important vertices (which also have high connectivity) often referred to as the influence measure of a vertex|
+|Katz Centrality|[Centrality](./Centrality.ipynb) |Similar to Eigenvector but has tweaks to measure more weakly connected graph  |
+|Pagerank|[Centrality](./Centrality.ipynb) |Classified as both a link analysis and centrality measure by quantifying incoming links from central vertices.  |
 
 [System Requirements](https://docs.rapids.ai/install/#system-req)
 
 ## Copyright
 
-Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.
+Copyright (c) 2019-2026, NVIDIA CORPORATION.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");  you may not use this file except in compliance with the License.  You may obtain a copy of the License at
 

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -17,12 +17,14 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
 
 #include <rmm/exec_policy.hpp>
 
+#include <cub/block/block_reduce.cuh>
 #include <cuda/std/functional>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
@@ -464,10 +466,10 @@ T transform_reduce_e(raft::handle_t const& handle,
   property_op<T, cuda::std::plus> edge_property_add{};
 
   auto result_buffer = allocate_dataframe_buffer<T>(1, handle.get_stream());
-  thrust::fill(handle.get_thrust_policy(),
-               get_dataframe_buffer_begin(result_buffer),
-               get_dataframe_buffer_begin(result_buffer) + 1,
-               T{});
+  cugraph::fill(handle.get_thrust_policy(),
+                get_dataframe_buffer_begin(result_buffer),
+                get_dataframe_buffer_begin(result_buffer) + 1,
+                T{});
 
   auto edge_mask_view = graph_view.edge_mask_view();
 
@@ -506,7 +508,7 @@ T transform_reduce_e(raft::handle_t const& handle,
                                           detail::transform_reduce_e_kernel_block_size,
                                           handle.get_device_properties().maxGridSize[0]);
         detail::transform_reduce_e_high_degree<GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream().get()>>>(
             edge_partition,
             edge_partition.major_range_first(),
             edge_partition.major_range_first() + (*segment_offsets)[1],
@@ -522,7 +524,7 @@ T transform_reduce_e(raft::handle_t const& handle,
                                          detail::transform_reduce_e_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
         detail::transform_reduce_e_mid_degree<GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream().get()>>>(
             edge_partition,
             edge_partition.major_range_first() + (*segment_offsets)[1],
             edge_partition.major_range_first() + (*segment_offsets)[2],
@@ -538,7 +540,7 @@ T transform_reduce_e(raft::handle_t const& handle,
                                            detail::transform_reduce_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
         detail::transform_reduce_e_low_degree<GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream().get()>>>(
             edge_partition,
             edge_partition.major_range_first() + (*segment_offsets)[2],
             edge_partition.major_range_first() + (*segment_offsets)[3],
@@ -554,7 +556,7 @@ T transform_reduce_e(raft::handle_t const& handle,
                                            detail::transform_reduce_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
         detail::transform_reduce_e_hypersparse<GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream().get()>>>(
             edge_partition,
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
@@ -570,7 +572,7 @@ T transform_reduce_e(raft::handle_t const& handle,
                                            handle.get_device_properties().maxGridSize[0]);
 
         detail::transform_reduce_e_low_degree<GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream().get()>>>(
             edge_partition,
             edge_partition.major_range_first(),
             edge_partition.major_range_last(),

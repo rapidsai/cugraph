@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import dask_cudf
@@ -48,9 +48,11 @@ def _call_plc_replicate_edgelist(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         src_array=edgelist_df[col_names[0]],
         dst_array=edgelist_df[col_names[1]],
-        weight_array=edgelist_df[col_names[2]] if len(col_names) > 2 else None,
-        edge_id_array=edgelist_df[col_names[3]] if len(col_names) > 3 else None,
-        edge_type_id_array=edgelist_df[col_names[4]] if len(col_names) > 4 else None,
+        weight_array=edgelist_df[col_names[2]] if col_names[2] is not None else None,
+        edge_id_array=edgelist_df[col_names[3]] if col_names[3] is not None else None,
+        edge_type_id_array=edgelist_df[col_names[4]]
+        if col_names[4] is not None
+        else None,
     )
     return _convert_to_cudf(cp_arrays, col_names)
 
@@ -201,16 +203,11 @@ def replicate_edgelist(
         edgelist_ddf = dask_cudf.from_cudf(
             edgelist_ddf, npartitions=len(Comms.get_workers())
         )
-    col_names = [source, destination]
+    col_names = [source, destination, weight, edge_id, edge_type]
 
-    if weight is not None:
-        col_names.append(weight)
-    if edge_id is not None:
-        col_names.append(edge_id)
-    if edge_type is not None:
-        col_names.append(edge_type)
-
-    if not (set(col_names).issubset(set(edgelist_ddf.columns))):
+    if not {name for name in col_names if name is not None}.issubset(
+        set(edgelist_ddf.columns)
+    ):
         raise ValueError(
             "Invalid column names were provided: valid columns names are "
             f"{edgelist_ddf.columns}"

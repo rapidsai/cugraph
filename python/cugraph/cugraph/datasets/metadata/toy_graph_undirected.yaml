@@ -22,3 +22,4 @@ is_symmetric: true
 number_of_edges: 8
 number_of_nodes: 6
 url: https://data.rapids.ai/cugraph/datasets/toy_graph_undirected.csv
+sha256: 48a2eb426a9f2a54b792cde7ed04173daf3f80d28232d451e1375853372d8e4f

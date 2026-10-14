@@ -24,3 +24,4 @@ is_symmetric: false
 number_of_edges: 2546575
 number_of_nodes: 706529
 url: https://data.rapids.ai/cugraph/datasets/cyber.csv
+sha256: ecfa62ad1ff9f4a106a6dd50237b930ab63414516791eb921e1bbb863c81fa7d

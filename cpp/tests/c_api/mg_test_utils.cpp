@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -9,6 +9,7 @@
 #include "c_api/array.hpp"
 #include "c_api/resource_handle.hpp"
 #include "c_api/sampling_common.hpp"
+#include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 
@@ -19,9 +20,18 @@
 #include <raft/core/device_span.hpp>
 #include <raft/core/host_span.hpp>
 
+#include <rmm/cuda_stream.hpp>
+#include <rmm/cuda_stream_pool.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/mr/per_device_resource.hpp>
+
+#include <cuda/stream>
+
+#include <cuda_runtime.h>
 
 #include <cstdio>
+#include <ctime>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -73,9 +83,9 @@ extern "C" int run_mg_test(int (*test)(const cugraph_resource_handle_t*),
   rmm::device_uvector<int> d_input(1, raft_handle->get_stream());
   raft::update_device(d_input.data(), &ret_val, 1, raft_handle->get_stream());
   comm.allreduce(
-    d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, raft_handle->get_stream());
+    d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, raft_handle->get_stream().get());
   raft::update_host(&ret_val, d_input.data(), 1, raft_handle->get_stream());
-  auto status = comm.sync_stream(raft_handle->get_stream());
+  auto status = comm.sync_stream(raft_handle->get_stream().get());
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   if (rank == 0) {
@@ -105,9 +115,17 @@ extern "C" void* create_mg_raft_handle(int argc, char** argv)
   C_MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));
   C_MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));
   C_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
+  // Bind the rank to its GPU before creating the RMM pool so the pool is
+  // allocated on the intended device (matches CUGRAPH_MG_TEST_PROGRAM_MAIN).
   C_CUDA_TRY(cudaSetDevice(comm_rank % num_gpus_per_node));
 
-  raft::handle_t* handle = new raft::handle_t{};
+  rmm::mr::set_current_device_resource(cugraph::test::create_memory_resource("pool"));
+
+  // Match initialize_mg_handle: per-thread default stream + stream pool.
+  constexpr size_t stream_pool_size = 8;  // default CUDA_DEVICE_MAX_CONNECTIONS
+  raft::handle_t* handle =
+    new raft::handle_t{cuda::stream_ref{cudaStreamPerThread},
+                       std::make_shared<rmm::cuda_stream_pool>(stream_pool_size)};
   raft::comms::initialize_mpi_comms(handle, MPI_COMM_WORLD);
 
 #if 1
@@ -128,6 +146,7 @@ extern "C" void free_mg_raft_handle(void* raft_handle)
 {
   raft::handle_t* handle = reinterpret_cast<raft::handle_t*>(raft_handle);
   delete handle;
+  rmm::mr::reset_current_device_resource();
 
   C_MPI_TRY(MPI_Finalize());
 }
@@ -753,9 +772,9 @@ extern "C" size_t cugraph_test_device_gatherv_size(
   rmm::device_uvector<size_t> d_input(1, raft_handle->get_stream());
   raft::update_device(d_input.data(), &ret_value, 1, raft_handle->get_stream());
   comm.allreduce(
-    d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, raft_handle->get_stream());
+    d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, raft_handle->get_stream().get());
   raft::update_host(&ret_value, d_input.data(), 1, raft_handle->get_stream());
-  auto status = comm.sync_stream(raft_handle->get_stream());
+  auto status = comm.sync_stream(raft_handle->get_stream().get());
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   return (comm.get_rank() == 0) ? ret_value : 0;
@@ -770,9 +789,9 @@ extern "C" size_t cugraph_test_scalar_reduce(const cugraph_resource_handle_t* ha
   rmm::device_uvector<size_t> d_input(1, raft_handle->get_stream());
   raft::update_device(d_input.data(), &value, 1, raft_handle->get_stream());
   comm.allreduce(
-    d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, raft_handle->get_stream());
+    d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, raft_handle->get_stream().get());
   raft::update_host(&value, d_input.data(), 1, raft_handle->get_stream());
-  auto status = comm.sync_stream(raft_handle->get_stream());
+  auto status = comm.sync_stream(raft_handle->get_stream().get());
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   return (comm.get_rank() == 0) ? value : 0;
@@ -790,6 +809,22 @@ extern "C" cugraph_error_code_t cugraph_test_host_gatherv_fill(
   auto& comm = raft_handle->get_comms();
 
   switch (input_type) {
+    case cugraph_data_type_id_t::INT8: {
+      auto tmp = cugraph::test::to_device(
+        *raft_handle,
+        raft::host_span<int8_t const>{reinterpret_cast<int8_t const*>(input), input_size});
+      tmp = cugraph::test::device_gatherv(*raft_handle, tmp.data(), tmp.size());
+      raft::update_host(
+        reinterpret_cast<int8_t*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
+    } break;
+    case cugraph_data_type_id_t::INT16: {
+      auto tmp = cugraph::test::to_device(
+        *raft_handle,
+        raft::host_span<int16_t const>{reinterpret_cast<int16_t const*>(input), input_size});
+      tmp = cugraph::test::device_gatherv(*raft_handle, tmp.data(), tmp.size());
+      raft::update_host(
+        reinterpret_cast<int16_t*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
+    } break;
     case cugraph_data_type_id_t::INT32: {
       auto tmp = cugraph::test::to_device(
         *raft_handle,
@@ -850,6 +885,22 @@ extern "C" cugraph_error_code_t cugraph_test_device_gatherv_fill(
   auto& comm = raft_handle->get_comms();
 
   switch (internal_array->type_) {
+    case cugraph_data_type_id_t::INT8: {
+      auto tmp = cugraph::test::device_gatherv(
+        *raft_handle,
+        raft::device_span<int8_t const>{internal_array->as_type<int8_t const>(),
+                                        internal_array->size_});
+      raft::update_host(
+        reinterpret_cast<int8_t*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
+    } break;
+    case cugraph_data_type_id_t::INT16: {
+      auto tmp = cugraph::test::device_gatherv(
+        *raft_handle,
+        raft::device_span<int16_t const>{internal_array->as_type<int16_t const>(),
+                                         internal_array->size_});
+      raft::update_host(
+        reinterpret_cast<int16_t*>(output), tmp.data(), tmp.size(), raft_handle->get_stream());
+    } break;
     case cugraph_data_type_id_t::INT32: {
       auto tmp = cugraph::test::device_gatherv(
         *raft_handle,
@@ -934,6 +985,8 @@ int mg_validate_sample_result(const cugraph_resource_handle_t* handle,
   using weight_t     = float;
   using edge_t       = int32_t;
   using time_stamp_t = int32_t;
+
+  int const rank = cugraph_resource_handle_get_rank(handle);
 
   time_stamp_t const MAX_EDGE_TIME = INT32_MAX;
 
@@ -1161,31 +1214,61 @@ int mg_validate_sample_result(const cugraph_resource_handle_t* handle,
     rmm::device_uvector<int32_t> d_batch_nums(0, raft_handle.get_stream());
     std::vector<int32_t> h_batch_nums_host;
 
-    if (h_start_label_offsets != NULL && num_start_label_offsets > 0) {
-      d_label_offsets.resize(num_start_label_offsets, raft_handle.get_stream());
-      raft::update_device(d_label_offsets.data(),
-                          h_start_label_offsets,
-                          num_start_label_offsets,
-                          raft_handle.get_stream());
-      label_offsets_dev =
-        raft::device_span<size_t const>{d_label_offsets.data(), d_label_offsets.size()};
+    // validate_disjoint_sampling slices the *result* edge list by label. Prefer offsets derived
+    // from the sample result (label[-type]-hop offsets collapsed to per-label ranges). Start
+    // vertex label offsets index the seed list, not the sampled edges.
+    cugraph_type_erased_device_array_view_t* result_offsets_for_disjoint =
+      (result_label_type_hop_offsets != NULL) ? result_label_type_hop_offsets
+                                              : result_label_hop_offsets;
+    if (result_offsets_for_disjoint != NULL && fan_out_size > 0 && h_start_label_offsets != NULL &&
+        num_start_label_offsets > 1) {
+      size_t const hop_offsets_size =
+        cugraph_type_erased_device_array_view_size(result_offsets_for_disjoint);
+      std::vector<size_t> h_hop_offsets(hop_offsets_size);
+      ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+        handle, (byte_t*)h_hop_offsets.data(), result_offsets_for_disjoint, &ret_error);
+      TEST_ASSERT(
+        test_ret_value, ret_code == CUGRAPH_SUCCESS, "result offsets copy_to_host failed.");
 
-      auto const global_num_starts = gathered_starts.size();
-      d_batch_nums.resize(global_num_starts, raft_handle.get_stream());
-      h_batch_nums_host.resize(global_num_starts);
-      for (size_t i = 0; i < global_num_starts; ++i) {
-        int32_t lab = -1;
-        for (size_t j = 0; j + 1 < num_start_label_offsets; ++j) {
-          if (i >= h_start_label_offsets[j] && i < h_start_label_offsets[j + 1]) {
-            lab = static_cast<int32_t>(j);
-            break;
-          }
+      size_t const num_labels = num_start_label_offsets - 1;
+      // Homogeneous: hop offsets length is num_labels * fan_out_size + 1.
+      // Heterogeneous label-type-hop: stride includes edge types; collapse using the last offset
+      // for each label by taking every (hop_offsets_size - 1) / num_labels entries.
+      size_t const stride = (num_labels > 0) ? ((hop_offsets_size - 1) / num_labels) : 0;
+      if (stride > 0 && stride * num_labels + 1 == hop_offsets_size) {
+        std::vector<size_t> h_edge_label_offsets(num_labels + 1);
+        for (size_t label = 0; label < num_labels; ++label) {
+          h_edge_label_offsets[label] = h_hop_offsets[label * stride];
         }
-        h_batch_nums_host[i] = lab;
+        h_edge_label_offsets[num_labels] = h_hop_offsets[hop_offsets_size - 1];
+
+        d_label_offsets.resize(num_labels + 1, raft_handle.get_stream());
+        raft::update_device(d_label_offsets.data(),
+                            h_edge_label_offsets.data(),
+                            num_labels + 1,
+                            raft_handle.get_stream());
+        label_offsets_dev =
+          raft::device_span<size_t const>{d_label_offsets.data(), d_label_offsets.size()};
+
+        auto const global_num_starts = gathered_starts.size();
+        d_batch_nums.resize(global_num_starts, raft_handle.get_stream());
+        h_batch_nums_host.resize(global_num_starts);
+        for (size_t i = 0; i < global_num_starts; ++i) {
+          int32_t lab = -1;
+          for (size_t j = 0; j + 1 < num_start_label_offsets; ++j) {
+            if (i >= h_start_label_offsets[j] && i < h_start_label_offsets[j + 1]) {
+              lab = static_cast<int32_t>(j);
+              break;
+            }
+          }
+          h_batch_nums_host[i] = lab;
+        }
+        raft::update_device(d_batch_nums.data(),
+                            h_batch_nums_host.data(),
+                            global_num_starts,
+                            raft_handle.get_stream());
+        batch_nums_dev = raft::device_span<int32_t const>{d_batch_nums.data(), d_batch_nums.size()};
       }
-      raft::update_device(
-        d_batch_nums.data(), h_batch_nums_host.data(), global_num_starts, raft_handle.get_stream());
-      batch_nums_dev = raft::device_span<int32_t const>{d_batch_nums.data(), d_batch_nums.size()};
     }
 
     raft_handle.sync_stream();
@@ -1369,7 +1452,6 @@ int mg_validate_sample_result(const cugraph_resource_handle_t* handle,
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "gatherv_fill failed.");
   }
 
-  int rank = cugraph_resource_handle_get_rank(handle);
   if (rank == 0) {
     auto result_weights_span    = (result_weights != NULL)
                                     ? std::make_optional(make_span<weight_t>(result_weights))
@@ -1613,8 +1695,10 @@ int mg_validate_sample_result(const cugraph_resource_handle_t* handle,
           }
         }
 
-        if (validate_edge_times) {
-          // Check that the edge times are moving in the correct direction
+        if (validate_edge_times && internal_sampling_options->fixed_window_ != TRUE) {
+          // Check that the edge times are moving in the correct direction. fixed_window is
+          // excluded because it reuses the original seed window at every hop and does not impose
+          // path-wise monotonicity.
           time_stamp_t previous_vertex_times[num_vertices];
           for (size_t i = 0; i < num_vertices; ++i)
             if (temporal_sampling_comparison == STRICTLY_INCREASING) {

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -22,6 +22,7 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
@@ -33,12 +34,11 @@
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/count.h>
 #include <thrust/equal.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/transform.h>
-
-#include <cuco/hash_functions.cuh>
 
 #include <gtest/gtest.h>
 
@@ -144,7 +144,7 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
 
     rmm::device_uvector<vertex_t> mg_kv_store_keys(comm_rank == 0 ? key_hash_bin_count : int{0},
                                                    handle_->get_stream());
-    thrust::sequence(
+    cugraph::sequence(
       handle_->get_thrust_policy(), mg_kv_store_keys.begin(), mg_kv_store_keys.end(), vertex_t{0});
     std::tie(mg_kv_store_keys, std::ignore) = cugraph::shuffle_ext_vertices(
       *handle_, std::move(mg_kv_store_keys), std::vector<cugraph::arithmetic_device_uvector_t>{});
@@ -173,7 +173,7 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
     std::array<reduction_type_t, 3> reduction_types = {
       reduction_type_t::PLUS, reduction_type_t::ELEMWISE_MIN, reduction_type_t::ELEMWISE_MAX};
 
-    std::vector<decltype(cugraph::allocate_dataframe_buffer<result_t>(0, rmm::cuda_stream_view{}))>
+    std::vector<decltype(cugraph::allocate_dataframe_buffer<result_t>(0, cuda::stream_ref{}))>
       mg_results{};
     mg_results.reserve(reduction_types.size());
 
@@ -361,10 +361,10 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
               *handle_, sg_graph_view, sg_vertex_key);
 
           rmm::device_uvector<vertex_t> sg_kv_store_keys(key_hash_bin_count, handle_->get_stream());
-          thrust::sequence(handle_->get_thrust_policy(),
-                           sg_kv_store_keys.begin(),
-                           sg_kv_store_keys.end(),
-                           vertex_t{0});
+          cugraph::sequence(handle_->get_thrust_policy(),
+                            sg_kv_store_keys.begin(),
+                            sg_kv_store_keys.end(),
+                            vertex_t{0});
           auto sg_kv_store_values =
             cugraph::test::generate<decltype(sg_graph_view), result_t>::vertex_property(
               *handle_, sg_kv_store_keys, key_prop_hash_bin_count);

@@ -1,10 +1,11 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import yaml
 from pathlib import Path
-from urllib.request import urlretrieve
+
+from cugraph.datasets.download_utils import download_file
 
 import cudf
 import cugraph.dask as dcg
@@ -143,7 +144,7 @@ class Dataset:
         filename = self.metadata["name"] + self.metadata["file_type"]
         if self._dl_path.path.is_dir():
             self._path = self._dl_path.path / filename
-            urlretrieve(url, str(self._path))
+            download_file(url, self._path, expected_sha256=self.metadata.get("sha256"))
 
         else:
             raise RuntimeError(
@@ -465,8 +466,12 @@ def download_all(force=False):
             if "url" in meta:
                 filename = meta["name"] + meta["file_type"]
                 save_to = default_download_dir.path / filename
-                if not save_to.is_file() or force:
-                    urlretrieve(meta["url"], str(save_to))
+                download_file(
+                    meta["url"],
+                    save_to,
+                    expected_sha256=meta.get("sha256"),
+                    force=force,
+                )
 
 
 def set_download_dir(path):

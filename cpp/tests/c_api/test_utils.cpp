@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -1012,8 +1012,10 @@ extern "C" int validate_sample_result(const cugraph_resource_handle_t* handle,
         }
       }
 
-      if (validate_edge_times) {
-        // Check that the edge times are moving in the correct direction
+      if (validate_edge_times && internal_sampling_options->fixed_window_ != TRUE) {
+        // Check that the edge times are moving in the correct direction. fixed_window is excluded
+        // because it reuses the original seed window at every hop and does not impose path-wise
+        // monotonicity.
         time_stamp_t previous_vertex_times[num_vertices];
         for (size_t i = 0; i < num_vertices; ++i)
           if (temporal_sampling_comparison == STRICTLY_INCREASING) {
@@ -1081,31 +1083,62 @@ extern "C" int validate_sample_result(const cugraph_resource_handle_t* handle,
     std::optional<raft::device_span<int32_t const>> batch_nums_dev{std::nullopt};
     rmm::device_uvector<size_t> d_label_offsets(0, raft_handle.get_stream());
     rmm::device_uvector<int32_t> d_batch_nums(0, raft_handle.get_stream());
+    std::vector<int32_t> h_batch_nums_host;
 
-    if (h_start_label_offsets != NULL) {
-      d_label_offsets.resize(num_start_label_offsets, raft_handle.get_stream());
-      raft::update_device(d_label_offsets.data(),
-                          h_start_label_offsets,
-                          num_start_label_offsets,
-                          raft_handle.get_stream());
-      label_offsets_dev =
-        raft::device_span<size_t const>{d_label_offsets.data(), d_label_offsets.size()};
+    // validate_disjoint_sampling slices the *result* edge list by label. Prefer offsets derived
+    // from the sample result (label[-type]-hop offsets collapsed to per-label ranges). Start
+    // vertex label offsets index the seed list, not the sampled edges.
+    cugraph_type_erased_device_array_view_t* result_offsets_for_disjoint =
+      (result_label_type_hop_offsets != NULL) ? result_label_type_hop_offsets
+                                              : result_label_hop_offsets;
+    if (result_offsets_for_disjoint != NULL && fan_out_size > 0 && h_start_label_offsets != NULL &&
+        num_start_label_offsets > 1) {
+      size_t const hop_offsets_size =
+        cugraph_type_erased_device_array_view_size(result_offsets_for_disjoint);
+      std::vector<size_t> h_hop_offsets(hop_offsets_size);
+      ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+        handle, (byte_t*)h_hop_offsets.data(), result_offsets_for_disjoint, &ret_error);
+      TEST_ASSERT(
+        test_ret_value, ret_code == CUGRAPH_SUCCESS, "result offsets copy_to_host failed.");
 
-      d_batch_nums.resize(num_start_vertices, raft_handle.get_stream());
-      std::vector<int32_t> h_batch_nums(num_start_vertices);
-      for (size_t i = 0; i < num_start_vertices; ++i) {
-        int32_t lab = -1;
-        for (size_t j = 0; j + 1 < num_start_label_offsets; ++j) {
-          if (i >= h_start_label_offsets[j] && i < h_start_label_offsets[j + 1]) {
-            lab = static_cast<int32_t>(j);
-            break;
-          }
+      size_t const num_labels = num_start_label_offsets - 1;
+      // Homogeneous: hop offsets length is num_labels * fan_out_size + 1.
+      // Heterogeneous label-type-hop: stride includes edge types; collapse using the last offset
+      // for each label by taking every (hop_offsets_size - 1) / num_labels entries.
+      size_t const stride = (num_labels > 0) ? ((hop_offsets_size - 1) / num_labels) : 0;
+      if (stride > 0 && stride * num_labels + 1 == hop_offsets_size) {
+        std::vector<size_t> h_edge_label_offsets(num_labels + 1);
+        for (size_t label = 0; label < num_labels; ++label) {
+          h_edge_label_offsets[label] = h_hop_offsets[label * stride];
         }
-        h_batch_nums[i] = lab;
+        h_edge_label_offsets[num_labels] = h_hop_offsets[hop_offsets_size - 1];
+
+        d_label_offsets.resize(num_labels + 1, raft_handle.get_stream());
+        raft::update_device(d_label_offsets.data(),
+                            h_edge_label_offsets.data(),
+                            num_labels + 1,
+                            raft_handle.get_stream());
+        label_offsets_dev =
+          raft::device_span<size_t const>{d_label_offsets.data(), d_label_offsets.size()};
+
+        d_batch_nums.resize(num_start_vertices, raft_handle.get_stream());
+        h_batch_nums_host.resize(num_start_vertices);
+        for (size_t i = 0; i < num_start_vertices; ++i) {
+          int32_t lab = -1;
+          for (size_t j = 0; j + 1 < num_start_label_offsets; ++j) {
+            if (i >= h_start_label_offsets[j] && i < h_start_label_offsets[j + 1]) {
+              lab = static_cast<int32_t>(j);
+              break;
+            }
+          }
+          h_batch_nums_host[i] = lab;
+        }
+        raft::update_device(d_batch_nums.data(),
+                            h_batch_nums_host.data(),
+                            num_start_vertices,
+                            raft_handle.get_stream());
+        batch_nums_dev = raft::device_span<int32_t const>{d_batch_nums.data(), d_batch_nums.size()};
       }
-      raft::update_device(
-        d_batch_nums.data(), h_batch_nums.data(), num_start_vertices, raft_handle.get_stream());
-      batch_nums_dev = raft::device_span<int32_t const>{d_batch_nums.data(), d_batch_nums.size()};
     }
 
     raft_handle.sync_stream();

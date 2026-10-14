@@ -16,7 +16,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
@@ -204,7 +204,7 @@ class Tests_MGInducedSubgraph
                             triplet_first + graph_ids_v.size(),
                             d_subgraph_edgelist_weights->begin());
       } else {
-        cugraph::sort_wrapper(
+        cugraph::sort(
           handle_->get_thrust_policy(), triplet_first, triplet_first + graph_ids_v.size());
       }
 

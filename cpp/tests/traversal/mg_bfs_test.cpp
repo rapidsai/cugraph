@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -102,10 +102,15 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
     rmm::device_uvector<vertex_t> d_mg_predecessors(
       mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
 
-    auto d_mg_source = mg_graph_view.in_local_vertex_partition_range_nocheck(bfs_usecase.source)
-                         ? std::make_optional<rmm::device_scalar<vertex_t>>(bfs_usecase.source,
-                                                                            handle_->get_stream())
-                         : std::nullopt;
+    vertex_t const source{static_cast<vertex_t>(bfs_usecase.source)};
+    auto d_mg_source =
+      mg_graph_view.in_local_vertex_partition_range_nocheck(source)
+        ? std::make_optional<rmm::device_scalar<vertex_t>>(source, handle_->get_stream())
+        : std::nullopt;
+    if (d_mg_source) {
+      handle_->sync_stream();  // before source goes out-of-scope (async H2D copy from device_scalar
+                               // ctor)
+    }
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

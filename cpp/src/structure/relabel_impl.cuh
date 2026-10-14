@@ -11,7 +11,8 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -63,12 +64,11 @@ void relabel(raft::handle_t const& handle,
 
     rmm::device_uvector<vertex_t> unique_old_labels(num_labels, handle.get_stream());
     thrust::copy(handle.get_thrust_policy(), labels, labels + num_labels, unique_old_labels.data());
-    cugraph::sort_wrapper(
-      handle.get_thrust_policy(), unique_old_labels.begin(), unique_old_labels.end());
+    cugraph::sort(handle.get_thrust_policy(), unique_old_labels.begin(), unique_old_labels.end());
     unique_old_labels.resize(cuda::std::distance(unique_old_labels.begin(),
-                                                 thrust::unique(handle.get_thrust_policy(),
-                                                                unique_old_labels.begin(),
-                                                                unique_old_labels.end())),
+                                                 cugraph::unique(handle.get_thrust_policy(),
+                                                                 unique_old_labels.begin(),
+                                                                 unique_old_labels.end())),
                              handle.get_stream());
     unique_old_labels.shrink_to_fit(handle.get_stream());
 

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -14,9 +14,12 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
+
+#include <rmm/exec_policy.hpp>
 
 #include <gtest/gtest.h>
 
@@ -143,10 +146,10 @@ class Tests_MGRandomWalks : public ::testing::TestWithParam<tuple_t> {
       d_start.resize(std::min(10, mg_graph_view.local_vertex_partition_range_size()),
                      handle_->get_stream());
 
-      cugraph::detail::sequence_fill(handle_->get_stream(),
-                                     d_start.begin(),
-                                     d_start.size(),
-                                     mg_graph_view.local_vertex_partition_range_first());
+      cugraph::sequence(rmm::exec_policy(handle_->get_stream()),
+                        d_start.begin(),
+                        d_start.begin() + d_start.size(),
+                        mg_graph_view.local_vertex_partition_range_first());
     }
 
     if (cugraph::test::g_perf) {

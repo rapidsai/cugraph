@@ -7,6 +7,7 @@
 
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/util/cudart_utils.hpp>
 
@@ -65,10 +66,10 @@ generate_path_graph_edgelist(raft::handle_t const& handle,
 
     if (edge_off_end) ++num_edges;
 
-    thrust::sequence(
+    cugraph::sequence(
       handle.get_thrust_policy(), src_iterator, src_iterator + num_edges, base_vertex_id);
 
-    thrust::sequence(
+    cugraph::sequence(
       handle.get_thrust_policy(), dst_iterator, dst_iterator + num_edges, base_vertex_id + 1);
 
     src_iterator += num_edges;

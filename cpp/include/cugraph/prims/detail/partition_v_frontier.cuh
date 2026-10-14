@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -13,11 +13,11 @@
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/random/rng.cuh>
 
-#include <cub/cub.cuh>
 #include <cuda/atomic>
 #include <cuda/functional>
 #include <cuda/std/iterator>
@@ -49,7 +49,7 @@ partition_v_frontier(raft::handle_t const& handle,
 {
   rmm::device_uvector<size_t> indices(
     cuda::std::distance(frontier_value_first, frontier_value_last), handle.get_stream());
-  thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), size_t{0});
+  cugraph::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), size_t{0});
 
   auto num_partitions = thresholds.size() + 1;
   std::vector<size_t> v_frontier_partition_offsets(num_partitions + 1);

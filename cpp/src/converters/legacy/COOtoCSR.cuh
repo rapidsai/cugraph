@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 /*
@@ -14,7 +14,8 @@
 #include <cugraph/legacy/functions.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
 
 #include <rmm/exec_policy.hpp>
 #include <rmm/resource_ref.hpp>
@@ -24,6 +25,7 @@
 #include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/device_ptr.h>
 #include <thrust/extrema.h>
 #include <thrust/fill.h>
@@ -55,7 +57,7 @@ namespace detail {
  * @param[out] result      Total number of vertices
  */
 template <typename VT, typename ET, typename WT>
-VT sort(legacy::GraphCOOView<VT, ET, WT>& graph, rmm::cuda_stream_view stream_view)
+VT sort(legacy::GraphCOOView<VT, ET, WT>& graph, cuda::stream_ref stream_view)
 {
   VT max_src_id;
   VT max_dst_id;
@@ -91,13 +93,10 @@ VT sort(legacy::GraphCOOView<VT, ET, WT>& graph, rmm::cuda_stream_view stream_vi
 }
 
 template <typename VT, typename ET>
-void fill_offset(VT* source,
-                 ET* offsets,
-                 VT number_of_vertices,
-                 ET number_of_edges,
-                 rmm::cuda_stream_view stream_view)
+void fill_offset(
+  VT* source, ET* offsets, VT number_of_vertices, ET number_of_edges, cuda::stream_ref stream_view)
 {
-  thrust::fill(
+  cugraph::fill(
     rmm::exec_policy(stream_view), offsets, offsets + number_of_vertices + 1, number_of_edges);
   thrust::for_each(rmm::exec_policy(stream_view),
                    thrust::make_counting_iterator<ET>(1),
@@ -119,7 +118,7 @@ template <typename VT, typename ET>
 rmm::device_buffer create_offset(VT* source,
                                  VT number_of_vertices,
                                  ET number_of_edges,
-                                 rmm::cuda_stream_view stream_view,
+                                 cuda::stream_ref stream_view,
                                  rmm::device_async_resource_ref mr)
 {
   // Offset array needs an extra element at the end to contain the ending offsets
@@ -138,9 +137,9 @@ template <typename VT, typename ET, typename WT>
 std::unique_ptr<legacy::GraphCSR<VT, ET, WT>> coo_to_csr(
   legacy::GraphCOOView<VT, ET, WT> const& graph, rmm::device_async_resource_ref mr)
 {
-  rmm::cuda_stream_view stream_view;
+  cuda::stream_ref stream_view;
 
-  legacy::GraphCOO<VT, ET, WT> temp_graph(graph, stream_view.value(), mr);
+  legacy::GraphCOO<VT, ET, WT> temp_graph(graph, stream_view.get(), mr);
   legacy::GraphCOOView<VT, ET, WT> temp_graph_view = temp_graph.view();
   VT total_vertex_count                            = detail::sort(temp_graph_view, stream_view);
   rmm::device_buffer offsets                       = detail::create_offset(
@@ -152,6 +151,11 @@ std::unique_ptr<legacy::GraphCSR<VT, ET, WT>> coo_to_csr(
     std::make_unique<rmm::device_buffer>(std::move(offsets)),
     std::move(coo_contents.dst_indices),
     std::move(coo_contents.edge_data)};
+
+  // All conversion work runs on stream_view, which callers do not share (for example
+  // raft::handle_t defaults to cudaStreamPerThread). Synchronize before returning so
+  // downstream algorithms can safely consume the CSR buffers on any stream.
+  stream_view.sync();
 
   return std::make_unique<legacy::GraphCSR<VT, ET, WT>>(std::move(csr_contents));
 }

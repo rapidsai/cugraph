@@ -12,12 +12,16 @@
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
+
+#include <rmm/exec_policy.hpp>
 
 #include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/gather.h>
+#include <thrust/remove.h>
 
 namespace cugraph {
 namespace mtmg {
@@ -44,8 +48,10 @@ std::
   rmm::device_uvector<int> vertex_gpu_ids(vertices.size(), stream);
 
   raft::copy(local_vertices.data(), vertices.data(), vertices.size(), stream);
-  cugraph::detail::scalar_fill(
-    stream, vertex_gpu_ids.data(), vertex_gpu_ids.size(), handle.get_rank());
+  cugraph::fill(rmm::exec_policy(stream),
+                vertex_gpu_ids.data(),
+                (vertex_gpu_ids.data()) + (vertex_gpu_ids.size()),
+                handle.get_rank());
 
   if (renumber_map_view) {
     cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -7,6 +7,8 @@
 #include "mg_test_utils.h" /* RUN_TEST */
 
 #include <cugraph_c/algorithms.h>
+#include <cugraph_c/graph.h>
+#include <cugraph_c/resource_handle.h>
 
 #include <math.h>
 #include <stdio.h>
@@ -106,6 +108,26 @@ int test_create_mg_graph_simple(const cugraph_resource_handle_t* handle)
     &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+
+  {
+    int comm_size            = cugraph_resource_handle_get_comm_size(handle);
+    size_t expected_vertices = num_vertices * comm_size;
+    size_t expected_edges    = num_edges * comm_size;
+    size_t result_num_vertices;
+    size_t result_num_edges;
+
+    ret_code = cugraph_graph_number_of_vertices(graph, &result_num_vertices, &ret_error);
+    TEST_ASSERT(
+      test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_graph_number_of_vertices failed.");
+    TEST_ASSERT(
+      test_ret_value, result_num_vertices == expected_vertices, "number of vertices did not match");
+
+    ret_code = cugraph_graph_number_of_edges(handle, graph, &result_num_edges, &ret_error);
+    TEST_ASSERT(
+      test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_graph_number_of_edges failed.");
+    TEST_ASSERT(
+      test_ret_value, result_num_edges == expected_edges, "number of edges did not match");
+  }
 
   cugraph_graph_free(graph);
 

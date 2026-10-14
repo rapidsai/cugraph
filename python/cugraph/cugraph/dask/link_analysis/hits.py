@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -148,7 +148,7 @@ def hits(input_graph, tol=1.0e-5, max_iter=100, nstart=None, normalized=True):
             workers=[w],
             allow_other_workers=False,
         )
-        for w in Comms.get_workers()
+        for w in input_graph._plc_graph
     ]
 
     wait(cupy_result)

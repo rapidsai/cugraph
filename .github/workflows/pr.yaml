@@ -11,6 +11,7 @@ jobs:
   # Please keep pr-builder as the top job here
   pr-builder:
     needs:
+      - build-details
       - check-nightly-ci
       - changed-files
       - checks
@@ -21,6 +22,7 @@ jobs:
       - conda-python-build
       - conda-python-tests
       - docs-build
+      - docs-build-matrix
       - wheel-build-libcugraph
       - wheel-build-pylibcugraph
       - wheel-tests-pylibcugraph
@@ -43,6 +45,8 @@ jobs:
       - name: Telemetry setup
         if: ${{ vars.TELEMETRY_ENABLED == 'true' }}
         uses: rapidsai/shared-actions/telemetry-dispatch-stash-base-env-vars@main
+  build-details:
+    uses: rapidsai/shared-workflows/.github/workflows/compute-build-details.yaml@main
   check-nightly-ci:
     runs-on: ubuntu-latest
     permissions:
@@ -78,9 +82,13 @@ jobs:
           - '!.github/ops-bot.yaml'
           - '!.github/release.yml'
           - '!.github/workflows/add-to-project.yml'
+          - '!.github/workflows/build.yaml'
+          - '!.github/workflows/labeler.yml'
           - '!.github/workflows/new-issues-to-triage-projects.yml'
+          - '!.github/workflows/test.yaml'
           - '!.github/workflows/trigger-breaking-change-alert.yaml'
           - '!.pre-commit-config.yaml'
+          - '!.yamllint.yaml'
           - '!README.md'
           - '!SECURITY.md'
           - '!ci/build_wheel*.sh'
@@ -105,9 +113,13 @@ jobs:
           - '!.github/ops-bot.yaml'
           - '!.github/release.yml'
           - '!.github/workflows/add-to-project.yml'
+          - '!.github/workflows/build.yaml'
+          - '!.github/workflows/labeler.yml'
           - '!.github/workflows/new-issues-to-triage-projects.yml'
+          - '!.github/workflows/test.yaml'
           - '!.github/workflows/trigger-breaking-change-alert.yaml'
           - '!.pre-commit-config.yaml'
+          - '!.yamllint.yaml'
           - '!README.md'
           - '!SECURITY.md'
           - '!ci/build_docs.sh'
@@ -139,9 +151,13 @@ jobs:
           - '!.github/ops-bot.yaml'
           - '!.github/release.yml'
           - '!.github/workflows/add-to-project.yml'
+          - '!.github/workflows/build.yaml'
+          - '!.github/workflows/labeler.yml'
           - '!.github/workflows/new-issues-to-triage-projects.yml'
+          - '!.github/workflows/test.yaml'
           - '!.github/workflows/trigger-breaking-change-alert.yaml'
           - '!.pre-commit-config.yaml'
+          - '!.yamllint.yaml'
           - '!README.md'
           - '!SECURITY.md'
           - '!ci/build_docs.sh'
@@ -167,9 +183,13 @@ jobs:
           - '!.github/ops-bot.yaml'
           - '!.github/release.yml'
           - '!.github/workflows/add-to-project.yml'
+          - '!.github/workflows/build.yaml'
+          - '!.github/workflows/labeler.yml'
           - '!.github/workflows/new-issues-to-triage-projects.yml'
+          - '!.github/workflows/test.yaml'
           - '!.github/workflows/trigger-breaking-change-alert.yaml'
           - '!.pre-commit-config.yaml'
+          - '!.yamllint.yaml'
           - '!README.md'
           - '!SECURITY.md'
           - '!ci/build_docs.sh'
@@ -199,9 +219,13 @@ jobs:
           - '!.github/ops-bot.yaml'
           - '!.github/release.yml'
           - '!.github/workflows/add-to-project.yml'
+          - '!.github/workflows/build.yaml'
+          - '!.github/workflows/labeler.yml'
           - '!.github/workflows/new-issues-to-triage-projects.yml'
+          - '!.github/workflows/test.yaml'
           - '!.github/workflows/trigger-breaking-change-alert.yaml'
           - '!.pre-commit-config.yaml'
+          - '!.yamllint.yaml'
           - '!README.md'
           - '!SECURITY.md'
           - '!ci/build_cpp.sh'
@@ -232,11 +256,12 @@ jobs:
     permissions:
       contents: read
   conda-cpp-build:
-    needs: checks
+    needs: [build-details, checks]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@main
     with:
       build_type: pull-request
+      build-datetime: ${{ needs.build-details.outputs.build-datetime }}
       node_type: cpu16
       script: ci/build_cpp.sh
     permissions:
@@ -273,11 +298,12 @@ jobs:
       packages: read
       pull-requests: read
   conda-python-build:
-    needs: conda-cpp-build
+    needs: [build-details, conda-cpp-build]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@main
     with:
       build_type: pull-request
+      build-datetime: ${{ needs.build-details.outputs.build-datetime }}
       script: ci/build_python.sh
       # Build a conda package for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
@@ -308,9 +334,9 @@ jobs:
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_notebooks
     with:
       build_type: pull-request
-      node_type: "gpu-l4-latest-1"
+      node_type: "gpu-rtxpro6000-latest-1"
       arch: "amd64"
-      container_image: "rapidsai/ci-conda:26.08-latest"
+      container_image: "rapidsai/ci-conda:26.12-latest"
       script: "ci/test_notebooks.sh"
     permissions:
       actions: read
@@ -318,16 +344,26 @@ jobs:
       id-token: write
       packages: read
       pull-requests: read
+  docs-build-matrix:
+    permissions:
+      contents: read
+    uses: rapidsai/shared-workflows/.github/workflows/compute-matrix.yaml@main
+    with:
+      build_type: pull-request
+      matrix_name: docs-build
   docs-build:
-    needs: [conda-python-build, changed-files]
+    needs: [docs-build-matrix, conda-python-build, changed-files]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.docs-build-matrix.outputs.matrix) }}
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).build_docs
     with:
       build_type: pull-request
-      node_type: "gpu-l4-latest-1"
-      arch: "amd64"
-      container_image: "rapidsai/ci-conda:26.08-latest"
+      node_type: "gpu-${{ matrix.GPU }}-${{ matrix.DRIVER }}-1"
+      arch: "${{ matrix.arch }}"
+      container_image: "rapidsai/ci-conda:26.12-cuda${{ matrix.CUDA_VER }}-${{ matrix.LINUX_VER }}-py${{ matrix.PY_VER }}"
       script: "ci/build_docs.sh"
     permissions:
       actions: read
@@ -336,13 +372,14 @@ jobs:
       packages: read
       pull-requests: read
   wheel-build-libcugraph:
-    needs: checks
+    needs: [build-details, checks]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
     with:
       # build for every combination of arch and CUDA version, but only for the latest Python
       matrix_filter: group_by([.ARCH, (.CUDA_VER|split(".")|map(tonumber)|.[0])]) | map(max_by(.PY_VER|split(".")|map(tonumber)))
       build_type: pull-request
+      build-datetime: ${{ needs.build-details.outputs.build-datetime }}
       node_type: cpu16
       script: ci/build_wheel_libcugraph.sh
       package-name: libcugraph
@@ -354,11 +391,12 @@ jobs:
       packages: read
       pull-requests: read
   wheel-build-pylibcugraph:
-    needs: wheel-build-libcugraph
+    needs: [build-details, wheel-build-libcugraph]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
     with:
       build_type: pull-request
+      build-datetime: ${{ needs.build-details.outputs.build-datetime }}
       node_type: cpu8
       script: ci/build_wheel_pylibcugraph.sh
       package-name: pylibcugraph
@@ -386,11 +424,12 @@ jobs:
       packages: read
       pull-requests: read
   wheel-build-cugraph:
-    needs: wheel-build-pylibcugraph
+    needs: [build-details, wheel-build-pylibcugraph]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
     with:
       build_type: pull-request
+      build-datetime: ${{ needs.build-details.outputs.build-datetime }}
       node_type: cpu8
       script: ci/build_wheel_cugraph.sh
       package-name: cugraph
@@ -423,7 +462,7 @@ jobs:
     uses: rapidsai/shared-workflows/.github/workflows/build-in-devcontainer.yaml@main
     with:
       arch: '["amd64", "arm64"]'
-      cuda: '["13.2"]'
+      cuda: '["13.3"]'
       node_type: "cpu8"
       env: |
         SCCACHE_DIST_MAX_RETRIES=inf

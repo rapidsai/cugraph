@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -23,7 +23,7 @@
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
@@ -175,13 +175,14 @@ bool is_valid_predecessor_tree(raft::handle_t const& handle,
       raft::host_span<vertex_t const>(vertex_partition_range_offsets.data() + 1,
                                       vertex_partition_range_offsets.size() - 1),
       local_vertex_partition_range_first);
-    ancestors.resize(cuda::std::distance(
-                       ancestors.begin(),
-                       thrust::remove_if(handle.get_thrust_policy(),
-                                         ancestors.begin(),
-                                         ancestors.end(),
-                                         cugraph::detail::is_equal_t<vertex_t>{starting_vertex})),
-                     handle.get_stream());
+    ancestors.resize(
+      cuda::std::distance(
+        ancestors.begin(),
+        thrust::remove_if(handle.get_thrust_policy(),
+                          ancestors.begin(),
+                          ancestors.end(),
+                          cugraph::detail::is_equal_to_t<vertex_t>{starting_vertex})),
+      handle.get_stream());
     aggregate_size = ancestors.size();
 #if 1  // FIXME: we should add host_allreduce to raft
     aggregate_size = cugraph::host_scalar_allreduce(
@@ -522,8 +523,7 @@ bool check_edge_endpoint_distances(
         cuda::proclaim_return_type<vertex_t>(
           [v_first = mg_subgraph_view.local_vertex_partition_range_first()] __device__(
             auto v_offset) { return v_first + v_offset; }));
-      cugraph::sort_wrapper(
-        handle.get_thrust_policy(), subgraph_level_vs.begin(), subgraph_level_vs.end());
+      cugraph::sort(handle.get_thrust_policy(), subgraph_level_vs.begin(), subgraph_level_vs.end());
       cugraph::fill_edge_src_property(
         handle, mg_subgraph_view, edge_src_flags.mutable_view(), false);
       cugraph::fill_edge_src_property(handle,
@@ -541,9 +541,9 @@ bool check_edge_endpoint_distances(
         cuda::proclaim_return_type<vertex_t>(
           [v_first = mg_subgraph_view.local_vertex_partition_range_first()] __device__(
             auto v_offset) { return v_first + v_offset; }));
-      cugraph::sort_wrapper(handle.get_thrust_policy(),
-                            subgraph_adjacent_level_vs.begin(),
-                            subgraph_adjacent_level_vs.end());
+      cugraph::sort(handle.get_thrust_policy(),
+                    subgraph_adjacent_level_vs.begin(),
+                    subgraph_adjacent_level_vs.end());
       cugraph::fill_edge_dst_property(
         handle, mg_subgraph_view, edge_dst_flags.mutable_view(), false);
       cugraph::fill_edge_dst_property(handle,
@@ -907,9 +907,9 @@ bool check_has_edge_from_parents(
       }
       auto forest_edge_first =
         thrust::make_zip_iterator(forest_edge_vertices.begin(), forest_edge_parents.begin());
-      cugraph::sort_wrapper(handle.get_thrust_policy(),
-                            forest_edge_first,
-                            forest_edge_first + forest_edge_vertices.size());
+      cugraph::sort(handle.get_thrust_policy(),
+                    forest_edge_first,
+                    forest_edge_first + forest_edge_vertices.size());
       query_edge_first = thrust::make_zip_iterator(query_preds.begin(), query_vertices.begin());
       query_preds.resize(
         cuda::std::distance(

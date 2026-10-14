@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -12,6 +12,7 @@
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -23,8 +24,6 @@
 #include <cuda/std/tuple>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/transform.h>
-
-#include <cuco/hash_functions.cuh>
 
 #include <tuple>
 #include <vector>
@@ -166,7 +165,8 @@ generate<GraphViewType, property_t>::unique_edge_property(raft::handle_t const& 
     CUGRAPH_EXPECTS(
       graph_view.compute_number_of_edges(handle) <= std::numeric_limits<property_t>::max(),
       "std::numeric_limits<property_t>::max() is smaller than the number of edges.");
-    rmm::device_scalar<property_t> counter(property_t{0}, handle.get_stream());
+    rmm::device_scalar<property_t> counter(handle.get_stream());
+    counter.set_value_to_zero_async(handle.get_stream());
     cugraph::transform_e(
       handle,
       graph_view,
@@ -200,7 +200,7 @@ generate<GraphViewType, property_t>::unique_edge_property_per_type(
       graph_view.compute_number_of_edges(handle) <= std::numeric_limits<property_t>::max(),
       "std::numeric_limits<property_t>::max() is smaller than the number of edges.");
     rmm::device_uvector<property_t> counters(num_edge_types, handle.get_stream());
-    thrust::fill(handle.get_thrust_policy(), counters.begin(), counters.end(), property_t{0});
+    cugraph::fill(handle.get_thrust_policy(), counters.begin(), counters.end(), property_t{0});
     cugraph::transform_e(
       handle,
       graph_view,

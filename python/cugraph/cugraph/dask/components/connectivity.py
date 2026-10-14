@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -94,7 +94,7 @@ def weakly_connected_components(input_graph):
             workers=[w],
             allow_other_workers=False,
         )
-        for w in Comms.get_workers()
+        for w in input_graph._plc_graph
     ]
 
     wait(result)

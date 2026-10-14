@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -17,6 +17,7 @@
 #include <rmm/mr/pool_memory_resource.hpp>
 
 #include <cuda/memory_resource>
+#include <cuda/stream>
 
 #include <nccl.h>
 
@@ -182,7 +183,7 @@ class resource_manager_t {
 
       nccl_comms.push_back(std::make_unique<ncclComm_t>());
       handles.push_back(
-        std::make_unique<raft::handle_t>(rmm::cuda_stream_per_thread,
+        std::make_unique<raft::handle_t>(cuda::stream_ref{cudaStreamPerThread},
                                          std::make_shared<rmm::cuda_stream_pool>(n_streams),
                                          per_device_rmm_resources_.find(rank)->second));
       device_ids.push_back(pos->second);

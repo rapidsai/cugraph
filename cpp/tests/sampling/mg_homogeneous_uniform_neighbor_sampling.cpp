@@ -1,11 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "detail/nbr_sampling_validate.hpp"
 #include "detail/shuffle_wrappers.hpp"
 #include "utilities/base_fixture.hpp"
+#include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
 #include "utilities/property_generator_utilities.hpp"
@@ -13,6 +14,7 @@
 
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <gtest/gtest.h>
 
@@ -185,6 +187,18 @@ class Tests_MGHomogeneous_Uniform_Neighbor_Sampling
     }
 
     if (homogeneous_uniform_neighbor_sampling_usecase.check_correctness) {
+      //  Every check below only inspects the edges that came back, so they all pass trivially on an
+      //  empty result.  Check first that an empty result was actually justified.
+      auto num_sampled_edges = static_cast<size_t>(src_out.size());
+      num_sampled_edges      = cugraph::host_scalar_allreduce(
+        handle_->get_comms(), num_sampled_edges, raft::comms::op_t::SUM, handle_->get_stream());
+      ASSERT_TRUE(cugraph::test::validate_sampling_empty_result(
+        *handle_,
+        mg_graph_view,
+        raft::device_span<vertex_t const>{random_sources.data(), random_sources.size()},
+        num_sampled_edges,
+        homogeneous_uniform_neighbor_sampling_usecase.disjoint_sampling));
+
       // Consolidate results on GPU 0
       auto mg_start_src = cugraph::test::device_gatherv(
         *handle_, raft::device_span<vertex_t const>{random_sources.data(), random_sources.size()});
@@ -248,11 +262,23 @@ class Tests_MGHomogeneous_Uniform_Neighbor_Sampling
               raft::device_span<weight_t const>{wgt_compare->data(), wgt_compare->size()}))
           : std::nullopt;
 
-      // Gather offsets and batch numbers to rank 0 for disjoint validation
-      auto mg_aggregate_offsets =
-        offsets ? std::make_optional(cugraph::test::device_gatherv(
-                    *handle_, raft::device_span<size_t const>{offsets->data(), offsets->size()}))
-                : std::nullopt;
+      // Expand local label offsets to per-edge labels, then gather. Naively gatherv'ing the
+      // offset arrays concatenates per-rank CSR tables and does not index the gathered edgelist.
+      std::optional<rmm::device_uvector<int32_t>> mg_edge_labels{std::nullopt};
+      if (offsets) {
+        auto h_offsets = cugraph::test::to_host(*handle_, *offsets);
+        std::vector<int32_t> h_edge_labels(src_out.size());
+        for (size_t label = 0; label + 1 < h_offsets.size(); ++label) {
+          std::fill(h_edge_labels.begin() + static_cast<std::ptrdiff_t>(h_offsets[label]),
+                    h_edge_labels.begin() + static_cast<std::ptrdiff_t>(h_offsets[label + 1]),
+                    static_cast<int32_t>(label));
+        }
+        rmm::device_uvector<int32_t> edge_labels(h_edge_labels.size(), handle_->get_stream());
+        raft::update_device(
+          edge_labels.data(), h_edge_labels.data(), h_edge_labels.size(), handle_->get_stream());
+        mg_edge_labels = cugraph::test::device_gatherv(
+          *handle_, raft::device_span<int32_t const>{edge_labels.data(), edge_labels.size()});
+      }
       auto mg_start_batch_numbers = cugraph::test::device_gatherv(
         *handle_, raft::device_span<int32_t const>{batch_number.data(), batch_number.size()});
 
@@ -279,11 +305,12 @@ class Tests_MGHomogeneous_Uniform_Neighbor_Sampling
             raft::device_span<vertex_t const>{mg_aggregate_src.data(), mg_aggregate_src.size()},
             raft::device_span<vertex_t const>{mg_aggregate_dst.data(), mg_aggregate_dst.size()},
             raft::device_span<vertex_t const>{mg_start_src.data(), mg_start_src.size()},
-            mg_aggregate_offsets ? std::make_optional(raft::device_span<size_t const>{
-                                     mg_aggregate_offsets->data(), mg_aggregate_offsets->size()})
-                                 : std::nullopt,
+            std::nullopt,
             std::make_optional(raft::device_span<int32_t const>{mg_start_batch_numbers.data(),
-                                                                mg_start_batch_numbers.size()})));
+                                                                mg_start_batch_numbers.size()}),
+            mg_edge_labels ? std::make_optional(raft::device_span<int32_t const>{
+                               mg_edge_labels->data(), mg_edge_labels->size()})
+                           : std::nullopt));
         }
 
         if (random_sources.size() < 100) {

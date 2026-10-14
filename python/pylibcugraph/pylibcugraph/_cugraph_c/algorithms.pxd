@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -293,6 +293,10 @@ cdef extern from "cugraph_c/algorithms.h":
         MONOTONICALLY_DECREASING
         LAST
 
+    ctypedef enum cugraph_neighbor_selection_t:
+        CUGRAPH_NEIGHBOR_SELECTION_RANDOM=0
+        CUGRAPH_NEIGHBOR_SELECTION_LAST
+
     cdef cugraph_error_code_t \
         cugraph_sampling_options_create(
             cugraph_sampling_options_t** options,
@@ -303,6 +307,23 @@ cdef extern from "cugraph_c/algorithms.h":
         cugraph_sampling_set_temporal_sampling_comparison(
             cugraph_sampling_options_t* options,
             cugraph_temporal_sampling_comparison_t comparison,
+        )
+
+    cdef void \
+        cugraph_sampling_clear_temporal_sampling_comparison(
+            cugraph_sampling_options_t* options,
+        )
+
+    cdef void \
+        cugraph_sampling_set_neighbor_selection(
+            cugraph_sampling_options_t* options,
+            cugraph_neighbor_selection_t selection,
+        )
+
+    cdef void \
+        cugraph_sampling_set_fixed_window(
+            cugraph_sampling_options_t* options,
+            bool_t value,
         )
 
     cdef void \
@@ -355,6 +376,12 @@ cdef extern from "cugraph_c/algorithms.h":
 
     cdef void \
         cugraph_sampling_set_disjoint_sampling(
+            cugraph_sampling_options_t* options,
+            bool_t value,
+        )
+
+    cdef void \
+        cugraph_sampling_set_use_edge_weights_as_biases(
             cugraph_sampling_options_t* options,
             bool_t value,
         )

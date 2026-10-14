@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -12,7 +12,8 @@
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <rmm/exec_policy.hpp>
@@ -71,38 +72,45 @@ update_dst_visited_vertices_and_labels(
 
   // 2) Sort and dedupe the new sampled items (reduce comm and storage)
   if (new_sample_labels) {
-    cugraph::sort_wrapper(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(new_samples.begin(), new_sample_labels->begin()),
-      thrust::make_zip_iterator(new_samples.end(), new_sample_labels->end()));
+    cugraph::sort(handle.get_thrust_policy(),
+                  thrust::make_zip_iterator(new_samples.begin(), new_sample_labels->begin()),
+                  thrust::make_zip_iterator(new_samples.end(), new_sample_labels->end()));
     auto new_zip_end =
-      thrust::unique(handle.get_thrust_policy(),
-                     thrust::make_zip_iterator(new_samples.begin(), new_sample_labels->begin()),
-                     thrust::make_zip_iterator(new_samples.end(), new_sample_labels->end()));
+      cugraph::unique(handle.get_thrust_policy(),
+                      thrust::make_zip_iterator(new_samples.begin(), new_sample_labels->begin()),
+                      thrust::make_zip_iterator(new_samples.end(), new_sample_labels->end()));
     size_t new_size = static_cast<size_t>(cuda::std::get<0>(new_zip_end.get_iterator_tuple()) -
                                           new_samples.begin());
     new_samples.resize(new_size, handle.get_stream());
     new_sample_labels->resize(new_size, handle.get_stream());
   } else {
-    cugraph::sort_wrapper(handle.get_thrust_policy(), new_samples.begin(), new_samples.end());
+    cugraph::sort(handle.get_thrust_policy(), new_samples.begin(), new_samples.end());
     auto new_end =
-      thrust::unique(handle.get_thrust_policy(), new_samples.begin(), new_samples.end());
+      cugraph::unique(handle.get_thrust_policy(), new_samples.begin(), new_samples.end());
     size_t n_keep = static_cast<size_t>(new_end - new_samples.begin());
     new_samples.resize(n_keep, handle.get_stream());
   }
 
-  // 3) Aggregate new samples across minor_comm (unify per-minor partition)
+  // 3) Replicate the new samples over the GPUs sharing this GPU's edge partition minor range.
+  //
+  // The visited set is queried while walking local edge partitions, so each GPU must hold every
+  // visited vertex in [local_edge_partition_minor_range_first(),
+  // local_edge_partition_minor_range_last()) -- that range is vertex partitions
+  // [minor_comm_rank * major_comm_size, (minor_comm_rank + 1) * major_comm_size), which are owned
+  // by this GPU's major_comm peers (step 1 sent each sample to its vertex owner).  Gathering over
+  // minor_comm instead only looks correct when major_comm_size == 1; with a 2-D grid it drops the
+  // visited vertices owned by the major_comm peers and those destinations get sampled again.
   if constexpr (multi_gpu) {
-    auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
 
     new_samples =
       device_allgatherv(handle,
-                        minor_comm,
+                        major_comm,
                         raft::device_span<vertex_t const>{new_samples.data(), new_samples.size()});
     if (new_sample_labels) {
       new_sample_labels = device_allgatherv(
         handle,
-        minor_comm,
+        major_comm,
         raft::device_span<int32_t const>{new_sample_labels->data(), new_sample_labels->size()});
     }
   }
@@ -122,12 +130,11 @@ update_dst_visited_vertices_and_labels(
                  new_sample_labels->end(),
                  visited_minor_labels->begin() + orig_size);
 
-    cugraph::sort_wrapper(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(visited_minors.begin(), visited_minor_labels->begin()),
-      thrust::make_zip_iterator(visited_minors.end(), visited_minor_labels->end()));
+    cugraph::sort(handle.get_thrust_policy(),
+                  thrust::make_zip_iterator(visited_minors.begin(), visited_minor_labels->begin()),
+                  thrust::make_zip_iterator(visited_minors.end(), visited_minor_labels->end()));
   } else {
-    cugraph::sort_wrapper(handle.get_thrust_policy(), visited_minors.begin(), visited_minors.end());
+    cugraph::sort(handle.get_thrust_policy(), visited_minors.begin(), visited_minors.end());
   }
 
   return std::make_tuple(std::move(visited_minors), std::move(visited_minor_labels));

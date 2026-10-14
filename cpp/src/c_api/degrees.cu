@@ -15,11 +15,11 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
-#include <cugraph/vertex_partition_device_view.cuh>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
 
 #include <cuda/functional>
 #include <cuda/iterator>
-#include <thrust/gather.h>
+#include <thrust/iterator/zip_iterator.h>
 
 #include <optional>
 
@@ -111,19 +111,14 @@ struct degrees_functor : public cugraph::c_api::abstract_functor {
           graph_view.local_vertex_partition_range_last(),
           do_expensive_check_);
 
-        auto vertex_partition = cugraph::vertex_partition_device_view_t<vertex_t, multi_gpu>(
-          graph_view.local_vertex_partition_view());
-
         auto vertices_iter = cuda::make_transform_iterator(
           vertex_ids.begin(),
-          cuda::proclaim_return_type<vertex_t>([vertex_partition] __device__(auto v) {
-            return vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
-          }));
+          cugraph::detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()});
 
         if (in_degrees && out_degrees) {
           rmm::device_uvector<edge_t> tmp_in_degrees(vertex_ids.size(), handle_.get_stream());
           rmm::device_uvector<edge_t> tmp_out_degrees(vertex_ids.size(), handle_.get_stream());
-          thrust::gather(
+          cugraph::gather(
             handle_.get_thrust_policy(),
             vertices_iter,
             vertices_iter + vertex_ids.size(),
@@ -133,19 +128,19 @@ struct degrees_functor : public cugraph::c_api::abstract_functor {
           out_degrees = std::move(tmp_out_degrees);
         } else if (in_degrees) {
           rmm::device_uvector<edge_t> tmp_in_degrees(vertex_ids.size(), handle_.get_stream());
-          thrust::gather(handle_.get_thrust_policy(),
-                         vertices_iter,
-                         vertices_iter + vertex_ids.size(),
-                         in_degrees->begin(),
-                         tmp_in_degrees.begin());
+          cugraph::gather(handle_.get_thrust_policy(),
+                          vertices_iter,
+                          vertices_iter + vertex_ids.size(),
+                          in_degrees->begin(),
+                          tmp_in_degrees.begin());
           in_degrees = std::move(tmp_in_degrees);
         } else {
           rmm::device_uvector<edge_t> tmp_out_degrees(vertex_ids.size(), handle_.get_stream());
-          thrust::gather(handle_.get_thrust_policy(),
-                         vertices_iter,
-                         vertices_iter + vertex_ids.size(),
-                         out_degrees->begin(),
-                         tmp_out_degrees.begin());
+          cugraph::gather(handle_.get_thrust_policy(),
+                          vertices_iter,
+                          vertices_iter + vertex_ids.size(),
+                          out_degrees->begin(),
+                          tmp_out_degrees.begin());
           out_degrees = std::move(tmp_out_degrees);
         }
 

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -25,7 +25,7 @@ from pylibcugraph._cugraph_c.array cimport (
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
-from pylibcugraph._cugraph_c.labeling_algorithms cimport (
+from pylibcugraph._cugraph_c.components_algorithms cimport (
     cugraph_labeling_result_t,
     cugraph_strongly_connected_components,
     cugraph_labeling_result_get_vertices,
@@ -47,6 +47,27 @@ from pylibcugraph.utils cimport (
 
 
 def _ensure_args(graph, offsets, indices, weights, labels):
+    """
+    Validate and normalize connected-components inputs before dispatching to the backend.
+
+    Parameters
+    ----------
+    graph : object
+        Input graph object on which the algorithm is executed.
+    offsets : object
+        Input argument `offsets` passed to the backend algorithm.
+    indices : object
+        Input argument `indices` passed to the backend algorithm.
+    weights : object
+        Input argument `weights` passed to the backend algorithm.
+    labels : object
+        Input argument `labels` passed to the backend algorithm.
+
+    Returns
+    -------
+    object
+            Output value: input_type.
+    """
     i = 0
     if graph is not None:
         # ensure the remaining parametes are None

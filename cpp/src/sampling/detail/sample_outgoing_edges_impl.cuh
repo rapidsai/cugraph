@@ -1,0 +1,1783 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#pragma once
+
+#include "gather_sampled_properties.cuh"
+#include "sample_outgoing_edges.hpp"
+#include "sampling_utils.hpp"
+#include "temporal_sampling_utils.cuh"
+
+#include <cugraph/arithmetic_variant_types.hpp>
+#include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/edge_property.hpp>
+#include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_view.hpp>
+#include <cugraph/prims/edge_bucket.cuh>
+#include <cugraph/prims/per_v_random_select_transform_outgoing_e.cuh>
+#include <cugraph/prims/per_v_top_k_select_transform_outgoing_e.cuh>
+#include <cugraph/prims/transform_gather_e.cuh>
+#include <cugraph/prims/transform_reduce_e.cuh>
+#include <cugraph/prims/vertex_frontier.cuh>
+#include <cugraph/sampling_functions.hpp>
+#include <cugraph/utilities/device_functors.cuh>
+#include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/mask_utils.cuh>
+#include <cugraph/utilities/thrust_tuple_utils.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
+
+#include <rmm/device_uvector.hpp>
+
+#include <cuda/std/optional>
+#include <cuda/std/tuple>
+#include <thrust/binary_search.h>
+#include <thrust/count.h>
+#include <thrust/distance.h>
+#include <thrust/fill.h>
+#include <thrust/for_each.h>
+#include <thrust/gather.h>
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/reduce.h>
+#include <thrust/scan.h>
+#include <thrust/sequence.h>
+#include <thrust/sort.h>
+#include <thrust/transform.h>
+#include <thrust/unique.h>
+
+#include <limits>
+#include <optional>
+#include <tuple>
+#include <type_traits>
+#include <vector>
+
+namespace cugraph {
+namespace detail {
+
+struct return_edge_property_t {
+  template <typename key_t, typename vertex_t, typename T>
+  T __device__
+  operator()(key_t, vertex_t, cuda::std::nullopt_t, cuda::std::nullopt_t, T edge_property) const
+  {
+    return edge_property;
+  }
+};
+
+template <typename vertex_t, typename edge_properties_t>
+struct sample_edges_op_t {
+  using return_type = std::conditional_t<std::is_same_v<edge_properties_t, cuda::std::nullopt_t>,
+                                         cuda::std::tuple<vertex_t, vertex_t>,
+                                         cuda::std::tuple<vertex_t, vertex_t, edge_properties_t>>;
+
+  template <typename key_t>
+  return_type __device__ operator()(key_t optionally_tagged_major,
+                                    vertex_t minor,
+                                    cuda::std::nullopt_t,
+                                    cuda::std::nullopt_t,
+                                    edge_properties_t edge_properties) const
+  {
+    vertex_t major{};
+
+    if constexpr (std::is_same_v<key_t, vertex_t>)
+      major = optionally_tagged_major;
+    else
+      major = cuda::std::get<0>(optionally_tagged_major);
+
+    if constexpr (std::is_same_v<edge_properties_t, cuda::std::nullopt_t>) {
+      return cuda::std::make_tuple(major, minor);
+    } else {
+      return cuda::std::make_tuple(major, minor, edge_properties);
+    }
+  }
+};
+
+template <typename vertex_t, typename bias_t>
+struct sample_edge_biases_op_t {
+  template <typename key_t>
+  bias_t __device__
+  operator()(key_t, vertex_t, cuda::std::nullopt_t, cuda::std::nullopt_t, bias_t bias) const
+  {
+    return bias;
+  }
+};
+
+template <typename vertex_t, typename bias_t>
+struct sample_unvisited_edge_biases_op_t {
+  raft::device_span<vertex_t const> visited_minors{};
+  cuda::std::optional<raft::device_span<int32_t const>> visited_minor_labels{};
+
+  template <typename edge_property_t>
+  bias_t __device__ operator()(vertex_t,
+                               vertex_t minor,
+                               cuda::std::nullopt_t,
+                               cuda::std::nullopt_t,
+                               edge_property_t edge_property) const
+  {
+    bias_t bias{1};
+    if constexpr (std::is_same_v<edge_property_t, bias_t>) { bias = edge_property; }
+
+    return thrust::binary_search(thrust::seq, visited_minors.begin(), visited_minors.end(), minor)
+             ? bias_t{0}
+             : bias;
+  }
+
+  template <typename edge_property_t>
+  bias_t __device__ operator()(cuda::std::tuple<vertex_t, int32_t> tagged_major,
+                               vertex_t minor,
+                               cuda::std::nullopt_t,
+                               cuda::std::nullopt_t,
+                               edge_property_t edge_property) const
+  {
+    bias_t bias{1};
+    if constexpr (std::is_same_v<edge_property_t, bias_t>) { bias = edge_property; }
+
+    return thrust::binary_search(
+             thrust::seq,
+             thrust::make_zip_iterator(visited_minors.begin(), visited_minor_labels->begin()),
+             thrust::make_zip_iterator(visited_minors.end(), visited_minor_labels->end()),
+             cuda::std::make_tuple(minor, cuda::std::get<1>(tagged_major)))
+             ? bias_t{0}
+             : bias;
+  }
+};
+
+// Combined temporal + unvisited bias operator.  Returns bias 0 (excluding the edge from selection)
+// when the destination minor has already been visited (per-label when labels are used) OR when the
+// edge fails the temporal window filter.
+//
+// When last_n is false (RANDOM), an eligible edge returns the edge bias (1 when unbiased).
+// When last_n is true (LAST), an eligible edge returns last_n_selection_bias so
+// per_v_top_k_select_transform_outgoing_e keeps the K highest biases in the
+// temporal_sampling_comparison rank order.  A time of numeric_limits<time_stamp_t>::lowest()
+// uses the prefilled per-edge uniform key (shifted into [1, 2)) instead of the time rank.
+// Instantiate with bias_t = last_n_bias_t.
+//
+// The per-source window bounds are looked up from spans keyed on the frontier entry.
+// Under always-disjoint sampling each vertex appears at most once per label in the frontier, so the
+// key is (major) when unlabeled and (major, label) when labeled; both are unique.  The side spans
+// must be sorted by that same key.
+template <typename vertex_t, typename bias_t, typename time_stamp_t, bool last_n = false>
+struct sample_unvisited_temporal_edge_biases_op_t {
+  static_assert(!last_n || std::is_same_v<bias_t, last_n_bias_t>,
+                "LAST neighbor selection must use last_n_bias_t (double) so integer "
+                "timestamps up to 53 bits rank exactly.");
+
+  temporal_sampling_comparison_t temporal_sampling_comparison{};
+  raft::device_span<vertex_t const> active_majors{};  // sorted by (major[, label])
+  // Parallel to active_majors when present. nullopt => unbounded via
+  // unbounded_temporal_window_start (lowest for increasing, max for decreasing).
+  cuda::std::optional<raft::device_span<time_stamp_t const>> active_major_window_starts{};
+  // Parallel to active_majors when present.  nullopt => unbounded via
+  // unbounded_temporal_window_end (max for increasing, lowest for decreasing).
+  cuda::std::optional<raft::device_span<time_stamp_t const>> active_major_window_ends{};
+  cuda::std::optional<raft::device_span<int32_t const>> active_major_labels{};   // parallel, sorted
+  raft::device_span<vertex_t const> visited_minors{};                            // sorted
+  cuda::std::optional<raft::device_span<int32_t const>> visited_minor_labels{};  // sorted parallel
+
+  // Extract the edge time from the (possibly concatenated) edge property passed by the selection
+  // primitive.  Shapes: time_stamp_t | (bias, time) | (time, type) | (bias, time, type)
+  // | (time, uniform_key) for LAST.
+  template <typename edge_property_t>
+  static __device__ time_stamp_t extract_edge_time(edge_property_t edge_property)
+  {
+    if constexpr (std::is_arithmetic_v<edge_property_t>) {
+      // Either a bare time (unbiased temporal) or a bare bias (a should-not-happen selection call
+      // that is compiled but never executed).  Only the time case is meaningful.
+      if constexpr (std::is_same_v<edge_property_t, time_stamp_t>) {
+        return edge_property;
+      } else {
+        return time_stamp_t{};
+      }
+    } else {
+      using first_t = std::decay_t<decltype(cuda::std::get<0>(edge_property))>;
+      if constexpr (cuda::std::tuple_size<edge_property_t>::value == 2) {
+        // (bias, time) when the first element is the floating bias, else (time, type).
+        if constexpr (std::is_floating_point_v<first_t>) {
+          return cuda::std::get<1>(edge_property);
+        } else {
+          return cuda::std::get<0>(edge_property);
+        }
+      } else {
+        // (bias, time, type)
+        return cuda::std::get<1>(edge_property);
+      }
+    }
+  }
+
+  // LAST concatenates a per-edge uniform key after the time. Other shapes have no such key.
+  template <typename edge_property_t>
+  static __device__ last_n_bias_t extract_uniform_key(edge_property_t edge_property)
+  {
+    if constexpr (std::is_arithmetic_v<edge_property_t>) {
+      return last_n_bias_t{0};
+    } else {
+      constexpr auto n = cuda::std::tuple_size<edge_property_t>::value;
+      using last_t     = std::decay_t<decltype(cuda::std::get<n - 1>(edge_property))>;
+      if constexpr (std::is_same_v<last_t, last_n_bias_t>) {
+        return cuda::std::get<n - 1>(edge_property);
+      } else {
+        return last_n_bias_t{0};
+      }
+    }
+  }
+
+  template <typename edge_property_t>
+  static __device__ bias_t extract_edge_bias(edge_property_t edge_property)
+  {
+    if constexpr (std::is_arithmetic_v<edge_property_t>) {
+      return bias_t{1};
+    } else {
+      using first_t = std::decay_t<decltype(cuda::std::get<0>(edge_property))>;
+      if constexpr (std::is_floating_point_v<first_t>) {
+        return static_cast<bias_t>(cuda::std::get<0>(edge_property));
+      } else {
+        return bias_t{1};
+      }
+    }
+  }
+
+  __device__ time_stamp_t window_end_at(size_t idx) const
+  {
+    if (active_major_window_ends) { return (*active_major_window_ends)[idx]; }
+    return unbounded_temporal_window_end<time_stamp_t>(temporal_sampling_comparison);
+  }
+
+  __device__ time_stamp_t window_start_at(size_t idx) const
+  {
+    if (active_major_window_starts) { return (*active_major_window_starts)[idx]; }
+    return unbounded_temporal_window_start<time_stamp_t>(temporal_sampling_comparison);
+  }
+
+  __device__ bool is_visited(vertex_t minor) const
+  {
+    return thrust::binary_search(thrust::seq, visited_minors.begin(), visited_minors.end(), minor);
+  }
+
+  __device__ bool is_visited(vertex_t minor, int32_t label) const
+  {
+    return thrust::binary_search(
+      thrust::seq,
+      thrust::make_zip_iterator(visited_minors.begin(), visited_minor_labels->begin()),
+      thrust::make_zip_iterator(visited_minors.end(), visited_minor_labels->end()),
+      cuda::std::make_tuple(minor, label));
+  }
+
+  // Unlabeled frontier (tag == void): key is the major only.
+  template <typename edge_property_t>
+  bias_t __device__ operator()(vertex_t major,
+                               vertex_t minor,
+                               cuda::std::nullopt_t,
+                               cuda::std::nullopt_t,
+                               edge_property_t edge_property) const
+  {
+    if (is_visited(minor)) { return bias_t{0}; }
+    size_t idx{};
+    if (!try_find_temporal_key_index(active_majors, major, idx)) { return bias_t{0}; }
+    auto const major_time = window_start_at(idx);
+    auto const window_end = window_end_at(idx);
+    auto const edge_time  = extract_edge_time(edge_property);
+    auto const passes =
+      passes_temporal_filter(temporal_sampling_comparison, major_time, window_end, edge_time);
+    if (!passes) { return bias_t{0}; }
+    if constexpr (last_n) {
+      return last_n_selection_bias(
+        edge_time, temporal_sampling_comparison, extract_uniform_key(edge_property));
+    } else {
+      return extract_edge_bias(edge_property);
+    }
+  }
+
+  // Labeled frontier (tag == int32 label): key is (major, label).
+  template <typename edge_property_t>
+  bias_t __device__ operator()(cuda::std::tuple<vertex_t, int32_t> tagged_major,
+                               vertex_t minor,
+                               cuda::std::nullopt_t,
+                               cuda::std::nullopt_t,
+                               edge_property_t edge_property) const
+  {
+    auto const major = cuda::std::get<0>(tagged_major);
+    auto const label = cuda::std::get<1>(tagged_major);
+    if (is_visited(minor, label)) { return bias_t{0}; }
+    size_t idx{};
+    if (!try_find_temporal_key_index(active_majors, *active_major_labels, major, label, idx)) {
+      return bias_t{0};
+    }
+    auto const major_time = window_start_at(idx);
+    auto const window_end = window_end_at(idx);
+    auto const edge_time  = extract_edge_time(edge_property);
+    auto const passes =
+      passes_temporal_filter(temporal_sampling_comparison, major_time, window_end, edge_time);
+    if (!passes) { return bias_t{0}; }
+    if constexpr (last_n) {
+      return last_n_selection_bias(
+        edge_time, temporal_sampling_comparison, extract_uniform_key(edge_property));
+    } else {
+      return extract_edge_bias(edge_property);
+    }
+  }
+};
+
+struct segmented_fill_t {
+  raft::device_span<int32_t const> fill_values{};
+  raft::device_span<size_t const> segment_offsets{};
+  raft::device_span<int32_t> output_values{};
+
+  __device__ void operator()(size_t i) const
+  {
+    thrust::fill(thrust::seq,
+                 output_values.begin() + segment_offsets[i],
+                 output_values.begin() + segment_offsets[i + 1],
+                 fill_values[i]);
+  }
+};
+
+// Shared mark_entries predicate for carryover-frontier resampling in
+// sample_unvisited_outgoing_edges.  Named functors deduplicate across template instantiations.
+template <typename vertex_t, typename label_t, typename edge_type_t>
+struct carryover_capacity_filter_op_t {
+  raft::device_span<vertex_t const> d_majors{};
+  cuda::std::optional<raft::device_span<label_t const>> d_labels{};
+  cuda::std::optional<raft::device_span<edge_type_t const>> d_types{};
+  raft::device_span<vertex_t const> carry_frontier_majors{};
+  cuda::std::optional<raft::device_span<label_t const>> carry_frontier_labels{};
+  cuda::std::optional<raft::device_span<edge_type_t const>> carry_frontier_types{};
+  raft::device_span<size_t const> carry_frontier_capacity{};
+
+  __device__ bool operator()(size_t i) const
+  {
+    if (d_labels && d_types) {
+      auto const& d_label_span         = *d_labels;
+      auto const& d_type_span          = *d_types;
+      auto const& carry_frontier_label = *carry_frontier_labels;
+      auto const& carry_frontier_type  = *carry_frontier_types;
+      auto const key = cuda::std::make_tuple(d_label_span[i], d_majors[i], d_type_span[i]);
+      auto const carry_frontier_begin = thrust::make_zip_iterator(
+        carry_frontier_label.begin(), carry_frontier_majors.begin(), carry_frontier_type.begin());
+      auto const lb  = thrust::lower_bound(thrust::seq,
+                                          carry_frontier_begin,
+                                          carry_frontier_begin + carry_frontier_majors.size(),
+                                          key);
+      auto const pos = cuda::std::distance(carry_frontier_begin, lb);
+      if ((pos == static_cast<decltype(pos)>(carry_frontier_majors.size())) || (*lb != key)) {
+        return false;
+      }
+
+      auto const needed_count = carry_frontier_capacity[pos];
+      auto const d_begin =
+        thrust::make_zip_iterator(d_label_span.begin(), d_majors.begin(), d_type_span.begin());
+      auto const lb2 = thrust::lower_bound(thrust::seq, d_begin, d_begin + d_majors.size(), key);
+      auto const position_count = (i - cuda::std::distance(d_begin, lb2));
+      return position_count < needed_count;
+    }
+    if (d_types) {
+      auto const& d_type_span         = *d_types;
+      auto const& carry_frontier_type = *carry_frontier_types;
+      auto const key                  = cuda::std::make_tuple(d_majors[i], d_type_span[i]);
+      auto const carry_frontier_begin =
+        thrust::make_zip_iterator(carry_frontier_majors.begin(), carry_frontier_type.begin());
+      auto const lb  = thrust::lower_bound(thrust::seq,
+                                          carry_frontier_begin,
+                                          carry_frontier_begin + carry_frontier_majors.size(),
+                                          key);
+      auto const pos = cuda::std::distance(carry_frontier_begin, lb);
+      if ((pos == static_cast<decltype(pos)>(carry_frontier_majors.size())) || (*lb != key)) {
+        return false;
+      }
+
+      auto const needed_count = carry_frontier_capacity[pos];
+      auto const d_begin      = thrust::make_zip_iterator(d_majors.begin(), d_type_span.begin());
+      auto const lb2 = thrust::lower_bound(thrust::seq, d_begin, d_begin + d_majors.size(), key);
+      auto const position_count = (i - cuda::std::distance(d_begin, lb2));
+      return position_count < needed_count;
+    }
+    if (d_labels) {
+      auto const& d_label_span         = *d_labels;
+      auto const& carry_frontier_label = *carry_frontier_labels;
+      auto const key                   = cuda::std::make_tuple(d_label_span[i], d_majors[i]);
+      auto const carry_frontier_begin =
+        thrust::make_zip_iterator(carry_frontier_label.begin(), carry_frontier_majors.begin());
+      auto const lb  = thrust::lower_bound(thrust::seq,
+                                          carry_frontier_begin,
+                                          carry_frontier_begin + carry_frontier_majors.size(),
+                                          key);
+      auto const pos = cuda::std::distance(carry_frontier_begin, lb);
+      if ((pos == static_cast<decltype(pos)>(carry_frontier_majors.size())) || (*lb != key)) {
+        return false;
+      }
+
+      auto const needed_count = carry_frontier_capacity[pos];
+      auto const d_begin      = thrust::make_zip_iterator(d_label_span.begin(), d_majors.begin());
+      auto const lb2 = thrust::lower_bound(thrust::seq, d_begin, d_begin + d_majors.size(), key);
+      auto const position_count = (i - cuda::std::distance(d_begin, lb2));
+      return position_count < needed_count;
+    }
+
+    auto const key = d_majors[i];
+    auto const lb  = thrust::lower_bound(
+      thrust::seq, carry_frontier_majors.begin(), carry_frontier_majors.end(), key);
+    auto const pos = cuda::std::distance(carry_frontier_majors.begin(), lb);
+    if ((pos == static_cast<decltype(pos)>(carry_frontier_majors.size())) || (*lb != key)) {
+      return false;
+    }
+
+    auto const needed_count = carry_frontier_capacity[pos];
+    auto const lb2 = thrust::lower_bound(thrust::seq, d_majors.begin(), d_majors.end(), key);
+    auto const position_count = (i - cuda::std::distance(d_majors.begin(), lb2));
+    return position_count < needed_count;
+  }
+};
+
+/**
+ * Helper function for random sampling of outgoing edges with a custom bias operator, used in
+ * homogeneous and heterogeneous sampling functions.
+ *
+ * 1. Standard biased sampling (sample_outgoing_edges): biases_op is sample_edge_biases_op_t;
+ *    edge_biases_view holds float or double weights. Optional edge_type_view for heterogeneous
+ *    type filtering. Used when sampling neighbors without an "unvisited" constraint.
+ *
+ * 2. Unvisited-neighbor biased sampling (sample_unvisited_outgoing_edges): biases_op is
+ *    sample_unvisited_edge_biases_op_t or, when temporal_unvisited_params_t is supplied,
+ *    sample_unvisited_temporal_edge_biases_op_t.  The latter down-weights or excludes
+ *    already-visited minors and edges outside the temporal window.
+ *
+ * When @p has_output_edge_properties is true and @p graph_view is a multigraph, multi-edge indices
+ * are sampled so gather_sampled_properties can identify parallel edges. Otherwise the transform
+ * property is a dummy view and the returned property column is monostate.
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename tag_t,
+          typename biases_view_t,
+          typename edge_type_t,
+          typename biases_op_t,
+          bool multi_gpu>
+std::tuple<std::optional<rmm::device_uvector<int32_t>>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           arithmetic_device_uvector_t>
+call_biased_per_v_random_select_transform_outgoing_e(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false> const& key_bucket_view,
+  biases_view_t edge_biases_view,
+  bool has_output_edge_properties,
+  biases_op_t biases_op,
+  std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+  raft::random::RngState& rng_state,
+  raft::host_span<size_t const> Ks,
+  std::optional<raft::device_span<int32_t const>> active_major_labels,
+  bool with_replacement)
+{
+  std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
+  std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
+  rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
+  arithmetic_device_uvector_t sampled_properties{std::monostate{}};
+
+  if (has_output_edge_properties && graph_view.is_multigraph()) {
+    edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle, graph_view);
+    using edges_op_t = sample_edges_op_t<vertex_t, edge_t>;
+    edges_op_t edges_op{};
+    using return_type = typename edges_op_t::return_type;
+
+    std::forward_as_tuple(offsets, std::tie(majors, minors, sampled_properties)) =
+      (Ks.size() == 1) ? cugraph::per_v_random_select_transform_outgoing_e(
+                           handle,
+                           graph_view,
+                           key_bucket_view,
+                           edge_src_dummy_property_t{}.view(),
+                           edge_dst_dummy_property_t{}.view(),
+                           edge_biases_view,
+                           biases_op,
+                           edge_src_dummy_property_t{}.view(),
+                           edge_dst_dummy_property_t{}.view(),
+                           multi_index_property.view(),
+                           edges_op,
+                           rng_state,
+                           Ks[0],
+                           with_replacement,
+                           std::optional<return_type>{std::nullopt},
+                           false)
+                       : cugraph::per_v_random_select_transform_outgoing_e(
+                           handle,
+                           graph_view,
+                           key_bucket_view,
+                           edge_src_dummy_property_t{}.view(),
+                           edge_dst_dummy_property_t{}.view(),
+                           edge_biases_view,
+                           biases_op,
+                           edge_src_dummy_property_t{}.view(),
+                           edge_dst_dummy_property_t{}.view(),
+                           multi_index_property.view(),
+                           edges_op,
+                           *edge_type_view,
+                           rng_state,
+                           Ks,
+                           with_replacement,
+                           std::optional<return_type>{std::nullopt},
+                           false);
+  } else {
+    using edges_op_t = sample_edges_op_t<vertex_t, cuda::std::nullopt_t>;
+    edges_op_t edges_op{};
+    using return_type = typename edges_op_t::return_type;
+
+    std::forward_as_tuple(offsets, std::tie(majors, minors)) =
+      (Ks.size() == 1) ? cugraph::per_v_random_select_transform_outgoing_e(
+                           handle,
+                           graph_view,
+                           key_bucket_view,
+                           edge_src_dummy_property_t{}.view(),
+                           edge_dst_dummy_property_t{}.view(),
+                           edge_biases_view,
+                           biases_op,
+                           edge_src_dummy_property_t{}.view(),
+                           edge_dst_dummy_property_t{}.view(),
+                           cugraph::edge_dummy_property_view_t{},
+                           edges_op,
+                           rng_state,
+                           Ks[0],
+                           with_replacement,
+                           std::optional<return_type>{std::nullopt},
+                           false)
+                       : cugraph::per_v_random_select_transform_outgoing_e(
+                           handle,
+                           graph_view,
+                           key_bucket_view,
+                           edge_src_dummy_property_t{}.view(),
+                           edge_dst_dummy_property_t{}.view(),
+                           edge_biases_view,
+                           biases_op,
+                           edge_src_dummy_property_t{}.view(),
+                           edge_dst_dummy_property_t{}.view(),
+                           cugraph::edge_dummy_property_view_t{},
+                           edges_op,
+                           *edge_type_view,
+                           rng_state,
+                           Ks,
+                           with_replacement,
+                           std::optional<return_type>{std::nullopt},
+                           false);
+  }
+
+  if (active_major_labels) {
+    labels =
+      rmm::device_uvector<int32_t>(offsets->back_element(handle.get_stream()), handle.get_stream());
+    auto num_segments = offsets->size() - size_t{1};
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      thrust::make_counting_iterator(size_t{0}),
+      thrust::make_counting_iterator(num_segments),
+      segmented_fill_t{*active_major_labels,
+                       raft::device_span<size_t const>{offsets->data(), offsets->size()},
+                       raft::device_span<int32_t>{labels->data(), labels->size()}});
+  }
+
+  return std::make_tuple(
+    std::move(labels), std::move(majors), std::move(minors), std::move(sampled_properties));
+}
+
+/**
+ * LAST analog of call_biased_per_v_random_select_transform_outgoing_e.  Selects the K highest-bias
+ * outgoing edges per (tagged-)vertex via per_v_top_k_select_transform_outgoing_e (no RNG, no
+ * replacement).  @p biases_op must return last_n_bias_t.
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename tag_t,
+          typename biases_view_t,
+          typename edge_type_t,
+          typename biases_op_t,
+          bool multi_gpu>
+std::tuple<std::optional<rmm::device_uvector<int32_t>>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           arithmetic_device_uvector_t>
+call_biased_per_v_top_k_select_transform_outgoing_e(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false> const& key_bucket_view,
+  biases_view_t edge_biases_view,
+  bool has_output_edge_properties,
+  biases_op_t biases_op,
+  std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+  raft::host_span<size_t const> Ks,
+  std::optional<raft::device_span<int32_t const>> active_major_labels)
+{
+  std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
+  std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
+  rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
+  arithmetic_device_uvector_t sampled_properties{std::monostate{}};
+
+  if (has_output_edge_properties && graph_view.is_multigraph()) {
+    edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle, graph_view);
+    using edges_op_t = sample_edges_op_t<vertex_t, edge_t>;
+    edges_op_t edges_op{};
+    using return_type = typename edges_op_t::return_type;
+
+    std::forward_as_tuple(offsets, std::tie(majors, minors, sampled_properties)) =
+      (Ks.size() == 1)
+        ? cugraph::per_v_top_k_select_transform_outgoing_e(handle,
+                                                           graph_view,
+                                                           key_bucket_view,
+                                                           edge_src_dummy_property_t{}.view(),
+                                                           edge_dst_dummy_property_t{}.view(),
+                                                           edge_biases_view,
+                                                           biases_op,
+                                                           edge_src_dummy_property_t{}.view(),
+                                                           edge_dst_dummy_property_t{}.view(),
+                                                           multi_index_property.view(),
+                                                           edges_op,
+                                                           Ks[0],
+                                                           std::optional<return_type>{std::nullopt},
+                                                           false)
+        : cugraph::per_v_top_k_select_transform_outgoing_e(handle,
+                                                           graph_view,
+                                                           key_bucket_view,
+                                                           edge_src_dummy_property_t{}.view(),
+                                                           edge_dst_dummy_property_t{}.view(),
+                                                           edge_biases_view,
+                                                           biases_op,
+                                                           edge_src_dummy_property_t{}.view(),
+                                                           edge_dst_dummy_property_t{}.view(),
+                                                           multi_index_property.view(),
+                                                           edges_op,
+                                                           *edge_type_view,
+                                                           Ks,
+                                                           std::optional<return_type>{std::nullopt},
+                                                           false);
+  } else {
+    using edges_op_t = sample_edges_op_t<vertex_t, cuda::std::nullopt_t>;
+    edges_op_t edges_op{};
+    using return_type = typename edges_op_t::return_type;
+
+    std::forward_as_tuple(offsets, std::tie(majors, minors)) =
+      (Ks.size() == 1)
+        ? cugraph::per_v_top_k_select_transform_outgoing_e(handle,
+                                                           graph_view,
+                                                           key_bucket_view,
+                                                           edge_src_dummy_property_t{}.view(),
+                                                           edge_dst_dummy_property_t{}.view(),
+                                                           edge_biases_view,
+                                                           biases_op,
+                                                           edge_src_dummy_property_t{}.view(),
+                                                           edge_dst_dummy_property_t{}.view(),
+                                                           cugraph::edge_dummy_property_view_t{},
+                                                           edges_op,
+                                                           Ks[0],
+                                                           std::optional<return_type>{std::nullopt},
+                                                           false)
+        : cugraph::per_v_top_k_select_transform_outgoing_e(handle,
+                                                           graph_view,
+                                                           key_bucket_view,
+                                                           edge_src_dummy_property_t{}.view(),
+                                                           edge_dst_dummy_property_t{}.view(),
+                                                           edge_biases_view,
+                                                           biases_op,
+                                                           edge_src_dummy_property_t{}.view(),
+                                                           edge_dst_dummy_property_t{}.view(),
+                                                           cugraph::edge_dummy_property_view_t{},
+                                                           edges_op,
+                                                           *edge_type_view,
+                                                           Ks,
+                                                           std::optional<return_type>{std::nullopt},
+                                                           false);
+  }
+
+  if (active_major_labels) {
+    labels =
+      rmm::device_uvector<int32_t>(offsets->back_element(handle.get_stream()), handle.get_stream());
+    auto num_segments = offsets->size() - size_t{1};
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      thrust::make_counting_iterator(size_t{0}),
+      thrust::make_counting_iterator(num_segments),
+      segmented_fill_t{*active_major_labels,
+                       raft::device_span<size_t const>{offsets->data(), offsets->size()},
+                       raft::device_span<int32_t>{labels->data(), labels->size()}});
+  }
+
+  return std::make_tuple(
+    std::move(labels), std::move(majors), std::move(minors), std::move(sampled_properties));
+}
+
+/**
+ * Helper function for random sampling of outgoing edges without a bias operator, used in
+ * homogeneous and heterogeneous sampling functions.
+ *
+ * When @p has_output_edge_properties is true and @p graph_view is a multigraph, multi-edge indices
+ * are sampled so gather_sampled_properties can identify parallel edges. Otherwise the transform
+ * property is a dummy view and the returned property column is monostate.
+ */
+template <typename vertex_t, typename edge_t, typename edge_type_t, bool multi_gpu>
+std::tuple<std::optional<rmm::device_uvector<int32_t>>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           arithmetic_device_uvector_t>
+call_unbiased_per_v_random_select_transform_outgoing_e(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  cugraph::key_bucket_view_t<vertex_t, void, multi_gpu, false> const& key_bucket_view,
+  bool has_output_edge_properties,
+  std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+  raft::random::RngState& rng_state,
+  raft::host_span<size_t const> Ks,
+  std::optional<raft::device_span<int32_t const>> active_major_labels,
+  bool with_replacement)
+{
+  rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
+  arithmetic_device_uvector_t sampled_properties{std::monostate{}};
+  std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
+  std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
+
+  if (has_output_edge_properties && graph_view.is_multigraph()) {
+    edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle, graph_view);
+    using edges_op_t = sample_edges_op_t<vertex_t, edge_t>;
+    edges_op_t edges_op{};
+    using return_type = typename edges_op_t::return_type;
+
+    std::forward_as_tuple(offsets, std::tie(majors, minors, sampled_properties)) =
+      (Ks.size() == 1) ? cugraph::per_v_random_select_transform_outgoing_e(
+                           handle,
+                           graph_view,
+                           key_bucket_view,
+                           edge_src_dummy_property_t{}.view(),
+                           edge_dst_dummy_property_t{}.view(),
+                           multi_index_property.view(),
+                           edges_op,
+                           rng_state,
+                           Ks[0],
+                           with_replacement,
+                           std::optional<return_type>{std::nullopt},
+                           false)
+                       : cugraph::per_v_random_select_transform_outgoing_e(
+                           handle,
+                           graph_view,
+                           key_bucket_view,
+                           edge_src_dummy_property_t{}.view(),
+                           edge_dst_dummy_property_t{}.view(),
+                           multi_index_property.view(),
+                           edges_op,
+                           *edge_type_view,
+                           rng_state,
+                           Ks,
+                           with_replacement,
+                           std::optional<return_type>{std::nullopt},
+                           false);
+  } else {
+    using edges_op_t = sample_edges_op_t<vertex_t, cuda::std::nullopt_t>;
+    edges_op_t edges_op{};
+    using return_type = typename edges_op_t::return_type;
+
+    std::forward_as_tuple(offsets, std::tie(majors, minors)) =
+      (Ks.size() == 1) ? cugraph::per_v_random_select_transform_outgoing_e(
+                           handle,
+                           graph_view,
+                           key_bucket_view,
+                           edge_src_dummy_property_t{}.view(),
+                           edge_dst_dummy_property_t{}.view(),
+                           cugraph::edge_dummy_property_view_t{},
+                           edges_op,
+                           rng_state,
+                           Ks[0],
+                           with_replacement,
+                           std::optional<return_type>{std::nullopt},
+                           false)
+                       : cugraph::per_v_random_select_transform_outgoing_e(
+                           handle,
+                           graph_view,
+                           key_bucket_view,
+                           edge_src_dummy_property_t{}.view(),
+                           edge_dst_dummy_property_t{}.view(),
+                           cugraph::edge_dummy_property_view_t{},
+                           edges_op,
+                           *edge_type_view,
+                           rng_state,
+                           Ks,
+                           with_replacement,
+                           std::optional<return_type>{std::nullopt},
+                           false);
+  }
+
+  if (active_major_labels) {
+    labels =
+      rmm::device_uvector<int32_t>(offsets->back_element(handle.get_stream()), handle.get_stream());
+    auto num_segments = offsets->size() - size_t{1};
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      thrust::make_counting_iterator(size_t{0}),
+      thrust::make_counting_iterator(num_segments),
+      segmented_fill_t{*active_major_labels,
+                       raft::device_span<size_t const>{offsets->data(), offsets->size()},
+                       raft::device_span<int32_t>{labels->data(), labels->size()}});
+  }
+
+  return std::make_tuple(
+    std::move(labels), std::move(majors), std::move(minors), std::move(sampled_properties));
+}
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           arithmetic_device_uvector_t,
+           std::optional<rmm::device_uvector<int32_t>>>
+sample_outgoing_edges(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  bool has_output_edge_properties,
+  std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
+  std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
+  cugraph::key_bucket_view_t<vertex_t, void, multi_gpu, false> const& key_bucket_view,
+  raft::host_span<size_t const> Ks,
+  std::optional<raft::device_span<int32_t const>> active_major_labels,
+  bool with_replacement)
+{
+  using edge_type_t = int32_t;
+
+  std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
+  rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
+  arithmetic_device_uvector_t sampled_properties{std::monostate{}};
+
+  if (edge_bias_view) {
+    if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, float const*>>(
+          *edge_bias_view)) {
+      using bias_t = float;
+
+      std::tie(labels, majors, minors, sampled_properties) =
+        call_biased_per_v_random_select_transform_outgoing_e(
+          handle,
+          graph_view,
+          key_bucket_view,
+          std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
+          has_output_edge_properties,
+          sample_edge_biases_op_t<vertex_t, bias_t>{},
+          edge_type_view ? std::make_optional(
+                             std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
+                               *edge_type_view))
+                         : std::nullopt,
+          rng_state,
+          Ks,
+          active_major_labels,
+          with_replacement);
+    } else if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, double const*>>(
+                 *edge_bias_view)) {
+      using bias_t = double;
+
+      std::tie(labels, majors, minors, sampled_properties) =
+        call_biased_per_v_random_select_transform_outgoing_e(
+          handle,
+          graph_view,
+          key_bucket_view,
+          std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
+          has_output_edge_properties,
+          sample_edge_biases_op_t<vertex_t, bias_t>{},
+          edge_type_view ? std::make_optional(
+                             std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
+                               *edge_type_view))
+                         : std::nullopt,
+          rng_state,
+          Ks,
+          active_major_labels,
+          with_replacement);
+    }
+  } else {
+    std::tie(labels, majors, minors, sampled_properties) =
+      call_unbiased_per_v_random_select_transform_outgoing_e(
+        handle,
+        graph_view,
+        key_bucket_view,
+        has_output_edge_properties,
+        edge_type_view
+          ? std::make_optional(
+              std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(*edge_type_view))
+          : std::nullopt,
+        rng_state,
+        Ks,
+        active_major_labels,
+        with_replacement);
+  }
+
+  return std::make_tuple(
+    std::move(majors), std::move(minors), std::move(sampled_properties), std::move(labels));
+}
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+rmm::device_uvector<int32_t> gather_edge_types_for_sampled_edgelist(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  edge_property_view_t<edge_t, int32_t const*> edge_type_view,
+  raft::device_span<vertex_t const> majors,
+  raft::device_span<vertex_t const> minors,
+  arithmetic_device_uvector_t& multi_edge_index)
+{
+  CUGRAPH_EXPECTS(std::holds_alternative<rmm::device_uvector<edge_t>>(multi_edge_index),
+                  "gather_edge_types_for_sampled_edgelist: multi_edge_index expected "
+                  "rmm::device_uvector<edge_t>, variant index %zu",
+                  multi_edge_index.index());
+
+  using edge_type_t = int32_t;
+
+  constexpr bool store_transposed = false;
+
+  rmm::device_uvector<edge_type_t> edge_types(majors.size(), handle.get_stream());
+
+  cugraph::edge_bucket_t<vertex_t, edge_t, !store_transposed, multi_gpu, false> edge_list(
+    handle, graph_view.is_multigraph());
+
+  auto& indices = std::get<rmm::device_uvector<edge_t>>(multi_edge_index);
+  edge_list.insert(
+    majors.begin(), majors.end(), minors.begin(), std::make_optional(indices.begin()));
+
+  cugraph::transform_gather_e(handle,
+                              graph_view,
+                              edge_list,
+                              edge_src_dummy_property_t{}.view(),
+                              edge_dst_dummy_property_t{}.view(),
+                              edge_type_view,
+                              return_edge_property_t{},
+                              edge_types.begin());
+
+  return edge_types;
+}
+
+// Gathers a single scalar edge property (e.g. edge start time, edge type) for the given
+// (major, minor[, multi-edge index]) edge list.  Unlike gather_edge_types_for_sampled_edgelist,
+// this also accepts a monostate multi-edge index (i.e. a non-multigraph edge list), matching the
+// "Filter by time" pattern used by temporal_gather_one_hop_edgelist.  Takes ownership of the
+// edgelist vectors and returns them after gathering so callers avoid an insert copy.
+template <typename vertex_t, typename edge_t, typename T, bool multi_gpu>
+std::tuple<rmm::device_uvector<T>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           arithmetic_device_uvector_t>
+gather_scalar_edge_property_for_edgelist(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  rmm::device_uvector<vertex_t>&& majors,
+  rmm::device_uvector<vertex_t>&& minors,
+  arithmetic_device_uvector_t&& multi_edge_index,
+  edge_property_view_t<edge_t, T const*> prop_view)
+{
+  constexpr bool store_transposed = false;
+
+  rmm::device_uvector<T> values(majors.size(), handle.get_stream());
+
+  std::optional<rmm::device_uvector<edge_t>> multi_indices{std::nullopt};
+  if (std::holds_alternative<rmm::device_uvector<edge_t>>(multi_edge_index)) {
+    multi_indices = std::move(std::get<rmm::device_uvector<edge_t>>(multi_edge_index));
+  }
+
+  cugraph::edge_bucket_t<vertex_t, edge_t, !store_transposed, multi_gpu, false> edge_list(
+    handle, std::move(majors), std::move(minors), std::move(multi_indices));
+
+  cugraph::transform_gather_e(handle,
+                              graph_view,
+                              edge_list,
+                              edge_src_dummy_property_t{}.view(),
+                              edge_dst_dummy_property_t{}.view(),
+                              prop_view,
+                              return_edge_property_t{},
+                              values.begin());
+
+  std::optional<rmm::device_uvector<edge_t>> out_multi_indices;
+  std::tie(majors, minors, out_multi_indices) = edge_list.take_edgelist();
+
+  arithmetic_device_uvector_t out_multi_edge_index{std::monostate{}};
+  if (out_multi_indices) {
+    out_multi_edge_index = arithmetic_device_uvector_t{std::move(*out_multi_indices)};
+  }
+
+  return std::make_tuple(
+    std::move(values), std::move(majors), std::move(minors), std::move(out_multi_edge_index));
+}
+
+// Looks up, for each (major[, label]) in the current (possibly carryover-shrunk) frontier, the
+// matching window bound from the pre-sorted, MG-allgathered temporal_params side table built once
+// (outside the disjoint-resample loop) by temporal_sample_edges_to_unvisited_neighbors.  Every
+// queried key is guaranteed present since the current frontier is always a subset of the frontier
+// used to build that table.
+template <typename vertex_t, typename time_stamp_t>
+rmm::device_uvector<time_stamp_t> lookup_temporal_bounds_for_active_majors(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> sorted_majors,
+  cuda::std::optional<raft::device_span<int32_t const>> sorted_labels,
+  raft::device_span<time_stamp_t const> sorted_values,
+  raft::device_span<vertex_t const> query_majors,
+  std::optional<raft::device_span<int32_t const>> query_labels)
+{
+  rmm::device_uvector<time_stamp_t> result(query_majors.size(), handle.get_stream());
+
+  if (query_labels) {
+    auto const labels  = *sorted_labels;
+    auto const qlabels = *query_labels;
+    thrust::transform(
+      handle.get_thrust_policy(),
+      thrust::make_counting_iterator(size_t{0}),
+      thrust::make_counting_iterator(query_majors.size()),
+      result.begin(),
+      [sorted_majors, labels, sorted_values, query_majors, qlabels] __device__(size_t i) {
+        size_t idx{};
+        try_find_temporal_key_index(sorted_majors, labels, query_majors[i], qlabels[i], idx);
+        return sorted_values[idx];
+      });
+  } else {
+    thrust::transform(handle.get_thrust_policy(),
+                      query_majors.begin(),
+                      query_majors.end(),
+                      result.begin(),
+                      [sorted_majors, sorted_values] __device__(vertex_t major) {
+                        size_t idx{};
+                        try_find_temporal_key_index(sorted_majors, major, idx);
+                        return sorted_values[idx];
+                      });
+  }
+
+  return result;
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename tag_t,
+          bool multi_gpu,
+          typename temporal_params_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           arithmetic_device_uvector_t,
+           std::optional<rmm::device_uvector<int32_t>>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<int32_t>>>
+sample_unvisited_outgoing_edges(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  bool has_output_edge_properties,
+  std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
+  std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
+  cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false> const& key_bucket_view,
+  rmm::device_uvector<vertex_t>&& visited_minors,
+  std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
+  raft::host_span<size_t const> Ks,
+  std::optional<raft::device_span<int32_t const>> active_major_labels,
+  bool with_replacement,
+  temporal_params_t temporal_params)
+{
+  using edge_type_t = int32_t;
+
+  constexpr bool is_temporal = !std::is_same_v<temporal_params_t, no_temporal_params_t>;
+
+  CUGRAPH_EXPECTS(Ks.size() >= 1, "Ks must be non-empty.");
+
+  if (Ks.size() > 1) {
+    CUGRAPH_EXPECTS(edge_type_view.has_value(), "heterogeneous sampling requires edge_type_view.");
+  }
+
+  if constexpr (is_temporal) {
+    CUGRAPH_EXPECTS(
+      (temporal_params.neighbor_selection == neighbor_selection_t::RANDOM) || !with_replacement,
+      "LAST neighbor selection does not support sampling with replacement.");
+    CUGRAPH_EXPECTS(
+      (temporal_params.neighbor_selection == neighbor_selection_t::RANDOM) || !edge_bias_view,
+      "LAST neighbor selection does not accept edge biases.");
+  }
+
+  rmm::device_uvector<vertex_t> result_majors(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> result_minors(0, handle.get_stream());
+  arithmetic_device_uvector_t result_properties{std::monostate{}};
+  std::optional<rmm::device_uvector<int32_t>> result_labels{std::nullopt};
+
+  bool sample_and_append{true};
+  rmm::device_uvector<vertex_t> carryover_frontier_majors(0, handle.get_stream());
+  std::optional<rmm::device_uvector<int32_t>> carryover_frontier_labels{std::nullopt};
+  std::optional<rmm::device_uvector<edge_type_t>> carryover_frontier_types{std::nullopt};
+  rmm::device_uvector<size_t> carryover_frontier_capacity(0, handle.get_stream());
+
+  // One uniform key per local edge for LAST. uniform_random_fill advances rng_state by the
+  // subsequences that launch consumes. The buffer outlives the disjoint-resample loop so a retry
+  // reuses the same keys.
+  std::optional<rmm::device_uvector<last_n_bias_t>> last_n_uniform_keys{};
+  std::optional<edge_property_view_t<edge_t, last_n_bias_t const*>> last_n_uniform_key_view{};
+  if constexpr (is_temporal) {
+    if (temporal_params.neighbor_selection == neighbor_selection_t::LAST) {
+      auto const& edge_counts = temporal_params.edge_time_view.edge_counts();
+      size_t num_keys{0};
+      for (auto count : edge_counts) {
+        num_keys += static_cast<size_t>(count);
+      }
+      last_n_uniform_keys = rmm::device_uvector<last_n_bias_t>(num_keys, handle.get_stream());
+      if (num_keys > 0) {
+        cugraph::detail::uniform_random_fill(handle.get_stream(),
+                                             last_n_uniform_keys->data(),
+                                             num_keys,
+                                             last_n_bias_t{0},
+                                             last_n_bias_t{1},
+                                             rng_state);
+      }
+      std::vector<last_n_bias_t const*> value_firsts;
+      value_firsts.reserve(edge_counts.size());
+      size_t offset{0};
+      for (auto count : edge_counts) {
+        value_firsts.push_back(last_n_uniform_keys->data() + offset);
+        offset += static_cast<size_t>(count);
+      }
+      last_n_uniform_key_view =
+        edge_property_view_t<edge_t, last_n_bias_t const*>(value_firsts, edge_counts);
+    }
+  }
+
+  auto active_bucket_view = key_bucket_view;
+
+  // FIXME: We could explore increasing the rate of convergency by oversampling to allow
+  // for some duplicates to be discarded.  This would allow some vertices to still have the
+  // first sampling result be sufficient.  For now we'll leave this as a future optimization.
+  size_t disjoint_resample_iteration = 0;
+  while (sample_and_append) {
+    ++disjoint_resample_iteration;
+
+    std::optional<rmm::device_uvector<int32_t>> sampled_labels{std::nullopt};
+    rmm::device_uvector<vertex_t> sampled_majors(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> sampled_minors(0, handle.get_stream());
+    arithmetic_device_uvector_t sampled_property{std::monostate{}};
+
+    auto const visited_minors_span =
+      raft::device_span<vertex_t const>{visited_minors.data(), visited_minors.size()};
+    auto const visited_minor_labels_span =
+      visited_minor_labels ? cuda::std::make_optional(raft::device_span<int32_t const>{
+                               visited_minor_labels->data(), visited_minor_labels->size()})
+                           : cuda::std::nullopt;
+    auto const edge_type_filter =
+      edge_type_view
+        ? std::make_optional(
+            std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(*edge_type_view))
+        : std::nullopt;
+
+    if (edge_bias_view) {
+      if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, float const*>>(
+            *edge_bias_view)) {
+        using bias_t = float;
+        auto const bview =
+          std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view);
+        if constexpr (is_temporal) {
+          using time_stamp_t = typename temporal_params_t::time_type;
+          std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
+            call_biased_per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              active_bucket_view,
+              view_concat(bview, temporal_params.edge_time_view),
+              has_output_edge_properties,
+              sample_unvisited_temporal_edge_biases_op_t<vertex_t, bias_t, time_stamp_t>{
+                temporal_params.temporal_sampling_comparison,
+                temporal_params.active_majors,
+                temporal_params.active_major_window_starts,
+                temporal_params.active_major_window_ends,
+                temporal_params.active_major_labels,
+                visited_minors_span,
+                visited_minor_labels_span},
+              edge_type_filter,
+              rng_state,
+              Ks,
+              active_major_labels,
+              with_replacement);
+        } else {
+          std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
+            call_biased_per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              active_bucket_view,
+              bview,
+              has_output_edge_properties,
+              sample_unvisited_edge_biases_op_t<vertex_t, bias_t>{visited_minors_span,
+                                                                  visited_minor_labels_span},
+              edge_type_filter,
+              rng_state,
+              Ks,
+              active_major_labels,
+              with_replacement);
+        }
+      } else if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, double const*>>(
+                   *edge_bias_view)) {
+        using bias_t = double;
+        auto const bview =
+          std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view);
+        if constexpr (is_temporal) {
+          using time_stamp_t = typename temporal_params_t::time_type;
+          std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
+            call_biased_per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              active_bucket_view,
+              view_concat(bview, temporal_params.edge_time_view),
+              has_output_edge_properties,
+              sample_unvisited_temporal_edge_biases_op_t<vertex_t, bias_t, time_stamp_t>{
+                temporal_params.temporal_sampling_comparison,
+                temporal_params.active_majors,
+                temporal_params.active_major_window_starts,
+                temporal_params.active_major_window_ends,
+                temporal_params.active_major_labels,
+                visited_minors_span,
+                visited_minor_labels_span},
+              edge_type_filter,
+              rng_state,
+              Ks,
+              active_major_labels,
+              with_replacement);
+        } else {
+          std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
+            call_biased_per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              active_bucket_view,
+              bview,
+              has_output_edge_properties,
+              sample_unvisited_edge_biases_op_t<vertex_t, bias_t>{visited_minors_span,
+                                                                  visited_minor_labels_span},
+              edge_type_filter,
+              rng_state,
+              Ks,
+              active_major_labels,
+              with_replacement);
+        }
+      }
+    } else {
+      using bias_t = float;
+      if constexpr (is_temporal) {
+        using time_stamp_t = typename temporal_params_t::time_type;
+        if (temporal_params.neighbor_selection == neighbor_selection_t::RANDOM) {
+          std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
+            call_biased_per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              active_bucket_view,
+              temporal_params.edge_time_view,
+              has_output_edge_properties,
+              sample_unvisited_temporal_edge_biases_op_t<vertex_t, bias_t, time_stamp_t>{
+                temporal_params.temporal_sampling_comparison,
+                temporal_params.active_majors,
+                temporal_params.active_major_window_starts,
+                temporal_params.active_major_window_ends,
+                temporal_params.active_major_labels,
+                visited_minors_span,
+                visited_minor_labels_span},
+              edge_type_filter,
+              rng_state,
+              Ks,
+              active_major_labels,
+              with_replacement);
+        } else {
+          CUGRAPH_EXPECTS(temporal_params.neighbor_selection == neighbor_selection_t::LAST,
+                          "Unknown neighbor selection mode.");
+          auto const last_n_edge_value_view =
+            view_concat(temporal_params.edge_time_view, *last_n_uniform_key_view);
+          std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
+            call_biased_per_v_top_k_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              active_bucket_view,
+              last_n_edge_value_view,
+              has_output_edge_properties,
+              sample_unvisited_temporal_edge_biases_op_t<vertex_t,
+                                                         last_n_bias_t,
+                                                         time_stamp_t,
+                                                         true>{
+                temporal_params.temporal_sampling_comparison,
+                temporal_params.active_majors,
+                temporal_params.active_major_window_starts,
+                temporal_params.active_major_window_ends,
+                temporal_params.active_major_labels,
+                visited_minors_span,
+                visited_minor_labels_span},
+              edge_type_filter,
+              Ks,
+              active_major_labels);
+        }
+      } else {
+        std::tie(sampled_labels, sampled_majors, sampled_minors, sampled_property) =
+          call_biased_per_v_random_select_transform_outgoing_e(
+            handle,
+            graph_view,
+            active_bucket_view,
+            cugraph::edge_dummy_property_view_t{},
+            has_output_edge_properties,
+            sample_unvisited_edge_biases_op_t<vertex_t, bias_t>{visited_minors_span,
+                                                                visited_minor_labels_span},
+            edge_type_filter,
+            rng_state,
+            Ks,
+            active_major_labels,
+            with_replacement);
+      }
+    }
+
+    arithmetic_device_uvector_t sampled_types{std::monostate{}};
+    bool const gather_sampled_edge_types =
+      edge_type_view.has_value() && (Ks.size() > 1) &&
+      !std::holds_alternative<std::monostate>(sampled_property);
+    if (gather_sampled_edge_types) {
+      auto const edge_type_prop =
+        std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(*edge_type_view);
+      sampled_types = gather_edge_types_for_sampled_edgelist(
+        handle,
+        graph_view,
+        edge_type_prop,
+        raft::device_span<vertex_t const>{sampled_majors.data(), sampled_majors.size()},
+        raft::device_span<vertex_t const>{sampled_minors.data(), sampled_minors.size()},
+        sampled_property);
+    }
+
+    if (carryover_frontier_capacity.size() > 0) {
+      rmm::device_uvector<vertex_t> majors               = std::move(sampled_majors);
+      rmm::device_uvector<vertex_t> minors               = std::move(sampled_minors);
+      arithmetic_device_uvector_t prop                   = std::move(sampled_property);
+      arithmetic_device_uvector_t types                  = std::move(sampled_types);
+      std::optional<rmm::device_uvector<int32_t>> labels = std::move(sampled_labels);
+
+      rmm::device_uvector<double> order_keys(majors.size(), handle.get_stream());
+      bool last_n_order{false};
+      if constexpr (is_temporal) {
+        last_n_order = temporal_params.neighbor_selection == neighbor_selection_t::LAST;
+        if (last_n_order && (majors.size() > 0)) {
+          using time_stamp_t = typename temporal_params_t::time_type;
+          rmm::device_uvector<time_stamp_t> times(0, handle.get_stream());
+          std::tie(times, majors, minors, prop) =
+            gather_scalar_edge_property_for_edgelist<vertex_t, edge_t, time_stamp_t, multi_gpu>(
+              handle,
+              graph_view,
+              std::move(majors),
+              std::move(minors),
+              std::move(prop),
+              temporal_params.edge_time_view);
+          auto const comparison = temporal_params.temporal_sampling_comparison;
+          rmm::device_uvector<last_n_bias_t> uniform_keys(0, handle.get_stream());
+          std::tie(uniform_keys, majors, minors, prop) =
+            gather_scalar_edge_property_for_edgelist<vertex_t, edge_t, last_n_bias_t, multi_gpu>(
+              handle,
+              graph_view,
+              std::move(majors),
+              std::move(minors),
+              std::move(prop),
+              *last_n_uniform_key_view);
+          // Same key as the top-k bias, including the uniform draw for a missing time, so a
+          // disjoint retry keeps that order instead of collapsing every lowest() edge to one rank.
+          auto const* times_ptr = times.data();
+          auto const* keys_ptr  = uniform_keys.data();
+          thrust::transform(handle.get_thrust_policy(),
+                            thrust::make_counting_iterator(size_t{0}),
+                            thrust::make_counting_iterator(times.size()),
+                            order_keys.begin(),
+                            [comparison, times_ptr, keys_ptr] __device__(size_t i) {
+                              // Ascending sort then keep the first needed_count, so negate rank.
+                              return -last_n_selection_bias(times_ptr[i], comparison, keys_ptr[i]);
+                            });
+        }
+      }
+      if (!last_n_order) {
+        rmm::device_uvector<float> rng_draw(majors.size(), handle.get_stream());
+        uniform_random_fill(
+          handle.get_stream(), rng_draw.data(), rng_draw.size(), 0.0f, 1.0f, rng_state);
+        thrust::transform(handle.get_thrust_policy(),
+                          rng_draw.begin(),
+                          rng_draw.end(),
+                          order_keys.begin(),
+                          [] __device__(float x) { return static_cast<double>(x); });
+      }
+
+      size_t keep_count{0};
+      rmm::device_uvector<uint32_t> keep_flags(0, handle.get_stream());
+
+      if (carryover_frontier_types) {
+        CUGRAPH_EXPECTS(
+          std::holds_alternative<rmm::device_uvector<edge_type_t>>(types),
+          "LAST carryover: types expected rmm::device_uvector<edge_type_t>, variant index %zu",
+          types.index());
+        auto& type_vec = std::get<rmm::device_uvector<edge_type_t>>(types);
+
+        if (labels) {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(
+              labels->begin(), majors.begin(), type_vec.begin(), order_keys.begin()),
+            thrust::make_zip_iterator(
+              labels->end(), majors.end(), type_vec.end(), order_keys.end()),
+            minors.begin());
+
+          order_keys.resize(0, handle.get_stream());
+          order_keys.shrink_to_fit(handle.get_stream());
+
+          std::tie(keep_count, keep_flags) =
+            mark_entries(majors.size(),
+                         carryover_capacity_filter_op_t<vertex_t, int32_t, edge_type_t>{
+                           raft::device_span<vertex_t const>{majors.data(), majors.size()},
+                           raft::device_span<int32_t const>{labels->data(), labels->size()},
+                           raft::device_span<edge_type_t const>{type_vec.data(), type_vec.size()},
+                           raft::device_span<vertex_t const>{carryover_frontier_majors.data(),
+                                                             carryover_frontier_majors.size()},
+                           raft::device_span<int32_t const>{carryover_frontier_labels->data(),
+                                                            carryover_frontier_labels->size()},
+                           raft::device_span<edge_type_t const>{carryover_frontier_types->data(),
+                                                                carryover_frontier_types->size()},
+                           raft::device_span<size_t const>{carryover_frontier_capacity.data(),
+                                                           carryover_frontier_capacity.size()}},
+                         handle.get_stream(),
+                         std::nullopt);
+
+        } else {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(majors.begin(), type_vec.begin(), order_keys.begin()),
+            thrust::make_zip_iterator(majors.end(), type_vec.end(), order_keys.end()),
+            minors.begin());
+
+          order_keys.resize(0, handle.get_stream());
+          order_keys.shrink_to_fit(handle.get_stream());
+
+          std::tie(keep_count, keep_flags) =
+            mark_entries(majors.size(),
+                         carryover_capacity_filter_op_t<vertex_t, int32_t, edge_type_t>{
+                           raft::device_span<vertex_t const>{majors.data(), majors.size()},
+                           cuda::std::nullopt,
+                           raft::device_span<edge_type_t const>{type_vec.data(), type_vec.size()},
+                           raft::device_span<vertex_t const>{carryover_frontier_majors.data(),
+                                                             carryover_frontier_majors.size()},
+                           cuda::std::nullopt,
+                           raft::device_span<edge_type_t const>{carryover_frontier_types->data(),
+                                                                carryover_frontier_types->size()},
+                           raft::device_span<size_t const>{carryover_frontier_capacity.data(),
+                                                           carryover_frontier_capacity.size()}},
+                         handle.get_stream(),
+                         std::nullopt);
+        }
+      } else {
+        if (labels) {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(labels->begin(), majors.begin(), order_keys.begin()),
+            thrust::make_zip_iterator(labels->end(), majors.end(), order_keys.end()),
+            minors.begin());
+
+          order_keys.resize(0, handle.get_stream());
+          order_keys.shrink_to_fit(handle.get_stream());
+
+          std::tie(keep_count, keep_flags) =
+            mark_entries(majors.size(),
+                         carryover_capacity_filter_op_t<vertex_t, int32_t, edge_type_t>{
+                           raft::device_span<vertex_t const>{majors.data(), majors.size()},
+                           raft::device_span<int32_t const>{labels->data(), labels->size()},
+                           cuda::std::nullopt,
+                           raft::device_span<vertex_t const>{carryover_frontier_majors.data(),
+                                                             carryover_frontier_majors.size()},
+                           raft::device_span<int32_t const>{carryover_frontier_labels->data(),
+                                                            carryover_frontier_labels->size()},
+                           cuda::std::nullopt,
+                           raft::device_span<size_t const>{carryover_frontier_capacity.data(),
+                                                           carryover_frontier_capacity.size()}},
+                         handle.get_stream(),
+                         std::nullopt);
+
+        } else {
+          thrust::sort_by_key(handle.get_thrust_policy(),
+                              thrust::make_zip_iterator(majors.begin(), order_keys.begin()),
+                              thrust::make_zip_iterator(majors.end(), order_keys.end()),
+                              minors.begin());
+
+          order_keys.resize(0, handle.get_stream());
+          order_keys.shrink_to_fit(handle.get_stream());
+
+          std::tie(keep_count, keep_flags) =
+            mark_entries(majors.size(),
+                         carryover_capacity_filter_op_t<vertex_t, int32_t, edge_type_t>{
+                           raft::device_span<vertex_t const>{majors.data(), majors.size()},
+                           cuda::std::nullopt,
+                           cuda::std::nullopt,
+                           raft::device_span<vertex_t const>{carryover_frontier_majors.data(),
+                                                             carryover_frontier_majors.size()},
+                           cuda::std::nullopt,
+                           cuda::std::nullopt,
+                           raft::device_span<size_t const>{carryover_frontier_capacity.data(),
+                                                           carryover_frontier_capacity.size()}},
+                         handle.get_stream(),
+                         std::nullopt);
+        }
+      }
+
+      raft::device_span<uint32_t const> const keep_mask{keep_flags.data(), keep_flags.size()};
+      majors = keep_marked_entries(handle, std::move(majors), keep_mask, keep_count);
+      minors = keep_marked_entries(handle, std::move(minors), keep_mask, keep_count);
+      if (carryover_frontier_types) {
+        CUGRAPH_EXPECTS(
+          std::holds_alternative<rmm::device_uvector<int32_t>>(types),
+          "LAST carryover keep: types expected rmm::device_uvector<int32_t>, variant index %zu",
+          types.index());
+        types = arithmetic_device_uvector_t{keep_marked_entries(
+          handle, std::move(std::get<rmm::device_uvector<int32_t>>(types)), keep_mask, keep_count)};
+      }
+      if (!std::holds_alternative<std::monostate>(prop)) {
+        prop = cugraph::variant_type_dispatch(prop, [&](auto& index_vec) {
+          return arithmetic_device_uvector_t{
+            keep_marked_entries(handle, std::move(index_vec), keep_mask, keep_count)};
+        });
+      }
+      if (labels) {
+        *labels = keep_marked_entries(handle, std::move(*labels), keep_mask, keep_count);
+      }
+
+      sampled_majors   = std::move(majors);
+      sampled_minors   = std::move(minors);
+      sampled_property = std::move(prop);
+      sampled_types    = std::move(types);
+      sampled_labels   = std::move(labels);
+    }
+
+    // Check for duplicates in the sampled minor vertices
+    [[maybe_unused]] rmm::device_uvector<vertex_t> discarded_minors(0, handle.get_stream());
+    [[maybe_unused]] arithmetic_device_uvector_t discarded_edge_property{std::monostate{}};
+    [[maybe_unused]] arithmetic_device_uvector_t discarded_types{std::monostate{}};
+    rmm::device_uvector<vertex_t> discarded_majors(0, handle.get_stream());
+    std::optional<rmm::device_uvector<int32_t>> discarded_major_labels{std::nullopt};
+
+    std::tie(sampled_majors,
+             sampled_minors,
+             sampled_property,
+             sampled_labels,
+             discarded_majors,
+             discarded_minors,
+             discarded_edge_property,
+             discarded_types,
+             discarded_major_labels) = deduplicate_edges_by_minor(handle,
+                                                                  graph_view,
+                                                                  std::move(sampled_majors),
+                                                                  std::move(sampled_minors),
+                                                                  std::move(sampled_property),
+                                                                  std::move(sampled_types),
+                                                                  std::move(sampled_labels));
+
+    carryover_frontier_labels   = std::nullopt;
+    carryover_frontier_types    = std::nullopt;
+    carryover_frontier_majors   = rmm::device_uvector<vertex_t>(0, handle.get_stream());
+    carryover_frontier_capacity = rmm::device_uvector<size_t>(0, handle.get_stream());
+
+    if (discarded_majors.size() != 0) {
+      size_t const num_types = Ks.size();
+
+      rmm::device_uvector<vertex_t> agg_majors               = std::move(discarded_majors);
+      std::optional<rmm::device_uvector<int32_t>> agg_labels = std::move(discarded_major_labels);
+
+      if (num_types == size_t{1}) {
+        if (agg_labels) {
+          cugraph::sort(handle.get_thrust_policy(),
+                        thrust::make_zip_iterator(agg_labels->begin(), agg_majors.begin()),
+                        thrust::make_zip_iterator(agg_labels->end(), agg_majors.end()));
+        } else {
+          cugraph::sort(handle.get_thrust_policy(), agg_majors.begin(), agg_majors.end());
+        }
+
+        rmm::device_uvector<size_t> agg_counts(agg_majors.size(), handle.get_stream());
+
+        if (agg_labels) {
+          auto ends = thrust::reduce_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(agg_labels->begin(), agg_majors.begin()),
+            thrust::make_zip_iterator(agg_labels->end(), agg_majors.end()),
+            thrust::make_constant_iterator(size_t{1}),
+            thrust::make_zip_iterator(agg_labels->begin(), agg_majors.begin()),
+            agg_counts.begin());
+          agg_labels->resize(
+            static_cast<size_t>(cuda::std::distance(
+              thrust::make_zip_iterator(agg_labels->begin(), agg_majors.begin()), ends.first)),
+            handle.get_stream());
+          agg_majors.resize(agg_labels->size(), handle.get_stream());
+          agg_counts.resize(agg_labels->size(), handle.get_stream());
+          carryover_frontier_labels = std::move(agg_labels);
+          carryover_frontier_majors = std::move(agg_majors);
+        } else {
+          auto ends = thrust::reduce_by_key(handle.get_thrust_policy(),
+                                            agg_majors.begin(),
+                                            agg_majors.end(),
+                                            thrust::make_constant_iterator(size_t{1}),
+                                            agg_majors.begin(),
+                                            agg_counts.begin());
+          agg_majors.resize(
+            static_cast<size_t>(cuda::std::distance(agg_majors.begin(), ends.first)),
+            handle.get_stream());
+          agg_counts.resize(agg_majors.size(), handle.get_stream());
+          carryover_frontier_majors = std::move(agg_majors);
+        }
+        carryover_frontier_capacity = std::move(agg_counts);
+      } else {
+        CUGRAPH_EXPECTS(
+          std::holds_alternative<rmm::device_uvector<edge_type_t>>(discarded_types),
+          "LAST carryover het: discarded_types expected rmm::device_uvector<edge_type_t>, "
+          "variant index %zu",
+          discarded_types.index());
+        rmm::device_uvector<edge_type_t> types =
+          std::get<rmm::device_uvector<edge_type_t>>(std::move(discarded_types));
+
+        if (agg_labels) {
+          cugraph::sort(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(agg_labels->begin(), agg_majors.begin(), types.begin()),
+            thrust::make_zip_iterator(agg_labels->end(), agg_majors.end(), types.end()));
+        } else {
+          cugraph::sort(handle.get_thrust_policy(),
+                        thrust::make_zip_iterator(agg_majors.begin(), types.begin()),
+                        thrust::make_zip_iterator(agg_majors.end(), types.end()));
+        }
+
+        rmm::device_uvector<size_t> kr_cnt(agg_majors.size(), handle.get_stream());
+
+        size_t nt = 0;
+        if (agg_labels) {
+          auto zip_keys_begin =
+            thrust::make_zip_iterator(agg_labels->begin(), agg_majors.begin(), types.begin());
+          auto ends = thrust::reduce_by_key(
+            handle.get_thrust_policy(),
+            zip_keys_begin,
+            thrust::make_zip_iterator(agg_labels->end(), agg_majors.end(), types.end()),
+            thrust::make_constant_iterator(size_t{1}),
+            zip_keys_begin,
+            kr_cnt.begin());
+          nt = static_cast<size_t>(cuda::std::distance(kr_cnt.begin(), ends.second));
+        } else {
+          auto zip_keys_begin = thrust::make_zip_iterator(agg_majors.begin(), types.begin());
+          auto ends =
+            thrust::reduce_by_key(handle.get_thrust_policy(),
+                                  zip_keys_begin,
+                                  thrust::make_zip_iterator(agg_majors.end(), types.end()),
+                                  thrust::make_constant_iterator(size_t{1}),
+                                  zip_keys_begin,
+                                  kr_cnt.begin());
+          nt = static_cast<size_t>(cuda::std::distance(kr_cnt.begin(), ends.second));
+        }
+        if (agg_labels) { agg_labels->resize(nt, handle.get_stream()); }
+        agg_majors.resize(nt, handle.get_stream());
+        types.resize(nt, handle.get_stream());
+        kr_cnt.resize(nt, handle.get_stream());
+
+        carryover_frontier_majors   = std::move(agg_majors);
+        carryover_frontier_labels   = std::move(agg_labels);
+        carryover_frontier_types    = std::make_optional(std::move(types));
+        carryover_frontier_capacity = std::move(kr_cnt);
+      }
+    }
+
+    std::tie(visited_minors, visited_minor_labels) =
+      detail::update_dst_visited_vertices_and_labels<vertex_t, edge_t, multi_gpu>(
+        handle,
+        graph_view,
+        std::move(visited_minors),
+        std::move(visited_minor_labels),
+        raft::device_span<vertex_t const>{sampled_minors.data(), sampled_minors.size()},
+        sampled_labels ? std::make_optional(raft::device_span<int32_t const>{
+                           sampled_labels->data(), sampled_labels->size()})
+                       : std::nullopt);
+
+    if constexpr (multi_gpu) {
+      sample_and_append = (host_scalar_allreduce(handle.get_comms(),
+                                                 carryover_frontier_majors.size(),
+                                                 raft::comms::op_t::SUM,
+                                                 handle.get_stream()) > 0);
+    } else {
+      sample_and_append = carryover_frontier_majors.size() > 0;
+    }
+
+    if (sample_and_append) {
+      if (carryover_frontier_majors.size() > 0) {
+        if constexpr (std::is_same_v<tag_t, void>) {
+          active_bucket_view = cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false>(
+            handle,
+            raft::device_span<vertex_t const>{carryover_frontier_majors.data(),
+                                              carryover_frontier_majors.size()});
+        } else {
+          active_bucket_view = cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false>(
+            handle,
+            raft::device_span<vertex_t const>{carryover_frontier_majors.data(),
+                                              carryover_frontier_majors.size()},
+            raft::device_span<tag_t const>{carryover_frontier_labels->data(),
+                                           carryover_frontier_labels->size()});
+          handle.sync_stream();
+          active_major_labels = raft::device_span<int32_t const>{carryover_frontier_labels->data(),
+                                                                 carryover_frontier_labels->size()};
+        }
+      } else {
+        if constexpr (std::is_same_v<tag_t, void>) {
+          active_bucket_view = cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false>(
+            handle, raft::device_span<vertex_t const>(nullptr, size_t(0)));
+        } else {
+          active_bucket_view = cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false>(
+            handle,
+            raft::device_span<vertex_t const>(nullptr, size_t(0)),
+            raft::device_span<tag_t const>(nullptr, size_t(0)));
+        }
+      }
+    }
+
+    // Append the latest sampled edges to the output
+    size_t original_result_majors_size = result_majors.size();
+    result_majors.resize(result_majors.size() + sampled_majors.size(), handle.get_stream());
+    raft::copy(result_majors.data() + original_result_majors_size,
+               sampled_majors.data(),
+               sampled_majors.size(),
+               handle.get_stream());
+
+    result_minors.resize(result_minors.size() + sampled_minors.size(), handle.get_stream());
+    raft::copy(result_minors.data() + original_result_majors_size,
+               sampled_minors.data(),
+               sampled_minors.size(),
+               handle.get_stream());
+
+    // When sampling multi-edge indices, sampled_property holds edge_t; otherwise monostate.
+    if (!std::holds_alternative<std::monostate>(sampled_property)) {
+      if (std::holds_alternative<std::monostate>(result_properties)) {
+        result_properties = std::move(sampled_property);
+      } else {
+        CUGRAPH_EXPECTS(
+          std::holds_alternative<rmm::device_uvector<edge_t>>(result_properties),
+          "LAST append: result_properties expected rmm::device_uvector<edge_t>, variant index %zu",
+          result_properties.index());
+        CUGRAPH_EXPECTS(
+          std::holds_alternative<rmm::device_uvector<edge_t>>(sampled_property),
+          "LAST append: sampled_property expected rmm::device_uvector<edge_t>, variant index %zu",
+          sampled_property.index());
+        auto& result_properties_ref = std::get<rmm::device_uvector<edge_t>>(result_properties);
+        auto& sampled_property_ref  = std::get<rmm::device_uvector<edge_t>>(sampled_property);
+        result_properties_ref.resize(result_properties_ref.size() + sampled_property_ref.size(),
+                                     handle.get_stream());
+        raft::copy(result_properties_ref.data() + original_result_majors_size,
+                   sampled_property_ref.data(),
+                   sampled_property_ref.size(),
+                   handle.get_stream());
+      }
+    }
+
+    if (visited_minor_labels) {
+      if (result_labels) {
+        result_labels->resize(result_labels->size() + sampled_labels->size(), handle.get_stream());
+        raft::copy(result_labels->data() + original_result_majors_size,
+                   sampled_labels->data(),
+                   sampled_labels->size(),
+                   handle.get_stream());
+      } else {
+        result_labels = std::move(sampled_labels);
+      }
+    }
+  }
+
+  return std::make_tuple(std::move(result_majors),
+                         std::move(result_minors),
+                         std::move(result_properties),
+                         std::move(result_labels),
+                         std::move(visited_minors),
+                         std::move(visited_minor_labels));
+}
+
+}  // namespace detail
+}  // namespace cugraph

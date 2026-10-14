@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 set -euo pipefail
@@ -26,5 +26,10 @@ ctest --output-on-failure --no-tests=error "$@"
 if [ -d "${INSTALL_PREFIX:-${CONDA_PREFIX:-/usr}}/bin/gtests/libcugraph_c/" ]; then
   # Support customizing the ctests' install location
   cd "${INSTALL_PREFIX:-${CONDA_PREFIX:-/usr}}/bin/gtests/libcugraph_c/"
+  ctest --output-on-failure --no-tests=error "$@"
+fi
+
+if [ -d "${INSTALL_PREFIX:-${CONDA_PREFIX:-/usr}}/bin/gtests/libcugraph_etl/" ]; then
+  cd "${INSTALL_PREFIX:-${CONDA_PREFIX:-/usr}}/bin/gtests/libcugraph_etl/"
   ctest --output-on-failure --no-tests=error "$@"
 fi

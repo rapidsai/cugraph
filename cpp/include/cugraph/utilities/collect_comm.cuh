@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -12,7 +12,8 @@
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -23,6 +24,7 @@
 
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/adjacent_difference.h>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -50,7 +52,7 @@ void find_values_for_collect_keys(
   ValueIterator collect_value_first,
   typename KVStoreViewType::key_type invalid_key,
   typename KVStoreViewType::value_type invalid_value,
-  rmm::cuda_stream_view stream_view)
+  cuda::stream_ref stream_view)
 {
   using key_t   = typename KVStoreViewType::key_type;
   using value_t = typename KVStoreViewType::value_type;
@@ -108,7 +110,7 @@ collect_values_for_unique_keys(
   KVStoreViewType kv_store_view,
   rmm::device_uvector<typename KVStoreViewType::key_type>&& collect_unique_keys,
   KeyToCommRankOp key_to_comm_rank_op,
-  rmm::cuda_stream_view stream_view)
+  cuda::stream_ref stream_view)
 {
   using key_t   = typename KVStoreViewType::key_type;
   using value_t = typename KVStoreViewType::value_type;
@@ -146,7 +148,7 @@ dataframe_buffer_type_t<typename KVStoreViewType::value_type> collect_values_for
   KeyIterator collect_key_first,
   KeyIterator collect_key_last,
   KeyToCommRankOp key_to_comm_rank_op,
-  rmm::cuda_stream_view stream_view)
+  cuda::stream_ref stream_view)
 {
   using key_t = typename KVStoreViewType::key_type;
   static_assert(std::is_same_v<typename thrust::iterator_traits<KeyIterator>::value_type, key_t>);
@@ -160,13 +162,13 @@ dataframe_buffer_type_t<typename KVStoreViewType::value_type> collect_values_for
                collect_key_first,
                collect_key_last,
                get_dataframe_buffer_begin(unique_keys));
-  cugraph::sort_wrapper(rmm::exec_policy_nosync(stream_view),
-                        get_dataframe_buffer_begin(unique_keys),
-                        get_dataframe_buffer_end(unique_keys));
+  cugraph::sort(rmm::exec_policy_nosync(stream_view),
+                get_dataframe_buffer_begin(unique_keys),
+                get_dataframe_buffer_end(unique_keys));
   unique_keys.resize(cuda::std::distance(get_dataframe_buffer_begin(unique_keys),
-                                         thrust::unique(rmm::exec_policy(stream_view),
-                                                        get_dataframe_buffer_begin(unique_keys),
-                                                        get_dataframe_buffer_end(unique_keys))),
+                                         cugraph::unique(rmm::exec_policy(stream_view),
+                                                         get_dataframe_buffer_begin(unique_keys),
+                                                         get_dataframe_buffer_end(unique_keys))),
                      stream_view);
 
   auto values_for_unique_keys = allocate_dataframe_buffer<value_t>(0, stream_view);
@@ -246,14 +248,14 @@ collect_values_for_unique_keys(
                  get_dataframe_buffer_begin(rx_keys),
                  get_dataframe_buffer_end(rx_keys),
                  get_dataframe_buffer_begin(rx_unique_keys));
-    cugraph::sort_wrapper(handle.get_thrust_policy(),
-                          get_dataframe_buffer_begin(rx_unique_keys),
-                          get_dataframe_buffer_end(rx_unique_keys));
+    cugraph::sort(handle.get_thrust_policy(),
+                  get_dataframe_buffer_begin(rx_unique_keys),
+                  get_dataframe_buffer_end(rx_unique_keys));
     rx_unique_keys.resize(
       cuda::std::distance(get_dataframe_buffer_begin(rx_unique_keys),
-                          thrust::unique(handle.get_thrust_policy(),
-                                         get_dataframe_buffer_begin(rx_unique_keys),
-                                         get_dataframe_buffer_end(rx_unique_keys))),
+                          cugraph::unique(handle.get_thrust_policy(),
+                                          get_dataframe_buffer_begin(rx_unique_keys),
+                                          get_dataframe_buffer_end(rx_unique_keys))),
       handle.get_stream());
 
     auto values_for_rx_unique_keys = detail::collect_values_for_keys(
@@ -324,11 +326,11 @@ dataframe_buffer_type_t<typename KVStoreViewType::value_type> collect_values_for
                                          handle.get_stream());
   thrust::copy(
     handle.get_thrust_policy(), collect_key_first, collect_key_last, unique_keys.begin());
-  cugraph::sort_wrapper(handle.get_thrust_policy(), unique_keys.begin(), unique_keys.end());
+  cugraph::sort(handle.get_thrust_policy(), unique_keys.begin(), unique_keys.end());
   unique_keys.resize(
     cuda::std::distance(
       unique_keys.begin(),
-      thrust::unique(handle.get_thrust_policy(), unique_keys.begin(), unique_keys.end())),
+      cugraph::unique(handle.get_thrust_policy(), unique_keys.begin(), unique_keys.end())),
     handle.get_stream());
 
   auto values_for_unique_keys = allocate_dataframe_buffer<value_t>(0, handle.get_stream());
@@ -570,12 +572,12 @@ collect_values_for_int_vertices(
                collect_vertex_first,
                collect_vertex_last,
                sorted_unique_int_vertices.begin());
-  cugraph::sort_wrapper(handle.get_thrust_policy(),
-                        sorted_unique_int_vertices.begin(),
-                        sorted_unique_int_vertices.end());
-  auto last = thrust::unique(handle.get_thrust_policy(),
-                             sorted_unique_int_vertices.begin(),
-                             sorted_unique_int_vertices.end());
+  cugraph::sort(handle.get_thrust_policy(),
+                sorted_unique_int_vertices.begin(),
+                sorted_unique_int_vertices.end());
+  auto last = cugraph::unique(handle.get_thrust_policy(),
+                              sorted_unique_int_vertices.begin(),
+                              sorted_unique_int_vertices.end());
   sorted_unique_int_vertices.resize(cuda::std::distance(sorted_unique_int_vertices.begin(), last),
                                     handle.get_stream());
 

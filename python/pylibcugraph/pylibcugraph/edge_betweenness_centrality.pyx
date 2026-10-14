@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -172,7 +172,7 @@ def edge_betweenness_centrality(ResourceHandle resource_handle,
     cdef cugraph_type_erased_device_array_view_t* values_ptr = \
         cugraph_edge_centrality_result_get_values(result_ptr)
 
-    if graph.edge_id_view_ptr is NULL and graph.edge_id_view_ptr_ptr is NULL:
+    if not graph.has_edge_ids():
         cupy_edge_ids = None
     else:
         edge_ids_ptr = cugraph_edge_centrality_result_get_edge_ids(result_ptr)

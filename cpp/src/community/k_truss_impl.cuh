@@ -16,7 +16,8 @@
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/util/integer_utils.hpp>
 
@@ -327,7 +328,7 @@ k_truss(raft::handle_t const& handle,
       auto weak_edgelist_last =
         thrust::make_zip_iterator(weak_edgelist_srcs.end(), weak_edgelist_dsts.end());
 
-      cugraph::sort_wrapper(handle.get_thrust_policy(), weak_edgelist_first, weak_edgelist_last);
+      cugraph::sort(handle.get_thrust_policy(), weak_edgelist_first, weak_edgelist_last);
 
       // Perform nbr_intersection of the weak edges from the undirected
       // graph view
@@ -358,13 +359,13 @@ k_truss(raft::handle_t const& handle,
           raft::device_span<vertex_t const>(weak_edgelist_srcs.data(), weak_edgelist_srcs.size()),
           raft::device_span<vertex_t const>(weak_edgelist_dsts.data(), weak_edgelist_dsts.size())});
 
-      cugraph::sort_wrapper(handle.get_thrust_policy(),
-                            get_dataframe_buffer_begin(triangles_endpoints),
-                            get_dataframe_buffer_end(triangles_endpoints));
+      cugraph::sort(handle.get_thrust_policy(),
+                    get_dataframe_buffer_begin(triangles_endpoints),
+                    get_dataframe_buffer_end(triangles_endpoints));
 
-      auto unique_triangle_end = thrust::unique(handle.get_thrust_policy(),
-                                                get_dataframe_buffer_begin(triangles_endpoints),
-                                                get_dataframe_buffer_end(triangles_endpoints));
+      auto unique_triangle_end = cugraph::unique(handle.get_thrust_policy(),
+                                                 get_dataframe_buffer_begin(triangles_endpoints),
+                                                 get_dataframe_buffer_end(triangles_endpoints));
 
       auto num_unique_triangles =
         cuda::std::distance(  // Triangles are represented by their endpoints
@@ -398,13 +399,13 @@ k_truss(raft::handle_t const& handle,
             std::move(std::get<rmm::device_uvector<vertex_t>>(edge_properties[0]));
         }
 
-        cugraph::sort_wrapper(handle.get_thrust_policy(),
-                              get_dataframe_buffer_begin(triangles_endpoints),
-                              get_dataframe_buffer_end(triangles_endpoints));
+        cugraph::sort(handle.get_thrust_policy(),
+                      get_dataframe_buffer_begin(triangles_endpoints),
+                      get_dataframe_buffer_end(triangles_endpoints));
 
-        unique_triangle_end = thrust::unique(handle.get_thrust_policy(),
-                                             get_dataframe_buffer_begin(triangles_endpoints),
-                                             get_dataframe_buffer_end(triangles_endpoints));
+        unique_triangle_end = cugraph::unique(handle.get_thrust_policy(),
+                                              get_dataframe_buffer_begin(triangles_endpoints),
+                                              get_dataframe_buffer_end(triangles_endpoints));
 
         num_unique_triangles =
           cuda::std::distance(get_dataframe_buffer_begin(triangles_endpoints), unique_triangle_end);
@@ -463,9 +464,9 @@ k_truss(raft::handle_t const& handle,
                                                   cur_graph_view.vertex_partition_range_lasts());
       }
 
-      cugraph::sort_wrapper(handle.get_thrust_policy(),
-                            get_dataframe_buffer_begin(edgelist_to_update_count),
-                            get_dataframe_buffer_end(edgelist_to_update_count));
+      cugraph::sort(handle.get_thrust_policy(),
+                    get_dataframe_buffer_begin(edgelist_to_update_count),
+                    get_dataframe_buffer_end(edgelist_to_update_count));
 
       auto unique_pair_count =
         thrust::unique_count(handle.get_thrust_policy(),
@@ -591,7 +592,7 @@ k_truss(raft::handle_t const& handle,
 
       edgelist_weak.clear();
 
-      cugraph::sort_wrapper(
+      cugraph::sort(
         handle.get_thrust_policy(),
         thrust::make_zip_iterator(weak_edgelist_srcs.begin(), weak_edgelist_dsts.begin()),
         thrust::make_zip_iterator(weak_edgelist_srcs.end(), weak_edgelist_dsts.end()));
@@ -637,7 +638,7 @@ k_truss(raft::handle_t const& handle,
                             cur_graph_view.vertex_partition_range_lasts());
       }
 
-      cugraph::sort_wrapper(
+      cugraph::sort(
         handle.get_thrust_policy(),
         thrust::make_zip_iterator(weak_edgelist_dsts.begin(), weak_edgelist_srcs.begin()),
         thrust::make_zip_iterator(weak_edgelist_dsts.end(), weak_edgelist_srcs.end()));

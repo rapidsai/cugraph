@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -15,8 +15,8 @@
 #ifdef TIMING
 #include <cugraph/utilities/high_res_timer.hpp>
 #endif
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
 
-#include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_vector.hpp>
 #include <rmm/exec_policy.hpp>
 
@@ -82,7 +82,7 @@ extract(raft::handle_t const& handle,
   std::vector<rmm::device_uvector<vertex_t>> reached{};
   reached.reserve(num_sources);
 
-  user_stream_view.synchronize();
+  user_stream_view.sync();
 #ifdef TIMING
   HighResTimer hr_timer;
   hr_timer.start("ego_neighbors");
@@ -106,10 +106,10 @@ extract(raft::handle_t const& handle,
     // BFS with cutoff
     // consider adding a device API to BFS (ie. accept source on the device)
     bool direction_optimizing = false;
-    thrust::fill(rmm::exec_policy(worker_stream_view),
-                 reached[i].begin(),
-                 reached[i].end(),
-                 std::numeric_limits<vertex_t>::max());
+    cugraph::fill(rmm::exec_policy(worker_stream_view),
+                  reached[i].begin(),
+                  reached[i].end(),
+                  std::numeric_limits<vertex_t>::max());
 
     raft::device_span<vertex_t const> source{source_vertex.data() + i, 1};
 
@@ -164,9 +164,9 @@ extract(raft::handle_t const& handle,
     h_neighbors_offsets[i + 1] = h_neighbors_offsets[i] + reached[i].size();
   }
   raft::update_device(
-    neighbors_offsets.data(), &h_neighbors_offsets[0], num_sources + 1, user_stream_view.value());
-  neighbors.resize(h_neighbors_offsets[num_sources], user_stream_view.value());
-  user_stream_view.synchronize();
+    neighbors_offsets.data(), &h_neighbors_offsets[0], num_sources + 1, user_stream_view.get());
+  neighbors.resize(h_neighbors_offsets[num_sources], user_stream_view.get());
+  user_stream_view.sync();
 
   // Construct the neighbors list concurrently
   for (size_t i = 0; i < num_sources; i++) {

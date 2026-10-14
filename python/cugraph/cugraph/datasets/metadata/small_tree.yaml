@@ -22,3 +22,4 @@ is_symmetric: false
 number_of_edges: 11
 number_of_nodes: 9
 url: https://data.rapids.ai/cugraph/datasets/small_tree.csv
+sha256: ce9b8d4a2704e2fd257e8941c49559949f1ce688296d6e636885e889a783647b

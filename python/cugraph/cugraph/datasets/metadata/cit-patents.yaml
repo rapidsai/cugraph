@@ -20,3 +20,4 @@ is_symmetric: false
 number_of_edges: 16518948
 number_of_nodes: 3774768
 url: https://data.rapids.ai/cugraph/datasets/cit-Patents.csv
+sha256: 5629c48d39d4042534069d13d2bfb57e3080aa0b9ca4531fd43a697aebba04a9

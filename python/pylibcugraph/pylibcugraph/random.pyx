@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -27,6 +27,19 @@ import os
 import socket
 
 def generate_default_seed():
+    """
+    Generate a default random seed value.
+
+    Parameters
+    ----------
+    None
+        This function does not accept input arguments.
+
+    Returns
+    -------
+    object
+            Output value: h.
+    """
     h = hash(
             (
                 socket.gethostname(),

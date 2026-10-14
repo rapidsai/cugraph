@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -197,8 +197,30 @@ typedef enum {
   STRICTLY_DECREASING,      /** Time strictly decreasing (each time is before the previous one) */
   MONOTONICALLY_DECREASING, /** Time monotonically decreasing (could have multiple edges with same
                                 time) */
-  LAST                      /** Support last n behavior */
+  LAST                      /** Deprecated Value, we moved last-n to a different parameter */
 } cugraph_temporal_sampling_comparison_t;
+
+/**
+ * @brief Selects neighbors from the set that satisfies the sampling filters.
+ */
+typedef enum {
+  CUGRAPH_NEIGHBOR_SELECTION_RANDOM = 0, /** Uniform without biases, biased with biases */
+  CUGRAPH_NEIGHBOR_SELECTION_LAST        /** Deterministically select the last-n eligible
+                                            edges (temporal only). Matches PyG
+                                            temporal_strategy='last': rank by edge start
+                                            time along the walk in
+                                            temporal_sampling_comparison — later times for
+                                            increasing modes, earlier times (last in
+                                            decreasing order) for decreasing modes. No edge
+                                            biases and no with-replacement. int32 start times
+                                            rank exactly over the full signed range; int64
+                                            ranks exactly on [-2^52, 2^52 - 1]. Beyond that,
+                                            int64 ordering is preserved but values may tie,
+                                            so fanout edges are still returned yet the chosen
+                                            set may be wrong when more than fanout K eligible
+                                            edges on one source share the same rank. Equal
+                                            timestamps always tie. */
+} cugraph_neighbor_selection_t;
 
 /**
  * @brief Selects the type of compression to use for the output samples.
@@ -310,13 +332,49 @@ CUGRAPH_EXPORT void cugraph_sampling_set_dedupe_sources(cugraph_sampling_options
 
 /**
  * @ingroup samplingC
- * @brief Set temporal sampling to use associated comparision.
+ * @brief Set temporal sampling comparison (increasing vs decreasing).
+ *
+ * Enables temporal sampling. Direction (strict vs monotonic, increasing vs decreasing)
+ * is independent of cugraph_sampling_set_fixed_window.
  *
  * @param options - opaque pointer to the sampling options
  * @param comparison - Comparison value to assign to the option
  */
 CUGRAPH_EXPORT void cugraph_sampling_set_temporal_sampling_comparison(
   cugraph_sampling_options_t* options, cugraph_temporal_sampling_comparison_t comparison);
+
+/**
+ * @ingroup samplingC
+ * @brief Clear temporal sampling comparison, disabling temporal sampling.
+ *
+ * @param options - opaque pointer to the sampling options
+ */
+CUGRAPH_EXPORT void cugraph_sampling_clear_temporal_sampling_comparison(
+  cugraph_sampling_options_t* options);
+
+/**
+ * @ingroup samplingC
+ * @brief Set neighbor selection mode.
+ *
+ * @param options - opaque pointer to the sampling options
+ * @param selection - RANDOM or LAST
+ */
+CUGRAPH_EXPORT void cugraph_sampling_set_neighbor_selection(cugraph_sampling_options_t* options,
+                                                            cugraph_neighbor_selection_t selection);
+
+/**
+ * @ingroup samplingC
+ * @brief Keep each seed's original time window at every hop (temporal only).
+ *
+ * When TRUE, sampled edge times are not used as the next hop's frontier bound.
+ * Orthogonal to cugraph_sampling_set_temporal_sampling_comparison (increasing vs
+ * decreasing). Default is FALSE.
+ *
+ * @param options - opaque pointer to the sampling options
+ * @param value - Boolean value to assign to the option
+ */
+CUGRAPH_EXPORT void cugraph_sampling_set_fixed_window(cugraph_sampling_options_t* options,
+                                                      bool_t value);
 
 /**
  * @ingroup samplingC
@@ -332,6 +390,19 @@ CUGRAPH_EXPORT void cugraph_sampling_set_disjoint_sampling(cugraph_sampling_opti
 
 /**
  * @ingroup samplingC
+ * @brief When TRUE and edge_biases is NULL, biased sampling uses graph edge weights as biases.
+ *
+ * When FALSE (default), a NULL edge_biases argument means uniform RANDOM selection.
+ * Ignored when a non-NULL edge_biases view is provided to cugraph_neighbor_sample.
+ *
+ * @param options - opaque pointer to the sampling options
+ * @param value - Boolean value to assign to the option
+ */
+CUGRAPH_EXPORT void cugraph_sampling_set_use_edge_weights_as_biases(
+  cugraph_sampling_options_t* options, bool_t value);
+
+/**
+ * @ingroup samplingC
  * @brief     Free sampling options object
  *
  * @param [in]   options   Opaque pointer to sampling object
@@ -339,6 +410,77 @@ CUGRAPH_EXPORT void cugraph_sampling_set_disjoint_sampling(cugraph_sampling_opti
 CUGRAPH_EXPORT void cugraph_sampling_options_free(cugraph_sampling_options_t* options);
 
 /**
+ * @brief Unified homogeneous/heterogeneous and temporal/non-temporal neighborhood sampling.
+ *
+ * RANDOM selection samples according to @p edge_biases when provided. If @p edge_biases is NULL,
+ * sampling is uniform unless cugraph_sampling_set_use_edge_weights_as_biases has been set, in which
+ * case graph edge weights are used as biases (the graph must be weighted). LAST (PyG
+ * temporal_strategy='last') selects the last-n temporally eligible edges
+ * along the walk order: later times for increasing comparisons, earlier times (last in
+ * decreasing order) for decreasing comparisons. An edge start time equal to
+ * numeric_limits<time_stamp_t>::lowest() is ranked by a uniform key in [1, 2) instead, so an edge
+ * type stored entirely as that sentinel is a uniform sample of its fanout. An edge type must
+ * not mix that sentinel with real timestamps. When do_expensive_check is true, heterogeneous
+ * LAST sampling rejects a type that does. LAST requires
+ * temporal sampling, ignores edge biases, and rejects with-replacement. int32 start times
+ * rank exactly over the full signed range; int64 ranks exactly on [-2^52, 2^52 - 1] (typical unix
+ * seconds/milliseconds/microseconds). Beyond that, int64 ordering is preserved but values
+ * may tie, so fanout edges are still returned yet the chosen set may be wrong when more
+ * than fanout K eligible edges on one source share the same rank. Equal timestamps always
+ * tie.
+ *
+ * Sampling is non-temporal unless cugraph_sampling_set_temporal_sampling_comparison has been
+ * called on @p sampling_options; all temporal arguments must then be NULL. When temporal, an edge
+ * start time equal to numeric_limits<time_stamp_t>::lowest() means the
+ * edge has no time: it passes the temporal filter, and unless fixed_window is set the next
+ * frontier bound stays at the source's current bound instead of adopting that sentinel.
+ * cugraph_sampling_set_fixed_window(TRUE) reapplies each seed's original window at every hop
+ * instead of propagating sampled edge times; it is orthogonal to increasing vs decreasing.
+ * Sampling is homogeneous when @p num_edge_types is 1; otherwise @p fan_out contains one value per
+ * (hop, edge type). When @p vertex_type_offsets is NULL, all vertices are treated as a single
+ * vertex type.
+ *
+ * @param [in] handle Handle for accessing resources.
+ * @param [in,out] rng_state State of the random number generator, updated for RANDOM selection.
+ * @param [in] graph Graph to sample. It may be transposed internally.
+ * @param [in] edge_biases Optional edge biases. NULL means uniform RANDOM selection unless
+ * cugraph_sampling_set_use_edge_weights_as_biases is TRUE.
+ * @param [in] start_vertices Device array of starting vertices.
+ * @param [in] starting_vertex_start_times Optional per-seed lower time-window bounds.
+ * @param [in] starting_vertex_end_times Optional per-seed upper time-window bounds.
+ * @param [in] starting_vertex_label_offsets Optional offsets defining labels in the seed list.
+ * @param [in] vertex_type_offsets Optional vertex-type offsets, required for heterogeneous output
+ * processing.
+ * @param [in] fan_out Host array defining fanout per hop (and per edge type when heterogeneous).
+ * @param [in] num_edge_types Number of edge types. Use 1 for homogeneous sampling.
+ * @param [in] sampling_options Sampling options. Temporal sampling is enabled by
+ * cugraph_sampling_set_temporal_sampling_comparison; neighbor selection defaults to RANDOM and may
+ * be set with cugraph_sampling_set_neighbor_selection; fixed_window defaults to FALSE and may be
+ * set with cugraph_sampling_set_fixed_window.
+ * @param [in] do_expensive_check Whether to perform expensive input validation.
+ * @param [out] result Sampling result.
+ * @param [out] error Error details on failure.
+ * @return Error code.
+ */
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_neighbor_sample(
+  const cugraph_resource_handle_t* handle,
+  cugraph_rng_state_t* rng_state,
+  cugraph_graph_t* graph,
+  const cugraph_edge_property_view_t* edge_biases,
+  const cugraph_type_erased_device_array_view_t* start_vertices,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_start_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_end_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
+  const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
+  const cugraph_type_erased_host_array_view_t* fan_out,
+  int num_edge_types,
+  const cugraph_sampling_options_t* sampling_options,
+  bool_t do_expensive_check,
+  cugraph_sample_result_t** result,
+  cugraph_error_t** error);
+
+/**
+ * @deprecated Use cugraph_neighbor_sample instead.
  * @brief     Homogeneous Uniform Neighborhood Sampling
  *
  * Returns a sample of the neighborhood around specified start vertices and fan_out.
@@ -381,6 +523,7 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
   cugraph_error_t** error);
 
 /**
+ * @deprecated Use cugraph_neighbor_sample instead.
  * @brief     Homogeneous Biased Neighborhood Sampling
  *
  * Returns a sample of the neighborhood around specified start vertices and fan_out.
@@ -426,6 +569,7 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
   cugraph_error_t** error);
 
 /**
+ * @deprecated Use cugraph_neighbor_sample instead.
  * @brief     Heterogeneous Uniform Neighborhood Sampling
  *
  * Returns a sample of the neighborhood around specified start vertices and fan_out.
@@ -474,6 +618,7 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sampl
   cugraph_error_t** error);
 
 /**
+ * @deprecated Use cugraph_neighbor_sample instead.
  * @brief     Heterogeneous Biased Neighborhood Sampling
  *
  * Returns a sample of the neighborhood around specified start vertices and fan_out.
@@ -525,14 +670,22 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample
   cugraph_error_t** error);
 
 /**
+ * @deprecated Use cugraph_neighbor_sample instead.
  * @brief     Homogeneous Uniform Temporal Neighborhood Sampling
  *
  * Returns a sample of the neighborhood around specified start vertices and fan_out.
  * The neighborhood is sampled uniformly.
  *
- * Temporal sampling considers the time associated with the edges.  For example, if we start at
- * vertex v1 and sample an edge that takes us to vertex v2 at time t1, when we sample in the next
- * hop from vertex v2, we want to consider only edges that occur after time t1.
+ * Temporal sampling considers the time associated with the edges. For increasing walks, if we
+ * start at vertex v1 and sample an edge that takes us to vertex v2 at time t1, when we sample in
+ * the next hop from vertex v2 we consider only edges that occur after time t1; for decreasing
+ * walks the restriction is to edges that occur before time t1.
+ *
+ * Each seed may also supply an optional closed time window via @p starting_vertex_start_times and
+ * @p starting_vertex_end_times. Eligible edge times must lie in that window for the entire walk.
+ * The window bounds additionally determine the hop-0 frontier: increasing walks begin at the
+ * start bound (or -inf if omitted), while decreasing walks begin at the end bound (or +inf if
+ * omitted). See the parameter docs below for details.
  *
  * Optionally, each start vertex can be associated with a label, allowing the caller to specify
  * multiple batches of sampling requests in the same function call - which should improve GPU
@@ -548,8 +701,25 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample
  * @param [in]  temporal_property_name Name associated with the edge property in the graph that
  * should be used as the time.  Currently unused.
  * @param [in]  start_vertices Device array of start vertices for the sampling
- * @param [in]  starting_vertex_times Optional device span of times associated with each starting
- * vertex for the sampling.
+ * @param [in]  starting_vertex_start_times Optional device array of per-seed lower bounds of the
+ * time window. Edge times must be >= this value when present. Either or both of
+ * @p starting_vertex_start_times and @p starting_vertex_end_times may be NULL (unbounded on that
+ * side). When both are provided, each start time must be <= the corresponding end time.
+ *
+ * For increasing walks (STRICTLY_INCREASING / MONOTONICALLY_INCREASING), the hop-0 frontier
+ * originates at this time (or is unbounded below if NULL), so this array is both the window's
+ * lower bound and the initial frontier time.
+ *
+ * For decreasing walks (STRICTLY_DECREASING / MONOTONICALLY_DECREASING), the hop-0 frontier
+ * originates at @p starting_vertex_end_times instead (or is unbounded above if that is NULL), and
+ * this array remains only the window's lower bound (a floor on eligible edge times). Providing
+ * only @p starting_vertex_start_times on a decreasing walk therefore yields a window [start, +inf)
+ * whose frontier begins at +inf.
+ * @param [in]  starting_vertex_end_times Optional device array of per-seed upper bounds of the
+ * time window. Edge times must be <= this value when present. See @p starting_vertex_start_times
+ * for optionality and the increasing/decreasing role reversal: for decreasing walks this array is
+ * both the window's upper bound and the hop-0 frontier time; for increasing walks it is only the
+ * upper bound (a ceiling).
  * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
  * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
@@ -569,7 +739,8 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbo
   cugraph_graph_t* graph,
   const char* temporal_property_name,
   const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* starting_vertex_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_start_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_end_times,
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* sampling_options,
@@ -578,14 +749,22 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbo
   cugraph_error_t** error);
 
 /**
+ * @deprecated Use cugraph_neighbor_sample instead.
  * @brief     Homogeneous Biased Temporal Neighborhood Sampling
  *
  * Returns a sample of the neighborhood around specified start vertices and fan_out.
  * The neighborhood is sampled uniformly.
  *
- * Temporal sampling considers the time associated with the edges.  For example, if we start at
- * vertex v1 and sample an edge that takes us to vertex v2 at time t1, when we sample in the next
- * hop from vertex v2, we want to consider only edges that occur after time t1.
+ * Temporal sampling considers the time associated with the edges. For increasing walks, if we
+ * start at vertex v1 and sample an edge that takes us to vertex v2 at time t1, when we sample in
+ * the next hop from vertex v2 we consider only edges that occur after time t1; for decreasing
+ * walks the restriction is to edges that occur before time t1.
+ *
+ * Each seed may also supply an optional closed time window via @p starting_vertex_start_times and
+ * @p starting_vertex_end_times. Eligible edge times must lie in that window for the entire walk.
+ * The window bounds additionally determine the hop-0 frontier: increasing walks begin at the
+ * start bound (or -inf if omitted), while decreasing walks begin at the end bound (or +inf if
+ * omitted). See the parameter docs below for details.
  *
  * Optionally, each start vertex can be associated with a label, allowing the caller to specify
  * multiple batches of sampling requests in the same function call - which should improve GPU
@@ -603,8 +782,25 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbo
  * @param [in]  edge_biases  Device array of edge biases to use for sampling.  If NULL
  * use the edge weight as the bias. If set to NULL, edges will be sampled uniformly.
  * @param [in]  start_vertices Device array of start vertices for the sampling
- * @param [in]  starting_vertex_times Optional device span of times associated with each starting
- * vertex for the sampling.
+ * @param [in]  starting_vertex_start_times Optional device array of per-seed lower bounds of the
+ * time window. Edge times must be >= this value when present. Either or both of
+ * @p starting_vertex_start_times and @p starting_vertex_end_times may be NULL (unbounded on that
+ * side). When both are provided, each start time must be <= the corresponding end time.
+ *
+ * For increasing walks (STRICTLY_INCREASING / MONOTONICALLY_INCREASING), the hop-0 frontier
+ * originates at this time (or is unbounded below if NULL), so this array is both the window's
+ * lower bound and the initial frontier time.
+ *
+ * For decreasing walks (STRICTLY_DECREASING / MONOTONICALLY_DECREASING), the hop-0 frontier
+ * originates at @p starting_vertex_end_times instead (or is unbounded above if that is NULL), and
+ * this array remains only the window's lower bound (a floor on eligible edge times). Providing
+ * only @p starting_vertex_start_times on a decreasing walk therefore yields a window [start, +inf)
+ * whose frontier begins at +inf.
+ * @param [in]  starting_vertex_end_times Optional device array of per-seed upper bounds of the
+ * time window. Edge times must be <= this value when present. See @p starting_vertex_start_times
+ * for optionality and the increasing/decreasing role reversal: for decreasing walks this array is
+ * both the window's upper bound and the hop-0 frontier time; for increasing walks it is only the
+ * upper bound (a ceiling).
  * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
  * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
@@ -625,7 +821,8 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor
   const char* temporal_property_name,
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* starting_vertex_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_start_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_end_times,
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* sampling_options,
@@ -634,14 +831,22 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor
   cugraph_error_t** error);
 
 /**
+ * @deprecated Use cugraph_neighbor_sample instead.
  * @brief     Heterogeneous Uniform Temporal Neighborhood Sampling
  *
  * Returns a sample of the neighborhood around specified start vertices and fan_out.
  * The neighborhood is sampled uniformly.
  *
- * Temporal sampling considers the time associated with the edges.  For example, if we start at
- * vertex v1 and sample an edge that takes us to vertex v2 at time t1, when we sample in the next
- * hop from vertex v2, we want to consider only edges that occur after time t1.
+ * Temporal sampling considers the time associated with the edges. For increasing walks, if we
+ * start at vertex v1 and sample an edge that takes us to vertex v2 at time t1, when we sample in
+ * the next hop from vertex v2 we consider only edges that occur after time t1; for decreasing
+ * walks the restriction is to edges that occur before time t1.
+ *
+ * Each seed may also supply an optional closed time window via @p starting_vertex_start_times and
+ * @p starting_vertex_end_times. Eligible edge times must lie in that window for the entire walk.
+ * The window bounds additionally determine the hop-0 frontier: increasing walks begin at the
+ * start bound (or -inf if omitted), while decreasing walks begin at the end bound (or +inf if
+ * omitted). See the parameter docs below for details.
  *
  * Optionally, each start vertex can be associated with a label, allowing the caller to specify
  * multiple batches of sampling requests in the same function call - which should improve GPU
@@ -657,8 +862,25 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor
  * @param [in]  temporal_property_name Name associated with the edge property in the graph that
  * should be used as the time.  Currently unused.
  * @param [in]  start_vertices Device array of start vertices for the sampling
- * @param [in]  starting_vertex_times Optional device span of times associated with each starting
- * vertex for the sampling.
+ * @param [in]  starting_vertex_start_times Optional device array of per-seed lower bounds of the
+ * time window. Edge times must be >= this value when present. Either or both of
+ * @p starting_vertex_start_times and @p starting_vertex_end_times may be NULL (unbounded on that
+ * side). When both are provided, each start time must be <= the corresponding end time.
+ *
+ * For increasing walks (STRICTLY_INCREASING / MONOTONICALLY_INCREASING), the hop-0 frontier
+ * originates at this time (or is unbounded below if NULL), so this array is both the window's
+ * lower bound and the initial frontier time.
+ *
+ * For decreasing walks (STRICTLY_DECREASING / MONOTONICALLY_DECREASING), the hop-0 frontier
+ * originates at @p starting_vertex_end_times instead (or is unbounded above if that is NULL), and
+ * this array remains only the window's lower bound (a floor on eligible edge times). Providing
+ * only @p starting_vertex_start_times on a decreasing walk therefore yields a window [start, +inf)
+ * whose frontier begins at +inf.
+ * @param [in]  starting_vertex_end_times Optional device array of per-seed upper bounds of the
+ * time window. Edge times must be <= this value when present. See @p starting_vertex_start_times
+ * for optionality and the increasing/decreasing role reversal: for decreasing walks this array is
+ * both the window's upper bound and the hop-0 frontier time; for increasing walks it is only the
+ * upper bound (a ceiling).
  * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
  * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  vertex_type_offsets Device array of the offsets for each vertex type in the
@@ -682,7 +904,8 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neigh
   cugraph_graph_t* graph,
   const char* temporal_property_name,
   const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* starting_vertex_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_start_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_end_times,
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
@@ -693,14 +916,22 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neigh
   cugraph_error_t** error);
 
 /**
+ * @deprecated Use cugraph_neighbor_sample instead.
  * @brief     Heterogeneous Biased Temporal Neighborhood Sampling
  *
  * Returns a sample of the neighborhood around specified start vertices and fan_out.
  * The neighborhood is sampled uniformly.
  *
- * Temporal sampling considers the time associated with the edges.  For example, if we start at
- * vertex v1 and sample an edge that takes us to vertex v2 at time t1, when we sample in the next
- * hop from vertex v2, we want to consider only edges that occur after time t1.
+ * Temporal sampling considers the time associated with the edges. For increasing walks, if we
+ * start at vertex v1 and sample an edge that takes us to vertex v2 at time t1, when we sample in
+ * the next hop from vertex v2 we consider only edges that occur after time t1; for decreasing
+ * walks the restriction is to edges that occur before time t1.
+ *
+ * Each seed may also supply an optional closed time window via @p starting_vertex_start_times and
+ * @p starting_vertex_end_times. Eligible edge times must lie in that window for the entire walk.
+ * The window bounds additionally determine the hop-0 frontier: increasing walks begin at the
+ * start bound (or -inf if omitted), while decreasing walks begin at the end bound (or +inf if
+ * omitted). See the parameter docs below for details.
  *
  * Optionally, each start vertex can be associated with a label, allowing the caller to specify
  * multiple batches of sampling requests in the same function call - which should improve GPU
@@ -718,8 +949,25 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neigh
  * @param [in]  edge_biases  Device array of edge biases to use for sampling.  If NULL
  * use the edge weight as the bias. If set to NULL, edges will be sampled uniformly.
  * @param [in]  start_vertices Device array of start vertices for the sampling
- * @param [in]  starting_vertex_times Optional device span of times associated with each starting
- * vertex for the sampling.
+ * @param [in]  starting_vertex_start_times Optional device array of per-seed lower bounds of the
+ * time window. Edge times must be >= this value when present. Either or both of
+ * @p starting_vertex_start_times and @p starting_vertex_end_times may be NULL (unbounded on that
+ * side). When both are provided, each start time must be <= the corresponding end time.
+ *
+ * For increasing walks (STRICTLY_INCREASING / MONOTONICALLY_INCREASING), the hop-0 frontier
+ * originates at this time (or is unbounded below if NULL), so this array is both the window's
+ * lower bound and the initial frontier time.
+ *
+ * For decreasing walks (STRICTLY_DECREASING / MONOTONICALLY_DECREASING), the hop-0 frontier
+ * originates at @p starting_vertex_end_times instead (or is unbounded above if that is NULL), and
+ * this array remains only the window's lower bound (a floor on eligible edge times). Providing
+ * only @p starting_vertex_start_times on a decreasing walk therefore yields a window [start, +inf)
+ * whose frontier begins at +inf.
+ * @param [in]  starting_vertex_end_times Optional device array of per-seed upper bounds of the
+ * time window. Edge times must be <= this value when present. See @p starting_vertex_start_times
+ * for optionality and the increasing/decreasing role reversal: for decreasing walks this array is
+ * both the window's upper bound and the hop-0 frontier time; for increasing walks it is only the
+ * upper bound (a ceiling).
  * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
  * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  vertex_type_offsets Device array of the offsets for each vertex type in the
@@ -744,7 +992,8 @@ CUGRAPH_EXPORT cugraph_error_code_t cugraph_heterogeneous_biased_temporal_neighb
   const char* temporal_property_name,
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* starting_vertex_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_start_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_end_times,
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,

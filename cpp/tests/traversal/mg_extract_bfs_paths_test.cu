@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -16,6 +16,7 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
@@ -23,9 +24,11 @@
 
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 #include <rmm/mr/cuda_memory_resource.hpp>
 
 #include <cuda/std/iterator>
+#include <thrust/remove.h>
 
 #include <gtest/gtest.h>
 
@@ -101,10 +104,10 @@ class Tests_MGExtractBFSPaths
     rmm::device_uvector<vertex_t> d_mg_predecessors(
       mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
 
+    vertex_t const source{static_cast<vertex_t>(extract_bfs_paths_usecase.source)};
     auto const d_mg_source =
-      mg_graph_view.in_local_vertex_partition_range_nocheck(extract_bfs_paths_usecase.source)
-        ? std::make_optional<rmm::device_scalar<vertex_t>>(extract_bfs_paths_usecase.source,
-                                                           handle_->get_stream())
+      mg_graph_view.in_local_vertex_partition_range_nocheck(source)
+        ? std::make_optional<rmm::device_scalar<vertex_t>>(source, handle_->get_stream())
         : std::nullopt;
 
     cugraph::bfs(*handle_,
@@ -124,8 +127,10 @@ class Tests_MGExtractBFSPaths
     {
       constexpr vertex_t invalid_vertex = cugraph::invalid_vertex_id<vertex_t>::value;
       auto local_vertex_first           = mg_graph_view.local_vertex_partition_range_first();
-      cugraph::detail::sequence_fill(
-        handle_->get_stream(), d_vertices.begin(), d_vertices.size(), local_vertex_first);
+      cugraph::sequence(rmm::exec_policy(handle_->get_stream()),
+                        d_vertices.begin(),
+                        d_vertices.begin() + d_vertices.size(),
+                        local_vertex_first);
       auto end_iter = thrust::remove_if(
         handle_->get_thrust_policy(),
         d_vertices.begin(),

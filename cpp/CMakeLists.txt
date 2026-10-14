@@ -1,6 +1,6 @@
 #=============================================================================
 # cmake-format: off
-# SPDX-FileCopyrightText: Copyright (c) 2018-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2018-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 # cmake-format: on
 #=============================================================================
@@ -18,6 +18,17 @@ include(CMakeDependentOption)
 rapids_cuda_init_architectures(CUGRAPH)
 
 project(CUGRAPH VERSION "${RAPIDS_VERSION}" LANGUAGES C CXX CUDA)
+
+# Make CMake packages shipped in installed RAPIDS wheels discoverable. This is
+# needed for direct C++ builds in pip environments, where scikit-build-core is
+# not present to add the wheels' `cmake.prefix` entry points to CMAKE_PREFIX_PATH.
+find_package(Python COMPONENTS Interpreter)
+if(Python_FOUND)
+  include(${rapids-cmake-dir}/cython-core/find_prefix_paths.cmake)
+  rapids_cython_find_prefix_paths("${Python_EXECUTABLE}" wheel_prefix_paths)
+  set_property(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS TRUE)
+  list(APPEND CMAKE_PREFIX_PATH ${wheel_prefix_paths})
+endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND
    CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.3)
@@ -156,8 +167,17 @@ set(CUGRAPH_COMMON_UTILITY_SOURCES
     src/detail/utility_wrappers_64_common.cu
     src/detail/permute_range_common_v32.cu
     src/detail/permute_range_common_v64.cu
-    src/utilities/invert_flags_common.cu
-    src/utilities/thrust_wrappers.cu
+    src/utilities/arithmetic_variant_types.cpp
+    src/utilities/mask_utils.cu
+    src/utilities/partition_scatter_map_wrappers.cu
+    src/utilities/permute_wrappers.cu
+    src/utilities/thrust_wrappers/fill.cu
+    src/utilities/thrust_wrappers/gather.cu
+    src/utilities/thrust_wrappers/scan.cu
+    src/utilities/thrust_wrappers/scatter.cu
+    src/utilities/thrust_wrappers/sequence.cu
+    src/utilities/thrust_wrappers/sort.cu
+    src/utilities/thrust_wrappers/unique.cu
 )
 
 set(CUGRAPH_COMMON_DISTRIBUTED_SOURCES
@@ -171,16 +191,32 @@ set(CUGRAPH_COMMON_DISTRIBUTED_SOURCES
 )
 
 set(CUGRAPH_COMMON_SAMPLING_SOURCES
+    src/sampling/detail/sample_outgoing_edges_common_v64_e64.cu
+    src/sampling/detail/sample_outgoing_edges_common_v32_e32.cu
+    src/sampling/detail/gather_one_hop_common_v32_e32.cu
+    src/sampling/detail/gather_one_hop_common_v64_e64.cu
+    src/sampling/detail/gather_sampled_properties_common_v32_e32.cu
+    src/sampling/detail/gather_sampled_properties_common_v64_e64.cu
+    src/sampling/detail/update_visited_utils_common_v32_e32.cu
+    src/sampling/detail/update_visited_utils_common_v64_e64.cu
+    src/sampling/detail/deduplicate_edges_by_minor_common_v32_e32.cu
+    src/sampling/detail/deduplicate_edges_by_minor_common_v64_e64.cu
     src/sampling/detail/shuffle_and_organize_output_common.cu
     src/sampling/detail/remove_visited_vertices_from_frontier_common_v32_e32.cu
     src/sampling/detail/remove_visited_vertices_from_frontier_common_v64_e64.cu
-    src/sampling/detail/temporal_partition_vertices_common_v64.cu
-    src/sampling/detail/temporal_partition_vertices_common_v32.cu
 )
 
 set(CUGRAPH_COMMON_STRUCTURE_SOURCES
     src/structure/renumber_utils_common_v64_e64.cu
     src/structure/renumber_utils_common_v32_e32.cu
+    src/structure/edge_partition_device_view_mask_degrees_common_v32_e32.cu
+    src/structure/edge_partition_device_view_mask_degrees_common_v64_e64.cu
+    # Build MG graph_view_t into libcugraph_common.so: sampling common TUs
+    # (gather_one_hop_common_* / sample_outgoing_edges_common_*) reference
+    # graph_view_t::local_edge_partition_* with multi_gpu=true. Keep those symbols
+    # defined here so SG test binaries that do not link libcugraph_mg.so can still resolve them.
+    src/structure/graph_view_mg_v64_e64.cu
+    src/structure/graph_view_mg_v32_e32.cu
 )
 
 set(CUGRAPH_COMMON_SOURCES
@@ -204,14 +240,6 @@ set(CUGRAPH_MTMG_SOURCES
 set(CUGRAPH_SG_SOURCES
     src/sampling/temporal_sampling_sg_v32_e32.cu
     src/sampling/temporal_sampling_sg_v64_e64.cu
-    src/sampling/detail/update_visited_utils_sg_v32_e32.cu
-    src/sampling/detail/update_visited_utils_sg_v64_e64.cu
-    src/sampling/detail/deduplicate_edges_by_minor_sg_v32_e32.cu
-    src/sampling/detail/deduplicate_edges_by_minor_sg_v64_e64.cu
-    src/sampling/detail/gather_sampled_properties_sg_v32_e32.cu
-    src/sampling/detail/gather_sampled_properties_sg_v64_e64.cu
-    src/sampling/detail/update_temporal_edge_mask_sg_v32_e32.cu
-    src/sampling/detail/update_temporal_edge_mask_sg_v64_e64.cu
     src/utilities/validation_checks_sg_v32_e32.cu
     src/utilities/validation_checks_sg_v64_e64.cu
     src/detail/collect_local_vertex_values_sg_v32_e32.cu
@@ -266,12 +294,8 @@ set(CUGRAPH_SG_SOURCES
     src/sampling/detail/prepare_next_frontier_sg_v32_e32.cu
     src/sampling/detail/check_edge_bias_values_sg_v64_e64.cu
     src/sampling/detail/check_edge_bias_values_sg_v32_e32.cu
-    src/sampling/detail/gather_one_hop_sg_v32_e32.cu
-    src/sampling/detail/gather_one_hop_sg_v64_e64.cu
     src/sampling/detail/sample_edges_sg_v64_e64.cu
     src/sampling/detail/sample_edges_sg_v32_e32.cu
-    src/sampling/detail/temporal_sample_edges_sg_v64_e64.cu
-    src/sampling/detail/temporal_sample_edges_sg_v32_e32.cu
     src/sampling/neighbor_sampling_sg_v32_e32.cu
     src/sampling/neighbor_sampling_sg_v64_e64.cu
     src/sampling/negative_sampling_sg_v32_e32.cu
@@ -345,6 +369,8 @@ set(CUGRAPH_SG_SOURCES
     src/components/weakly_connected_components_sg_v32_e32.cu
     src/components/strongly_connected_components_sg_v64_e64.cu
     src/components/strongly_connected_components_sg_v32_e32.cu
+    src/components/simple_cycles_sg_v64_e64.cu
+    src/components/simple_cycles_sg_v32_e32.cu
     src/components/mis_sg_v64_e64.cu
     src/components/mis_sg_v32_e32.cu
     src/components/vertex_coloring_sg_v64_e64.cu
@@ -364,14 +390,6 @@ set(CUGRAPH_SG_SOURCES
 set(CUGRAPH_MG_SOURCES
     src/sampling/temporal_sampling_mg_v32_e32.cu
     src/sampling/temporal_sampling_mg_v64_e64.cu
-    src/sampling/detail/update_visited_utils_mg_v32_e32.cu
-    src/sampling/detail/update_visited_utils_mg_v64_e64.cu
-    src/sampling/detail/deduplicate_edges_by_minor_mg_v32_e32.cu
-    src/sampling/detail/deduplicate_edges_by_minor_mg_v64_e64.cu
-    src/sampling/detail/gather_sampled_properties_mg_v32_e32.cu
-    src/sampling/detail/gather_sampled_properties_mg_v64_e64.cu
-    src/sampling/detail/update_temporal_edge_mask_mg_v32_e32.cu
-    src/sampling/detail/update_temporal_edge_mask_mg_v64_e64.cu
     src/utilities/validation_checks_mg_v32_e32.cu
     src/utilities/validation_checks_mg_v64_e64.cu
     src/utilities/shuffle_local_edge_srcs_dsts_mg_v32.cu
@@ -394,8 +412,6 @@ set(CUGRAPH_MG_SOURCES
     src/community/detail/maximal_independent_moves_mg_v32_e32.cu
     src/link_prediction/detail/similarity_mg_v32_e32.cu
     src/link_prediction/detail/similarity_mg_v64_e64.cu
-    src/structure/graph_view_mg_v64_e64.cu
-    src/structure/graph_view_mg_v32_e32.cu
     src/structure/edge_partition_device_view_mg_v64_e64.cu
     src/structure/edge_partition_device_view_mg_v32_e32.cu
     src/link_prediction/jaccard_mg_v64_e64.cu
@@ -422,12 +438,8 @@ set(CUGRAPH_MG_SOURCES
     src/sampling/detail/prepare_next_frontier_mg_v32_e32.cu
     src/sampling/detail/check_edge_bias_values_mg_v64_e64.cu
     src/sampling/detail/check_edge_bias_values_mg_v32_e32.cu
-    src/sampling/detail/gather_one_hop_mg_v32_e32.cu
-    src/sampling/detail/gather_one_hop_mg_v64_e64.cu
     src/sampling/detail/sample_edges_mg_v64_e64.cu
     src/sampling/detail/sample_edges_mg_v32_e32.cu
-    src/sampling/detail/temporal_sample_edges_mg_v64_e64.cu
-    src/sampling/detail/temporal_sample_edges_mg_v32_e32.cu
     src/sampling/neighbor_sampling_mg_v32_e32.cu
     src/sampling/neighbor_sampling_mg_v64_e64.cu
     src/sampling/negative_sampling_mg_v32_e32.cu
@@ -486,6 +498,8 @@ set(CUGRAPH_MG_SOURCES
     src/components/weakly_connected_components_mg_v32_e32.cu
     src/components/strongly_connected_components_mg_v64_e64.cu
     src/components/strongly_connected_components_mg_v32_e32.cu
+    src/components/simple_cycles_mg_v64_e64.cu
+    src/components/simple_cycles_mg_v32_e32.cu
     src/components/mis_mg_v64_e64.cu
     src/components/mis_mg_v32_e32.cu
     src/components/vertex_coloring_mg_v64_e64.cu
@@ -636,12 +650,15 @@ target_link_libraries(cugraph_mtmg PRIVATE cugraph_common)
 
 
 
+include(cmake/thirdparty/get_dlpack.cmake)
+
 ################################################################################
 # - C-API library --------------------------------------------------------------
 
 add_library(cugraph_c
         src/c_api/resource_handle.cpp
         src/c_api/array.cpp
+        src/c_api/dlpack_interop.cpp
         src/c_api/degrees.cu
         src/c_api/degrees_result.cpp
         src/c_api/error.cpp
@@ -678,11 +695,14 @@ add_library(cugraph_c
         src/c_api/lookup_src_dst.cpp
         src/c_api/louvain.cpp
         src/c_api/triangle_count.cpp
+        src/c_api/neighbor_sample.cpp
         src/c_api/neighbor_sampling.cpp
         src/c_api/sampling_result.cpp
         src/c_api/temporal_neighbor_sampling.cpp
         src/c_api/negative_sampling.cpp
         src/c_api/labeling_result.cpp
+        src/c_api/simple_cycles_result.cpp
+        src/c_api/simple_cycles.cpp
         src/c_api/weakly_connected_components.cpp
         src/c_api/strongly_connected_components.cpp
         src/c_api/allgather.cpp
@@ -739,6 +759,13 @@ target_include_directories(cugraph_c
 ################################################################################
 # - C-API link libraries -------------------------------------------------------
 target_link_libraries(cugraph_c PRIVATE cugraph::cugraph cugraph::cugraph_mg)
+
+# dlpack is a header-only dependency of the public cugraph_c/dlpack_interop.h
+# header. Expose its include directory to build-tree consumers (e.g. the C API
+# tests) only; installed consumers obtain dlpack.h from their own environment,
+# so it is intentionally not part of the install/export interface.
+target_include_directories(cugraph_c
+    PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>")
 
 ################################################################################
 # - generate tests -------------------------------------------------------------
@@ -807,7 +834,7 @@ rapids_export(BUILD cugraph
 # from build directory, run make docs_cugraph
 
 # doc targets for cugraph
-find_package(Doxygen 1.8.11)
+find_package(Doxygen 1.18.0)
 if(Doxygen_FOUND)
     add_custom_command(OUTPUT CUGRAPH_DOXYGEN
                        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doxygen

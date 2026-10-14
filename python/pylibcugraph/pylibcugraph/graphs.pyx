@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -18,6 +18,13 @@ from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_create_with_times_mg,
     cugraph_graph_create_sg_from_csr,
     cugraph_graph_free,
+    cugraph_graph_number_of_vertices,
+    cugraph_graph_number_of_edges,
+    cugraph_graph_has_edge_weights,
+    cugraph_graph_has_edge_ids,
+    cugraph_graph_has_edge_types,
+    cugraph_graph_has_edge_start_times,
+    cugraph_graph_has_edge_end_times,
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_type,
@@ -35,8 +42,75 @@ from pylibcugraph.utils cimport (
     create_cugraph_type_erased_device_array_view_from_py_obj,
 )
 from pylibcugraph.utilities.api_tools import ensure_valid_dtypes
-from libc.stdlib cimport malloc
+from libc.stdlib cimport malloc, free
 
+
+cdef class _GPUGraph:
+
+    cdef bint has_edge_weights(self):
+        return cugraph_graph_has_edge_weights(self.c_graph_ptr) != 0
+
+    cdef bint has_edge_ids(self):
+        return cugraph_graph_has_edge_ids(self.c_graph_ptr) != 0
+
+    cdef bint has_edge_types(self):
+        return cugraph_graph_has_edge_types(self.c_graph_ptr) != 0
+
+    cdef bint has_edge_start_times(self):
+        return cugraph_graph_has_edge_start_times(self.c_graph_ptr) != 0
+
+    cdef bint has_edge_end_times(self):
+        return cugraph_graph_has_edge_end_times(self.c_graph_ptr) != 0
+
+    def number_of_vertices(self):
+        """
+        Return the total number of vertices in the graph.
+
+        For multi-GPU graphs this value is identical on all ranks.
+
+        Returns
+        -------
+        int
+            The number of vertices in the graph.
+        """
+        cdef size_t result
+        cdef cugraph_error_code_t error_code
+        cdef cugraph_error_t* error_ptr
+
+        error_code = cugraph_graph_number_of_vertices(
+            self.c_graph_ptr, &result, &error_ptr)
+        assert_success(error_code, error_ptr, "cugraph_graph_number_of_vertices")
+
+        return result
+
+    def number_of_edges(self, ResourceHandle resource_handle):
+        """
+        Return the total number of edges in the graph.
+
+        For multi-GPU graphs this value is identical on all ranks.
+
+        Parameters
+        ----------
+        resource_handle : ResourceHandle
+            Handle to the underlying device resources.
+
+        Returns
+        -------
+        int
+            The number of edges in the graph.
+        """
+        cdef size_t result
+        cdef cugraph_error_code_t error_code
+        cdef cugraph_error_t* error_ptr
+
+        error_code = cugraph_graph_number_of_edges(
+            resource_handle.c_resource_handle_ptr,
+            self.c_graph_ptr,
+            &result,
+            &error_ptr)
+        assert_success(error_code, error_ptr, "cugraph_graph_number_of_edges")
+
+        return result
 
 
 cdef class SGGraph(_GPUGraph):
@@ -168,6 +242,54 @@ cdef class SGGraph(_GPUGraph):
                   drop_multi_edges=False,
                   symmetrize=False):
 
+        """
+        Initialize this object and allocate its underlying native resources.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+        resource_handle : object
+            Handle to device resources used by the underlying C++ algorithm call.
+        graph_properties : object
+            Input argument `graph_properties` passed to the backend algorithm.
+        src_or_offset_array : object
+            Input argument `src_or_offset_array` passed to the backend algorithm.
+        dst_or_index_array : object
+            Input argument `dst_or_index_array` passed to the backend algorithm.
+        weight_array : object
+            Input argument `weight_array` passed to the backend algorithm.
+        store_transposed : object
+            Input argument `store_transposed` passed to the backend algorithm.
+        renumber : object
+            Input argument `renumber` passed to the backend algorithm.
+        do_expensive_check : object
+            If True, enable additional input validation checks before execution.
+        edge_id_array : object
+            Input argument `edge_id_array` passed to the backend algorithm.
+        edge_type_array : object
+            Input argument `edge_type_array` passed to the backend algorithm.
+        edge_start_time_array : object
+            Input argument `edge_start_time_array` passed to the backend algorithm.
+        edge_end_time_array : object
+            Input argument `edge_end_time_array` passed to the backend algorithm.
+        input_array_format : object
+            Input argument `input_array_format` passed to the backend algorithm.
+        vertices_array : object
+            Input argument `vertices_array` passed to the backend algorithm.
+        drop_self_loops : object
+            Input argument `drop_self_loops` passed to the backend algorithm.
+        drop_multi_edges : object
+            Input argument `drop_multi_edges` passed to the backend algorithm.
+        symmetrize : object
+            Input argument `symmetrize` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Algorithm result returned by the backend binding.
+        """
+
         # FIXME: add tests for these
         if not(isinstance(store_transposed, (int, bool))):
             raise TypeError("expected int or bool for store_transposed, got "
@@ -211,10 +333,12 @@ cdef class SGGraph(_GPUGraph):
         self.vertex_type = cugraph_type_erased_device_array_view_type(
             srcs_or_offsets_view_ptr)
 
-        self.weights_view_ptr = create_cugraph_type_erased_device_array_view_from_py_obj(
+        cdef cugraph_type_erased_device_array_view_t* weights_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
                 weight_array
             )
-        self.edge_id_view_ptr = create_cugraph_type_erased_device_array_view_from_py_obj(
+        cdef cugraph_type_erased_device_array_view_t* edge_id_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
                 edge_id_array
             )
         cdef cugraph_type_erased_device_array_view_t* edge_type_view_ptr = \
@@ -237,8 +361,8 @@ cdef class SGGraph(_GPUGraph):
                 vertices_view_ptr,
                 srcs_or_offsets_view_ptr,
                 dsts_or_indices_view_ptr,
-                self.weights_view_ptr,
-                self.edge_id_view_ptr,
+                weights_view_ptr,
+                edge_id_view_ptr,
                 edge_type_view_ptr,
                 edge_start_time_view_ptr,
                 edge_end_time_view_ptr,
@@ -259,8 +383,8 @@ cdef class SGGraph(_GPUGraph):
                 &(graph_properties.c_graph_properties),
                 srcs_or_offsets_view_ptr,
                 dsts_or_indices_view_ptr,
-                self.weights_view_ptr,
-                self.edge_id_view_ptr,
+                weights_view_ptr,
+                edge_id_view_ptr,
                 edge_type_view_ptr,
                 store_transposed,
                 renumber,
@@ -281,14 +405,31 @@ cdef class SGGraph(_GPUGraph):
 
         cugraph_type_erased_device_array_view_free(srcs_or_offsets_view_ptr)
         cugraph_type_erased_device_array_view_free(dsts_or_indices_view_ptr)
-        if self.weights_view_ptr is not NULL:
-            cugraph_type_erased_device_array_view_free(self.weights_view_ptr)
-        if self.edge_id_view_ptr is not NULL:
-            cugraph_type_erased_device_array_view_free(self.edge_id_view_ptr)
+        if weights_view_ptr is not NULL:
+            cugraph_type_erased_device_array_view_free(weights_view_ptr)
+        if edge_id_view_ptr is not NULL:
+            cugraph_type_erased_device_array_view_free(edge_id_view_ptr)
         if edge_type_view_ptr is not NULL:
             cugraph_type_erased_device_array_view_free(edge_type_view_ptr)
+        if edge_start_time_view_ptr is not NULL:
+            cugraph_type_erased_device_array_view_free(edge_start_time_view_ptr)
+        if edge_end_time_view_ptr is not NULL:
+            cugraph_type_erased_device_array_view_free(edge_end_time_view_ptr)
 
     def __dealloc__(self):
+        """
+        Release native resources owned by this object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Algorithm result returned by the backend binding.
+        """
         if self.c_graph_ptr is not NULL:
             cugraph_graph_free(self.c_graph_ptr)
 
@@ -389,6 +530,52 @@ cdef class MGGraph(_GPUGraph):
                   drop_multi_edges=False,
                   symmetrize=False):
 
+        """
+        Initialize this object and allocate its underlying native resources.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+        resource_handle : object
+            Handle to device resources used by the underlying C++ algorithm call.
+        graph_properties : object
+            Input argument `graph_properties` passed to the backend algorithm.
+        src_array : object
+            Input argument `src_array` passed to the backend algorithm.
+        dst_array : object
+            Input argument `dst_array` passed to the backend algorithm.
+        weight_array : object
+            Input argument `weight_array` passed to the backend algorithm.
+        store_transposed : object
+            Input argument `store_transposed` passed to the backend algorithm.
+        do_expensive_check : object
+            If True, enable additional input validation checks before execution.
+        edge_id_array : object
+            Input argument `edge_id_array` passed to the backend algorithm.
+        edge_type_array : object
+            Input argument `edge_type_array` passed to the backend algorithm.
+        edge_start_time_array : object
+            Input argument `edge_start_time_array` passed to the backend algorithm.
+        edge_end_time_array : object
+            Input argument `edge_end_time_array` passed to the backend algorithm.
+        vertices_array : object
+            Input argument `vertices_array` passed to the backend algorithm.
+        num_arrays : object
+            Input argument `num_arrays` passed to the backend algorithm.
+        drop_self_loops : object
+            Input argument `drop_self_loops` passed to the backend algorithm.
+        drop_multi_edges : object
+            Input argument `drop_multi_edges` passed to the backend algorithm.
+        symmetrize : object
+            Input argument `symmetrize` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Algorithm result returned by the backend binding.
+        """
+
         if not(isinstance(store_transposed, (int, bool))):
             raise TypeError("expected int or bool for store_transposed, got "
                             f"{type(store_transposed)}")
@@ -444,6 +631,8 @@ cdef class MGGraph(_GPUGraph):
         cdef cugraph_type_erased_device_array_view_t** srcs_view_ptr_ptr  = NULL
         cdef cugraph_type_erased_device_array_view_t** dsts_view_ptr_ptr  = NULL
         cdef cugraph_type_erased_device_array_view_t** vertices_view_ptr_ptr = NULL
+        cdef cugraph_type_erased_device_array_view_t** weights_view_ptr_ptr = NULL
+        cdef cugraph_type_erased_device_array_view_t** edge_id_view_ptr_ptr = NULL
         cdef cugraph_type_erased_device_array_view_t** edge_type_view_ptr_ptr = NULL
         cdef cugraph_type_erased_device_array_view_t** edge_start_time_view_ptr_ptr = NULL
         cdef cugraph_type_erased_device_array_view_t** edge_end_time_view_ptr_ptr = NULL
@@ -500,18 +689,18 @@ cdef class MGGraph(_GPUGraph):
 
             if weight_array[i] is not None:
                 if i == 0:
-                    self.weights_view_ptr_ptr = \
+                    weights_view_ptr_ptr = \
                         <cugraph_type_erased_device_array_view_t **>malloc(
                             num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
-                self.weights_view_ptr_ptr[i] = \
+                weights_view_ptr_ptr[i] = \
                     create_cugraph_type_erased_device_array_view_from_py_obj(weight_array[i])
 
             if edge_id_array[i] is not None:
                 if i == 0:
-                    self.edge_id_view_ptr_ptr = \
+                    edge_id_view_ptr_ptr = \
                         <cugraph_type_erased_device_array_view_t **>malloc(
                             num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
-                self.edge_id_view_ptr_ptr[i] = \
+                edge_id_view_ptr_ptr[i] = \
                     create_cugraph_type_erased_device_array_view_from_py_obj(edge_id_array[i])
 
             if edge_type_array[i] is not None:
@@ -538,45 +727,86 @@ cdef class MGGraph(_GPUGraph):
                 edge_end_time_view_ptr_ptr[i] = \
                     create_cugraph_type_erased_device_array_view_from_py_obj(edge_end_time_array[i])
 
-        error_code = cugraph_graph_create_with_times_mg(
-            resource_handle.c_resource_handle_ptr,
-            &(graph_properties.c_graph_properties),
-            vertices_view_ptr_ptr,
-            srcs_view_ptr_ptr,
-            dsts_view_ptr_ptr,
-            self.weights_view_ptr_ptr,
-            self.edge_id_view_ptr_ptr,
-            edge_type_view_ptr_ptr,
-            edge_start_time_view_ptr_ptr,
-            edge_end_time_view_ptr_ptr,
-            store_transposed,
-            num_arrays,
-            drop_self_loops,
-            drop_multi_edges,
-            symmetrize,
-            do_expensive_check,
-            &(self.c_graph_ptr),
-            &error_ptr)
+        try:
+            error_code = cugraph_graph_create_with_times_mg(
+                resource_handle.c_resource_handle_ptr,
+                &(graph_properties.c_graph_properties),
+                vertices_view_ptr_ptr,
+                srcs_view_ptr_ptr,
+                dsts_view_ptr_ptr,
+                weights_view_ptr_ptr,
+                edge_id_view_ptr_ptr,
+                edge_type_view_ptr_ptr,
+                edge_start_time_view_ptr_ptr,
+                edge_end_time_view_ptr_ptr,
+                store_transposed,
+                num_arrays,
+                drop_self_loops,
+                drop_multi_edges,
+                symmetrize,
+                do_expensive_check,
+                &(self.c_graph_ptr),
+                &error_ptr)
 
-        assert_success(error_code, error_ptr,
-                       "cugraph_mg_graph_create()")
+            assert_success(error_code, error_ptr,
+                           "cugraph_mg_graph_create()")
+        finally:
+            for i in range(num_arrays):
+                if srcs_view_ptr_ptr is not NULL:
+                    cugraph_type_erased_device_array_view_free(
+                        srcs_view_ptr_ptr[i])
+                if dsts_view_ptr_ptr is not NULL:
+                    cugraph_type_erased_device_array_view_free(
+                        dsts_view_ptr_ptr[i])
+                if vertices_view_ptr_ptr is not NULL:
+                    cugraph_type_erased_device_array_view_free(
+                        vertices_view_ptr_ptr[i])
+                if weights_view_ptr_ptr is not NULL:
+                    cugraph_type_erased_device_array_view_free(
+                        weights_view_ptr_ptr[i])
+                if edge_id_view_ptr_ptr is not NULL:
+                    cugraph_type_erased_device_array_view_free(
+                        edge_id_view_ptr_ptr[i])
+                if edge_type_view_ptr_ptr is not NULL:
+                    cugraph_type_erased_device_array_view_free(
+                        edge_type_view_ptr_ptr[i])
+                if edge_start_time_view_ptr_ptr is not NULL:
+                    cugraph_type_erased_device_array_view_free(
+                        edge_start_time_view_ptr_ptr[i])
+                if edge_end_time_view_ptr_ptr is not NULL:
+                    cugraph_type_erased_device_array_view_free(
+                        edge_end_time_view_ptr_ptr[i])
 
-        for i in range(num_arrays):
-            cugraph_type_erased_device_array_view_free(srcs_view_ptr_ptr[i])
-            cugraph_type_erased_device_array_view_free(dsts_view_ptr_ptr[i])
+            if srcs_view_ptr_ptr is not NULL:
+                free(srcs_view_ptr_ptr)
+            if dsts_view_ptr_ptr is not NULL:
+                free(dsts_view_ptr_ptr)
             if vertices_view_ptr_ptr is not NULL:
-                cugraph_type_erased_device_array_view_free(vertices_view_ptr_ptr[i])
-            if self.weights_view_ptr_ptr is not NULL:
-                cugraph_type_erased_device_array_view_free(self.weights_view_ptr_ptr[i])
-            if self.edge_id_view_ptr_ptr is not NULL:
-                cugraph_type_erased_device_array_view_free(self.edge_id_view_ptr_ptr[i])
+                free(vertices_view_ptr_ptr)
+            if weights_view_ptr_ptr is not NULL:
+                free(weights_view_ptr_ptr)
+            if edge_id_view_ptr_ptr is not NULL:
+                free(edge_id_view_ptr_ptr)
             if edge_type_view_ptr_ptr is not NULL:
-                cugraph_type_erased_device_array_view_free(edge_type_view_ptr_ptr[i])
+                free(edge_type_view_ptr_ptr)
+            if edge_start_time_view_ptr_ptr is not NULL:
+                free(edge_start_time_view_ptr_ptr)
             if edge_end_time_view_ptr_ptr is not NULL:
-                cugraph_type_erased_device_array_view_free(edge_end_time_view_ptr_ptr[i])
-            if edge_end_time_view_ptr_ptr is not NULL:
-                cugraph_type_erased_device_array_view_free(edge_end_time_view_ptr_ptr[i])
+                free(edge_end_time_view_ptr_ptr)
 
     def __dealloc__(self):
+        """
+        Release native resources owned by this object.
+
+        Parameters
+        ----------
+        self : object
+            Input argument `self` passed to the backend algorithm.
+
+        Returns
+        -------
+        object
+                Algorithm result returned by the backend binding.
+        """
         if self.c_graph_ptr is not NULL:
             cugraph_graph_free(self.c_graph_ptr)

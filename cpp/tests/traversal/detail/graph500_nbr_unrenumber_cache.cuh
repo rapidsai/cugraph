@@ -13,7 +13,11 @@
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/packed_bool_utils.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/scatter.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -159,10 +163,10 @@ class nbr_unrenumber_cache_t {
       consecutive_unrenumbered_sorted_unique_nbrs_.resize(
         consecutive_size_per_vertex_partition_ * vertex_partition_range_lasts_.size(),
         handle.get_stream());
-      thrust::fill(handle.get_thrust_policy(),
-                   consecutive_unrenumbered_sorted_unique_nbrs_.begin(),
-                   consecutive_unrenumbered_sorted_unique_nbrs_.end(),
-                   invalid_vertex_);
+      cugraph::fill(handle.get_thrust_policy(),
+                    consecutive_unrenumbered_sorted_unique_nbrs_.begin(),
+                    consecutive_unrenumbered_sorted_unique_nbrs_.end(),
+                    invalid_vertex_);
       thrust::for_each(
         handle.get_thrust_policy(),
         pair_first,
@@ -595,10 +599,10 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
   if (dense_size_per_vertex_partition) {
     dense_nbr_bitmap = rmm::device_uvector<uint32_t>(
       cugraph::packed_bool_size(*dense_size_per_vertex_partition * comm_size), handle.get_stream());
-    thrust::fill(handle.get_thrust_policy(),
-                 dense_nbr_bitmap->begin(),
-                 dense_nbr_bitmap->end(),
-                 cugraph::packed_bool_empty_mask());
+    cugraph::fill(handle.get_thrust_policy(),
+                  dense_nbr_bitmap->begin(),
+                  dense_nbr_bitmap->end(),
+                  cugraph::packed_bool_empty_mask());
   }
   for (size_t r = 0; r < num_k_hop_rounds; ++r) {
     rmm::device_uvector<vertex_t> this_round_nbrs(0, handle.get_stream());
@@ -703,13 +707,12 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
                              handle.get_stream());
       this_round_nbrs.shrink_to_fit(handle.get_stream());
     }
-    cugraph::sort_wrapper(
-      handle.get_thrust_policy(), this_round_nbrs.begin(), this_round_nbrs.end());
-    this_round_nbrs.resize(
-      cuda::std::distance(
-        this_round_nbrs.begin(),
-        thrust::unique(handle.get_thrust_policy(), this_round_nbrs.begin(), this_round_nbrs.end())),
-      handle.get_stream());
+    cugraph::sort(handle.get_thrust_policy(), this_round_nbrs.begin(), this_round_nbrs.end());
+    this_round_nbrs.resize(cuda::std::distance(this_round_nbrs.begin(),
+                                               cugraph::unique(handle.get_thrust_policy(),
+                                                               this_round_nbrs.begin(),
+                                                               this_round_nbrs.end())),
+                           handle.get_stream());
     if ((nbrs.size() > 0) && (this_round_nbrs.size() > 0)) {
       auto tmp_buf_size = std::max(nbrs.size() / num_k_hop_rounds, this_round_nbrs.size());
       auto num_chunks   = (nbrs.size() + (tmp_buf_size - 1)) / tmp_buf_size;
@@ -742,10 +745,10 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
                      new_nbrs.begin(),
                      new_nbrs.end(),
                      this_round_nbrs.begin() + this_round_nbr_offset);
-        thrust::fill(handle.get_thrust_policy(),
-                     this_round_nbrs.begin() + this_round_nbr_offset + new_nbrs.size(),
-                     last,
-                     invalid_vertex);
+        cugraph::fill(handle.get_thrust_policy(),
+                      this_round_nbrs.begin() + this_round_nbr_offset + new_nbrs.size(),
+                      last,
+                      invalid_vertex);
         this_round_nbr_offset += static_cast<vertex_t>(
           cuda::std::distance(this_round_nbrs.begin() + this_round_nbr_offset, last));
       }
@@ -841,7 +844,7 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
       thrust::make_counting_iterator(size_t{0}),
       cuda::proclaim_return_type<size_t>(
         [num_unrenumber_rounds, r] __device__(auto i) { return r + i * num_unrenumber_rounds; }));
-    thrust::gather(
+    cugraph::gather(
       handle.get_thrust_policy(),
       offset_first,
       offset_first + this_chunk_nbrs.size(),
@@ -857,11 +860,11 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
       mg_graph_view.local_vertex_partition_range_first());
     this_chunk_nbrs.resize(0, handle.get_stream());
     this_chunk_nbrs.shrink_to_fit(handle.get_stream());
-    thrust::scatter(handle.get_thrust_policy(),
-                    this_chunk_unrenumbered_nbrs.begin(),
-                    this_chunk_unrenumbered_nbrs.end(),
-                    offset_first,
-                    unrenumbered_nbrs.begin());
+    cugraph::scatter(handle.get_thrust_policy(),
+                     this_chunk_unrenumbered_nbrs.begin(),
+                     this_chunk_unrenumbered_nbrs.end(),
+                     offset_first,
+                     unrenumbered_nbrs.begin());
   }
 
   return nbr_unrenumber_cache_t(handle,

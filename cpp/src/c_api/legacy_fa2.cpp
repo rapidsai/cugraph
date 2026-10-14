@@ -16,6 +16,7 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
 
 #include <optional>
 
@@ -163,7 +164,10 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<weight_t> tmp_weights(0, handle_.get_stream());
       if (edge_weights == nullptr) {
         tmp_weights.resize(edge_partition_view.indices().size(), handle_.get_stream());
-        cugraph::detail::scalar_fill(handle_, tmp_weights.data(), tmp_weights.size(), weight_t{1});
+        cugraph::fill(handle_.get_thrust_policy(),
+                      tmp_weights.data(),
+                      (tmp_weights.data()) + (tmp_weights.size()),
+                      weight_t{1});
       }
 
       // Decompress to edgelist

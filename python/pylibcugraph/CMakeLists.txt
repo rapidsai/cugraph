@@ -1,6 +1,6 @@
 # =============================================================================
 # cmake-format: off
-# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 # cmake-format: on
 # =============================================================================
@@ -20,7 +20,16 @@ project(
   LANGUAGES CXX CUDA
 )
 
+# Find C++ libraries from RAPIDS wheels in site-packages.
+set_property(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS TRUE)
+
 find_package(cugraph "${RAPIDS_VERSION}" REQUIRED)
+
+# an installed version of libcugraph doesn't provide the dlpack headers so we
+# need to download dlpack for the DLPack interop used by utils.pyx
+include(rapids-cpm)
+rapids_cpm_init()
+include(../../cpp/cmake/thirdparty/get_dlpack.cmake)
 
 include(rapids-cython-core)
 

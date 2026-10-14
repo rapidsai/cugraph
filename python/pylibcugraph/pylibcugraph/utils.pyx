@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -21,6 +21,15 @@ from pylibcugraph._cugraph_c.array cimport (
 from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_message,
     cugraph_error_free
+)
+
+from pylibcugraph._cugraph_c.dlpack_interop cimport (
+    DLDataType,
+    kDLBool,
+    kDLFloat,
+    kDLInt,
+    kDLUInt,
+    cugraph_data_type_id_from_dlpack,
 )
 
 # FIXME: add tests for this
@@ -115,6 +124,15 @@ cdef get_numpy_type_from_c_type(cugraph_data_type_id_t c_type):
                            f"from C: {c_type}")
 
 
+cdef cugraph_data_type_id_t get_c_type_from_dlpack_dtype(const DLDataType* dl_dtype):
+    cdef cugraph_data_type_id_t c_type
+    cdef cugraph_error_t* error = NULL
+    cdef cugraph_error_code_t code = \
+        cugraph_data_type_id_from_dlpack(dl_dtype, &c_type, &error)
+    assert_success(code, error, "cugraph_data_type_id_from_dlpack")
+    return c_type
+
+
 cdef get_c_type_from_numpy_type(numpy_type):
     dt = numpy.dtype(numpy_type)
     if dt == numpy.int32:
@@ -140,7 +158,6 @@ cdef get_numpy_edge_ids_type_from_c_weight_type(cugraph_data_type_id_t c_weight_
         return numpy.int32
     else:
         return numpy.int64
-
 
 cdef copy_to_cupy_array(
    cugraph_resource_handle_t* c_resource_handle_ptr,

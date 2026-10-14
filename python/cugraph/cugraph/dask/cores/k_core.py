@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -158,7 +158,7 @@ def k_core(input_graph, k=None, core_number=None, degree_type="bidirectional"):
             workers=[w],
             allow_other_workers=False,
         )
-        for w in Comms.get_workers()
+        for w in input_graph._plc_graph
     ]
 
     wait(result)

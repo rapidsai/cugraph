@@ -22,3 +22,4 @@ is_symmetric: true
 number_of_edges: 5484
 number_of_nodes: 1461
 url: https://data.rapids.ai/cugraph/datasets/netscience.csv
+sha256: 08f0c25802ef33742e159baba04ea0cd6831eb78ff6f9fc6c5b83b3ce0b5e8c3

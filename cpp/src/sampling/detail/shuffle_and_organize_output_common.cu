@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -8,18 +8,22 @@
 #include <cugraph/export.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
+#include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/core/handle.hpp>
 
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
-#include <cuda/std/iterator>
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
 #include <thrust/gather.h>
 #include <thrust/sort.h>
+#include <thrust/unique.h>
 
 #include <optional>
 
@@ -36,6 +40,7 @@ shuffle_and_organize_output(
   std::optional<rmm::device_uvector<int32_t>>&& labels,
   std::optional<rmm::device_uvector<int32_t>>&& hops,
   std::optional<int32_t> input_hops,
+  std::optional<raft::device_span<int32_t const>> output_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank)
 {
   std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
@@ -56,8 +61,10 @@ shuffle_and_organize_output(
         static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
 
       rmm::device_uvector<size_t> property_position(labels->size(), handle.get_stream());
-      detail::sequence_fill(
-        handle.get_stream(), property_position.data(), property_position.size(), size_t{0});
+      cugraph::sequence(rmm::exec_policy(handle.get_stream()),
+                        property_position.data(),
+                        property_position.data() + property_position.size(),
+                        size_t{0});
 
       auto d_tx_value_counts = cugraph::groupby_and_count(labels->begin(),
                                                           labels->end(),
@@ -82,11 +89,11 @@ shuffle_and_organize_output(
               using T = typename std::remove_reference<decltype(prop)>::type::value_type;
               rmm::device_uvector<T> tmp(prop.size(), handle.get_stream());
 
-              thrust::gather(handle.get_thrust_policy(),
-                             property_position.begin(),
-                             property_position.end(),
-                             prop.begin(),
-                             tmp.begin());
+              cugraph::gather(handle.get_thrust_policy(),
+                              property_position.begin(),
+                              property_position.end(),
+                              prop.begin(),
+                              tmp.begin());
 
               std::tie(prop, std::ignore) = shuffle_values(
                 handle.get_comms(), tmp.begin(), d_tx_value_counts_span, handle.get_stream());
@@ -95,11 +102,11 @@ shuffle_and_organize_output(
 
       if (hops) {
         rmm::device_uvector<int32_t> tmp(hops->size(), handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       property_position.begin(),
-                       property_position.end(),
-                       hops->begin(),
-                       tmp.begin());
+        cugraph::gather(handle.get_thrust_policy(),
+                        property_position.begin(),
+                        property_position.end(),
+                        hops->begin(),
+                        tmp.begin());
 
         std::tie(*hops, std::ignore) = shuffle_values(
           handle.get_comms(), tmp.begin(), d_tx_value_counts_span, handle.get_stream());
@@ -108,7 +115,7 @@ shuffle_and_organize_output(
 
     // Sort the tuples by hop/label
     rmm::device_uvector<size_t> indices(labels->size(), handle.get_stream());
-    thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), size_t{0});
+    cugraph::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), size_t{0});
     if (hops) {
       thrust::sort_by_key(handle.get_thrust_policy(),
                           thrust::make_zip_iterator(labels->begin(), hops->begin()),
@@ -124,38 +131,37 @@ shuffle_and_organize_output(
         cugraph::variant_type_dispatch(property, [&handle, &indices](auto& edge_vector) {
           using T = typename std::remove_reference<decltype(edge_vector)>::type::value_type;
           rmm::device_uvector<T> tmp(indices.size(), handle.get_stream());
-          thrust::gather(handle.get_thrust_policy(),
-                         indices.begin(),
-                         indices.end(),
-                         edge_vector.begin(),
-                         tmp.begin());
+          cugraph::gather(handle.get_thrust_policy(),
+                          indices.begin(),
+                          indices.end(),
+                          edge_vector.begin(),
+                          tmp.begin());
 
           edge_vector = std::move(tmp);
         });
       });
 
-    // Need to generate offsets for each unique label (not each seed) on each GPU
-    rmm::device_uvector<int32_t> unique_labels(labels->size(), handle.get_stream());
-    raft::copy(unique_labels.data(), labels->data(), labels->size(), handle.get_stream());
-    cugraph::sort_wrapper(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
-    auto unique_end =
-      thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
-    size_t num_unique_labels =
-      static_cast<size_t>(cuda::std::distance(unique_labels.begin(), unique_end));
+    CUGRAPH_EXPECTS(
+      output_labels.has_value(),
+      "Invalid input arguments: output_labels is required whenever labels are specified, "
+      "since the offsets array delineates one range per label");
 
-    unique_labels.resize(num_unique_labels, handle.get_stream());
-
-    offsets = rmm::device_uvector<size_t>(unique_labels.size() + 1, handle.get_stream());
+    // Searching the labels this GPU is responsible for rather than the labels present in the output
+    // gives a label that sampled no edges a zero-width range instead of dropping it and shifting
+    // every later label down.  A label can legitimately end up empty (for temporal sampling, when
+    // no edge incident on its seeds satisfies the time window), and an entirely empty result still
+    // has to produce output_labels->size() + 1 entries, all zero.
+    offsets = rmm::device_uvector<size_t>(output_labels->size() + 1, handle.get_stream());
 
     thrust::lower_bound(handle.get_thrust_policy(),
                         labels->begin(),
                         labels->end(),
-                        unique_labels.begin(),
-                        unique_labels.end(),
+                        output_labels->begin(),
+                        output_labels->end(),
                         offsets->begin());
 
     size_t last_offset = labels->size();
-    offsets->set_element_async(unique_labels.size(), last_offset, handle.get_stream());
+    offsets->set_element_async(output_labels->size(), last_offset, handle.get_stream());
     handle.sync_stream();
   }
 

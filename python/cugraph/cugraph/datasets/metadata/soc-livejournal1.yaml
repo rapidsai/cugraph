@@ -1,6 +1,6 @@
 name: soc-LiveJournal1
 file_type: .csv
-description:  A graph of the LiveJournal social network.
+description: A graph of the LiveJournal social network.
 author: L. Backstrom, D. Huttenlocher, J. Kleinberg, X. Lan
 refs:
   L. Backstrom, D. Huttenlocher, J. Kleinberg, X. Lan. Group Formation in
@@ -20,3 +20,4 @@ is_symmetric: false
 number_of_edges: 68993773
 number_of_nodes: 4847571
 url: https://data.rapids.ai/cugraph/datasets/soc-LiveJournal1.csv
+sha256: 110cc4463422334a4ca8a81ba2286d43ae5f1f7b6e8e66d35f042d804fa28c01

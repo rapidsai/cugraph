@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -13,7 +13,10 @@
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -38,8 +41,6 @@
 #include <thrust/reduce.h>
 #include <thrust/sort.h>
 #include <thrust/unique.h>
-
-#include <cuco/hash_functions.cuh>
 
 #include <algorithm>
 #include <iterator>
@@ -124,12 +125,11 @@ rmm::device_uvector<vertex_t> find_uniques(raft::handle_t const& handle,
                  vertices.begin(),
                  vertices.begin() + first_half_size,
                  first_half_uniques.begin());
-    cugraph::sort_wrapper(
-      handle.get_thrust_policy(), first_half_uniques.begin(), first_half_uniques.end());
+    cugraph::sort(handle.get_thrust_policy(), first_half_uniques.begin(), first_half_uniques.end());
     first_half_uniques.resize(cuda::std::distance(first_half_uniques.begin(),
-                                                  thrust::unique(handle.get_thrust_policy(),
-                                                                 first_half_uniques.begin(),
-                                                                 first_half_uniques.end())),
+                                                  cugraph::unique(handle.get_thrust_policy(),
+                                                                  first_half_uniques.begin(),
+                                                                  first_half_uniques.end())),
                               handle.get_stream());
     first_half_uniques.shrink_to_fit(handle.get_stream());
 
@@ -144,12 +144,12 @@ rmm::device_uvector<vertex_t> find_uniques(raft::handle_t const& handle,
                  vertices.begin() + first_half_size,
                  vertices.end(),
                  second_half_uniques.begin());
-    cugraph::sort_wrapper(
+    cugraph::sort(
       handle.get_thrust_policy(), second_half_uniques.begin(), second_half_uniques.end());
     second_half_uniques.resize(cuda::std::distance(second_half_uniques.begin(),
-                                                   thrust::unique(handle.get_thrust_policy(),
-                                                                  second_half_uniques.begin(),
-                                                                  second_half_uniques.end())),
+                                                   cugraph::unique(handle.get_thrust_policy(),
+                                                                   second_half_uniques.begin(),
+                                                                   second_half_uniques.end())),
                                handle.get_stream());
     second_half_uniques.shrink_to_fit(handle.get_stream());
 
@@ -169,7 +169,7 @@ rmm::device_uvector<vertex_t> find_uniques(raft::handle_t const& handle,
                   uniques.begin());
     uniques.resize(cuda::std::distance(
                      uniques.begin(),
-                     thrust::unique(handle.get_thrust_policy(), uniques.begin(), uniques.end())),
+                     cugraph::unique(handle.get_thrust_policy(), uniques.begin(), uniques.end())),
                    handle.get_stream());
     uniques.shrink_to_fit(handle.get_stream());
 
@@ -180,10 +180,10 @@ rmm::device_uvector<vertex_t> find_uniques(raft::handle_t const& handle,
                                                                               handle.get_stream())
                      : rmm::device_uvector<vertex_t>(vertices.size(), handle.get_stream());
     thrust::copy(handle.get_thrust_policy(), vertices.begin(), vertices.end(), uniques.begin());
-    cugraph::sort_wrapper(handle.get_thrust_policy(), uniques.begin(), uniques.end());
+    cugraph::sort(handle.get_thrust_policy(), uniques.begin(), uniques.end());
     uniques.resize(cuda::std::distance(
                      uniques.begin(),
-                     thrust::unique(handle.get_thrust_policy(), uniques.begin(), uniques.end())),
+                     cugraph::unique(handle.get_thrust_policy(), uniques.begin(), uniques.end())),
                    handle.get_stream());
     uniques.shrink_to_fit(handle.get_stream());
 
@@ -336,10 +336,10 @@ void compute_sorted_local_major_degrees_without_atomics(
   raft::device_span<vertex_t const> edgelist_majors,
   raft::device_span<edge_t> sorted_local_major_degrees)
 {
-  thrust::fill(handle.get_thrust_policy(),
-               sorted_local_major_degrees.begin(),
-               sorted_local_major_degrees.end(),
-               edge_t{0});
+  cugraph::fill(handle.get_thrust_policy(),
+                sorted_local_major_degrees.begin(),
+                sorted_local_major_degrees.end(),
+                edge_t{0});
 
   auto max_edges_to_process_per_iteration =
     std::min(static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * 4096,
@@ -360,11 +360,11 @@ void compute_sorted_local_major_degrees_without_atomics(
     (sorted_local_majors.size() + (cache_stride - 1)) / cache_stride, handle.get_stream());
   auto gather_index_first = cuda::make_transform_iterator(
     thrust::make_counting_iterator(size_t{0}), detail::multiplier_t<size_t>{cache_stride});
-  thrust::gather(handle.get_thrust_policy(),
-                 gather_index_first,
-                 gather_index_first + sorted_local_major_cache.size(),
-                 sorted_local_majors.begin(),
-                 sorted_local_major_cache.begin());
+  cugraph::gather(handle.get_thrust_policy(),
+                  gather_index_first,
+                  gather_index_first + sorted_local_major_cache.size(),
+                  sorted_local_majors.begin(),
+                  sorted_local_major_cache.begin());
 
   size_t num_edges_processed{0};
   while (num_edges_processed < edgelist_majors.size()) {
@@ -392,7 +392,7 @@ void compute_sorted_local_major_degrees_without_atomics(
           return static_cast<vertex_t>(cuda::std::distance(
             sorted_local_majors.begin(), thrust::lower_bound(thrust::seq, first, last, major)));
         }));
-    cugraph::sort_wrapper(
+    cugraph::sort(
       handle.get_thrust_policy(), indices.begin(), indices.begin() + num_edges_to_process);
     auto it          = thrust::reduce_by_key(handle.get_thrust_policy(),
                                     indices.begin(),
@@ -577,9 +577,9 @@ compute_renumber_map(raft::handle_t const& handle,
           tmp_minors.resize(0, handle.get_stream());
           tmp_minors.shrink_to_fit(handle.get_stream());
           merged_minors.resize(cuda::std::distance(merged_minors.begin(),
-                                                   thrust::unique(handle.get_thrust_policy(),
-                                                                  merged_minors.begin(),
-                                                                  merged_minors.end())),
+                                                   cugraph::unique(handle.get_thrust_policy(),
+                                                                   merged_minors.begin(),
+                                                                   merged_minors.end())),
                                handle.get_stream());
           merged_minors.shrink_to_fit(handle.get_stream());
           sorted_unique_minors = std::move(merged_minors);
@@ -600,14 +600,14 @@ compute_renumber_map(raft::handle_t const& handle,
     sorted_unique_minors.resize(0, handle.get_stream());
     sorted_unique_minors.shrink_to_fit(handle.get_stream());
     sorted_local_vertices.resize(cuda::std::distance(sorted_local_vertices.begin(),
-                                                     thrust::unique(handle.get_thrust_policy(),
-                                                                    sorted_local_vertices.begin(),
-                                                                    sorted_local_vertices.end())),
+                                                     cugraph::unique(handle.get_thrust_policy(),
+                                                                     sorted_local_vertices.begin(),
+                                                                     sorted_local_vertices.end())),
                                  handle.get_stream());
     sorted_local_vertices.shrink_to_fit(handle.get_stream());
   } else {
     sorted_local_vertices = std::move(*local_vertices);
-    cugraph::sort_wrapper(
+    cugraph::sort(
       handle.get_thrust_policy(), sorted_local_vertices.begin(), sorted_local_vertices.end());
   }
 
@@ -638,23 +638,23 @@ compute_renumber_map(raft::handle_t const& handle,
     auto edge_partition_major_range_sizes =
       host_scalar_allgather(minor_comm, sorted_local_vertices.size(), handle.get_stream());
     for (int i = 0; i < minor_comm_size; ++i) {
-      auto sorted_majors =
-        large_vertex_buffer_type
-          ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
-              edge_partition_major_range_sizes[i], handle.get_stream())
-          : rmm::device_uvector<vertex_t>(edge_partition_major_range_sizes[i], handle.get_stream());
+      auto sorted_majors = large_vertex_buffer_type
+                             ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
+                                 edge_partition_major_range_sizes[i], handle.get_stream().get())
+                             : rmm::device_uvector<vertex_t>(edge_partition_major_range_sizes[i],
+                                                             handle.get_stream().get());
       device_bcast(minor_comm,
                    sorted_local_vertices.data(),
                    sorted_majors.data(),
                    edge_partition_major_range_sizes[i],
                    i,
-                   handle.get_stream());
+                   handle.get_stream().get());
 
       auto sorted_major_degrees =
         large_vertex_buffer_type
           ? large_buffer_manager::allocate_memory_buffer<edge_t>(sorted_majors.size(),
-                                                                 handle.get_stream())
-          : rmm::device_uvector<edge_t>(sorted_majors.size(), handle.get_stream());
+                                                                 handle.get_stream().get())
+          : rmm::device_uvector<edge_t>(sorted_majors.size(), handle.get_stream().get());
       if (large_vertex_buffer_type) {
         compute_sorted_local_major_degrees_without_atomics(
           handle,
@@ -662,10 +662,10 @@ compute_renumber_map(raft::handle_t const& handle,
           raft::device_span<vertex_t const>(edgelist_majors[i].data(), edgelist_majors[i].size()),
           raft::device_span<edge_t>(sorted_major_degrees.data(), sorted_major_degrees.size()));
       } else {
-        thrust::fill(handle.get_thrust_policy(),
-                     sorted_major_degrees.begin(),
-                     sorted_major_degrees.end(),
-                     edge_t{0});
+        cugraph::fill(handle.get_thrust_policy(),
+                      sorted_major_degrees.begin(),
+                      sorted_major_degrees.end(),
+                      edge_t{0});
         thrust::for_each(
           handle.get_thrust_policy(),
           edgelist_majors[i].begin(),
@@ -689,7 +689,7 @@ compute_renumber_map(raft::handle_t const& handle,
                     edge_partition_major_range_sizes[i],
                     raft::comms::op_t::SUM,
                     i,
-                    handle.get_stream());
+                    handle.get_stream().get());
       if (i == minor_comm_rank) { sorted_local_vertex_degrees = std::move(sorted_major_degrees); }
     }
   } else {
@@ -705,10 +705,10 @@ compute_renumber_map(raft::handle_t const& handle,
         raft::device_span<edge_t>(sorted_local_vertex_degrees.data(),
                                   sorted_local_vertex_degrees.size()));
     } else {
-      thrust::fill(handle.get_thrust_policy(),
-                   sorted_local_vertex_degrees.begin(),
-                   sorted_local_vertex_degrees.end(),
-                   edge_t{0});
+      cugraph::fill(handle.get_thrust_policy(),
+                    sorted_local_vertex_degrees.begin(),
+                    sorted_local_vertex_degrees.end(),
+                    edge_t{0});
       thrust::for_each(handle.get_thrust_policy(),
                        edgelist_majors[0].begin(),
                        edgelist_majors[0].end(),
@@ -842,13 +842,13 @@ void expensive_check_edgelist(
                  (*local_vertices).begin(),
                  (*local_vertices).end(),
                  (*sorted_local_vertices).begin());
-    cugraph::sort_wrapper(
+    cugraph::sort(
       handle.get_thrust_policy(), (*sorted_local_vertices).begin(), (*sorted_local_vertices).end());
     CUGRAPH_EXPECTS(
       static_cast<size_t>(cuda::std::distance((*sorted_local_vertices).begin(),
-                                              thrust::unique(handle.get_thrust_policy(),
-                                                             (*sorted_local_vertices).begin(),
-                                                             (*sorted_local_vertices).end()))) ==
+                                              cugraph::unique(handle.get_thrust_policy(),
+                                                              (*sorted_local_vertices).begin(),
+                                                              (*sorted_local_vertices).end()))) ==
         (*sorted_local_vertices).size(),
       "Invalid input argument: (local_)vertices should not have duplicates.");
   }
@@ -950,7 +950,7 @@ void expensive_check_edgelist(
                         raft::host_span<size_t const>(recvcounts.data(), recvcounts.size()),
                         raft::host_span<size_t const>(displacements.data(), displacements.size()),
                         handle.get_stream());
-      cugraph::sort_wrapper(handle.get_thrust_policy(), sorted_minors.begin(), sorted_minors.end());
+      cugraph::sort(handle.get_thrust_policy(), sorted_minors.begin(), sorted_minors.end());
 
       auto major_range_sizes =
         host_scalar_allgather(minor_comm, (*sorted_local_vertices).size(), handle.get_stream());
@@ -1023,8 +1023,10 @@ std::vector<vertex_t> aggregate_offset_vectors(raft::handle_t const& handle,
   raft::update_device(d_offsets.data(), offsets.data(), offsets.size(), handle.get_stream());
   rmm::device_uvector<vertex_t> d_aggregate_offset_vectors(minor_comm_size * d_offsets.size(),
                                                            handle.get_stream());
-  minor_comm.allgather(
-    d_offsets.data(), d_aggregate_offset_vectors.data(), d_offsets.size(), handle.get_stream());
+  minor_comm.allgather(d_offsets.data(),
+                       d_aggregate_offset_vectors.data(),
+                       d_offsets.size(),
+                       handle.get_stream().get());
 
   std::vector<vertex_t> h_aggregate_offset_vectors(d_aggregate_offset_vectors.size(), vertex_t{0});
   raft::update_host(h_aggregate_offset_vectors.data(),

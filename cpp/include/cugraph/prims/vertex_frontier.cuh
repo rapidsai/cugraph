@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -11,6 +11,8 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -19,11 +21,13 @@
 
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <cuda/atomic>
 #include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/fill.h>
@@ -50,7 +54,7 @@ template <typename vertex_t, typename KeyIterator>
 KeyIterator compute_key_lower_bound(KeyIterator sorted_unique_key_first,
                                     KeyIterator sorted_unique_key_last,
                                     vertex_t v_threshold,
-                                    rmm::cuda_stream_view stream_view)
+                                    cuda::stream_ref stream_view)
 {
   using key_t = typename thrust::iterator_traits<KeyIterator>::value_type;
 
@@ -75,7 +79,7 @@ std::vector<size_t> compute_key_segment_offsets(KeyIterator sorted_key_first,
                                                 KeyIterator sorted_key_last,
                                                 raft::host_span<vertex_t const> segment_offsets,
                                                 vertex_t vertex_range_first,
-                                                rmm::cuda_stream_view stream_view)
+                                                cuda::stream_ref stream_view)
 {
   using key_t = typename thrust::iterator_traits<KeyIterator>::value_type;
 
@@ -109,7 +113,7 @@ std::vector<size_t> compute_key_segment_offsets(KeyIterator sorted_key_first,
 
   std::vector<size_t> h_offsets(d_offsets.size() + 2);
   raft::update_host(h_offsets.data() + 1, d_offsets.data(), d_offsets.size(), stream_view);
-  RAFT_CUDA_TRY(cudaStreamSynchronize(stream_view));
+  stream_view.sync();
   h_offsets[0]     = size_t{0};
   h_offsets.back() = static_cast<size_t>(cuda::std::distance(sorted_key_first, sorted_key_last));
 
@@ -122,7 +126,7 @@ rmm::device_uvector<uint32_t> compute_vertex_list_bitmap_info(
   VertexIterator sorted_unique_vertex_last,
   typename thrust::iterator_traits<VertexIterator>::value_type vertex_range_first,
   typename thrust::iterator_traits<VertexIterator>::value_type vertex_range_last,
-  rmm::cuda_stream_view stream_view)
+  cuda::stream_ref stream_view)
 {
   using vertex_t = typename thrust::iterator_traits<VertexIterator>::value_type;
 
@@ -171,7 +175,7 @@ void device_bcast_vertex_list(
   typename thrust::iterator_traits<InputVertexIterator>::value_type vertex_range_last,
   size_t v_list_size,
   int root,
-  rmm::cuda_stream_view stream_view)
+  cuda::stream_ref stream_view)
 {
   using vertex_t = typename thrust::iterator_traits<InputVertexIterator>::value_type;
 
@@ -184,7 +188,7 @@ void device_bcast_vertex_list(
     assert((comm.get_rank() != root) || (std::get<0>(v_list).size() == tmp_bitmap.size()));
     device_bcast(
       comm, std::get<0>(v_list).data(), tmp_bitmap.data(), tmp_bitmap.size(), root, stream_view);
-    rmm::device_scalar<size_t> dummy(size_t{0}, stream_view);  // we already know the count
+    rmm::device_scalar<size_t> dummy(stream_view);  // we already know the count
     detail::copy_if_nosync(
       thrust::make_counting_iterator(vertex_range_first),
       thrust::make_counting_iterator(vertex_range_last),
@@ -211,7 +215,7 @@ void retrieve_vertex_list_from_bitmap(
   raft::device_span<size_t> count /* size = 1 */,
   typename thrust::iterator_traits<OutputVertexIterator>::value_type vertex_range_first,
   typename thrust::iterator_traits<OutputVertexIterator>::value_type vertex_range_last,
-  rmm::cuda_stream_view stream_view)
+  cuda::stream_ref stream_view)
 {
   using vertex_t = typename thrust::iterator_traits<OutputVertexIterator>::value_type;
 
@@ -322,7 +326,7 @@ class key_bucket_t {
       vertices_.resize(1, handle_ptr_->get_stream());
       tags_.resize(1, handle_ptr_->get_stream());
       auto pair_first = thrust::make_zip_iterator(vertices_.begin(), tags_.begin());
-      thrust::fill(handle_ptr_->get_thrust_policy(), pair_first, pair_first + 1, key);
+      cugraph::fill(handle_ptr_->get_thrust_policy(), pair_first, pair_first + 1, key);
     }
   }
 
@@ -354,9 +358,9 @@ class key_bucket_t {
                       vertex_last,
                       merged_vertices.begin());
         merged_vertices.resize(cuda::std::distance(merged_vertices.begin(),
-                                                   thrust::unique(handle_ptr_->get_thrust_policy(),
-                                                                  merged_vertices.begin(),
-                                                                  merged_vertices.end())),
+                                                   cugraph::unique(handle_ptr_->get_thrust_policy(),
+                                                                   merged_vertices.begin(),
+                                                                   merged_vertices.end())),
                                handle_ptr_->get_stream());
         vertices_ = std::move(merged_vertices);
       } else {
@@ -406,9 +410,9 @@ class key_bucket_t {
                       merged_pair_first);
         merged_vertices.resize(
           cuda::std::distance(merged_pair_first,
-                              thrust::unique(handle_ptr_->get_thrust_policy(),
-                                             merged_pair_first,
-                                             merged_pair_first + merged_vertices.size())),
+                              cugraph::unique(handle_ptr_->get_thrust_policy(),
+                                              merged_pair_first,
+                                              merged_pair_first + merged_vertices.size())),
           handle_ptr_->get_stream());
         merged_tags.resize(merged_vertices.size(), handle_ptr_->get_stream());
         vertices_ = std::move(merged_vertices);

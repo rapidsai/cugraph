@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 // #define TIMING
@@ -11,10 +11,11 @@
 #endif
 
 #include <cugraph/export.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/solver/linear_assignment.cuh>
 
-#include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/functional>
@@ -156,7 +157,7 @@ weight_t hungarian_sparse(raft::handle_t const& handle,
   //  Renumber vertices internally.  Workers will become
   //  rows, tasks will become columns
   //
-  thrust::sequence(handle.get_thrust_policy(), temp_tasks_v.begin(), temp_tasks_v.end());
+  cugraph::sequence(handle.get_thrust_policy(), temp_tasks_v.begin(), temp_tasks_v.end());
 
   thrust::for_each(handle.get_thrust_policy(),
                    workers,
@@ -175,10 +176,10 @@ weight_t hungarian_sparse(raft::handle_t const& handle,
   //
   // Now we'll assign costs into the dense array
   //
-  thrust::fill(
+  cugraph::fill(
     handle.get_thrust_policy(), temp_workers_v.begin(), temp_workers_v.end(), vertex_t{-1});
-  thrust::fill(handle.get_thrust_policy(), temp_tasks_v.begin(), temp_tasks_v.end(), vertex_t{-1});
-  thrust::fill(handle.get_thrust_policy(), cost_v.begin(), cost_v.end(), weight_t{0});
+  cugraph::fill(handle.get_thrust_policy(), temp_tasks_v.begin(), temp_tasks_v.end(), vertex_t{-1});
+  cugraph::fill(handle.get_thrust_policy(), cost_v.begin(), cost_v.end(), weight_t{0});
 
   thrust::for_each(
     handle.get_thrust_policy(),

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -15,12 +15,16 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/stream>
+
 namespace CUGRAPH_EXPORT cugraph {
 namespace mtmg {
 
 using arithmetic_host_vector_t = std::variant<std::monostate,
                                               std::vector<float>,
                                               std::vector<double>,
+                                              std::vector<int8_t>,
+                                              std::vector<int16_t>,
                                               std::vector<int32_t>,
                                               std::vector<int64_t>,
                                               std::vector<size_t>>;
@@ -28,6 +32,8 @@ using arithmetic_host_vector_t = std::variant<std::monostate,
 using arithmetic_const_host_span_t = std::variant<std::monostate,
                                                   raft::host_span<float const>,
                                                   raft::host_span<double const>,
+                                                  raft::host_span<int8_t const>,
+                                                  raft::host_span<int16_t const>,
                                                   raft::host_span<int32_t const>,
                                                   raft::host_span<int64_t const>,
                                                   raft::host_span<size_t const>>;
@@ -74,7 +80,7 @@ class per_device_edgelist_t {
    */
   per_device_edgelist_t(size_t device_buffer_size,
                         std::vector<arithmetic_type_t> const& edge_property_types,
-                        rmm::cuda_stream_view stream_view)
+                        cuda::stream_ref stream_view)
     : device_buffer_size_{device_buffer_size},
       current_pos_{0},
       src_{},
@@ -115,7 +121,7 @@ class per_device_edgelist_t {
   void append(raft::host_span<vertex_t const> src,
               raft::host_span<vertex_t const> dst,
               raft::host_span<arithmetic_const_host_span_t> edge_properties,
-              rmm::cuda_stream_view stream_view)
+              cuda::stream_ref stream_view)
   {
     CUGRAPH_EXPECTS(edge_properties.size() == edge_property_buffers_.size(),
                     "Edge property count mismatch");
@@ -194,7 +200,7 @@ class per_device_edgelist_t {
    *
    * @param stream_view  CUDA stream view
    */
-  void finalize_buffer(rmm::cuda_stream_view stream_view)
+  void finalize_buffer(cuda::stream_ref stream_view)
   {
     src_.back().resize(current_pos_, stream_view);
     dst_.back().resize(current_pos_, stream_view);
@@ -291,7 +297,7 @@ class per_device_edgelist_t {
   std::vector<cugraph::arithmetic_device_uvector_t> resize_and_copy_buffers(
     std::vector<cugraph::arithmetic_device_uvector_t>&& buffer,
     size_t total_size,
-    rmm::cuda_stream_view stream)
+    cuda::stream_ref stream)
   {
     return cugraph::variant_type_dispatch(buffer[0], [&buffer, total_size, stream](auto& buffer0) {
       using T = typename std::decay_t<decltype(buffer0)>::value_type;
@@ -315,7 +321,7 @@ class per_device_edgelist_t {
 
   template <typename T>
   std::vector<rmm::device_uvector<T>> resize_and_copy_buffers(
-    std::vector<rmm::device_uvector<T>>&& buffer, size_t total_size, rmm::cuda_stream_view stream)
+    std::vector<rmm::device_uvector<T>>&& buffer, size_t total_size, cuda::stream_ref stream)
   {
     rmm::device_uvector<T> new_buffer(total_size, stream);
 
@@ -332,7 +338,7 @@ class per_device_edgelist_t {
     return result;
   }
 
-  void create_new_buffers(rmm::cuda_stream_view stream_view)
+  void create_new_buffers(cuda::stream_ref stream_view)
   {
     src_.emplace_back(device_buffer_size_, stream_view);
     dst_.emplace_back(device_buffer_size_, stream_view);

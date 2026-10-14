@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -138,7 +138,10 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
       hr_timer.start("BFS");
     }
 
-    rmm::device_scalar<vertex_t> const d_source(bfs_usecase.source, handle.get_stream());
+    vertex_t const source{static_cast<vertex_t>(bfs_usecase.source)};
+    rmm::device_scalar<vertex_t> const d_source(source, handle.get_stream());
+    handle
+      .sync_stream();  // before source goes out-of-scope (async H2D copy from device_scalar ctor)
 
     cugraph::bfs(handle,
                  graph_view,

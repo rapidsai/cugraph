@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -13,7 +13,7 @@
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <raft/core/copy.hpp>
 
@@ -50,12 +50,18 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
   bool const has_types         = !std::holds_alternative<std::monostate>(result_types);
   bool const has_labels        = result_labels.has_value();
   if (has_types) {
-    CUGRAPH_EXPECTS(std::holds_alternative<rmm::device_uvector<int32_t>>(result_types),
-                    "result_types must be rmm::device_uvector<int32_t> when present.");
+    CUGRAPH_EXPECTS(
+      std::holds_alternative<rmm::device_uvector<int32_t>>(result_types),
+      "deduplicate_edges_by_minor: result_types expected rmm::device_uvector<int32_t>, variant "
+      "index %zu",
+      result_types.index());
   }
   if (has_edge_property) {
-    CUGRAPH_EXPECTS(std::holds_alternative<rmm::device_uvector<edge_t>>(result_edge_property),
-                    "result_edge_property must be rmm::device_uvector<edge_t> when present.");
+    CUGRAPH_EXPECTS(
+      std::holds_alternative<rmm::device_uvector<edge_t>>(result_edge_property),
+      "deduplicate_edges_by_minor: result_edge_property expected rmm::device_uvector<edge_t>, "
+      "variant index %zu",
+      result_edge_property.index());
   }
 
   size_t total_edges = result_majors.size();
@@ -92,6 +98,10 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
                            graph_view.vertex_partition_range_lasts(),
                            std::nullopt);
 
+    CUGRAPH_EXPECTS(std::holds_alternative<rmm::device_uvector<vertex_t>>(shuffle_properties[0]),
+                    "deduplicate_edges_by_minor MG shuffle: shuffle_properties[0] expected "
+                    "rmm::device_uvector<vertex_t>, variant index %zu",
+                    shuffle_properties[0].index());
     result_majors = std::move(std::get<rmm::device_uvector<vertex_t>>(shuffle_properties[0]));
     size_t shuffle_prop_idx{1};
     if (has_edge_property) {
@@ -99,6 +109,18 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
     }
     if (has_types) { result_types = std::move(shuffle_properties[shuffle_prop_idx++]); }
     if (has_labels) {
+      CUGRAPH_EXPECTS(
+        shuffle_prop_idx < shuffle_properties.size(),
+        "deduplicate_edges_by_minor MG shuffle: label property index %zu out of range "
+        "(shuffle_properties.size()=%zu)",
+        shuffle_prop_idx,
+        shuffle_properties.size());
+      CUGRAPH_EXPECTS(
+        std::holds_alternative<rmm::device_uvector<int32_t>>(shuffle_properties[shuffle_prop_idx]),
+        "deduplicate_edges_by_minor MG shuffle: shuffle_properties[%zu] expected "
+        "rmm::device_uvector<int32_t>, variant index %zu",
+        shuffle_prop_idx,
+        shuffle_properties[shuffle_prop_idx].index());
       result_labels =
         std::move(std::get<rmm::device_uvector<int32_t>>(shuffle_properties[shuffle_prop_idx++]));
     }
@@ -110,19 +132,19 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
     if (has_types) {
       auto& types = std::get<rmm::device_uvector<int32_t>>(result_types);
       if (has_labels) {
-        cugraph::sort_wrapper(handle.get_thrust_policy(),
-                              thrust::make_zip_iterator(result_labels->begin(),
-                                                        result_minors.begin(),
-                                                        result_majors.begin(),
-                                                        property.begin(),
-                                                        types.begin()),
-                              thrust::make_zip_iterator(result_labels->end(),
-                                                        result_minors.end(),
-                                                        result_majors.end(),
-                                                        property.end(),
-                                                        types.end()));
+        cugraph::sort(handle.get_thrust_policy(),
+                      thrust::make_zip_iterator(result_labels->begin(),
+                                                result_minors.begin(),
+                                                result_majors.begin(),
+                                                property.begin(),
+                                                types.begin()),
+                      thrust::make_zip_iterator(result_labels->end(),
+                                                result_minors.end(),
+                                                result_majors.end(),
+                                                property.end(),
+                                                types.end()));
       } else {
-        cugraph::sort_wrapper(
+        cugraph::sort(
           handle.get_thrust_policy(),
           thrust::make_zip_iterator(
             result_minors.begin(), result_majors.begin(), property.begin(), types.begin()),
@@ -130,14 +152,14 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
             result_minors.end(), result_majors.end(), property.end(), types.end()));
       }
     } else if (has_labels) {
-      cugraph::sort_wrapper(
+      cugraph::sort(
         handle.get_thrust_policy(),
         thrust::make_zip_iterator(
           result_labels->begin(), result_minors.begin(), result_majors.begin(), property.begin()),
         thrust::make_zip_iterator(
           result_labels->end(), result_minors.end(), result_majors.end(), property.end()));
     } else {
-      cugraph::sort_wrapper(
+      cugraph::sort(
         handle.get_thrust_policy(),
         thrust::make_zip_iterator(result_minors.begin(), result_majors.begin(), property.begin()),
         thrust::make_zip_iterator(result_minors.end(), result_majors.end(), property.end()));
@@ -146,28 +168,28 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
     if (has_types) {
       auto& types = std::get<rmm::device_uvector<int32_t>>(result_types);
       if (has_labels) {
-        cugraph::sort_wrapper(
+        cugraph::sort(
           handle.get_thrust_policy(),
           thrust::make_zip_iterator(
             result_labels->begin(), result_minors.begin(), result_majors.begin(), types.begin()),
           thrust::make_zip_iterator(
             result_labels->end(), result_minors.end(), result_majors.end(), types.end()));
       } else {
-        cugraph::sort_wrapper(
+        cugraph::sort(
           handle.get_thrust_policy(),
           thrust::make_zip_iterator(result_minors.begin(), result_majors.begin(), types.begin()),
           thrust::make_zip_iterator(result_minors.end(), result_majors.end(), types.end()));
       }
     } else if (has_labels) {
-      cugraph::sort_wrapper(
+      cugraph::sort(
         handle.get_thrust_policy(),
         thrust::make_zip_iterator(
           result_labels->begin(), result_minors.begin(), result_majors.begin()),
         thrust::make_zip_iterator(result_labels->end(), result_minors.end(), result_majors.end()));
     } else {
-      cugraph::sort_wrapper(handle.get_thrust_policy(),
-                            thrust::make_zip_iterator(result_minors.begin(), result_majors.begin()),
-                            thrust::make_zip_iterator(result_minors.end(), result_majors.end()));
+      cugraph::sort(handle.get_thrust_policy(),
+                    thrust::make_zip_iterator(result_minors.begin(), result_majors.begin()),
+                    thrust::make_zip_iterator(result_minors.end(), result_majors.end()));
     }
   }
 
@@ -175,17 +197,17 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
   size_t keep_count{0};
   rmm::device_uvector<uint32_t> keep_flags(0, handle.get_stream());
   if (has_labels) {
-    std::tie(keep_count, keep_flags) = detail::mark_entries(
-      handle,
-      result_minors.size(),
-      detail::is_first_in_run_t<decltype(thrust::make_zip_iterator(result_labels->begin(),
-                                                                   result_minors.begin()))>{
-        thrust::make_zip_iterator(result_labels->begin(), result_minors.begin())});
+    std::tie(keep_count, keep_flags) =
+      mark_entries(result_minors.size(),
+                   detail::is_first_in_run_t<decltype(thrust::make_zip_iterator(
+                     result_labels->begin(), result_minors.begin()))>{
+                     thrust::make_zip_iterator(result_labels->begin(), result_minors.begin())},
+                   handle.get_stream());
   } else {
-    std::tie(keep_count, keep_flags) = detail::mark_entries(
-      handle,
+    std::tie(keep_count, keep_flags) = mark_entries(
       result_minors.size(),
-      detail::is_first_in_run_t<decltype(result_minors.begin())>{result_minors.begin()});
+      detail::is_first_in_run_t<decltype(result_minors.begin())>{result_minors.begin()},
+      handle.get_stream());
   }
 
   // split to new result_majors and discarded_majors, then minors, edge_property, types and labels
@@ -204,30 +226,29 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
     raft::device_span<uint32_t const> const keep_flags_span{keep_flags.data(), keep_flags.size()};
 
     discarded_majors.resize(discard_count, handle.get_stream());
-    detail::copy_if_mask_unset(handle,
-                               result_majors.begin(),
-                               result_majors.end(),
-                               keep_flags.begin(),
-                               discarded_majors.begin());
+    cugraph::copy_if_mask_unset(handle,
+                                result_majors.begin(),
+                                result_majors.end(),
+                                keep_flags.begin(),
+                                discarded_majors.begin());
     result_majors =
-      detail::keep_marked_entries(handle, std::move(result_majors), keep_flags_span, keep_count);
+      keep_marked_entries(handle, std::move(result_majors), keep_flags_span, keep_count);
 
     discarded_minors.resize(discard_count, handle.get_stream());
-    detail::copy_if_mask_unset(handle,
-                               result_minors.begin(),
-                               result_minors.end(),
-                               keep_flags.begin(),
-                               discarded_minors.begin());
+    cugraph::copy_if_mask_unset(handle,
+                                result_minors.begin(),
+                                result_minors.end(),
+                                keep_flags.begin(),
+                                discarded_minors.begin());
     result_minors =
-      detail::keep_marked_entries(handle, std::move(result_minors), keep_flags_span, keep_count);
+      keep_marked_entries(handle, std::move(result_minors), keep_flags_span, keep_count);
 
     if (has_edge_property) {
       auto& property = std::get<rmm::device_uvector<edge_t>>(result_edge_property);
       rmm::device_uvector<edge_t> discarded(discard_count, handle.get_stream());
-      detail::copy_if_mask_unset(
+      cugraph::copy_if_mask_unset(
         handle, property.begin(), property.end(), keep_flags.begin(), discarded.begin());
-      property =
-        detail::keep_marked_entries(handle, std::move(property), keep_flags_span, keep_count);
+      property = keep_marked_entries(handle, std::move(property), keep_flags_span, keep_count);
       discarded_edge_property = std::move(discarded);
     }
 
@@ -235,20 +256,20 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
       auto& types     = std::get<rmm::device_uvector<int32_t>>(result_types);
       auto& discarded = std::get<rmm::device_uvector<int32_t>>(discarded_types);
       discarded.resize(discard_count, handle.get_stream());
-      detail::copy_if_mask_unset(
+      cugraph::copy_if_mask_unset(
         handle, types.begin(), types.end(), keep_flags.begin(), discarded.begin());
     }
 
     if (has_labels) {
       discarded_labels =
         std::make_optional(rmm::device_uvector<int32_t>(discard_count, handle.get_stream()));
-      detail::copy_if_mask_unset(handle,
-                                 result_labels->begin(),
-                                 result_labels->end(),
-                                 keep_flags.begin(),
-                                 discarded_labels->begin());
+      cugraph::copy_if_mask_unset(handle,
+                                  result_labels->begin(),
+                                  result_labels->end(),
+                                  keep_flags.begin(),
+                                  discarded_labels->begin());
       *result_labels =
-        detail::keep_marked_entries(handle, std::move(*result_labels), keep_flags_span, keep_count);
+        keep_marked_entries(handle, std::move(*result_labels), keep_flags_span, keep_count);
     }
   }
 

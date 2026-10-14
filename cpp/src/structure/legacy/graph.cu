@@ -1,11 +1,13 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/scan.hpp>
+#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/util/device_atomics.cuh>
@@ -13,6 +15,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/atomic>
+#include <cuda/stream>
 #include <thrust/execution_policy.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -24,7 +27,7 @@ template <typename vertex_t, typename edge_t>
 void degree_from_offsets(vertex_t number_of_vertices,
                          edge_t const* offsets,
                          edge_t* degree,
-                         rmm::cuda_stream_view stream_view)
+                         cuda::stream_ref stream_view)
 {
   // Computes out-degree for x = 0 and x = 2
   thrust::for_each(
@@ -40,7 +43,7 @@ void degree_from_vertex_ids(const raft::handle_t* handle,
                             edge_t number_of_edges,
                             vertex_t const* indices,
                             edge_t* degree,
-                            rmm::cuda_stream_view stream_view)
+                            cuda::stream_ref stream_view)
 {
   thrust::for_each(
     rmm::exec_policy(stream_view),
@@ -49,7 +52,7 @@ void degree_from_vertex_ids(const raft::handle_t* handle,
     [indices, degree] __device__(edge_t e) { atomicAdd(degree + indices[e], edge_t{1}); });
   if ((handle != nullptr) && (handle->comms_initialized())) {
     auto& comm = handle->get_comms();
-    comm.allreduce(degree, degree, number_of_vertices, raft::comms::op_t::SUM, stream_view.value());
+    comm.allreduce(degree, degree, number_of_vertices, raft::comms::op_t::SUM, stream_view.get());
   }
 }
 
@@ -61,10 +64,10 @@ namespace legacy {
 template <typename VT, typename ET, typename WT>
 void GraphViewBase<VT, ET, WT>::get_vertex_identifiers(VT* identifiers) const
 {
-  thrust::sequence(thrust::device,
-                   thrust::device_pointer_cast(identifiers),
-                   thrust::device_pointer_cast(identifiers + number_of_vertices),
-                   VT{0});
+  cugraph::sequence(thrust::device,
+                    thrust::device_pointer_cast(identifiers),
+                    thrust::device_pointer_cast(identifiers + number_of_vertices),
+                    VT{0});
   RAFT_CHECK_CUDA(nullptr);
 }
 
@@ -73,12 +76,12 @@ template <typename VT, typename ET, typename WT>
 void GraphCompressedSparseBaseView<VT, ET, WT>::get_source_indices(VT* src_indices) const
 {
   CUGRAPH_EXPECTS(offsets != nullptr, "No graph specified");
-  rmm::cuda_stream_view stream_view;
+  cuda::stream_ref stream_view;
 
   raft::device_span<VT> indices_span(src_indices, GraphViewBase<VT, ET, WT>::number_of_edges);
 
   if (indices_span.size() > 0) {
-    thrust::fill(rmm::exec_policy(stream_view), indices_span.begin(), indices_span.end(), VT{0});
+    cugraph::fill(rmm::exec_policy(stream_view), indices_span.begin(), indices_span.end(), VT{0});
 
     thrust::for_each(rmm::exec_policy(stream_view),
                      offsets + 1,
@@ -143,7 +146,7 @@ void GraphCompressedSparseBaseView<VT, ET, WT>::degree(ET* degree, DegreeDirecti
   //        (e.g. if you have a CSC and you want in-degree (x=1) then pass
   //        the offsets/indices and request an out-degree (x=2))
   //
-  rmm::cuda_stream_view stream_view;
+  cuda::stream_ref stream_view;
 
   if (direction != DegreeDirection::IN) {
     if ((GraphViewBase<VT, ET, WT>::handle != nullptr) &&

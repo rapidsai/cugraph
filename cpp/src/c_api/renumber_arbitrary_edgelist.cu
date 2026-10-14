@@ -12,11 +12,15 @@
 #include <cugraph/export.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/thrust_wrappers.hpp>
+#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <cuda/std/iterator>
 #include <thrust/binary_search.h>
+#include <thrust/count.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/unique.h>
 
 namespace {
 
@@ -36,18 +40,18 @@ cugraph_error_code_t renumber_arbitrary_edgelist(
                  dsts->size_,
                  vertices.data() + srcs->size_);
 
-  cugraph::sort_wrapper(handle.get_thrust_policy(), vertices.begin(), vertices.end());
+  cugraph::sort(handle.get_thrust_policy(), vertices.begin(), vertices.end());
   vertices.resize(cuda::std::distance(
                     vertices.begin(),
-                    thrust::unique(handle.get_thrust_policy(), vertices.begin(), vertices.end())),
+                    cugraph::unique(handle.get_thrust_policy(), vertices.begin(), vertices.end())),
                   handle.get_stream());
 
   vertices.shrink_to_fit(handle.get_stream());
   rmm::device_uvector<vertex_t> ids(vertices.size(), handle.get_stream());
-  thrust::fill(handle.get_thrust_policy(),
-               ids.begin(),
-               ids.end(),
-               cugraph::invalid_vertex_id<vertex_t>::value);
+  cugraph::fill(handle.get_thrust_policy(),
+                ids.begin(),
+                ids.end(),
+                cugraph::invalid_vertex_id<vertex_t>::value);
 
   raft::device_span<vertex_t const> vertices_span{vertices.data(), vertices.size()};
   raft::device_span<vertex_t> ids_span{ids.data(), ids.size()};
