@@ -23,7 +23,7 @@ on:
         required: true
         type: string
       build_type:
-        description: "build_type: one of [branch, nightly, pull-request]"
+        description: "build_type: one of [branch, nightly, pull-request, release-candidate]"
         type: string
         default: nightly
 concurrency:
@@ -35,8 +35,7 @@ jobs:
     uses: rapidsai/shared-workflows/.github/workflows/compute-build-details.yaml@main
   cpp-build:
     needs: [build-details]
-    secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@main
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@10c48afab35c7a70c3c4b1fcccaab11356b7720f
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       build-datetime: ${{ needs.build-details.outputs.build-datetime }}
@@ -53,8 +52,7 @@ jobs:
       pull-requests: read
   python-build:
     needs: [build-details, cpp-build]
-    secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@main
+    uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@10c48afab35c7a70c3c4b1fcccaab11356b7720f
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       build-datetime: ${{ needs.build-details.outputs.build-datetime }}
@@ -71,6 +69,7 @@ jobs:
       packages: read
       pull-requests: read
   upload-conda:
+    if: ${{ inputs.build_type != 'release-candidate' && github.event.inputs.build_type != 'release-candidate' && !startsWith(github.ref_name, 'release-test-') && !startsWith(inputs.branch, 'release-test-') && !startsWith(inputs.branch, 'refs/heads/release-test-') }}
     needs: [cpp-build, python-build]
     secrets:
       CONDA_RAPIDSAI_NIGHTLY_TOKEN: ${{ secrets.CONDA_RAPIDSAI_NIGHTLY_TOKEN }}
@@ -88,6 +87,7 @@ jobs:
       packages: read
       pull-requests: read
   docs-build-matrix:
+    if: ${{ inputs.build_type != 'release-candidate' && github.event.inputs.build_type != 'release-candidate' && !startsWith(github.ref_name, 'release-test-') && !startsWith(inputs.branch, 'release-test-') && !startsWith(inputs.branch, 'refs/heads/release-test-') }}
     permissions:
       contents: read
     uses: rapidsai/shared-workflows/.github/workflows/compute-matrix.yaml@main
@@ -95,7 +95,7 @@ jobs:
       build_type: ${{ inputs.build_type || 'branch' }}
       matrix_name: docs-build
   docs-build:
-    if: github.ref_type == 'branch'
+    if: ${{ (github.ref_type == 'branch') && inputs.build_type != 'release-candidate' && github.event.inputs.build_type != 'release-candidate' && !startsWith(github.ref_name, 'release-test-') && !startsWith(inputs.branch, 'release-test-') && !startsWith(inputs.branch, 'refs/heads/release-test-') }}
     needs: [docs-build-matrix, python-build]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
@@ -119,8 +119,7 @@ jobs:
       pull-requests: read
   wheel-build-libcugraph:
     needs: [build-details]
-    secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@10c48afab35c7a70c3c4b1fcccaab11356b7720f
     with:
       # build for every combination of arch and CUDA version, but only for the latest Python version
       matrix_filter: group_by([.ARCH, (.CUDA_VER|split(".")|map(tonumber)|.[0])]) | map(max_by(.PY_VER|split(".")|map(tonumber)))
@@ -140,6 +139,7 @@ jobs:
       packages: read
       pull-requests: read
   wheel-publish-libcugraph:
+    if: ${{ inputs.build_type != 'release-candidate' && github.event.inputs.build_type != 'release-candidate' && !startsWith(github.ref_name, 'release-test-') && !startsWith(inputs.branch, 'release-test-') && !startsWith(inputs.branch, 'refs/heads/release-test-') }}
     needs: wheel-build-libcugraph
     secrets:
       CONDA_RAPIDSAI_WHEELS_NIGHTLY_TOKEN: ${{ secrets.CONDA_RAPIDSAI_WHEELS_NIGHTLY_TOKEN }}
@@ -161,8 +161,7 @@ jobs:
       pull-requests: read
   wheel-build-pylibcugraph:
     needs: [build-details, wheel-build-libcugraph]
-    secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@10c48afab35c7a70c3c4b1fcccaab11356b7720f
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       build-datetime: ${{ needs.build-details.outputs.build-datetime }}
@@ -182,6 +181,7 @@ jobs:
       packages: read
       pull-requests: read
   wheel-publish-pylibcugraph:
+    if: ${{ inputs.build_type != 'release-candidate' && github.event.inputs.build_type != 'release-candidate' && !startsWith(github.ref_name, 'release-test-') && !startsWith(inputs.branch, 'release-test-') && !startsWith(inputs.branch, 'refs/heads/release-test-') }}
     needs: wheel-build-pylibcugraph
     secrets:
       CONDA_RAPIDSAI_WHEELS_NIGHTLY_TOKEN: ${{ secrets.CONDA_RAPIDSAI_WHEELS_NIGHTLY_TOKEN }}
@@ -203,8 +203,7 @@ jobs:
       pull-requests: read
   wheel-build-cugraph:
     needs: [build-details, wheel-build-pylibcugraph]
-    secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@10c48afab35c7a70c3c4b1fcccaab11356b7720f
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       build-datetime: ${{ needs.build-details.outputs.build-datetime }}
@@ -224,6 +223,7 @@ jobs:
       packages: read
       pull-requests: read
   wheel-publish-cugraph:
+    if: ${{ inputs.build_type != 'release-candidate' && github.event.inputs.build_type != 'release-candidate' && !startsWith(github.ref_name, 'release-test-') && !startsWith(inputs.branch, 'release-test-') && !startsWith(inputs.branch, 'refs/heads/release-test-') }}
     needs: wheel-build-cugraph
     secrets:
       CONDA_RAPIDSAI_WHEELS_NIGHTLY_TOKEN: ${{ secrets.CONDA_RAPIDSAI_WHEELS_NIGHTLY_TOKEN }}
@@ -244,6 +244,7 @@ jobs:
       packages: read
       pull-requests: read
   devcontainers:
+    if: ${{ inputs.build_type != 'release-candidate' && github.event.inputs.build_type != 'release-candidate' && !startsWith(github.ref_name, 'release-test-') && !startsWith(inputs.branch, 'release-test-') && !startsWith(inputs.branch, 'refs/heads/release-test-') }}
     name: Build devcontainers
     secrets: inherit  # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/build-devcontainers.yaml@main
