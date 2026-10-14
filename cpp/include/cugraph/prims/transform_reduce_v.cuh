@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -43,18 +43,16 @@ struct transform_reduce_call_v_op_t {
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam ReduceOp Type of the binary reduction operator.
- * @tparam VertexValueInputIterator Type of the iterator for vertex property values.
+ * @tparam VertexValueInputWrapper Type of the wrapper for vertex property values.
  * @tparam VertexOp Type of the unary vertex operator.
  * @tparam T Type of the initial value.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param vertex_value_input_first Iterator pointing to the vertex property values for the first
- * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
- * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().
- * @param v_op Binary operator takes vertex ID and *(@p vertex_value_input_first + i) (where i is
- * [0, @p graph_view.local_vertex_partition_range_size())) and returns a transformed value to be
- * reduced.
+ * @param vertex_value_input Wrapper used to access vertex property values (for the vertices
+ * assigned to this process in multi-GPU). Use `vertex_property_t::view()`.
+ * @param v_op Binary operator takes vertex ID and the corresponding input vertex property value
+ * and returns a transformed value to be reduced.
  * @param init Initial value to be reduced with the transform-reduced input vertex property values.
  * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
  * There are pre-defined reduction operators in include/cugraph/prims/reduce_op.cuh. It is
@@ -67,12 +65,12 @@ struct transform_reduce_call_v_op_t {
  */
 template <typename GraphViewType,
           typename ReduceOp,
-          typename VertexValueInputIterator,
+          typename VertexValueInputWrapper,
           typename VertexOp,
           typename T>
 T transform_reduce_v(raft::handle_t const& handle,
                      GraphViewType const& graph_view,
-                     VertexValueInputIterator vertex_value_input_first,
+                     VertexValueInputWrapper vertex_value_input,
                      VertexOp v_op,
                      T init,
                      ReduceOp reduce_op,
@@ -84,14 +82,17 @@ T transform_reduce_v(raft::handle_t const& handle,
     // currently, nothing to do
   }
 
+  auto vertex_value_input_first = vertex_value_input.value_first();
+
   return reduce_v(
     handle,
     graph_view,
     vertex_property_view_t{
       cuda::make_transform_iterator(
         thrust::make_counting_iterator(vertex_t{0}),
-        detail::transform_reduce_call_v_op_t<vertex_t, VertexValueInputIterator, VertexOp, T>{
-          graph_view.local_vertex_partition_range_first(), vertex_value_input_first, v_op}),
+        detail::
+          transform_reduce_call_v_op_t<vertex_t, decltype(vertex_value_input_first), VertexOp, T>{
+            graph_view.local_vertex_partition_range_first(), vertex_value_input_first, v_op}),
       graph_view.local_vertex_partition_range_size()},
     init,
     reduce_op);
@@ -103,26 +104,24 @@ T transform_reduce_v(raft::handle_t const& handle,
  * This function is inspired by thrust::transform_reduce().
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam VertexValueInputIterator Type of the iterator for vertex property values.
+ * @tparam VertexValueInputWrapper Type of the wrapper for vertex property values.
  * @tparam VertexOp Type of the unary vertex operator.
  * @tparam T Type of the initial value.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param vertex_value_input_first Iterator pointing to the vertex property values for the first
- * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
- * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().
- * @param v_op Binary operator takes vertex ID and *(@p vertex_value_input_first + i) (where i is
- * [0, @p graph_view.local_vertex_partition_range_size())) and returns a transformed value to be
- * reduced.
+ * @param vertex_value_input Wrapper used to access vertex property values (for the vertices
+ * assigned to this process in multi-GPU). Use `vertex_property_t::view()`.
+ * @param v_op Binary operator takes vertex ID and the corresponding input vertex property value
+ * and returns a transformed value to be reduced.
  * @param init Initial value to be added to the transform-reduced input vertex property values.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return T Transformed and reduced input vertex property values.
  */
-template <typename GraphViewType, typename VertexValueInputIterator, typename VertexOp, typename T>
+template <typename GraphViewType, typename VertexValueInputWrapper, typename VertexOp, typename T>
 T transform_reduce_v(raft::handle_t const& handle,
                      GraphViewType const& graph_view,
-                     VertexValueInputIterator vertex_value_input_first,
+                     VertexValueInputWrapper vertex_value_input,
                      VertexOp v_op,
                      T init,
                      bool do_expensive_check = false)
@@ -132,7 +131,7 @@ T transform_reduce_v(raft::handle_t const& handle,
   }
 
   return transform_reduce_v(
-    handle, graph_view, vertex_value_input_first, v_op, init, reduce_op::plus<T>{});
+    handle, graph_view, vertex_value_input, v_op, init, reduce_op::plus<T>{});
 }
 
 /**
@@ -141,38 +140,35 @@ T transform_reduce_v(raft::handle_t const& handle,
  * This function is inspired by thrust::transform_reduce().
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam VertexValueInputIterator Type of the iterator for vertex property values.
+ * @tparam VertexValueInputWrapper Type of the wrapper for vertex property values.
  * @tparam VertexOp Type of the unary vertex operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param vertex_value_input_first Iterator pointing to the vertex property values for the first
- * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
- * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().
- * @param v_op Binary operator takes vertex ID and *(@p vertex_value_input_first + i) (where i is
- * [0, @p graph_view.local_vertex_partition_range_size())) and returns a transformed value to be
- * reduced.
+ * @param vertex_value_input Wrapper used to access vertex property values (for the vertices
+ * assigned to this process in multi-GPU). Use `vertex_property_t::view()`.
+ * @param v_op Binary operator takes vertex ID and the corresponding input vertex property value
+ * and returns a transformed value to be reduced.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Transformed and reduced input vertex property values.
  */
-template <typename GraphViewType, typename VertexValueInputIterator, typename VertexOp>
+template <typename GraphViewType, typename VertexValueInputWrapper, typename VertexOp>
 auto transform_reduce_v(raft::handle_t const& handle,
                         GraphViewType const& graph_view,
-                        VertexValueInputIterator vertex_value_input_first,
+                        VertexValueInputWrapper vertex_value_input,
                         VertexOp v_op,
                         bool do_expensive_check = false)
 {
-  using vertex_t = typename GraphViewType::vertex_type;
-  using vertex_value_input_t =
-    typename thrust::iterator_traits<VertexValueInputIterator>::value_type;
-  using T = std::invoke_result_t<VertexOp, vertex_t, vertex_value_input_t>;
+  using vertex_t             = typename GraphViewType::vertex_type;
+  using vertex_value_input_t = typename VertexValueInputWrapper::value_type;
+  using T                    = std::invoke_result_t<VertexOp, vertex_t, vertex_value_input_t>;
 
   if (do_expensive_check) {
     // currently, nothing to do
   }
 
   return transform_reduce_v(
-    handle, graph_view, vertex_value_input_first, v_op, T{}, reduce_op::plus<T>{});
+    handle, graph_view, vertex_value_input, v_op, T{}, reduce_op::plus<T>{});
 }
 
 }  // namespace CUGRAPH_EXPORT cugraph

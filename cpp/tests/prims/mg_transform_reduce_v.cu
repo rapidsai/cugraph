@@ -120,28 +120,34 @@ class Tests_MGTransformReduceV
 
       switch (reduction_type) {
         case reduction_type_t::PLUS:
-          results[reduction_type] = transform_reduce_v(*handle_,
-                                                       mg_graph_view,
-                                                       (*mg_renumber_map).begin(),
-                                                       v_op,
-                                                       property_initial_value,
-                                                       cugraph::reduce_op::plus<result_t>{});
+          results[reduction_type] = transform_reduce_v(
+            *handle_,
+            mg_graph_view,
+            cugraph::vertex_property_view_t{mg_renumber_map->begin(),
+                                            mg_graph_view.local_vertex_partition_range_size()},
+            v_op,
+            property_initial_value,
+            cugraph::reduce_op::plus<result_t>{});
           break;
         case reduction_type_t::MINIMUM:
-          results[reduction_type] = transform_reduce_v(*handle_,
-                                                       mg_graph_view,
-                                                       (*mg_renumber_map).begin(),
-                                                       v_op,
-                                                       property_initial_value,
-                                                       cugraph::reduce_op::minimum<result_t>{});
+          results[reduction_type] = transform_reduce_v(
+            *handle_,
+            mg_graph_view,
+            cugraph::vertex_property_view_t{mg_renumber_map->begin(),
+                                            mg_graph_view.local_vertex_partition_range_size()},
+            v_op,
+            property_initial_value,
+            cugraph::reduce_op::minimum<result_t>{});
           break;
         case reduction_type_t::MAXIMUM:
-          results[reduction_type] = transform_reduce_v(*handle_,
-                                                       mg_graph_view,
-                                                       (*mg_renumber_map).begin(),
-                                                       v_op,
-                                                       property_initial_value,
-                                                       cugraph::reduce_op::maximum<result_t>{});
+          results[reduction_type] = transform_reduce_v(
+            *handle_,
+            mg_graph_view,
+            cugraph::vertex_property_view_t{mg_renumber_map->begin(),
+                                            mg_graph_view.local_vertex_partition_range_size()},
+            v_op,
+            property_initial_value,
+            cugraph::reduce_op::maximum<result_t>{});
           break;
         default: FAIL() << "should not be reached.";
       }
@@ -176,31 +182,40 @@ class Tests_MGTransformReduceV
           result_t expected_result{};
           switch (reduction_type) {
             case reduction_type_t::PLUS:
-              expected_result = transform_reduce_v(
-                *handle_,
-                sg_graph_view,
-                thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-                v_op,
-                property_initial_value,
-                cugraph::reduce_op::plus<result_t>{});
+              expected_result =
+                transform_reduce_v(*handle_,
+                                   sg_graph_view,
+                                   cugraph::vertex_property_view_t{
+                                     thrust::make_counting_iterator(
+                                       sg_graph_view.local_vertex_partition_range_first()),
+                                     sg_graph_view.local_vertex_partition_range_size()},
+                                   v_op,
+                                   property_initial_value,
+                                   cugraph::reduce_op::plus<result_t>{});
               break;
             case reduction_type_t::MINIMUM:
-              expected_result = transform_reduce_v(
-                *handle_,
-                sg_graph_view,
-                thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-                v_op,
-                property_initial_value,
-                cugraph::reduce_op::minimum<result_t>{});
+              expected_result =
+                transform_reduce_v(*handle_,
+                                   sg_graph_view,
+                                   cugraph::vertex_property_view_t{
+                                     thrust::make_counting_iterator(
+                                       sg_graph_view.local_vertex_partition_range_first()),
+                                     sg_graph_view.local_vertex_partition_range_size()},
+                                   v_op,
+                                   property_initial_value,
+                                   cugraph::reduce_op::minimum<result_t>{});
               break;
             case reduction_type_t::MAXIMUM:
-              expected_result = transform_reduce_v(
-                *handle_,
-                sg_graph_view,
-                thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-                v_op,
-                property_initial_value,
-                cugraph::reduce_op::maximum<result_t>{});
+              expected_result =
+                transform_reduce_v(*handle_,
+                                   sg_graph_view,
+                                   cugraph::vertex_property_view_t{
+                                     thrust::make_counting_iterator(
+                                       sg_graph_view.local_vertex_partition_range_first()),
+                                     sg_graph_view.local_vertex_partition_range_size()},
+                                   v_op,
+                                   property_initial_value,
+                                   cugraph::reduce_op::maximum<result_t>{});
               break;
             default: FAIL() << "should not be reached.";
           }

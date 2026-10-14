@@ -149,7 +149,9 @@ void katz_centrality(
     auto diff_sum = transform_reduce_v(
       handle,
       pull_graph_view,
-      thrust::make_zip_iterator(new_katz_centralities, old_katz_centralities),
+      vertex_property_view_t{
+        thrust::make_zip_iterator(new_katz_centralities, old_katz_centralities),
+        pull_graph_view.local_vertex_partition_range_size()},
       [] __device__(auto, auto val) {
         return std::abs(cuda::std::get<0>(val) - cuda::std::get<1>(val));
       },
@@ -175,7 +177,8 @@ void katz_centrality(
     auto l2_norm = transform_reduce_v(
       handle,
       pull_graph_view,
-      katz_centralities,
+      vertex_property_view_t{katz_centralities,
+                             pull_graph_view.local_vertex_partition_range_size()},
       [] __device__(auto, auto val) { return val * val; },
       result_t{0.0});
     l2_norm = std::sqrt(l2_norm);

@@ -130,7 +130,8 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
     auto hypotenuse = sqrt(transform_reduce_v(
       handle,
       pull_graph_view,
-      centralities.begin(),
+      vertex_property_view_t{centralities.begin(),
+                             pull_graph_view.local_vertex_partition_range_size()},
       [] __device__(auto, auto val) { return val * val; },
       weight_t{0.0}));
 
@@ -143,7 +144,9 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
     auto diff_sum = transform_reduce_v(
       handle,
       pull_graph_view,
-      thrust::make_zip_iterator(centralities.begin(), old_centralities.data()),
+      vertex_property_view_t{
+        thrust::make_zip_iterator(centralities.begin(), old_centralities.data()),
+        pull_graph_view.local_vertex_partition_range_size()},
       [] __device__(auto, auto val) {
         return cuda::std::abs(cuda::std::get<0>(val) - cuda::std::get<1>(val));
       },

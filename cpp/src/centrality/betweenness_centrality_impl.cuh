@@ -243,7 +243,7 @@ void accumulate_vertex_results(
   vertex_t diameter = transform_reduce_v(
     handle,
     graph_view,
-    distances.begin(),
+    vertex_property_view_t{distances.begin(), graph_view.local_vertex_partition_range_size()},
     [] __device__(auto, auto d) { return (d == invalid_distance) ? vertex_t{0} : d; },
     vertex_t{0},
     reduce_op::maximum<vertex_t>{},
@@ -422,7 +422,7 @@ void accumulate_edge_results(
   vertex_t diameter = transform_reduce_v(
     handle,
     graph_view,
-    distances.begin(),
+    vertex_property_view_t{distances.begin(), graph_view.local_vertex_partition_range_size()},
     [] __device__(auto, auto d) { return (d == invalid_distance) ? vertex_t{0} : d; },
     vertex_t{0},
     reduce_op::maximum<vertex_t>{},

@@ -229,7 +229,8 @@ centrality_algorithm_metadata_t pagerank(
     auto dangling_sum = transform_reduce_v(
       handle,
       pull_graph_view,
-      thrust::make_zip_iterator(pageranks.begin(), vertex_out_weight_sums),
+      vertex_property_view_t{thrust::make_zip_iterator(pageranks.begin(), vertex_out_weight_sums),
+                             pull_graph_view.local_vertex_partition_range_size()},
       [] __device__(auto, auto val) {
         auto const pagerank       = cuda::std::get<0>(val);
         auto const out_weight_sum = cuda::std::get<1>(val);
@@ -317,7 +318,8 @@ centrality_algorithm_metadata_t pagerank(
     auto diff_sum = transform_reduce_v(
       handle,
       pull_graph_view,
-      thrust::make_zip_iterator(pageranks.begin(), old_pageranks.begin()),
+      vertex_property_view_t{thrust::make_zip_iterator(pageranks.begin(), old_pageranks.begin()),
+                             pull_graph_view.local_vertex_partition_range_size()},
       [] __device__(auto, auto val) {
         return std::abs(cuda::std::get<0>(val) - cuda::std::get<1>(val));
       },
