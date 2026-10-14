@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -133,7 +133,8 @@ class Tests_MGGraphColoring
         },
         uint8_t{0},
         cugraph::reduce_op::maximum<uint8_t>{},
-        d_color_conflicts.begin());
+        cugraph::vertex_property_view_t{d_color_conflicts.begin(),
+                                        mg_graph_view.local_vertex_partition_range_size()});
 
       std::vector<uint8_t> h_color_conflicts(d_color_conflicts.size());
       raft::update_host(h_color_conflicts.data(),

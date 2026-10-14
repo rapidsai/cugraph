@@ -232,7 +232,8 @@ void perform_example_graph_operations(
       },
       result_t{0},
       cugraph::reduce_op::plus<result_t>{},
-      weighted_averages.begin());
+      cugraph::vertex_property_view_t{weighted_averages.begin(),
+                                      graph_view.local_vertex_partition_range_size()});
 
     auto weighted_averages_title =
       std::string("weighted_averages_").append(std::to_string(comm_rank));
@@ -281,7 +282,8 @@ void perform_example_graph_operations(
       },
       result_t{0},
       cugraph::reduce_op::plus<result_t>{},
-      weighted_averages.begin());
+      cugraph::vertex_property_view_t{weighted_averages.begin(),
+                                      graph_view.local_vertex_partition_range_size()});
 
     auto weighted_averages_title =
       std::string("weighted_averages_").append(std::to_string(comm_rank));

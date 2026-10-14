@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -103,7 +103,8 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
         [] __device__(vertex_t, vertex_t, auto src_val, auto, weight_t w) { return src_val * w; },
         weight_t{0},
         reduce_op::plus<weight_t>{},
-        centralities.begin());
+        vertex_property_view_t{centralities.begin(),
+                               pull_graph_view.local_vertex_partition_range_size()});
     } else {
       per_v_transform_reduce_incoming_e(
         handle,
@@ -114,7 +115,8 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
         [] __device__(vertex_t, vertex_t, auto src_val, auto, auto) { return src_val; },
         weight_t{0},
         reduce_op::plus<weight_t>{},
-        centralities.begin());
+        vertex_property_view_t{centralities.begin(),
+                               pull_graph_view.local_vertex_partition_range_size()});
     }
 
     thrust::transform(handle.get_thrust_policy(),

@@ -49,7 +49,7 @@ rmm::device_uvector<weight_t> compute_weight_sums(
       [] __device__(vertex_t, vertex_t, auto, auto, weight_t w) { return w; },
       weight_t{0.0},
       reduce_op::plus<weight_t>{},
-      weight_sums.data());
+      vertex_property_view_t{weight_sums.data(), graph_view.local_vertex_partition_range_size()});
   } else {
     per_v_transform_reduce_outgoing_e(
       handle,
@@ -60,7 +60,7 @@ rmm::device_uvector<weight_t> compute_weight_sums(
       [] __device__(vertex_t, vertex_t, auto, auto, weight_t w) { return w; },
       weight_t{0.0},
       reduce_op::plus<weight_t>{},
-      weight_sums.data());
+      vertex_property_view_t{weight_sums.data(), graph_view.local_vertex_partition_range_size()});
   }
 
   return weight_sums;

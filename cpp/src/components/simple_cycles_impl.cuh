@@ -1393,7 +1393,8 @@ simple_cycles_impl(raft::handle_t const& handle,
                 }),
               uint8_t{0},
               cugraph::reduce_op::maximum<uint8_t>{},
-              next_hop_flags.begin());
+              vertex_property_view_t{next_hop_flags.begin(),
+                                     scc_graph_view.local_vertex_partition_range_size()});
           } else {
             per_v_transform_reduce_outgoing_e(
               handle,
@@ -1408,7 +1409,8 @@ simple_cycles_impl(raft::handle_t const& handle,
                 }),
               uint8_t{0},
               cugraph::reduce_op::maximum<uint8_t>{},
-              next_hop_flags.begin());
+              vertex_property_view_t{next_hop_flags.begin(),
+                                     scc_graph_view.local_vertex_partition_range_size()});
           }
           thrust::transform(
             handle.get_thrust_policy(),

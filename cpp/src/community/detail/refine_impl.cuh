@@ -224,7 +224,8 @@ refine_clustering(raft::handle_t const& handle,
       }),
     weight_t{0},
     cugraph::reduce_op::plus<weight_t>{},
-    weighted_cut_of_vertices_to_louvain.begin());
+    vertex_property_view_t{weighted_cut_of_vertices_to_louvain.begin(),
+                           graph_view.local_vertex_partition_range_size()});
 
   // FIXME: Consider using bit mask logic here.  Would reduce memory by 8x
   rmm::device_uvector<uint8_t> singleton_and_connected_flags(

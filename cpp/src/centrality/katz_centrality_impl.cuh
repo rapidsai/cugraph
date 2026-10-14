@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -115,7 +115,8 @@ void katz_centrality(
         },
         betas != nullptr ? result_t{0.0} : beta,
         reduce_op::plus<result_t>{},
-        new_katz_centralities);
+        vertex_property_view_t{new_katz_centralities,
+                               pull_graph_view.local_vertex_partition_range_size()});
     } else {
       per_v_transform_reduce_incoming_e(
         handle,
@@ -128,7 +129,8 @@ void katz_centrality(
         },
         betas != nullptr ? result_t{0.0} : beta,
         reduce_op::plus<result_t>{},
-        new_katz_centralities);
+        vertex_property_view_t{new_katz_centralities,
+                               pull_graph_view.local_vertex_partition_range_size()});
     }
 
     if (betas != nullptr) {

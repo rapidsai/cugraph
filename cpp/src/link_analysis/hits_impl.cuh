@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -128,7 +128,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
       [] __device__(auto, auto, auto prev_src_hub_value, auto, auto) { return prev_src_hub_value; },
       result_t{0},
       reduce_op::plus<result_t>{},
-      authorities);
+      vertex_property_view_t{authorities, graph_view.local_vertex_partition_range_size()});
 
     update_edge_dst_property(
       handle,
@@ -148,7 +148,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
       },
       result_t{0},
       reduce_op::plus<result_t>{},
-      curr_hubs);
+      vertex_property_view_t{curr_hubs, graph_view.local_vertex_partition_range_size()});
 
     // Normalize current hub values
     detail::normalize(handle,

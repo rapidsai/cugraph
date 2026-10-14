@@ -542,7 +542,7 @@ void accumulate_edge_results(
       },
       weight_t{0},
       reduce_op::plus<weight_t>{},
-      deltas.begin(),
+      vertex_property_view_t{deltas.begin(), graph_view.local_vertex_partition_range_size()},
       do_expensive_check);
 
     update_edge_src_property(

@@ -274,7 +274,8 @@ centrality_algorithm_metadata_t pagerank(
         },
         unvarying_part,
         reduce_op::plus<result_t>{},
-        pageranks.begin());
+        vertex_property_view_t{pageranks.begin(),
+                               pull_graph_view.local_vertex_partition_range_size()});
     } else {
       per_v_transform_reduce_incoming_e(
         handle,
@@ -287,7 +288,8 @@ centrality_algorithm_metadata_t pagerank(
         },
         unvarying_part,
         reduce_op::plus<result_t>{},
-        pageranks.begin());
+        vertex_property_view_t{pageranks.begin(),
+                               pull_graph_view.local_vertex_partition_range_size()});
     }
 
     if (aggregate_personalization_vector_size > 0) {

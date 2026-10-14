@@ -363,7 +363,9 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
     },
     cuda::std::make_tuple(weight_t{0}, weight_t{0}),
     reduce_op::plus<cuda::std::tuple<weight_t, weight_t>>{},
-    thrust::make_zip_iterator(old_cluster_sum_v.begin(), cluster_subtract_v.begin()));
+    vertex_property_view_t{
+      thrust::make_zip_iterator(old_cluster_sum_v.begin(), cluster_subtract_v.begin()),
+      graph_view.local_vertex_partition_range_size()});
 
   std::optional<edge_src_property_t<vertex_t, cuda::std::tuple<weight_t, weight_t>>>
     src_old_cluster_sum_subtract_pairs{std::nullopt};

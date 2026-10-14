@@ -350,7 +350,8 @@ all_pairs_similarity(raft::handle_t const& handle,
       },
       size_t{0},
       reduce_op::plus<size_t>{},
-      two_hop_degrees.begin());
+      vertex_property_view_t{two_hop_degrees.begin(),
+                             graph_view.local_vertex_partition_range_size()});
 
     if (vertices) {
       rmm::device_uvector<size_t> gathered_two_hop_degrees(tmp_vertices.size() + 1,

@@ -185,7 +185,8 @@ rmm::device_uvector<vertex_t> maximal_independent_moves(
       [] __device__(auto src, auto dst, auto src_rank, auto dst_rank, auto wt) { return dst_rank; },
       std::numeric_limits<vertex_t>::lowest(),
       cugraph::reduce_op::maximum<vertex_t>{},
-      max_outgoing_ranks.begin());
+      vertex_property_view_t{max_outgoing_ranks.begin(),
+                             graph_view.local_vertex_partition_range_size()});
 
     //
     // Find maximum rank incoming neighbor for each vertex
@@ -206,7 +207,8 @@ rmm::device_uvector<vertex_t> maximal_independent_moves(
       [] __device__(auto src, auto dst, auto src_rank, auto dst_rank, auto wt) { return src_rank; },
       std::numeric_limits<vertex_t>::lowest(),
       cugraph::reduce_op::maximum<vertex_t>{},
-      max_incoming_ranks.begin());
+      vertex_property_view_t{max_incoming_ranks.begin(),
+                             graph_view.local_vertex_partition_range_size()});
 
     temporary_ranks.resize(0, handle.get_stream());
     temporary_ranks.shrink_to_fit(handle.get_stream());
