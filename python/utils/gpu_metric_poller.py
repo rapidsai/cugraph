@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2018-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2018-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # GPUMetricPoller
@@ -7,7 +7,7 @@
 #
 # Requires:
 #  cuda_core >= 1.0.0
-#  cuda_bindings >= 12.9.6 or >= 13.2.0
+#  cuda_bindings >= 12.9.6 or >= 13.3.0
 
 """
 # Example:
@@ -25,7 +25,6 @@ print("Max GPU utilization: %s" % gpuPollObj.maxGpuUtil)
 import os
 import sys
 import threading
-
 
 from cuda.core import system
 
