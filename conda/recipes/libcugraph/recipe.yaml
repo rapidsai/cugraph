@@ -232,6 +232,7 @@ outputs:
         - openmpi <5.0.3 # Required for building cpp-mgtests (multi-GPU tests)
         - rapids-logger =0.3
       run:
+        - libcudf =${{ minor_version }}
         - openmpi <5.0.3
         - librmm =${{ minor_version }}
         - nccl ${{ nccl_version }}
