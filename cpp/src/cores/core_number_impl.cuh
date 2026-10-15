@@ -263,6 +263,8 @@ void core_number(raft::handle_t const& handle,
                   return dst_valid;
                 }));
 
+          auto core_number_view = vertex_property_view_t{
+            core_numbers, cur_graph_view.local_vertex_partition_range_size()};
           update_v_frontier(
             handle,
             cur_graph_view,
@@ -270,8 +272,8 @@ void core_number(raft::handle_t const& handle,
             std::move(delta_buffer),
             vertex_frontier,
             raft::host_span<size_t const>(&bucket_idx_next, size_t{1}),
-            core_numbers,
-            core_numbers,
+            core_number_view,
+            core_number_view,
             [k_first,
              k,
              delta,

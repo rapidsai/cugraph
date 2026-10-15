@@ -29,7 +29,6 @@
 #include <cuda/std/tuple>
 #include <thrust/fill.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
 
 #include <limits>
@@ -362,6 +361,8 @@ void sssp(raft::handle_t const& handle,
         ? compute_subpartition_start(
             old_near_far_threshold, *last_near_near_subpartition_idx, num_subpartitions, delta)
         : cur_near_far_threshold;
+    auto distance_view =
+      vertex_property_view_t{distances, graph_view.local_vertex_partition_range_size()};
     if (predecessors) {
       update_v_frontier(
         handle,
@@ -371,8 +372,10 @@ void sssp(raft::handle_t const& handle,
         vertex_frontier,
         raft::host_span<size_t const>(next_frontier_bucket_indices.data(),
                                       next_frontier_bucket_indices.size()),
-        distances,
-        thrust::make_zip_iterator(distances, *predecessors),
+        distance_view,
+        view_concat(
+          distance_view,
+          vertex_property_view_t{*predecessors, graph_view.local_vertex_partition_range_size()}),
         [cur_near_far_threshold, cur_near_near_far_threshold] __device__(
           auto, auto v_dist, auto pushed_val) {
           auto new_dist = cuda::std::get<0>(pushed_val);
@@ -396,8 +399,8 @@ void sssp(raft::handle_t const& handle,
                         vertex_frontier,
                         raft::host_span<size_t const>(next_frontier_bucket_indices.data(),
                                                       next_frontier_bucket_indices.size()),
-                        distances,
-                        distances,
+                        distance_view,
+                        distance_view,
                         [cur_near_far_threshold, cur_near_near_far_threshold] __device__(
                           auto, auto v_dist, auto pushed_val) {
                           auto new_dist = cuda::std::get<0>(pushed_val);

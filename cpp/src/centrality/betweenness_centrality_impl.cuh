@@ -201,6 +201,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
       brandes_pred_op_t<vertex_t>{});
 
     auto next_frontier_bucket_indices = std::vector<size_t>{bucket_idx_next};
+    auto distances_sigmas             = view_concat(
+      vertex_property_view_t{distances.begin(), graph_view.local_vertex_partition_range_size()},
+      vertex_property_view_t{sigmas.begin(), graph_view.local_vertex_partition_range_size()});
     update_v_frontier(handle,
                       graph_view,
                       std::move(new_frontier),
@@ -208,8 +211,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
                       vertex_frontier,
                       raft::host_span<size_t const>(next_frontier_bucket_indices.data(),
                                                     next_frontier_bucket_indices.size()),
-                      thrust::make_zip_iterator(distances.begin(), sigmas.begin()),
-                      thrust::make_zip_iterator(distances.begin(), sigmas.begin()),
+                      distances_sigmas,
+                      distances_sigmas,
                       [hop] __device__(auto v, auto old_values, auto v_sigma) {
                         return cuda::std::make_tuple(
                           cuda::std::make_optional(bucket_idx_next),

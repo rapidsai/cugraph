@@ -40,7 +40,6 @@
 #include <thrust/copy.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/merge.h>
 #include <thrust/partition.h>
@@ -234,7 +233,8 @@ struct v_op_t {
   __device__
     std::enable_if_t<multi_gpu,
                      cuda::std::tuple<cuda::std::optional<size_t>, cuda::std::optional<std::byte>>>
-    operator()(cuda::std::tuple<vertex_type, vertex_type> tagged_v, int /* v_val */) const
+    operator()(cuda::std::tuple<vertex_type, vertex_type> tagged_v,
+               cuda::std::nullopt_t /* v_val */) const
   {
     auto tag      = cuda::std::get<1>(tagged_v);
     auto v_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(
@@ -256,7 +256,8 @@ struct v_op_t {
   __device__
     std::enable_if_t<!multi_gpu,
                      cuda::std::tuple<cuda::std::optional<size_t>, cuda::std::optional<std::byte>>>
-    operator()(cuda::std::tuple<vertex_type, vertex_type> /* tagged_v */, int /* v_val */) const
+    operator()(cuda::std::tuple<vertex_type, vertex_type> /* tagged_v */,
+               cuda::std::nullopt_t /* v_val */) const
   {
     return cuda::std::make_tuple(cuda::std::optional<size_t>{bucket_idx_next},
                                  cuda::std::optional<std::byte>{std::byte{0}} /* dummy */);
@@ -799,8 +800,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           vertex_frontier,
           raft::host_span<size_t const>(next_frontier_bucket_indices.data(),
                                         next_frontier_bucket_indices.size()),
-          cuda::make_constant_iterator(0) /* dummy */,
-          thrust::make_discard_iterator() /* dummy */,
+          vertex_dummy_property_t{}.view(),
+          vertex_dummy_property_t{}.view(),
           v_op_t<GraphViewType>{
             vertex_partition, level_components, bucket_idx_next, bucket_idx_conflict});
 
