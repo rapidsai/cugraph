@@ -29,11 +29,11 @@
 #include <cuda/std/tuple>
 #include <thrust/fill.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
 
 #include <limits>
+#include <optional>
 
 namespace cugraph {
 
@@ -70,6 +70,20 @@ struct pred_op_t {
     return push;
   }
 };
+
+template <typename weight_t>
+__device__ cuda::std::optional<size_t> sssp_next_bucket(bool update,
+                                                        weight_t new_dist,
+                                                        weight_t near_far_threshold,
+                                                        weight_t near_near_far_threshold,
+                                                        size_t next_near_near_bucket,
+                                                        size_t near_far_bucket,
+                                                        size_t far_bucket)
+{
+  if (!update) { return cuda::std::nullopt; }
+  if (new_dist >= near_far_threshold) { return far_bucket; }
+  return new_dist < near_near_far_threshold ? next_near_near_bucket : near_far_bucket;
+}
 
 template <typename weight_t>
 weight_t compute_subpartition_start(weight_t old_near_far_threshold,
@@ -165,12 +179,12 @@ std::tuple<size_t, size_t> compute_new_near_near_partition_range(
 
 namespace detail {
 
-template <typename GraphViewType, typename weight_t, typename PredecessorIterator>
+template <typename GraphViewType, typename weight_t>
 void sssp(raft::handle_t const& handle,
           GraphViewType const& graph_view,
           edge_property_view_t<typename GraphViewType::edge_type, weight_t const*> edge_weight_view,
           weight_t* distances,
-          PredecessorIterator predecessor_first,
+          std::optional<typename GraphViewType::vertex_type*> predecessors,
           typename GraphViewType::vertex_type source_vertex,
           weight_t cutoff,
           bool do_expensive_check)
@@ -215,16 +229,19 @@ void sssp(raft::handle_t const& handle,
   auto constexpr invalid_distance = std::numeric_limits<weight_t>::max();
   auto constexpr invalid_vertex   = invalid_vertex_id<vertex_t>::value;
 
-  auto val_first = thrust::make_zip_iterator(distances, predecessor_first);
   thrust::transform(handle.get_thrust_policy(),
                     thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
                     thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
-                    val_first,
+                    distances,
                     [source_vertex] __device__(auto v) {
-                      auto distance = invalid_distance;
-                      if (v == source_vertex) { distance = weight_t{0.0}; }
-                      return cuda::std::make_tuple(distance, invalid_vertex);
+                      return v == source_vertex ? weight_t{0.0} : invalid_distance;
                     });
+  if (predecessors) {
+    cugraph::fill(handle.get_thrust_policy(),
+                  *predecessors,
+                  *predecessors + graph_view.local_vertex_partition_range_size(),
+                  invalid_vertex);
+  }
 
   if (num_edges == 0) { return; }
 
@@ -340,34 +357,62 @@ void sssp(raft::handle_t const& handle,
 
     auto next_frontier_bucket_indices =
       std::vector<size_t>{bucket_idx_next_near_near, bucket_idx_near_far, bucket_idx_far};
-    update_v_frontier(
-      handle,
-      graph_view,
-      std::move(new_frontier_vertex_buffer),
-      std::move(distance_predecessor_buffer),
-      vertex_frontier,
-      raft::host_span<size_t const>(next_frontier_bucket_indices.data(),
-                                    next_frontier_bucket_indices.size()),
-      distances,
-      thrust::make_zip_iterator(distances, predecessor_first),
-      [cur_near_far_threshold,
-       cur_near_near_far_threshold =
-         last_near_near_subpartition_idx
-           ? compute_subpartition_start(
-               old_near_far_threshold, *last_near_near_subpartition_idx, num_subpartitions, delta)
-           : cur_near_far_threshold] __device__(auto v, auto v_dist, auto pushed_val) {
-        auto new_dist = cuda::std::get<0>(pushed_val);
-        auto update   = (new_dist < v_dist);
-        return cuda::std::make_tuple(
-          update ? cuda::std::optional<size_t>{new_dist < cur_near_far_threshold
-                                                 ? (new_dist < cur_near_near_far_threshold
-                                                      ? bucket_idx_next_near_near
-                                                      : bucket_idx_near_far)
-                                                 : bucket_idx_far}
-                 : cuda::std::nullopt,
-          update ? cuda::std::optional<cuda::std::tuple<weight_t, vertex_t>>{pushed_val}
-                 : cuda::std::nullopt);
-      });
+    auto cur_near_near_far_threshold =
+      last_near_near_subpartition_idx
+        ? compute_subpartition_start(
+            old_near_far_threshold, *last_near_near_subpartition_idx, num_subpartitions, delta)
+        : cur_near_far_threshold;
+    if (predecessors) {
+      update_v_frontier(
+        handle,
+        graph_view,
+        std::move(new_frontier_vertex_buffer),
+        std::move(distance_predecessor_buffer),
+        vertex_frontier,
+        raft::host_span<size_t const>(next_frontier_bucket_indices.data(),
+                                      next_frontier_bucket_indices.size()),
+        distances,
+        thrust::make_zip_iterator(distances, *predecessors),
+        [cur_near_far_threshold, cur_near_near_far_threshold] __device__(
+          auto, auto v_dist, auto pushed_val) {
+          auto new_dist = cuda::std::get<0>(pushed_val);
+          auto update   = (new_dist < v_dist);
+          return cuda::std::make_tuple(
+            sssp_next_bucket(update,
+                             new_dist,
+                             cur_near_far_threshold,
+                             cur_near_near_far_threshold,
+                             bucket_idx_next_near_near,
+                             bucket_idx_near_far,
+                             bucket_idx_far),
+            update ? cuda::std::optional<cuda::std::tuple<weight_t, vertex_t>>{pushed_val}
+                   : cuda::std::nullopt);
+        });
+    } else {
+      update_v_frontier(handle,
+                        graph_view,
+                        std::move(new_frontier_vertex_buffer),
+                        std::move(distance_predecessor_buffer),
+                        vertex_frontier,
+                        raft::host_span<size_t const>(next_frontier_bucket_indices.data(),
+                                                      next_frontier_bucket_indices.size()),
+                        distances,
+                        distances,
+                        [cur_near_far_threshold, cur_near_near_far_threshold] __device__(
+                          auto, auto v_dist, auto pushed_val) {
+                          auto new_dist = cuda::std::get<0>(pushed_val);
+                          auto update   = (new_dist < v_dist);
+                          return cuda::std::make_tuple(
+                            sssp_next_bucket(update,
+                                             new_dist,
+                                             cur_near_far_threshold,
+                                             cur_near_near_far_threshold,
+                                             bucket_idx_next_near_near,
+                                             bucket_idx_near_far,
+                                             bucket_idx_far),
+                            update ? cuda::std::optional<weight_t>{new_dist} : cuda::std::nullopt);
+                        });
+    }
 
     vertex_frontier.bucket(bucket_idx_cur_near_near).clear();
     vertex_frontier.bucket(bucket_idx_cur_near_near).shrink_to_fit();
@@ -577,25 +622,14 @@ void sssp(raft::handle_t const& handle,
           weight_t cutoff,
           bool do_expensive_check)
 {
-  if (predecessors != nullptr) {
-    detail::sssp(handle,
-                 graph_view,
-                 edge_weight_view,
-                 distances,
-                 predecessors,
-                 source_vertex,
-                 cutoff,
-                 do_expensive_check);
-  } else {
-    detail::sssp(handle,
-                 graph_view,
-                 edge_weight_view,
-                 distances,
-                 thrust::make_discard_iterator(),
-                 source_vertex,
-                 cutoff,
-                 do_expensive_check);
-  }
+  detail::sssp(handle,
+               graph_view,
+               edge_weight_view,
+               distances,
+               predecessors != nullptr ? std::make_optional(predecessors) : std::nullopt,
+               source_vertex,
+               cutoff,
+               do_expensive_check);
 }
 
 }  // namespace cugraph
