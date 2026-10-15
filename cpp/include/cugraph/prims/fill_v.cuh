@@ -47,10 +47,10 @@ void fill_v(raft::handle_t const& handle,
   }
 
   auto output_value_first = vertex_value_output.value_first();
-  thrust::fill(handle.get_thrust_policy(),
-               output_value_first,
-               output_value_first + graph_view.local_vertex_partition_range_size(),
-               input);
+  cugraph::fill(handle.get_thrust_policy(),
+                output_value_first,
+                output_value_first + graph_view.local_vertex_partition_range_size(),
+                input);
 }
 
 }  // namespace CUGRAPH_EXPORT cugraph
