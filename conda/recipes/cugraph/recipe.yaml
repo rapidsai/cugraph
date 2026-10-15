@@ -33,6 +33,16 @@ build:
     ignore_binary_files: true
   script:
     content: |
+      # Versioned debug-prefix maps invalidate otherwise identical cached native objects.
+      for flags_name in CFLAGS CXXFLAGS; do
+          [[ -v "${flags_name}" ]] || continue
+          flags_value="${!flags_name}"
+          while [[ "${flags_value}" =~ -fdebug-prefix-map[^[:space:]]* ]]; do
+              flags_value="${flags_value/"${BASH_REMATCH[0]}"/}"
+          done
+          export "${flags_name}=${flags_value}"
+      done
+
       ./build.sh cugraph --allgpuarch
     secrets:
       - AWS_ACCESS_KEY_ID
