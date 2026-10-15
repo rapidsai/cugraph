@@ -1178,6 +1178,9 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
  * @brief Run single-source shortest-path to compute the minimum distances (and predecessors) from
  * the source vertex.
  *
+ * @deprecated This API is deprecated and replaced by the overload below that takes a
+ * `raft::device_span<vertex_t const>` frontier and returns `vertex_property_t` objects.
+ *
  * This function computes the distances (minimum edge weight sums) from the source vertex. If @p
  * predecessors is not `nullptr`, this function calculates the predecessor of each vertex in the
  * shortest-path as well. Graph edge weights should be non-negative.
@@ -1210,6 +1213,48 @@ void sssp(raft::handle_t const& handle,
           vertex_t source_vertex,
           weight_t cutoff         = std::numeric_limits<weight_t>::max(),
           bool do_expensive_check = false);
+
+/**
+ * @ingroup traversal_cpp
+ * @brief Run shortest-path to compute the minimum distances (and predecessors) from a frontier.
+ *
+ * This function computes the distances (minimum edge weight sums) from the nearest vertex in @p
+ * frontier. If @p update_predecessors is true, this function also calculates the predecessor of
+ * each vertex in the shortest path. Graph edge weights should be non-negative.
+ *
+ * @throws cugraph::logic_error on erroneous input arguments.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view View object holding edge weights for @p graph_view.
+ * @param frontier Frontier vertices to start shortest-path. In a multi-GPU context the frontier
+ * vertices should be local to this GPU. @p frontier should be sorted in ascending order and should
+ * not contain duplicates.
+ * @param cutoff Shortest-path terminates if no more vertices are reachable within the distance of
+ * @p cutoff. Any vertex farther than @p cutoff will be marked as unreachable.
+ * @param update_predecessors A flag indicating whether to update the predecessor of each vertex
+ * in the shortest path.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of distance vertex property values for the vertices assigned to this process and,
+ * if @p update_predecessors is true, predecessor vertex property values. If @p
+ * update_predecessors is false, the second element is `std::nullopt`.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<vertex_property_t<vertex_t, weight_t>,
+           std::optional<vertex_property_t<vertex_t, vertex_t>>>
+sssp(raft::handle_t const& handle,
+     graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+     edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
+     raft::device_span<vertex_t const> frontier,
+     weight_t cutoff          = std::numeric_limits<weight_t>::max(),
+     bool update_predecessors = false,
+     bool do_expensive_check  = false);
 
 /**
 .* @ingroup traversal_cpp

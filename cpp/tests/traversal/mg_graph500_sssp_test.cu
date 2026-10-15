@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -609,21 +609,25 @@ class Tests_GRAPH500_MGSSSP
           major_comm_size, minor_comm_size, subgraph_starting_vertex_vertex_partition_id),
         handle_->get_stream());
 
-      rmm::device_uvector<vertex_t> d_mg_sssp_predecessors(
-        reachable_from_2cores ? mg_pruned_graph_view.local_vertex_partition_range_size()
-                              : mg_isolated_trees_view.local_vertex_partition_range_size(),
+      auto& sssp_graph_view = reachable_from_2cores ? mg_pruned_graph_view : mg_isolated_trees_view;
+      rmm::device_uvector<vertex_t> sssp_frontier(
+        sssp_graph_view.in_local_vertex_partition_range_nocheck(sssp_starting_vertex) ? size_t{1}
+                                                                                      : size_t{0},
         handle_->get_stream());
-      rmm::device_uvector<weight_t> d_mg_sssp_distances(d_mg_sssp_predecessors.size(),
-                                                        handle_->get_stream());
-
-      cugraph::sssp(*handle_,
-                    reachable_from_2cores ? mg_pruned_graph_view : mg_isolated_trees_view,
-                    reachable_from_2cores ? mg_pruned_graph_edge_weight_view
-                                          : mg_isolated_trees_edge_weight_view,
-                    d_mg_sssp_distances.data(),
-                    d_mg_sssp_predecessors.data(),
-                    sssp_starting_vertex,
-                    std::numeric_limits<weight_t>::max());
+      if (sssp_frontier.size() > 0) {
+        raft::update_device(
+          sssp_frontier.data(), &sssp_starting_vertex, size_t{1}, handle_->get_stream());
+      }
+      auto [distance_property, predecessor_property] =
+        cugraph::sssp(*handle_,
+                      sssp_graph_view,
+                      reachable_from_2cores ? mg_pruned_graph_edge_weight_view
+                                            : mg_isolated_trees_edge_weight_view,
+                      raft::device_span<vertex_t const>(sssp_frontier.data(), sssp_frontier.size()),
+                      std::numeric_limits<weight_t>::max(),
+                      true);
+      auto d_mg_sssp_distances    = distance_property.release_buffer();
+      auto d_mg_sssp_predecessors = predecessor_property->release_buffer();
 
       if (reachable_from_2cores && mg_pruned_graph_pred_unrenumber_cache) {
         mg_pruned_graph_pred_unrenumber_cache->unrenumber(

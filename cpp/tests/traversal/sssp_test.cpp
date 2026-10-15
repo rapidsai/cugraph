@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -128,23 +128,23 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
     ASSERT_TRUE(static_cast<vertex_t>(sssp_usecase.source) >= 0 &&
                 static_cast<vertex_t>(sssp_usecase.source) < graph_view.number_of_vertices());
 
-    rmm::device_uvector<weight_t> d_distances(graph_view.number_of_vertices(), handle.get_stream());
-    rmm::device_uvector<vertex_t> d_predecessors(graph_view.number_of_vertices(),
-                                                 handle.get_stream());
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.start("SSSP");
     }
 
-    cugraph::sssp(handle,
-                  graph_view,
-                  *edge_weight_view,
-                  d_distances.data(),
-                  d_predecessors.data(),
-                  static_cast<vertex_t>(sssp_usecase.source),
-                  std::numeric_limits<weight_t>::max(),
-                  false);
+    auto source_vertex = static_cast<vertex_t>(sssp_usecase.source);
+    rmm::device_uvector<vertex_t> frontier(size_t{1}, handle.get_stream());
+    raft::update_device(frontier.data(), &source_vertex, size_t{1}, handle.get_stream());
+    auto [distance_property, predecessor_property] =
+      cugraph::sssp(handle,
+                    graph_view,
+                    *edge_weight_view,
+                    raft::device_span<vertex_t const>(frontier.data(), frontier.size()),
+                    std::numeric_limits<weight_t>::max(),
+                    true);
+    auto d_distances    = distance_property.release_buffer();
+    auto d_predecessors = predecessor_property->release_buffer();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
