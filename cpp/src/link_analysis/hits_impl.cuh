@@ -42,16 +42,16 @@ void normalize(raft::handle_t const& handle,
 }
 
 template <typename GraphViewType, typename result_t>
-centrality_algorithm_metadata_t hits(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  vertex_property_view_t<typename GraphViewType::vertex_type, result_t*> hubs,
-  vertex_property_view_t<typename GraphViewType::vertex_type, result_t*> authorities,
-  result_t epsilon,
-  size_t max_iterations,
-  bool has_initial_hubs_guess,
-  bool normalize,
-  bool do_expensive_check)
+std::tuple<vertex_property_t<typename GraphViewType::vertex_type, result_t>,
+           vertex_property_t<typename GraphViewType::vertex_type, result_t>,
+           centrality_algorithm_metadata_t>
+hits(raft::handle_t const& handle,
+     GraphViewType const& graph_view,
+     std::optional<vertex_property_t<typename GraphViewType::vertex_type, result_t>>&& initial_hubs,
+     result_t epsilon,
+     size_t max_iterations,
+     bool normalize,
+     bool do_expensive_check)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   static_assert(std::is_integral<vertex_t>::value,
@@ -61,10 +61,23 @@ centrality_algorithm_metadata_t hits(
   static_assert(GraphViewType::is_storage_transposed,
                 "GraphViewType should support the pull model.");
 
+  auto const has_initial_hubs_guess = initial_hubs.has_value();
+  auto local_hubs                   = has_initial_hubs_guess
+                                        ? std::move(*initial_hubs)
+                                        : vertex_property_t<vertex_t, result_t>(handle, graph_view);
+  vertex_property_t<vertex_t, result_t> local_authorities(handle, graph_view);
+
   auto const num_vertices = graph_view.number_of_vertices();
   result_t diff_sum{std::numeric_limits<result_t>::max()};
 
-  if (num_vertices == 0) { return centrality_algorithm_metadata_t{0, true}; }
+  if (num_vertices == 0) {
+    return std::make_tuple(std::move(local_hubs),
+                           std::move(local_authorities),
+                           centrality_algorithm_metadata_t{0, true});
+  }
+
+  auto hubs        = local_hubs.mutable_view();
+  auto authorities = local_authorities.mutable_view();
 
   CUGRAPH_EXPECTS(epsilon >= 0.0, "Invalid input argument: epsilon should be non-negative.");
   auto tolerance = static_cast<result_t>(graph_view.number_of_vertices()) * epsilon;
@@ -175,7 +188,9 @@ centrality_algorithm_metadata_t hits(
     copy_v(handle, graph_view, prev_hubs, hubs);
   }
 
-  return centrality_algorithm_metadata_t{iter, iter < max_iterations};
+  return std::make_tuple(std::move(local_hubs),
+                         std::move(local_authorities),
+                         centrality_algorithm_metadata_t{iter, iter < max_iterations});
 }
 
 }  // namespace detail
@@ -192,22 +207,13 @@ hits(raft::handle_t const& handle,
      bool normalize,
      bool do_expensive_check)
 {
-  auto const has_initial_hubs_guess = initial_hubs.has_value();
-  auto hubs                         = has_initial_hubs_guess ? std::move(*initial_hubs)
-                                                             : vertex_property_t<vertex_t, result_t>(handle, graph_view);
-  vertex_property_t<vertex_t, result_t> authorities(handle, graph_view);
-
-  auto metadata = detail::hits(handle,
-                               graph_view,
-                               hubs.mutable_view(),
-                               authorities.mutable_view(),
-                               epsilon,
-                               max_iterations,
-                               has_initial_hubs_guess,
-                               normalize,
-                               do_expensive_check);
-
-  return std::make_tuple(std::move(hubs), std::move(authorities), metadata);
+  return detail::hits(handle,
+                      graph_view,
+                      std::move(initial_hubs),
+                      epsilon,
+                      max_iterations,
+                      normalize,
+                      do_expensive_check);
 }
 
 template <typename vertex_t, typename edge_t, typename result_t, bool multi_gpu>
@@ -230,13 +236,13 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
     initial_hubs = vertex_property_t<vertex_t, result_t>(std::move(hubs_values), range_size);
   }
 
-  auto [hubs_property, authorities_property, metadata] = hits(handle,
-                                                              graph_view,
-                                                              std::move(initial_hubs),
-                                                              epsilon,
-                                                              max_iterations,
-                                                              normalize,
-                                                              do_expensive_check);
+  auto [hubs_property, authorities_property, metadata] = cugraph::hits(handle,
+                                                                       graph_view,
+                                                                       std::move(initial_hubs),
+                                                                       epsilon,
+                                                                       max_iterations,
+                                                                       normalize,
+                                                                       do_expensive_check);
 
   auto hubs_result        = hubs_property.release_buffer();
   auto authorities_result = authorities_property.release_buffer();

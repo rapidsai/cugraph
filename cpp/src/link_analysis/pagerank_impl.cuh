@@ -40,20 +40,22 @@ namespace cugraph {
 namespace detail {
 
 template <typename GraphViewType, typename weight_t, typename result_t>
-centrality_algorithm_metadata_t pagerank(
-  raft::handle_t const& handle,
-  GraphViewType const& pull_graph_view,
-  std::optional<edge_property_view_t<typename GraphViewType::edge_type, weight_t const*>>
-    edge_weight_view,
-  std::optional<vertex_property_view_t<typename GraphViewType::vertex_type, weight_t const*>>
-    precomputed_vertex_out_weight_sums,
-  std::optional<std::tuple<raft::device_span<typename GraphViewType::vertex_type const>,
-                           raft::device_span<result_t const>>> personalization,
-  vertex_property_view_t<typename GraphViewType::vertex_type, result_t*> pageranks,
-  result_t alpha,
-  result_t epsilon,
-  size_t max_iterations,
-  bool do_expensive_check)
+std::tuple<vertex_property_t<typename GraphViewType::vertex_type, result_t>,
+           centrality_algorithm_metadata_t>
+pagerank(raft::handle_t const& handle,
+         GraphViewType const& pull_graph_view,
+         std::optional<edge_property_view_t<typename GraphViewType::edge_type, weight_t const*>>
+           edge_weight_view,
+         std::optional<vertex_property_view_t<typename GraphViewType::vertex_type, weight_t const*>>
+           precomputed_vertex_out_weight_sums,
+         std::optional<std::tuple<raft::device_span<typename GraphViewType::vertex_type const>,
+                                  raft::device_span<result_t const>>> personalization,
+         std::optional<vertex_property_t<typename GraphViewType::vertex_type, result_t>>&&
+           initial_pageranks,
+         result_t alpha,
+         result_t epsilon,
+         size_t max_iterations,
+         bool do_expensive_check)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -65,8 +67,15 @@ centrality_algorithm_metadata_t pagerank(
   static_assert(GraphViewType::is_storage_transposed,
                 "GraphViewType should support the pull model.");
 
+  auto const has_initial_guess = initial_pageranks.has_value();
+  auto local_pageranks         = has_initial_guess
+                                   ? std::move(*initial_pageranks)
+                                   : vertex_property_t<vertex_t, result_t>(handle, pull_graph_view);
+
   auto const num_vertices = pull_graph_view.number_of_vertices();
-  if (num_vertices == 0) { return centrality_algorithm_metadata_t{0, true}; }
+  if (num_vertices == 0) {
+    return std::make_tuple(std::move(local_pageranks), centrality_algorithm_metadata_t{0, true});
+  }
 
   auto aggregate_personalization_vector_size =
     personalization ? GraphViewType::is_multi_gpu
@@ -221,7 +230,14 @@ centrality_algorithm_metadata_t pagerank(
 
   // 5. pagerank iteration
 
-  // old PageRank values
+  if (!has_initial_guess) {
+    fill_v(handle,
+           pull_graph_view,
+           local_pageranks.mutable_view(),
+           result_t{1.0} / static_cast<result_t>(num_vertices));
+  }
+
+  auto pageranks = local_pageranks.mutable_view();
   vertex_property_t<vertex_t, result_t> old_pageranks(handle, pull_graph_view);
   edge_src_property_t<vertex_t, result_t> edge_src_pageranks(handle, pull_graph_view);
   size_t iter{0};
@@ -326,7 +342,8 @@ centrality_algorithm_metadata_t pagerank(
     }
   }
 
-  return centrality_algorithm_metadata_t{iter, (iter < max_iterations)};
+  return std::make_tuple(std::move(local_pageranks),
+                         centrality_algorithm_metadata_t{iter, (iter < max_iterations)});
 }
 
 }  // namespace detail
@@ -346,29 +363,16 @@ std::tuple<vertex_property_t<vertex_t, result_t>, centrality_algorithm_metadata_
   size_t max_iterations,
   bool do_expensive_check)
 {
-  auto const has_initial_guess = initial_pageranks.has_value();
-  auto local_pageranks         = has_initial_guess
-                                   ? std::move(*initial_pageranks)
-                                   : vertex_property_t<vertex_t, result_t>(handle, graph_view);
-  if (!has_initial_guess) {
-    fill_v(handle,
-           graph_view,
-           local_pageranks.mutable_view(),
-           result_t{1.0} / static_cast<result_t>(graph_view.number_of_vertices()));
-  }
-
-  auto metadata = detail::pagerank(handle,
-                                   graph_view,
-                                   edge_weight_view,
-                                   precomputed_vertex_out_weight_sums,
-                                   personalization,
-                                   local_pageranks.mutable_view(),
-                                   alpha,
-                                   epsilon,
-                                   max_iterations,
-                                   do_expensive_check);
-
-  return std::make_tuple(std::move(local_pageranks), metadata);
+  return detail::pagerank(handle,
+                          graph_view,
+                          edge_weight_view,
+                          precomputed_vertex_out_weight_sums,
+                          personalization,
+                          std::move(initial_pageranks),
+                          alpha,
+                          epsilon,
+                          max_iterations,
+                          do_expensive_check);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
@@ -409,16 +413,16 @@ std::tuple<rmm::device_uvector<result_t>, centrality_algorithm_metadata_t> pager
     pageranks = vertex_property_t<vertex_t, result_t>(std::move(values), range_size);
   }
 
-  auto [result_pageranks, metadata] = pagerank(handle,
-                                               graph_view,
-                                               edge_weight_view,
-                                               precomputed_view,
-                                               personalization,
-                                               std::move(pageranks),
-                                               alpha,
-                                               epsilon,
-                                               max_iterations,
-                                               do_expensive_check);
+  auto [result_pageranks, metadata] = cugraph::pagerank(handle,
+                                                        graph_view,
+                                                        edge_weight_view,
+                                                        precomputed_view,
+                                                        personalization,
+                                                        std::move(pageranks),
+                                                        alpha,
+                                                        epsilon,
+                                                        max_iterations,
+                                                        do_expensive_check);
 
   return std::make_tuple(result_pageranks.release_buffer(), metadata);
 }
