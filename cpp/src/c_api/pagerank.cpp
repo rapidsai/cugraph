@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -110,7 +110,6 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<weight_t> initial_pageranks(0, handle_.get_stream());
       rmm::device_uvector<vertex_t> personalization_vertices(0, handle_.get_stream());
       rmm::device_uvector<weight_t> personalization_values(0, handle_.get_stream());
 
@@ -148,34 +147,38 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
           do_expensive_check_);
       }
 
-      rmm::device_uvector<weight_t> precomputed_vertex_out_weight_sums(0, handle_.get_stream());
+      std::optional<cugraph::vertex_property_t<vertex_t, weight_t>>
+        precomputed_vertex_out_weight_sums{std::nullopt};
       if (precomputed_vertex_out_weight_sums_ != nullptr) {
         rmm::device_uvector<vertex_t> precomputed_vertex_out_weight_vertices(
           precomputed_vertex_out_weight_vertices_->size_, handle_.get_stream());
-        precomputed_vertex_out_weight_sums.resize(precomputed_vertex_out_weight_sums_->size_,
-                                                  handle_.get_stream());
+        rmm::device_uvector<weight_t> precomputed_vertex_out_weight_sum_values(
+          precomputed_vertex_out_weight_sums_->size_, handle_.get_stream());
 
         raft::copy(precomputed_vertex_out_weight_vertices.data(),
                    precomputed_vertex_out_weight_vertices_->as_type<vertex_t>(),
                    precomputed_vertex_out_weight_vertices_->size_,
                    handle_.get_stream());
-        raft::copy(precomputed_vertex_out_weight_sums.data(),
+        raft::copy(precomputed_vertex_out_weight_sum_values.data(),
                    precomputed_vertex_out_weight_sums_->as_type<weight_t>(),
                    precomputed_vertex_out_weight_sums_->size_,
                    handle_.get_stream());
 
-        precomputed_vertex_out_weight_sums = cugraph::detail::
+        auto sum_values = cugraph::detail::
           collect_local_vertex_values_from_ext_vertex_value_pairs<vertex_t, weight_t, multi_gpu>(
             handle_,
             std::move(precomputed_vertex_out_weight_vertices),
-            std::move(precomputed_vertex_out_weight_sums),
+            std::move(precomputed_vertex_out_weight_sum_values),
             *number_map,
             graph_view.local_vertex_partition_range_first(),
             graph_view.local_vertex_partition_range_last(),
             weight_t{0},
             do_expensive_check_);
+        precomputed_vertex_out_weight_sums = cugraph::vertex_property_t<vertex_t, weight_t>(
+          std::move(sum_values), graph_view.local_vertex_partition_range_size());
       }
 
+      std::optional<cugraph::vertex_property_t<vertex_t, weight_t>> pageranks{std::nullopt};
       if (initial_guess_values_ != nullptr) {
         rmm::device_uvector<vertex_t> initial_guess_vertices(initial_guess_vertices_->size_,
                                                              handle_.get_stream());
@@ -192,7 +195,7 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
                    initial_guess_values.size(),
                    handle_.get_stream());
 
-        initial_pageranks = cugraph::detail::
+        auto initial_pageranks = cugraph::detail::
           collect_local_vertex_values_from_ext_vertex_value_pairs<vertex_t, weight_t, multi_gpu>(
             handle_,
             std::move(initial_guess_vertices),
@@ -202,17 +205,17 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
             graph_view.local_vertex_partition_range_last(),
             weight_t{0},
             do_expensive_check_);
+        pageranks = cugraph::vertex_property_t<vertex_t, weight_t>(
+          std::move(initial_pageranks), graph_view.local_vertex_partition_range_size());
       }
 
-      auto [pageranks, metadata] =
+      auto [pagerank_values, metadata] =
         cugraph::pagerank<vertex_t, edge_t, weight_t, weight_t, multi_gpu>(
           handle_,
           graph_view,
           (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
-          precomputed_vertex_out_weight_sums_
-            ? std::make_optional(
-                raft::device_span<weight_t const>{precomputed_vertex_out_weight_sums.data(),
-                                                  precomputed_vertex_out_weight_sums.size()})
+          precomputed_vertex_out_weight_sums
+            ? std::make_optional((*precomputed_vertex_out_weight_sums).view())
             : std::nullopt,
           personalization_vertices_
             ? std::make_optional(
@@ -221,9 +224,7 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
                                 raft::device_span<weight_t const>{personalization_values.data(),
                                                                   personalization_values.size()}))
             : std::nullopt,
-          initial_guess_values_ != nullptr ? std::make_optional(raft::device_span<weight_t const>{
-                                               initial_pageranks.data(), initial_pageranks.size()})
-                                           : std::nullopt,
+          std::move(pageranks),
           static_cast<weight_t>(alpha_),
           static_cast<weight_t>(epsilon_),
           max_iterations_,
@@ -233,9 +234,12 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
                                                handle_.get_stream());
       raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
 
+      auto pageranks_result = pagerank_values.release_buffer();
+
       result_ = new cugraph::c_api::cugraph_centrality_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(vertex_ids, graph_->vertex_type_),
-        new cugraph::c_api::cugraph_type_erased_device_array_t(pageranks, graph_->weight_type_),
+        new cugraph::c_api::cugraph_type_erased_device_array_t(pageranks_result,
+                                                               graph_->weight_type_),
         metadata.number_of_iterations_,
         metadata.converged_};
     }
