@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "centrality/katz_centrality_impl.cuh"
@@ -37,5 +37,33 @@ template CUGRAPH_EXPORT void katz_centrality(
   bool has_initial_guess,
   bool normalize,
   bool do_expensive_check);
+
+template CUGRAPH_EXPORT
+  std::tuple<vertex_property_t<int64_t, float>, centrality_algorithm_metadata_t>
+  katz_centrality(raft::handle_t const& handle,
+                  graph_view_t<int64_t, int64_t, true, true> const& graph_view,
+                  std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
+                  std::optional<vertex_property_view_t<int64_t, float const*>> betas,
+                  std::optional<vertex_property_t<int64_t, float>>&& initial_katz_centralities,
+                  float alpha,
+                  float beta,
+                  float epsilon,
+                  size_t max_iterations,
+                  bool normalize,
+                  bool do_expensive_check);
+
+template CUGRAPH_EXPORT
+  std::tuple<vertex_property_t<int64_t, double>, centrality_algorithm_metadata_t>
+  katz_centrality(raft::handle_t const& handle,
+                  graph_view_t<int64_t, int64_t, true, true> const& graph_view,
+                  std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
+                  std::optional<vertex_property_view_t<int64_t, double const*>> betas,
+                  std::optional<vertex_property_t<int64_t, double>>&& initial_katz_centralities,
+                  double alpha,
+                  double beta,
+                  double epsilon,
+                  size_t max_iterations,
+                  bool normalize,
+                  bool do_expensive_check);
 
 }  // namespace cugraph

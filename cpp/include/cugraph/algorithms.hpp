@@ -1254,9 +1254,6 @@ rmm::device_uvector<weight_t> od_shortest_distances(
 /**
  * @brief Metadata about the execution of one of the centrality algorithms
  */
-// FIXME:  This structure should be propagated to other algorithms that converge
-//   (katz centrality)
-//
 struct centrality_algorithm_metadata_t {
   size_t number_of_iterations_{};
   bool converged_{};
@@ -1535,8 +1532,10 @@ hits(raft::handle_t const& handle,
      bool do_expensive_check);
 
 /**
-.* @ingroup centrality_cpp
+ * @ingroup centrality_cpp
  * @brief Compute Katz Centrality scores.
+ *
+ * @deprecated This API is deprecated and replaced by the `vertex_property_t` version below.
  *
  * This function computes Katz Centrality scores.
  *
@@ -1586,6 +1585,59 @@ void katz_centrality(raft::handle_t const& handle,
                      bool has_initial_guess  = false,
                      bool normalize          = false,
                      bool do_expensive_check = false);
+
+/**
+ * @ingroup centrality_cpp
+ * @brief Compute Katz Centrality scores.
+ *
+ * This function computes Katz Centrality scores.
+ *
+ * @throws cugraph::logic_error on erroneous input arguments.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam result_t Type of Katz Centrality scores.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == false, edge weights are assumed to be 1.0.
+ * @param betas Optional view of per-vertex values added to each vertex's new Katz Centrality score
+ * in every iteration, or `std::nullopt`. Use `vertex_property_t::view()`. If `std::nullopt`,
+ * constant @p beta is used instead.
+ * @param initial_katz_centralities Optional initial Katz Centrality scores for the vertices
+ * assigned to this process. If `std::nullopt`, initial values are set to 0. If provided, these
+ * values are used as the initial Katz Centrality scores.
+ * @param alpha Katz Centrality attenuation factor. This should be smaller than the inverse of the
+ * maximum eigenvalue of the adjacency matrix of @p graph.
+ * @param beta Constant value to be added to each vertex's new Katz Centrality score in every
+ * iteration. Relevant only when @p betas is `std::nullopt`.
+ * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
+ * differences in Katz Centrality values between two consecutive iterations is less than the number
+ * of vertices in the graph multiplied by @p epsilon.
+ * @param max_iterations Maximum number of Katz Centrality iterations.
+ * @param normalize If set to `true`, final Katz Centrality scores are normalized (the L2-norm of
+ * the returned Katz Centrality score array is 1.0) before returning.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of Katz Centrality scores for the vertices assigned to this process and metadata
+ * indicating how many iterations were run and whether the algorithm converged.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
+std::tuple<vertex_property_t<vertex_t, result_t>, centrality_algorithm_metadata_t> katz_centrality(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<vertex_property_view_t<vertex_t, result_t const*>> betas,
+  std::optional<vertex_property_t<vertex_t, result_t>>&& initial_katz_centralities,
+  result_t alpha,
+  result_t beta,
+  result_t epsilon,
+  size_t max_iterations   = 500,
+  bool normalize          = false,
+  bool do_expensive_check = false);
 
 /**
 .* @ingroup community_cpp
