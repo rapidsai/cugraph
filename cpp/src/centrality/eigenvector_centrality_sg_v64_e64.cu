@@ -29,7 +29,7 @@ template CUGRAPH_EXPORT rmm::device_uvector<double> eigenvector_centrality(
   bool do_expensive_check);
 
 template CUGRAPH_EXPORT std::tuple<vertex_property_t<int64_t, float>,
-                                   centrality_algorithm_metadata_t>
+                                   iterative_algorithm_metadata_t>
 eigenvector_centrality(raft::handle_t const& handle,
                        graph_view_t<int64_t, int64_t, true, false> const& graph_view,
                        std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
@@ -39,7 +39,7 @@ eigenvector_centrality(raft::handle_t const& handle,
                        bool do_expensive_check);
 
 template CUGRAPH_EXPORT std::tuple<vertex_property_t<int64_t, double>,
-                                   centrality_algorithm_metadata_t>
+                                   iterative_algorithm_metadata_t>
 eigenvector_centrality(raft::handle_t const& handle,
                        graph_view_t<int64_t, int64_t, true, false> const& graph_view,
                        std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,

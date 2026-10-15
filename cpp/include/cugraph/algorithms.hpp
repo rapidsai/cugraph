@@ -1252,12 +1252,19 @@ rmm::device_uvector<weight_t> od_shortest_distances(
   bool do_expensive_check = false);
 
 /**
- * @brief Metadata about the execution of one of the centrality algorithms
+ * @brief Metadata about the execution of an iterative algorithm.
  */
-struct centrality_algorithm_metadata_t {
+struct iterative_algorithm_metadata_t {
   size_t number_of_iterations_{};
   bool converged_{};
 };
+
+/**
+ * @brief Metadata about the execution of one of the centrality algorithms.
+ *
+ * @deprecated Use iterative_algorithm_metadata_t.
+ */
+using centrality_algorithm_metadata_t = iterative_algorithm_metadata_t;
 
 /**
  * @ingroup link_analysis_cpp
@@ -1357,7 +1364,7 @@ std::tuple<rmm::device_uvector<result_t>, centrality_algorithm_metadata_t> pager
  * indicating how many iterations were run and whether the algorithm converged.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
-std::tuple<vertex_property_t<vertex_t, result_t>, centrality_algorithm_metadata_t> pagerank(
+std::tuple<vertex_property_t<vertex_t, result_t>, iterative_algorithm_metadata_t> pagerank(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
@@ -1441,7 +1448,7 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
  * metadata indicating how many iterations were run and whether the algorithm converged.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<vertex_property_t<vertex_t, weight_t>, centrality_algorithm_metadata_t>
+std::tuple<vertex_property_t<vertex_t, weight_t>, iterative_algorithm_metadata_t>
 eigenvector_centrality(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
@@ -1522,7 +1529,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename result_t, bool multi_gpu>
 std::tuple<vertex_property_t<vertex_t, result_t>,
            vertex_property_t<vertex_t, result_t>,
-           centrality_algorithm_metadata_t>
+           iterative_algorithm_metadata_t>
 hits(raft::handle_t const& handle,
      graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
      std::optional<vertex_property_t<vertex_t, result_t>>&& initial_hubs,
@@ -1626,7 +1633,7 @@ void katz_centrality(raft::handle_t const& handle,
  * indicating how many iterations were run and whether the algorithm converged.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
-std::tuple<vertex_property_t<vertex_t, result_t>, centrality_algorithm_metadata_t> katz_centrality(
+std::tuple<vertex_property_t<vertex_t, result_t>, iterative_algorithm_metadata_t> katz_centrality(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,

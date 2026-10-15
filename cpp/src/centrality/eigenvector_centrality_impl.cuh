@@ -32,7 +32,7 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<vertex_property_t<vertex_t, weight_t>, centrality_algorithm_metadata_t>
+std::tuple<vertex_property_t<vertex_t, weight_t>, iterative_algorithm_metadata_t>
 eigenvector_centrality(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, true, multi_gpu> const& pull_graph_view,
@@ -54,7 +54,7 @@ eigenvector_centrality(
 
   auto const num_vertices = pull_graph_view.number_of_vertices();
   if (num_vertices == 0) {
-    return std::make_tuple(std::move(local_centralities), centrality_algorithm_metadata_t{0, true});
+    return std::make_tuple(std::move(local_centralities), iterative_algorithm_metadata_t{0, true});
   }
 
   CUGRAPH_EXPECTS(epsilon >= 0.0, "Invalid input argument: epsilon should be non-negative.");
@@ -151,13 +151,13 @@ eigenvector_centrality(
   }
 
   return std::make_tuple(std::move(local_centralities),
-                         centrality_algorithm_metadata_t{iter, iter < max_iterations});
+                         iterative_algorithm_metadata_t{iter, iter < max_iterations});
 }
 
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<vertex_property_t<vertex_t, weight_t>, centrality_algorithm_metadata_t>
+std::tuple<vertex_property_t<vertex_t, weight_t>, iterative_algorithm_metadata_t>
 eigenvector_centrality(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,

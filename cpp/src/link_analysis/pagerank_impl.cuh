@@ -41,7 +41,7 @@ namespace detail {
 
 template <typename GraphViewType, typename weight_t, typename result_t>
 std::tuple<vertex_property_t<typename GraphViewType::vertex_type, result_t>,
-           centrality_algorithm_metadata_t>
+           iterative_algorithm_metadata_t>
 pagerank(raft::handle_t const& handle,
          GraphViewType const& pull_graph_view,
          std::optional<edge_property_view_t<typename GraphViewType::edge_type, weight_t const*>>
@@ -74,7 +74,7 @@ pagerank(raft::handle_t const& handle,
 
   auto const num_vertices = pull_graph_view.number_of_vertices();
   if (num_vertices == 0) {
-    return std::make_tuple(std::move(local_pageranks), centrality_algorithm_metadata_t{0, true});
+    return std::make_tuple(std::move(local_pageranks), iterative_algorithm_metadata_t{0, true});
   }
 
   auto aggregate_personalization_vector_size =
@@ -343,13 +343,13 @@ pagerank(raft::handle_t const& handle,
   }
 
   return std::make_tuple(std::move(local_pageranks),
-                         centrality_algorithm_metadata_t{iter, (iter < max_iterations)});
+                         iterative_algorithm_metadata_t{iter, (iter < max_iterations)});
 }
 
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
-std::tuple<vertex_property_t<vertex_t, result_t>, centrality_algorithm_metadata_t> pagerank(
+std::tuple<vertex_property_t<vertex_t, result_t>, iterative_algorithm_metadata_t> pagerank(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,

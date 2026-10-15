@@ -34,7 +34,7 @@ template CUGRAPH_EXPORT std::tuple<double, size_t> hits(
 
 template CUGRAPH_EXPORT std::tuple<vertex_property_t<int64_t, float>,
                                    vertex_property_t<int64_t, float>,
-                                   centrality_algorithm_metadata_t>
+                                   iterative_algorithm_metadata_t>
 hits(raft::handle_t const& handle,
      graph_view_t<int64_t, int64_t, true, true> const& graph_view,
      std::optional<vertex_property_t<int64_t, float>>&& initial_hubs,
@@ -45,7 +45,7 @@ hits(raft::handle_t const& handle,
 
 template CUGRAPH_EXPORT std::tuple<vertex_property_t<int64_t, double>,
                                    vertex_property_t<int64_t, double>,
-                                   centrality_algorithm_metadata_t>
+                                   iterative_algorithm_metadata_t>
 hits(raft::handle_t const& handle,
      graph_view_t<int64_t, int64_t, true, true> const& graph_view,
      std::optional<vertex_property_t<int64_t, double>>&& initial_hubs,

@@ -37,7 +37,7 @@ pagerank(
   bool do_expensive_check);
 
 template CUGRAPH_EXPORT
-  std::tuple<vertex_property_t<int32_t, float>, centrality_algorithm_metadata_t>
+  std::tuple<vertex_property_t<int32_t, float>, iterative_algorithm_metadata_t>
   pagerank(
     raft::handle_t const& handle,
     graph_view_t<int32_t, int32_t, true, true> const& graph_view,
@@ -52,7 +52,7 @@ template CUGRAPH_EXPORT
     bool do_expensive_check);
 
 template CUGRAPH_EXPORT std::tuple<vertex_property_t<int32_t, double>,
-                                   centrality_algorithm_metadata_t>
+                                   iterative_algorithm_metadata_t>
 pagerank(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, true, true> const& graph_view,
