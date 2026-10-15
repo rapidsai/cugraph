@@ -41,6 +41,7 @@ build:
               flags_value="${flags_value/"${BASH_REMATCH[0]}"/}"
           done
           export "${flags_name}=${flags_value}"
+          printf '%s=%s\n' "${flags_name}" "${!flags_name}"
       done
 
       ./build.sh cugraph --allgpuarch
