@@ -20,6 +20,7 @@
 #include <cugraph/vertex_property.hpp>
 
 #include <cuda/std/tuple>
+#include <thrust/copy.h>
 
 namespace cugraph {
 namespace detail {
@@ -41,7 +42,7 @@ void normalize(raft::handle_t const& handle,
 }
 
 template <typename GraphViewType, typename result_t>
-std::tuple<result_t, size_t> hits(
+centrality_algorithm_metadata_t hits(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   vertex_property_view_t<typename GraphViewType::vertex_type, result_t*> hubs,
@@ -62,9 +63,8 @@ std::tuple<result_t, size_t> hits(
 
   auto const num_vertices = graph_view.number_of_vertices();
   result_t diff_sum{std::numeric_limits<result_t>::max()};
-  size_t final_iteration_count{max_iterations};
 
-  if (num_vertices == 0) { return std::make_tuple(diff_sum, final_iteration_count); }
+  if (num_vertices == 0) { return centrality_algorithm_metadata_t{0, true}; }
 
   CUGRAPH_EXPECTS(epsilon >= 0.0, "Invalid input argument: epsilon should be non-negative.");
   auto tolerance = static_cast<result_t>(graph_view.number_of_vertices()) * epsilon;
@@ -161,7 +161,7 @@ std::tuple<result_t, size_t> hits(
     if (diff_sum < tolerance) {
       break;
     } else if (iter >= max_iterations) {
-      CUGRAPH_FAIL("HITS failed to converge.");
+      break;
     }
   }
 
@@ -175,31 +175,77 @@ std::tuple<result_t, size_t> hits(
     copy_v(handle, graph_view, prev_hubs, hubs);
   }
 
-  return std::make_tuple(diff_sum, iter);
+  return centrality_algorithm_metadata_t{iter, iter < max_iterations};
 }
 
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename result_t, bool multi_gpu>
+std::tuple<vertex_property_t<vertex_t, result_t>,
+           vertex_property_t<vertex_t, result_t>,
+           centrality_algorithm_metadata_t>
+hits(raft::handle_t const& handle,
+     graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
+     std::optional<vertex_property_t<vertex_t, result_t>>&& initial_hubs,
+     result_t epsilon,
+     size_t max_iterations,
+     bool normalize,
+     bool do_expensive_check)
+{
+  auto const has_initial_hubs_guess = initial_hubs.has_value();
+  auto hubs                         = has_initial_hubs_guess ? std::move(*initial_hubs)
+                                                             : vertex_property_t<vertex_t, result_t>(handle, graph_view);
+  vertex_property_t<vertex_t, result_t> authorities(handle, graph_view);
+
+  auto metadata = detail::hits(handle,
+                               graph_view,
+                               hubs.mutable_view(),
+                               authorities.mutable_view(),
+                               epsilon,
+                               max_iterations,
+                               has_initial_hubs_guess,
+                               normalize,
+                               do_expensive_check);
+
+  return std::make_tuple(std::move(hubs), std::move(authorities), metadata);
+}
+
+template <typename vertex_t, typename edge_t, typename result_t, bool multi_gpu>
 std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
                                   graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
-                                  vertex_property_view_t<vertex_t, result_t*> hubs,
-                                  vertex_property_view_t<vertex_t, result_t*> authorities,
+                                  result_t* hubs,
+                                  result_t* authorities,
                                   result_t epsilon,
                                   size_t max_iterations,
                                   bool has_initial_hubs_guess,
                                   bool normalize,
                                   bool do_expensive_check)
 {
-  return detail::hits(handle,
-                      graph_view,
-                      hubs,
-                      authorities,
-                      epsilon,
-                      max_iterations,
-                      has_initial_hubs_guess,
-                      normalize,
-                      do_expensive_check);
+  auto const range_size = graph_view.local_vertex_partition_range_size();
+
+  std::optional<vertex_property_t<vertex_t, result_t>> initial_hubs{std::nullopt};
+  if (has_initial_hubs_guess) {
+    rmm::device_uvector<result_t> hubs_values(static_cast<size_t>(range_size), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(), hubs, hubs + range_size, hubs_values.begin());
+    initial_hubs = vertex_property_t<vertex_t, result_t>(std::move(hubs_values), range_size);
+  }
+
+  auto [hubs_property, authorities_property, metadata] = hits(handle,
+                                                              graph_view,
+                                                              std::move(initial_hubs),
+                                                              epsilon,
+                                                              max_iterations,
+                                                              normalize,
+                                                              do_expensive_check);
+
+  auto hubs_result        = hubs_property.release_buffer();
+  auto authorities_result = authorities_property.release_buffer();
+  thrust::copy(handle.get_thrust_policy(), hubs_result.begin(), hubs_result.end(), hubs);
+  thrust::copy(
+    handle.get_thrust_policy(), authorities_result.begin(), authorities_result.end(), authorities);
+
+  CUGRAPH_EXPECTS(metadata.converged_, "HITS failed to converge.");
+  return std::make_tuple(result_t{0}, metadata.number_of_iterations_);
 }
 
 }  // namespace cugraph

@@ -96,10 +96,7 @@ struct hits_functor : public cugraph::c_api::abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      cugraph::vertex_property_t<vertex_t, weight_t> hubs(handle_);
-      cugraph::vertex_property_t<vertex_t, weight_t> authorities(handle_, graph_view);
-      weight_t hub_score_differences{0};
-      size_t number_of_iterations{0};
+      std::optional<cugraph::vertex_property_t<vertex_t, weight_t>> initial_hubs{std::nullopt};
 
       if (initial_hubs_guess_vertices_ != nullptr) {
         rmm::device_uvector<vertex_t> guess_vertices(initial_hubs_guess_vertices_->size_,
@@ -126,23 +123,18 @@ struct hits_functor : public cugraph::c_api::abstract_functor {
             graph_view.local_vertex_partition_range_last(),
             weight_t{0},
             do_expensive_check_);
-        hubs = cugraph::vertex_property_t<vertex_t, weight_t>(
+        initial_hubs = cugraph::vertex_property_t<vertex_t, weight_t>(
           std::move(hubs_buffer), graph_view.local_vertex_partition_range_size());
-      } else {
-        hubs = cugraph::vertex_property_t<vertex_t, weight_t>(handle_, graph_view);
       }
 
-      std::tie(hub_score_differences, number_of_iterations) =
-        cugraph::hits<vertex_t, edge_t, weight_t, multi_gpu>(
-          handle_,
-          graph_view,
-          hubs.mutable_view(),
-          authorities.mutable_view(),
-          epsilon_,
-          max_iterations_,
-          (initial_hubs_guess_vertices_ != nullptr),
-          normalize_,
-          do_expensive_check_);
+      auto [hubs, authorities, metadata] =
+        cugraph::hits<vertex_t, edge_t, weight_t, multi_gpu>(handle_,
+                                                             graph_view,
+                                                             std::move(initial_hubs),
+                                                             epsilon_,
+                                                             max_iterations_,
+                                                             normalize_,
+                                                             do_expensive_check_);
 
       auto hubs_result        = hubs.release_buffer();
       auto authorities_result = authorities.release_buffer();
@@ -156,8 +148,8 @@ struct hits_functor : public cugraph::c_api::abstract_functor {
         new cugraph::c_api::cugraph_type_erased_device_array_t(hubs_result, graph_->weight_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(authorities_result,
                                                                graph_->weight_type_),
-        hub_score_differences,
-        number_of_iterations};
+        0.0,
+        metadata.number_of_iterations_};
     }
   }
 };

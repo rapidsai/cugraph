@@ -84,9 +84,7 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
 
     auto maximum_iterations = 400;
     weight_t epsilon        = 1e-7;
-    cugraph::vertex_property_t<vertex_t, weight_t> d_mg_hubs(*handle_);
-    cugraph::vertex_property_t<vertex_t, weight_t> d_mg_authorities(*handle_, mg_graph_view);
-
+    std::optional<cugraph::vertex_property_t<vertex_t, weight_t>> initial_hubs{std::nullopt};
     std::optional<cugraph::vertex_property_t<vertex_t, weight_t>> d_mg_initial_random_hubs{
       std::nullopt};
     if (hits_usecase.check_initial_input) {
@@ -102,12 +100,10 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
       rmm::device_uvector<weight_t> hubs_copy(random_hubs, handle_->get_stream());
       d_mg_initial_random_hubs = cugraph::vertex_property_t<vertex_t, weight_t>(
         std::move(random_hubs), mg_graph_view.local_vertex_partition_range_size());
-      d_mg_hubs = cugraph::vertex_property_t<vertex_t, weight_t>(
+      initial_hubs = cugraph::vertex_property_t<vertex_t, weight_t>(
         std::move(hubs_copy), mg_graph_view.local_vertex_partition_range_size());
 
       handle_->sync_stream();  // before rng_state goes out-of-scope
-    } else {
-      d_mg_hubs = cugraph::vertex_property_t<vertex_t, weight_t>(*handle_, mg_graph_view);
     }
 
     if (cugraph::test::g_perf) {
@@ -116,15 +112,13 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
       hr_timer.start("MG HITS");
     }
 
-    auto result = cugraph::hits(*handle_,
-                                mg_graph_view,
-                                d_mg_hubs.mutable_view(),
-                                d_mg_authorities.mutable_view(),
-                                epsilon,
-                                maximum_iterations,
-                                hits_usecase.check_initial_input,
-                                true,
-                                hits_usecase.check_initial_input);
+    auto [d_mg_hubs, d_mg_authorities, metadata] = cugraph::hits(*handle_,
+                                                                 mg_graph_view,
+                                                                 std::move(initial_hubs),
+                                                                 epsilon,
+                                                                 maximum_iterations,
+                                                                 true,
+                                                                 hits_usecase.check_initial_input);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -198,25 +192,21 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
 
         ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
 
-        cugraph::vertex_property_t<vertex_t, weight_t> d_sg_hubs(*handle_);
-        cugraph::vertex_property_t<vertex_t, weight_t> d_sg_authorities(*handle_, sg_graph_view);
+        std::optional<cugraph::vertex_property_t<vertex_t, weight_t>> sg_initial_hubs{std::nullopt};
         if (hits_usecase.check_initial_input) {
-          d_sg_hubs = cugraph::vertex_property_t<vertex_t, weight_t>(
+          sg_initial_hubs = cugraph::vertex_property_t<vertex_t, weight_t>(
             std::move(d_mg_aggregate_initial_random_hubs),
             sg_graph_view.local_vertex_partition_range_size());
-        } else {
-          d_sg_hubs = cugraph::vertex_property_t<vertex_t, weight_t>(*handle_, sg_graph_view);
         }
 
-        auto result = cugraph::hits(*handle_,
-                                    sg_graph_view,
-                                    d_sg_hubs.mutable_view(),
-                                    d_sg_authorities.mutable_view(),
-                                    epsilon,
-                                    maximum_iterations,
-                                    hits_usecase.check_initial_input,
-                                    true,
-                                    hits_usecase.check_initial_input);
+        auto [d_sg_hubs, d_sg_authorities, metadata] =
+          cugraph::hits(*handle_,
+                        sg_graph_view,
+                        std::move(sg_initial_hubs),
+                        epsilon,
+                        maximum_iterations,
+                        true,
+                        hits_usecase.check_initial_input);
 
         // 3-3. compare
 

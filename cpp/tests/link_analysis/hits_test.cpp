@@ -180,9 +180,7 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
 
     auto maximum_iterations = 400;
     weight_t epsilon        = 1e-7;
-    cugraph::vertex_property_t<vertex_t, weight_t> d_hubs(handle);
-    cugraph::vertex_property_t<vertex_t, weight_t> d_authorities(handle, graph_view);
-
+    std::optional<cugraph::vertex_property_t<vertex_t, weight_t>> initial_hubs{std::nullopt};
     std::optional<cugraph::vertex_property_t<vertex_t, weight_t>> d_initial_random_hubs{
       std::nullopt};
     if (hits_usecase.check_initial_input) {
@@ -198,12 +196,10 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
       rmm::device_uvector<weight_t> hubs_copy(random_hubs, handle.get_stream());
       d_initial_random_hubs = cugraph::vertex_property_t<vertex_t, weight_t>(
         std::move(random_hubs), graph_view.local_vertex_partition_range_size());
-      d_hubs = cugraph::vertex_property_t<vertex_t, weight_t>(
+      initial_hubs = cugraph::vertex_property_t<vertex_t, weight_t>(
         std::move(hubs_copy), graph_view.local_vertex_partition_range_size());
 
       handle.sync_stream();  // before rng_state goes out-of-scope
-    } else {
-      d_hubs = cugraph::vertex_property_t<vertex_t, weight_t>(handle, graph_view);
     }
 
     if (cugraph::test::g_perf) {
@@ -211,15 +207,13 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
       hr_timer.start("HITS");
     }
 
-    auto result = cugraph::hits(handle,
-                                graph_view,
-                                d_hubs.mutable_view(),
-                                d_authorities.mutable_view(),
-                                epsilon,
-                                maximum_iterations,
-                                hits_usecase.check_initial_input,
-                                true,
-                                hits_usecase.check_initial_input);
+    auto [d_hubs, d_authorities, metadata] = cugraph::hits(handle,
+                                                           graph_view,
+                                                           std::move(initial_hubs),
+                                                           epsilon,
+                                                           maximum_iterations,
+                                                           true,
+                                                           hits_usecase.check_initial_input);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

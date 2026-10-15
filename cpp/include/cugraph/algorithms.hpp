@@ -1255,7 +1255,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
  * @brief Metadata about the execution of one of the centrality algorithms
  */
 // FIXME:  This structure should be propagated to other algorithms that converge
-//   (eigenvector centrality, hits and katz centrality)
+//   (eigenvector centrality and katz centrality)
 //
 struct centrality_algorithm_metadata_t {
   size_t number_of_iterations_{};
@@ -1413,7 +1413,48 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
   bool do_expensive_check = false);
 
 /**
-.* @ingroup link_analysis_cpp
+ * @ingroup link_analysis_cpp
+ * @brief Compute HITS scores.
+ *
+ * @deprecated This API is deprecated and replaced by the `vertex_property_t` version below.
+ *
+ * This function computes HITS scores for the vertices of a graph.
+ *
+ * @throws cugraph::logic_error on erroneous input arguments
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param hubs Pointer to the input/output hub score array.
+ * @param authorities Pointer to the output authority score array.
+ * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
+ * differences in hub values between two consecutive iterations is less than @p epsilon.
+ * @param max_iterations Maximum number of HITS iterations.
+ * @param has_initial_hubs_guess If set to `true`, values in @p hubs are used as initial hub values.
+ * If false, initial hub values are set to 1.0 divided by the number of vertices in the graph.
+ * @param normalize If set to `true`, final hub and authority scores are normalized (the L1-norm of
+ * the returned hub and authority score arrays is 1.0) before returning.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return std::tuple<result_t, size_t> A tuple of the sum of the differences of hub scores of the
+ * last two iterations and the total number of iterations taken to reach the final result.
+ */
+template <typename vertex_t, typename edge_t, typename result_t, bool multi_gpu>
+std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
+                                  graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
+                                  result_t* hubs,
+                                  result_t* authorities,
+                                  result_t epsilon,
+                                  size_t max_iterations,
+                                  bool has_initial_hubs_guess,
+                                  bool normalize,
+                                  bool do_expensive_check);
+
+/**
+ * @ingroup link_analysis_cpp
  * @brief Compute HITS scores.
  *
  * This function computes HITS scores for the vertices of a graph
@@ -1427,32 +1468,29 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- * @param hubs Mutable view of hub scores for the vertices assigned to this process. Use
- * `vertex_property_t::mutable_view()`. If @p has_initial_hubs_guess is `true`, these values are
- * used as the initial hub scores.
- * @param authorities Mutable view where authority scores for the vertices assigned to this process
- * are written. Use `vertex_property_t::mutable_view()`.
+ * @param initial_hubs Optional initial hub scores for the vertices assigned to this process. If
+ * `std::nullopt`, initial values are set to 1.0 divided by the number of vertices in the graph. If
+ * provided, these values are used as the initial hub scores.
  * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
- * differences in hub values between two consecutive iterations is less than @p epsilon
+ * differences in hub values between two consecutive iterations is less than @p epsilon.
  * @param max_iterations Maximum number of HITS iterations.
- * @param has_initial_guess If set to `true`, values in @p hubs are used as initial hub values. If
- * false, initial hub values are set to 1.0 divided by the number of vertices in the graph.
  * @param normalize If set to `true`, final hub and authority scores are normalized (the L1-norm of
  * the returned hub and authority score arrays is 1.0) before returning.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return std::tuple<result_t, size_t> A tuple of sum of the differences of hub scores of the last
- * two iterations and the total number of iterations taken to reach the final result
+ * @return Tuple of hub scores, authority scores, and metadata indicating how many iterations were
+ * run and whether the algorithm converged.
  */
 template <typename vertex_t, typename edge_t, typename result_t, bool multi_gpu>
-std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
-                                  graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
-                                  vertex_property_view_t<vertex_t, result_t*> hubs,
-                                  vertex_property_view_t<vertex_t, result_t*> authorities,
-                                  result_t epsilon,
-                                  size_t max_iterations,
-                                  bool has_initial_hubs_guess,
-                                  bool normalize,
-                                  bool do_expensive_check);
+std::tuple<vertex_property_t<vertex_t, result_t>,
+           vertex_property_t<vertex_t, result_t>,
+           centrality_algorithm_metadata_t>
+hits(raft::handle_t const& handle,
+     graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
+     std::optional<vertex_property_t<vertex_t, result_t>>&& initial_hubs,
+     result_t epsilon,
+     size_t max_iterations,
+     bool normalize,
+     bool do_expensive_check);
 
 /**
 .* @ingroup centrality_cpp
