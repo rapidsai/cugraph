@@ -2305,18 +2305,22 @@ void strongly_connected_components_impl(
     scc_component_vertices.resize(0, handle.get_stream());
     scc_component_vertices.shrink_to_fit(handle.get_stream());
 
-    auto edge_src_component_view = multi_gpu
-                                     ? edge_src_components.view()
-                                     : make_edge_src_property_view<vertex_t, vertex_t>(
-                                         forward_graph_view,
-                                         components.begin(),
-                                         forward_graph_view.local_vertex_partition_range_size());
-    auto edge_dst_component_view = multi_gpu
-                                     ? edge_dst_components.view()
-                                     : make_edge_dst_property_view<vertex_t, vertex_t>(
-                                         forward_graph_view,
-                                         components.begin(),
-                                         forward_graph_view.local_vertex_partition_range_size());
+    auto edge_src_component_view =
+      multi_gpu
+        ? edge_src_components.view()
+        : make_edge_src_property_view(
+            forward_graph_view,
+            vertex_property_view_t{
+              components.begin(),
+              static_cast<vertex_t>(forward_graph_view.local_vertex_partition_range_size())});
+    auto edge_dst_component_view =
+      multi_gpu
+        ? edge_dst_components.view()
+        : make_edge_dst_property_view(
+            forward_graph_view,
+            vertex_property_view_t{
+              components.begin(),
+              static_cast<vertex_t>(forward_graph_view.local_vertex_partition_range_size())});
 
     auto new_edge_mask = make_initialized_edge_property(handle, forward_graph_view, false);
     transform_e(handle,
@@ -2346,17 +2350,21 @@ void strongly_connected_components_impl(
       }
 
       auto inverse_edge_src_component_view =
-        multi_gpu ? inverse_edge_src_components.view()
-                  : make_edge_src_property_view<vertex_t, vertex_t>(
-                      inverse_graph_view,
-                      inverse_components->begin(),
-                      inverse_graph_view.local_vertex_partition_range_size());
+        multi_gpu
+          ? inverse_edge_src_components.view()
+          : make_edge_src_property_view(
+              inverse_graph_view,
+              vertex_property_view_t{
+                inverse_components->begin(),
+                static_cast<vertex_t>(inverse_graph_view.local_vertex_partition_range_size())});
       auto inverse_edge_dst_component_view =
-        multi_gpu ? inverse_edge_dst_components.view()
-                  : make_edge_dst_property_view<vertex_t, vertex_t>(
-                      inverse_graph_view,
-                      inverse_components->begin(),
-                      inverse_graph_view.local_vertex_partition_range_size());
+        multi_gpu
+          ? inverse_edge_dst_components.view()
+          : make_edge_dst_property_view(
+              inverse_graph_view,
+              vertex_property_view_t{
+                inverse_components->begin(),
+                static_cast<vertex_t>(inverse_graph_view.local_vertex_partition_range_size())});
 
       auto new_inverse_edge_mask =
         make_initialized_edge_property(handle, inverse_graph_view, false);

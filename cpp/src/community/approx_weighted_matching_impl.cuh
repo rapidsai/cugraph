@@ -121,8 +121,10 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
         cugraph::edge_dst_dummy_property_t{}.view(),
         edge_weight_view,
         multi_gpu ? src_key_cache.view()
-                  : make_edge_src_property_view<vertex_t, vertex_t>(
-                      current_graph_view, local_vertices.begin(), local_vertices.size()),
+                  : make_edge_src_property_view(
+                      current_graph_view,
+                      vertex_property_view_t{local_vertices.begin(),
+                                             static_cast<vertex_t>(local_vertices.size())}),
         [] __device__(auto, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, auto wt) {
           return cuda::std::make_tuple(wt, dst);
         },

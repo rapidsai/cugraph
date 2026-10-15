@@ -202,14 +202,16 @@ refine_clustering(raft::handle_t const& handle,
     graph_view,
     multi_gpu
       ? src_louvain_assignment_cache.view()
-      : make_edge_src_property_view<vertex_t, vertex_t>(graph_view,
-                                                        louvain_assignment_of_vertices.begin(),
-                                                        louvain_assignment_of_vertices.size()),
+      : make_edge_src_property_view(
+          graph_view,
+          vertex_property_view_t{louvain_assignment_of_vertices.begin(),
+                                 static_cast<vertex_t>(louvain_assignment_of_vertices.size())}),
     multi_gpu
       ? dst_louvain_assignment_cache.view()
-      : make_edge_dst_property_view<vertex_t, vertex_t>(graph_view,
-                                                        louvain_assignment_of_vertices.begin(),
-                                                        louvain_assignment_of_vertices.size()),
+      : make_edge_dst_property_view(
+          graph_view,
+          vertex_property_view_t{louvain_assignment_of_vertices.begin(),
+                                 static_cast<vertex_t>(louvain_assignment_of_vertices.size())}),
     *edge_weight_view,
     cuda::proclaim_return_type<weight_t>(
       [] __device__(auto src, auto dst, auto src_cluster, auto dst_cluster, auto wt) {
@@ -360,21 +362,27 @@ refine_clustering(raft::handle_t const& handle,
       multi_gpu
         ? view_concat(src_louvain_assignment_cache.view(), src_leiden_assignment_cache.view())
         : view_concat(
-            make_edge_src_property_view<vertex_t, vertex_t>(graph_view,
-                                                            louvain_assignment_of_vertices.begin(),
-                                                            louvain_assignment_of_vertices.size()),
-            make_edge_src_property_view<vertex_t, vertex_t>(
-              graph_view, leiden_assignment.begin(), leiden_assignment.size()));
+            make_edge_src_property_view(
+              graph_view,
+              vertex_property_view_t{louvain_assignment_of_vertices.begin(),
+                                     static_cast<vertex_t>(louvain_assignment_of_vertices.size())}),
+            make_edge_src_property_view(
+              graph_view,
+              vertex_property_view_t{leiden_assignment.begin(),
+                                     static_cast<vertex_t>(leiden_assignment.size())}));
 
     auto dst_input_property_values =
       multi_gpu
         ? view_concat(dst_louvain_assignment_cache.view(), dst_leiden_assignment_cache.view())
         : view_concat(
-            make_edge_dst_property_view<vertex_t, vertex_t>(graph_view,
-                                                            louvain_assignment_of_vertices.begin(),
-                                                            louvain_assignment_of_vertices.size()),
-            make_edge_dst_property_view<vertex_t, vertex_t>(
-              graph_view, leiden_assignment.begin(), leiden_assignment.size()));
+            make_edge_dst_property_view(
+              graph_view,
+              vertex_property_view_t{louvain_assignment_of_vertices.begin(),
+                                     static_cast<vertex_t>(louvain_assignment_of_vertices.size())}),
+            make_edge_dst_property_view(
+              graph_view,
+              vertex_property_view_t{leiden_assignment.begin(),
+                                     static_cast<vertex_t>(leiden_assignment.size())}));
 
     rmm::device_uvector<vertex_t> leiden_keys_used_in_edge_reduction(0, handle.get_stream());
     rmm::device_uvector<weight_t> refined_community_volumes(0, handle.get_stream());
@@ -396,8 +404,10 @@ refine_clustering(raft::handle_t const& handle,
         dst_input_property_values,
         *edge_weight_view,
         multi_gpu ? dst_leiden_assignment_cache.view()
-                  : make_edge_dst_property_view<vertex_t, vertex_t>(
-                      graph_view, leiden_assignment.begin(), leiden_assignment.size()),
+                  : make_edge_dst_property_view(
+                      graph_view,
+                      vertex_property_view_t{leiden_assignment.begin(),
+                                             static_cast<vertex_t>(leiden_assignment.size())}),
         [] __device__(auto src,
                       auto dst,
                       cuda::std::tuple<vertex_t, vertex_t> src_louvain_leidn,
@@ -528,28 +538,40 @@ refine_clustering(raft::handle_t const& handle,
                                   vertex_best_move_cluster_id.begin()));
     } else {
       auto zipped_src_device_view = view_concat(
-        make_edge_src_property_view<vertex_t, weight_t>(
-          graph_view, weighted_degree_of_vertices.begin(), weighted_degree_of_vertices.size()),
-        make_edge_src_property_view<vertex_t, weight_t>(graph_view,
-                                                        weighted_cut_of_vertices_to_louvain.begin(),
-                                                        weighted_cut_of_vertices_to_louvain.size()),
-        make_edge_src_property_view<vertex_t, weight_t>(graph_view,
-                                                        vertex_louvain_cluster_weights.begin(),
-                                                        vertex_louvain_cluster_weights.size()),
-        make_edge_src_property_view<vertex_t, uint8_t>(
-          graph_view, singleton_and_connected_flags.begin(), singleton_and_connected_flags.size()),
-        make_edge_src_property_view<vertex_t, vertex_t>(
-          graph_view, leiden_assignment.begin(), leiden_assignment.size()),
-        make_edge_src_property_view<vertex_t, vertex_t>(graph_view,
-                                                        louvain_assignment_of_vertices.begin(),
-                                                        louvain_assignment_of_vertices.size()));
+        make_edge_src_property_view(
+          graph_view,
+          vertex_property_view_t{weighted_degree_of_vertices.begin(),
+                                 static_cast<vertex_t>(weighted_degree_of_vertices.size())}),
+        make_edge_src_property_view(
+          graph_view,
+          vertex_property_view_t{
+            weighted_cut_of_vertices_to_louvain.begin(),
+            static_cast<vertex_t>(weighted_cut_of_vertices_to_louvain.size())}),
+        make_edge_src_property_view(
+          graph_view,
+          vertex_property_view_t{vertex_louvain_cluster_weights.begin(),
+                                 static_cast<vertex_t>(vertex_louvain_cluster_weights.size())}),
+        make_edge_src_property_view(
+          graph_view,
+          vertex_property_view_t{singleton_and_connected_flags.begin(),
+                                 static_cast<vertex_t>(singleton_and_connected_flags.size())}),
+        make_edge_src_property_view(
+          graph_view,
+          vertex_property_view_t{leiden_assignment.begin(),
+                                 static_cast<vertex_t>(leiden_assignment.size())}),
+        make_edge_src_property_view(
+          graph_view,
+          vertex_property_view_t{louvain_assignment_of_vertices.begin(),
+                                 static_cast<vertex_t>(louvain_assignment_of_vertices.size())}));
       per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         handle,
         graph_view,
         zipped_src_device_view,
         *edge_weight_view,
-        make_edge_dst_property_view<vertex_t, vertex_t>(
-          graph_view, leiden_assignment.begin(), leiden_assignment.size()),
+        make_edge_dst_property_view(
+          graph_view,
+          vertex_property_view_t{leiden_assignment.begin(),
+                                 static_cast<vertex_t>(leiden_assignment.size())}),
         leiden_cluster_key_values_map.view(),
         detail::leiden_key_aggregated_edge_op_t<vertex_t, weight_t, value_t>{
           total_edge_weight, resolution, theta, device_state},

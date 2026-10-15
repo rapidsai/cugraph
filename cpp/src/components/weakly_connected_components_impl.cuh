@@ -782,10 +782,10 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                 ? detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
                     edge_dst_components.mutable_view())
                 : detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
-                    make_edge_dst_property_mutable_view<vertex_t, vertex_t>(
+                    make_edge_dst_property_mutable_view(
                       level_graph_view,
-                      level_components,
-                      static_cast<size_t>(level_graph_view.local_vertex_partition_range_size()))),
+                      vertex_property_view_t{
+                        level_components, level_graph_view.local_vertex_partition_range_size()})),
               level_graph_view.local_edge_partition_dst_range_first(),
               get_dataframe_buffer_begin(edge_buffer),
               num_edge_inserts.data()});

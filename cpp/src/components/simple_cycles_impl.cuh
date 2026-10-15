@@ -545,8 +545,10 @@ enumerate_simple_cycles_expanding_paths(
         graph_view,
         frontier,
         edge_src_dummy_property_t{}.view(),
-        make_edge_dst_property_view<vertex_t, vertex_t>(
-          graph_view, reverse_distances.begin(), reverse_distances.size()),
+        make_edge_dst_property_view(
+          graph_view,
+          vertex_property_view_t{reverse_distances.begin(),
+                                 static_cast<vertex_t>(reverse_distances.size())}),
         edge_dummy_property_t{}.view(),
         e_op,
         pred_op);
@@ -1175,16 +1177,18 @@ simple_cycles_impl(raft::handle_t const& handle,
                           std::vector<cugraph::arithmetic_device_uvector_t>{},
                           false);
     } else {
-      std::tie(edgelist_srcs, edgelist_dsts) =
-        extract_transform_if_e(handle,
-                               graph_view,
-                               make_edge_src_property_view<vertex_t, vertex_t>(
-                                 graph_view, components.begin(), components.size()),
-                               make_edge_dst_property_view<vertex_t, vertex_t>(
-                                 graph_view, components.begin(), components.size()),
-                               edge_dummy_property_t{}.view(),
-                               e_op,
-                               pred_op);
+      std::tie(edgelist_srcs, edgelist_dsts) = extract_transform_if_e(
+        handle,
+        graph_view,
+        make_edge_src_property_view(
+          graph_view,
+          vertex_property_view_t{components.begin(), static_cast<vertex_t>(components.size())}),
+        make_edge_dst_property_view(
+          graph_view,
+          vertex_property_view_t{components.begin(), static_cast<vertex_t>(components.size())}),
+        edge_dummy_property_t{}.view(),
+        e_op,
+        pred_op);
     }
     components.resize(0, handle.get_stream());
     components.shrink_to_fit(handle.get_stream());
@@ -1400,8 +1404,10 @@ simple_cycles_impl(raft::handle_t const& handle,
               handle,
               scc_graph_view,
               edge_src_dummy_property_t{}.view(),
-              make_edge_dst_property_view<vertex_t, vertex_t>(
-                scc_graph_view, reverse_distances.begin(), reverse_distances.size()),
+              make_edge_dst_property_view(
+                scc_graph_view,
+                vertex_property_view_t{reverse_distances.begin(),
+                                       static_cast<vertex_t>(reverse_distances.size())}),
               edge_dummy_property_t{}.view(),
               cuda::proclaim_return_type<uint8_t>(
                 [hop] __device__(vertex_t, vertex_t, auto, vertex_t dst_reverse_distance, auto) {
@@ -1718,16 +1724,19 @@ simple_cycles_impl(raft::handle_t const& handle,
                     new_scc_graph_edge_mask.mutable_view(),
                     do_expensive_check);
       } else {
-        transform_e(handle,
-                    scc_graph_view,
-                    make_edge_src_property_view<vertex_t, vertex_t>(
-                      scc_graph_view, components.begin(), components.size()),
-                    make_edge_dst_property_view<vertex_t, vertex_t>(
-                      scc_graph_view, components.begin(), components.size()),
-                    edge_dummy_property_t{}.view(),
-                    e_op,
-                    new_scc_graph_edge_mask.mutable_view(),
-                    do_expensive_check);
+        transform_e(
+          handle,
+          scc_graph_view,
+          make_edge_src_property_view(
+            scc_graph_view,
+            vertex_property_view_t{components.begin(), static_cast<vertex_t>(components.size())}),
+          make_edge_dst_property_view(
+            scc_graph_view,
+            vertex_property_view_t{components.begin(), static_cast<vertex_t>(components.size())}),
+          edge_dummy_property_t{}.view(),
+          e_op,
+          new_scc_graph_edge_mask.mutable_view(),
+          do_expensive_check);
       }
       if (scc_graph_view.has_edge_mask()) { scc_graph_view.clear_edge_mask(); }
       scc_graph_edge_mask = std::move(new_scc_graph_edge_mask);

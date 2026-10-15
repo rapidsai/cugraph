@@ -116,10 +116,10 @@ class Tests_SGMaximalIndependentSet
       per_v_transform_reduce_outgoing_e(
         handle,
         sg_graph_view,
-        cugraph::make_edge_src_property_view<vertex_t, vertex_t>(
-          sg_graph_view, inclusiong_flags.data(), 1),
-        cugraph::make_edge_dst_property_view<vertex_t, vertex_t>(
-          sg_graph_view, inclusiong_flags.data(), 1),
+        cugraph::make_edge_src_property_view(
+          sg_graph_view, cugraph::vertex_property_view_t{inclusiong_flags.data(), vertex_t{1}}),
+        cugraph::make_edge_dst_property_view(
+          sg_graph_view, cugraph::vertex_property_view_t{inclusiong_flags.data(), vertex_t{1}}),
         cugraph::edge_dummy_property_t{}.view(),
         [] __device__(auto src, auto dst, auto src_included, auto dst_included, auto wt) {
           return (src == dst) ? 0 : dst_included;

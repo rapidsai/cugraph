@@ -206,11 +206,15 @@ weight_t compute_modularity(
     handle,
     graph_view,
     multi_gpu ? src_clusters_cache.view()
-              : make_edge_src_property_view<vertex_t, vertex_t>(
-                  graph_view, next_clusters.begin(), next_clusters.size()),
+              : make_edge_src_property_view(
+                  graph_view,
+                  vertex_property_view_t{next_clusters.begin(),
+                                         static_cast<vertex_t>(next_clusters.size())}),
     multi_gpu ? dst_clusters_cache.view()
-              : make_edge_dst_property_view<vertex_t, vertex_t>(
-                  graph_view, next_clusters.begin(), next_clusters.size()),
+              : make_edge_dst_property_view(
+                  graph_view,
+                  vertex_property_view_t{next_clusters.begin(),
+                                         static_cast<vertex_t>(next_clusters.size())}),
     *edge_weight_view,
     cuda::proclaim_return_type<weight_t>(
       [] __device__(auto, auto, auto src_cluster, auto nbr_cluster, weight_t wt) {
@@ -344,11 +348,15 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
     handle,
     graph_view,
     multi_gpu ? src_clusters_cache.view()
-              : make_edge_src_property_view<vertex_t, vertex_t>(
-                  graph_view, next_clusters_v.begin(), next_clusters_v.size()),
+              : make_edge_src_property_view(
+                  graph_view,
+                  vertex_property_view_t{next_clusters_v.begin(),
+                                         static_cast<vertex_t>(next_clusters_v.size())}),
     multi_gpu ? dst_clusters_cache.view()
-              : make_edge_dst_property_view<vertex_t, vertex_t>(
-                  graph_view, next_clusters_v.begin(), next_clusters_v.size()),
+              : make_edge_dst_property_view(
+                  graph_view,
+                  vertex_property_view_t{next_clusters_v.begin(),
+                                         static_cast<vertex_t>(next_clusters_v.size())}),
     *edge_weight_view,
     [] __device__(auto src, auto dst, auto src_cluster, auto nbr_cluster, weight_t wt) {
       weight_t sum{0};
@@ -397,14 +405,22 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
                             src_cluster_weights->view(),
                             src_old_cluster_sum_subtract_pairs->view())
               : view_concat(
-                  make_edge_src_property_view<vertex_t, weight_t>(
-                    graph_view, vertex_weights_v.begin(), vertex_weights_v.size()),
-                  make_edge_src_property_view<vertex_t, vertex_t>(
-                    graph_view, next_clusters_v.begin(), next_clusters_v.size()),
-                  make_edge_src_property_view<vertex_t, weight_t>(
-                    graph_view, vertex_cluster_weights_v.begin(), vertex_cluster_weights_v.size()),
-                  make_edge_src_property_view<vertex_t, cuda::std::tuple<weight_t, weight_t>>(
-                    graph_view, cluster_old_sum_subtract_pair_first, old_cluster_sum_v.size()));
+                  make_edge_src_property_view(
+                    graph_view,
+                    vertex_property_view_t{vertex_weights_v.begin(),
+                                           static_cast<vertex_t>(vertex_weights_v.size())}),
+                  make_edge_src_property_view(
+                    graph_view,
+                    vertex_property_view_t{next_clusters_v.begin(),
+                                           static_cast<vertex_t>(next_clusters_v.size())}),
+                  make_edge_src_property_view(
+                    graph_view,
+                    vertex_property_view_t{vertex_cluster_weights_v.begin(),
+                                           static_cast<vertex_t>(vertex_cluster_weights_v.size())}),
+                  make_edge_src_property_view(
+                    graph_view,
+                    vertex_property_view_t{cluster_old_sum_subtract_pair_first,
+                                           static_cast<vertex_t>(old_cluster_sum_v.size())}));
 
   kv_store_t<vertex_t, weight_t, false> cluster_key_weight_map(
     cluster_keys_v.begin(),
@@ -419,8 +435,10 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
     zipped_src_device_view,
     *edge_weight_view,
     multi_gpu ? dst_clusters_cache.view()
-              : make_edge_dst_property_view<vertex_t, vertex_t>(
-                  graph_view, next_clusters_v.begin(), next_clusters_v.size()),
+              : make_edge_dst_property_view(
+                  graph_view,
+                  vertex_property_view_t{next_clusters_v.begin(),
+                                         static_cast<vertex_t>(next_clusters_v.size())}),
     cluster_key_weight_map.view(),
     detail::key_aggregated_edge_op_t<vertex_t, weight_t>{total_edge_weight, resolution},
     cuda::std::make_tuple(vertex_t{-1}, weight_t{0}),
@@ -473,8 +491,10 @@ compute_cluster_keys_and_values(
     edge_dst_dummy_property_t{}.view(),
     *edge_weight_view,
     multi_gpu ? src_clusters_cache.view()
-              : make_edge_src_property_view<vertex_t, vertex_t>(
-                  graph_view, next_clusters_v.begin(), next_clusters_v.size()),
+              : make_edge_src_property_view(
+                  graph_view,
+                  vertex_property_view_t{next_clusters_v.begin(),
+                                         static_cast<vertex_t>(next_clusters_v.size())}),
     detail::return_edge_weight_t<vertex_t, weight_t>{},
     weight_t{0},
     reduce_op::plus<weight_t>{});
