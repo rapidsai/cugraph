@@ -352,6 +352,9 @@ void edge_betweenness_centrality(const raft::handle_t& handle,
  * @ingroup centrality_cpp
  * @brief     Compute betweenness centrality for a graph
  *
+ * @deprecated This API is deprecated and replaced by `vertex_betweenness_centrality`, which returns
+ * a `vertex_property_t`.
+ *
  * Betweenness centrality for a vertex is the sum of the fraction of
  * all pairs shortest paths that pass through the vertex.
  *
@@ -395,16 +398,18 @@ rmm::device_uvector<weight_t> betweenness_centrality(
 
 /**
  * @ingroup centrality_cpp
- * @brief     Compute edge betweenness centrality for a graph
+ * @brief     Compute betweenness centrality for a graph
  *
- * Betweenness centrality of an edge is the sum of the fraction of all-pairs shortest paths that
- * pass through this edge. The weight parameter is currenlty not supported
+ * Betweenness centrality for a vertex is the sum of the fraction of
+ * all pairs shortest paths that pass through the vertex.
  *
- * @p vertices is optional.  If it is not specified the algorithm will compute exact betweenness
+ * The current implementation does not support a weighted graph.
+ *
+ * @p seeds is optional.  If it is not specified the algorithm will compute exact betweenness
  * (compute betweenness using a traversal from all vertices).
  *
- * If @p vertices is specified as a device_span, it will compute approximate betweenness
- * using the provided @p vertices as the seeds of the traversals.
+ * If @p seeds is specified as a device_span, it will compute approximate betweenness
+ * using the provided @p seeds as the seeds of the traversals.
  *
  * @throws                 cugraph::logic_error when an error occurs.
  *
@@ -418,7 +423,50 @@ rmm::device_uvector<weight_t> betweenness_centrality(
  * @param graph_view Graph view object.
  * @param edge_weight_view Optional view object holding edge weights for @p graph_view. Currently,
  * edge_weight_view.has_value() should be false as we don't support weighted graphs, yet.
- * @param vertices Optional, if specified this provides a device_span identifying a list of
+ * @param seeds Optional, if specified this provides a device_span identifying a list of
+ * pre-selected vertices to use as seeds for the traversals for approximating betweenness.
+ * @param normalized         A flag indicating results should be normalized
+ * @param include_endpoints  A flag indicating whether endpoints of a path should be counted
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ *
+ * @return Vertex property containing the centralities.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+vertex_property_t<vertex_t, weight_t> vertex_betweenness_centrality(
+  const raft::handle_t& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<raft::device_span<vertex_t const>> seeds,
+  bool const normalized         = true,
+  bool const include_endpoints  = false,
+  bool const do_expensive_check = false);
+
+/**
+ * @ingroup centrality_cpp
+ * @brief     Compute edge betweenness centrality for a graph
+ *
+ * Betweenness centrality of an edge is the sum of the fraction of all-pairs shortest paths that
+ * pass through this edge. The weight parameter is currenlty not supported
+ *
+ * @p seeds is optional.  If it is not specified the algorithm will compute exact betweenness
+ * (compute betweenness using a traversal from all vertices).
+ *
+ * If @p seeds is specified as a device_span, it will compute approximate betweenness
+ * using the provided @p seeds as the seeds of the traversals.
+ *
+ * @throws                 cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. Currently,
+ * edge_weight_view.has_value() should be false as we don't support weighted graphs, yet.
+ * @param seeds Optional, if specified this provides a device_span identifying a list of
  * pre-selected vertices to use as seeds for the traversals for approximating betweenness.
  * @param normalized         A flag indicating whether or not to normalize the result
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
@@ -430,7 +478,7 @@ edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<raft::device_span<vertex_t const>> vertices,
+  std::optional<raft::device_span<vertex_t const>> seeds,
   bool normalized         = true,
   bool do_expensive_check = false);
 

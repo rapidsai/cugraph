@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "betweenness_centrality_reference.hpp"
@@ -98,7 +98,7 @@ class Tests_BetweennessCentrality
       hr_timer.start("Betweenness centrality");
     }
 
-    auto d_centralities = cugraph::betweenness_centrality(
+    auto d_centralities = cugraph::vertex_betweenness_centrality(
       handle,
       graph_view,
       edge_weight_view,
@@ -149,8 +149,10 @@ class Tests_BetweennessCentrality
 
       auto d_reference_centralities = cugraph::test::to_device(handle, h_reference_centralities);
 
+      auto d_centrality_values = d_centralities.release_buffer();
+
       cugraph::test::betweenness_centrality_validate(
-        handle, d_centralities, d_reference_centralities);
+        handle, d_centrality_values, d_reference_centralities);
     }
   }
 };

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "centrality/betweenness_centrality_validate.hpp"
@@ -99,7 +99,7 @@ class Tests_MGBetweennessCentrality
       hr_timer.start("MG betweenness centrality");
     }
 
-    auto d_mg_centralities = cugraph::betweenness_centrality(
+    auto d_mg_centralities = cugraph::vertex_betweenness_centrality(
       *handle_,
       mg_graph_view,
       mg_edge_weight_view,
@@ -128,6 +128,7 @@ class Tests_MGBetweennessCentrality
       auto d_mg_aggregate_seeds = cugraph::test::device_gatherv(
         *handle_, raft::device_span<vertex_t const>{d_mg_seeds.data(), d_mg_seeds.size()});
 
+      auto d_mg_centrality_values = d_mg_centralities.release_buffer();
       rmm::device_uvector<weight_t> d_mg_aggregate_centralities(0, handle_->get_stream());
       std::tie(std::ignore, d_mg_aggregate_centralities) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
@@ -137,7 +138,8 @@ class Tests_MGBetweennessCentrality
           mg_graph_view.local_vertex_partition_range(),
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-          raft::device_span<weight_t const>(d_mg_centralities.data(), d_mg_centralities.size()));
+          raft::device_span<weight_t const>(d_mg_centrality_values.data(),
+                                            d_mg_centrality_values.size()));
 
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
       std::optional<cugraph::edge_property_t<edge_t, weight_t>> sg_edge_weights{std::nullopt};
@@ -155,7 +157,7 @@ class Tests_MGBetweennessCentrality
       if (handle_->get_comms().get_rank() == 0) {
         auto sg_graph_view = sg_graph.view();
 
-        auto d_sg_centralities = cugraph::betweenness_centrality(
+        auto d_sg_centralities = cugraph::vertex_betweenness_centrality(
           *handle_,
           sg_graph_view,
           sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt,
@@ -164,8 +166,9 @@ class Tests_MGBetweennessCentrality
           betweenness_usecase.normalized,
           betweenness_usecase.include_endpoints);
 
+        auto d_sg_centrality_values = d_sg_centralities.release_buffer();
         cugraph::test::betweenness_centrality_validate(
-          *handle_, d_mg_aggregate_centralities, d_sg_centralities);
+          *handle_, d_mg_aggregate_centralities, d_sg_centrality_values);
       }
     }
   }

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -108,22 +108,26 @@ struct betweenness_centrality_functor : public cugraph::c_api::abstract_functor 
           raft::device_span<vertex_t const>{local_vertices.data(), local_vertices.size()};
       }
 
-      auto centralities = cugraph::betweenness_centrality<vertex_t, edge_t, weight_t, multi_gpu>(
-        handle_,
-        graph_view,
-        (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
-        vertex_span,
-        normalized_,
-        include_endpoints_,
-        do_expensive_check_);
+      auto centralities =
+        cugraph::vertex_betweenness_centrality<vertex_t, edge_t, weight_t, multi_gpu>(
+          handle_,
+          graph_view,
+          (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
+          vertex_span,
+          normalized_,
+          include_endpoints_,
+          do_expensive_check_);
 
       rmm::device_uvector<vertex_t> vertex_ids(graph_view.local_vertex_partition_range_size(),
                                                handle_.get_stream());
       raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
 
+      auto centrality_values = centralities.release_buffer();
+
       result_ = new cugraph::c_api::cugraph_centrality_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(vertex_ids, graph_->vertex_type_),
-        new cugraph::c_api::cugraph_type_erased_device_array_t(centralities, graph_->weight_type_)};
+        new cugraph::c_api::cugraph_type_erased_device_array_t(centrality_values,
+                                                               graph_->weight_type_)};
     }
   }
 };

@@ -7,17 +7,21 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/prims/copy_v.cuh>
 #include <cugraph/prims/count_if_v.cuh>
 #include <cugraph/prims/detail/prim_functors.cuh>
 #include <cugraph/prims/edge_bucket.cuh>
 #include <cugraph/prims/extract_transform_if_e.cuh>
 #include <cugraph/prims/extract_transform_if_v_frontier_incoming_outgoing_e.cuh>
 #include <cugraph/prims/fill_edge_property.cuh>
+#include <cugraph/prims/fill_v.cuh>
 #include <cugraph/prims/make_initialized_edge_property.cuh>
 #include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <cugraph/prims/scatter_v.cuh>
 #include <cugraph/prims/transform_e.cuh>
 #include <cugraph/prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh>
 #include <cugraph/prims/transform_reduce_v.cuh>
+#include <cugraph/prims/transform_v.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/prims/update_v_frontier.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
@@ -27,6 +31,7 @@
 #include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 #include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
+#include <cugraph/vertex_property_device_view.cuh>
 
 #include <raft/core/handle.hpp>
 
@@ -129,7 +134,7 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_bfs(
+std::tuple<vertex_property_t<vertex_t, vertex_t>, vertex_property_t<vertex_t, edge_t>> brandes_bfs(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
@@ -145,49 +150,36 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
   constexpr size_t bucket_idx_cur{0};
   constexpr size_t bucket_idx_next{1};
 
-  rmm::device_uvector<edge_t> sigmas(graph_view.local_vertex_partition_range_size(),
-                                     handle.get_stream());
-  rmm::device_uvector<vertex_t> distances(graph_view.local_vertex_partition_range_size(),
-                                          handle.get_stream());
-  cugraph::fill(handle.get_thrust_policy(),
-                distances.data(),
-                (distances.data()) + (distances.size()),
-                invalid_distance);
-  cugraph::fill(
-    handle.get_thrust_policy(), sigmas.data(), (sigmas.data()) + (sigmas.size()), edge_t{0});
+  vertex_property_t<vertex_t, vertex_t> distances(handle, graph_view);
+  vertex_property_t<vertex_t, edge_t> sigmas(handle, graph_view);
+  fill_v(handle, graph_view, distances.mutable_view(), invalid_distance);
+  fill_v(handle, graph_view, sigmas.mutable_view(), edge_t{0});
 
   edge_src_property_t<vertex_t, edge_t> src_sigmas(handle, graph_view);
   edge_dst_property_t<vertex_t, vertex_t> dst_distances(handle, graph_view);
 
-  auto vertex_partition =
-    vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
-
   if (vertex_frontier.bucket(bucket_idx_cur).size() > 0) {
-    thrust::for_each(
-      handle.get_thrust_policy(),
-      vertex_frontier.bucket(bucket_idx_cur).begin(),
-      vertex_frontier.bucket(bucket_idx_cur).end(),
-      [d_sigma = sigmas.begin(), d_distance = distances.begin(), vertex_partition] __device__(
-        auto v) {
-        auto offset        = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
-        d_distance[offset] = 0;
-        d_sigma[offset]    = 1;
-      });
+    auto distance_first = cuda::make_constant_iterator(vertex_t{0});
+    auto sigma_first    = cuda::make_constant_iterator(edge_t{1});
+    scatter_v(handle,
+              graph_view,
+              distance_first,
+              distance_first + vertex_frontier.bucket(bucket_idx_cur).size(),
+              vertex_frontier.bucket(bucket_idx_cur).begin(),
+              distances.mutable_view());
+    scatter_v(handle,
+              graph_view,
+              sigma_first,
+              sigma_first + vertex_frontier.bucket(bucket_idx_cur).size(),
+              vertex_frontier.bucket(bucket_idx_cur).begin(),
+              sigmas.mutable_view());
   }
 
   edge_t hop{0};
 
   while (true) {
-    update_edge_src_property(
-      handle,
-      graph_view,
-      vertex_property_view_t{sigmas.begin(), graph_view.local_vertex_partition_range_size()},
-      src_sigmas.mutable_view());
-    update_edge_dst_property(
-      handle,
-      graph_view,
-      vertex_property_view_t{distances.begin(), graph_view.local_vertex_partition_range_size()},
-      dst_distances.mutable_view());
+    update_edge_src_property(handle, graph_view, sigmas.view(), src_sigmas.mutable_view());
+    update_edge_dst_property(handle, graph_view, distances.view(), dst_distances.mutable_view());
 
     auto [new_frontier, new_sigma] = cugraph::transform_reduce_if_v_frontier_outgoing_e_by_dst(
       handle,
@@ -201,9 +193,6 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
       brandes_pred_op_t<vertex_t>{});
 
     auto next_frontier_bucket_indices = std::vector<size_t>{bucket_idx_next};
-    auto distances_sigmas             = view_concat(
-      vertex_property_view_t{distances.begin(), graph_view.local_vertex_partition_range_size()},
-      vertex_property_view_t{sigmas.begin(), graph_view.local_vertex_partition_range_size()});
     update_v_frontier(handle,
                       graph_view,
                       std::move(new_frontier),
@@ -211,8 +200,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
                       vertex_frontier,
                       raft::host_span<size_t const>(next_frontier_bucket_indices.data(),
                                                     next_frontier_bucket_indices.size()),
-                      distances_sigmas,
-                      distances_sigmas,
+                      view_concat(distances.view(), sigmas.view()),
+                      view_concat(distances.mutable_view(), sigmas.mutable_view()),
                       [hop] __device__(auto v, auto old_values, auto v_sigma) {
                         return cuda::std::make_tuple(
                           cuda::std::make_optional(bucket_idx_next),
@@ -235,9 +224,9 @@ void accumulate_vertex_results(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  raft::device_span<weight_t> centralities,
-  rmm::device_uvector<vertex_t>&& distances,
-  rmm::device_uvector<edge_t>&& sigmas,
+  vertex_property_view_t<vertex_t, weight_t*> centralities,
+  vertex_property_t<vertex_t, vertex_t>&& distances,
+  vertex_property_t<vertex_t, edge_t>&& sigmas,
   bool with_endpoints,
   bool do_expensive_check)
 {
@@ -246,7 +235,7 @@ void accumulate_vertex_results(
   vertex_t diameter = transform_reduce_v(
     handle,
     graph_view,
-    vertex_property_view_t{distances.begin(), graph_view.local_vertex_partition_range_size()},
+    distances.view(),
     [] __device__(auto, auto d) { return (d == invalid_distance) ? vertex_t{0} : d; },
     vertex_t{0},
     reduce_op::maximum<vertex_t>{},
@@ -256,24 +245,27 @@ void accumulate_vertex_results(
     vertex_t count = count_if_v(
       handle,
       graph_view,
-      vertex_property_view_t{distances.begin(), graph_view.local_vertex_partition_range_size()},
+      distances.view(),
       [] __device__(auto, auto d) { return (d != invalid_distance); },
       do_expensive_check);
 
-    thrust::transform(handle.get_thrust_policy(),
-                      distances.begin(),
-                      distances.end(),
-                      centralities.begin(),
-                      centralities.begin(),
-                      [count] __device__(auto d, auto centrality) {
-                        if (d == vertex_t{0}) {
-                          return centrality + static_cast<weight_t>(count - 1);
-                        } else if (d == invalid_distance) {
-                          return centrality;
-                        } else {
-                          return centrality + weight_t{1};
-                        }
-                      });
+    transform_v(
+      handle,
+      graph_view,
+      view_concat(distances.view(), centralities),
+      [count] __device__(auto values) {
+        auto d          = cuda::std::get<0>(values);
+        auto centrality = cuda::std::get<1>(values);
+        if (d == vertex_t{0}) {
+          return centrality + static_cast<weight_t>(count - 1);
+        } else if (d == invalid_distance) {
+          return centrality;
+        } else {
+          return centrality + weight_t{1};
+        }
+      },
+      centralities,
+      do_expensive_check);
   }
 
   edge_src_property_t<vertex_t, edge_t> src_sigmas(handle, graph_view);
@@ -282,40 +274,34 @@ void accumulate_vertex_results(
   edge_dst_property_t<vertex_t, weight_t> dst_deltas(handle, graph_view);
 
   // Update all 3 properties initially (deltas start as 0)
-  update_edge_src_property(
-    handle,
-    graph_view,
-    vertex_property_view_t{sigmas.begin(), graph_view.local_vertex_partition_range_size()},
-    src_sigmas.mutable_view());
-  update_edge_dst_property(
-    handle,
-    graph_view,
-    vertex_property_view_t{thrust::make_zip_iterator(distances.begin(), sigmas.begin()),
-                           graph_view.local_vertex_partition_range_size()},
-    view_concat(dst_distances.mutable_view(), dst_sigmas.mutable_view()));
+  update_edge_src_property(handle, graph_view, sigmas.view(), src_sigmas.mutable_view());
+  update_edge_dst_property(handle,
+                           graph_view,
+                           view_concat(distances.view(), sigmas.view()),
+                           view_concat(dst_distances.mutable_view(), dst_sigmas.mutable_view()));
   fill_edge_dst_property(handle, graph_view, dst_deltas.mutable_view(), weight_t{0.0});
 
   // Use binary search method to find frontier boundaries more efficiently
   std::vector<vertex_t> h_bounds{};
-  rmm::device_uvector<vertex_t> vertices_sorted(distances.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> distance_sorted_vertices(
+    graph_view.local_vertex_partition_range_size(), handle.get_stream());
   {
-    // Create distance_keys for sorting
-    rmm::device_uvector<vertex_t> distance_keys(distances.size(), handle.get_stream());
-
     // Copy distances for sorting (preserve original)
-    raft::copy(distance_keys.data(), distances.data(), distances.size(), handle.get_stream());
+    vertex_property_t<vertex_t, vertex_t> distance_copy(handle, graph_view);
+    copy_v(handle, graph_view, distances.view(), distance_copy.mutable_view());
+    auto distance_keys = distance_copy.release_buffer();
 
     // Use cugraph::sequence instead of thrust::copy for vertices
     cugraph::sequence(handle.get_thrust_policy(),
-                      vertices_sorted.begin(),
-                      vertices_sorted.end(),
+                      distance_sorted_vertices.begin(),
+                      distance_sorted_vertices.end(),
                       graph_view.local_vertex_partition_range_first());
 
     // Sort vertices by distance using stable_sort_by_key
     thrust::stable_sort_by_key(handle.get_thrust_policy(),
                                distance_keys.begin(),
-                               distance_keys.end(),     // keys (copied distances)
-                               vertices_sorted.begin()  // values (vertices)
+                               distance_keys.end(),              // keys (copied distances)
+                               distance_sorted_vertices.begin()  // values (vertices)
     );
 
     rmm::device_uvector<vertex_t> d_bounds(diameter + 1, handle.get_stream());
@@ -358,7 +344,7 @@ void accumulate_vertex_results(
       // Create key_bucket_t from the frontier vertices directly
       key_bucket_view_t<vertex_t, void, multi_gpu, true> vertex_list_view(
         handle,
-        raft::device_span<vertex_t const>(vertices_sorted.data() + h_bounds[d - 1],
+        raft::device_span<vertex_t const>(distance_sorted_vertices.data() + h_bounds[d - 1],
                                           h_bounds[d] - h_bounds[d - 1]));
 
       // Compute deltas for frontier vertices
@@ -392,19 +378,19 @@ void accumulate_vertex_results(
                                reusable_delta_buffer.begin(),
                                dst_deltas.mutable_view());
 
-      // Update centralities - both vertices_sorted and centralities use local vertex IDs
+      // Update centralities - both distance_sorted_vertices and centralities use local vertex IDs
       thrust::for_each(
         handle.get_thrust_policy(),
-        thrust::make_zip_iterator(vertices_sorted.begin() + h_bounds[d - 1],
+        thrust::make_zip_iterator(distance_sorted_vertices.begin() + h_bounds[d - 1],
                                   reusable_delta_buffer.begin()),
-        thrust::make_zip_iterator(vertices_sorted.begin() + h_bounds[d],
+        thrust::make_zip_iterator(distance_sorted_vertices.begin() + h_bounds[d],
                                   reusable_delta_buffer.begin()),
-        [centralities = centralities.data(),
+        [centralities = detail::vertex_property_device_view_t{centralities},
          v_first      = graph_view.local_vertex_partition_range_first()] __device__(auto pair) {
           auto v        = cuda::std::get<0>(pair);
           auto delta    = cuda::std::get<1>(pair);
           auto v_offset = v - v_first;
-          centralities[v_offset] += delta;
+          centralities.set(v_offset, centralities.get(v_offset) + delta);
         });
     }
   }
@@ -416,8 +402,8 @@ void accumulate_edge_results(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   edge_property_view_t<edge_t, weight_t*> centralities_view,
-  rmm::device_uvector<vertex_t>&& distances,
-  rmm::device_uvector<edge_t>&& sigmas,
+  vertex_property_t<vertex_t, vertex_t>&& distances,
+  vertex_property_t<vertex_t, edge_t>&& sigmas,
   bool do_expensive_check)
 {
   constexpr vertex_t invalid_distance = std::numeric_limits<vertex_t>::max();
@@ -425,15 +411,14 @@ void accumulate_edge_results(
   vertex_t diameter = transform_reduce_v(
     handle,
     graph_view,
-    vertex_property_view_t{distances.begin(), graph_view.local_vertex_partition_range_size()},
+    distances.view(),
     [] __device__(auto, auto d) { return (d == invalid_distance) ? vertex_t{0} : d; },
     vertex_t{0},
     reduce_op::maximum<vertex_t>{},
     do_expensive_check);
 
-  rmm::device_uvector<weight_t> deltas(sigmas.size(), handle.get_stream());
-  cugraph::fill(
-    handle.get_thrust_policy(), deltas.data(), (deltas.data()) + (deltas.size()), weight_t{0});
+  vertex_property_t<vertex_t, weight_t> deltas(handle, graph_view);
+  fill_v(handle, graph_view, deltas.mutable_view(), weight_t{0});
 
   edge_src_property_t<vertex_t, cuda::std::tuple<vertex_t, edge_t, weight_t>> src_properties(
     handle, graph_view);
@@ -442,20 +427,14 @@ void accumulate_edge_results(
 
   // Note: deltas are included here even though they start as 0, because the original approach
   // updates all properties at once. Deltas will be overwritten iteratively in the delta loop.
-  update_edge_src_property(
-    handle,
-    graph_view,
-    vertex_property_view_t{
-      thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-      graph_view.local_vertex_partition_range_size()},
-    src_properties.mutable_view());
-  update_edge_dst_property(
-    handle,
-    graph_view,
-    vertex_property_view_t{
-      thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-      graph_view.local_vertex_partition_range_size()},
-    dst_properties.mutable_view());
+  update_edge_src_property(handle,
+                           graph_view,
+                           view_concat(distances.view(), sigmas.view(), deltas.view()),
+                           src_properties.mutable_view());
+  update_edge_dst_property(handle,
+                           graph_view,
+                           view_concat(distances.view(), sigmas.view(), deltas.view()),
+                           dst_properties.mutable_view());
 
   //
   //   For now this will do a O(E) pass over all edges over the diameter
@@ -545,23 +524,17 @@ void accumulate_edge_results(
       },
       weight_t{0},
       reduce_op::plus<weight_t>{},
-      vertex_property_view_t{deltas.begin(), graph_view.local_vertex_partition_range_size()},
+      deltas.mutable_view(),
       do_expensive_check);
 
-    update_edge_src_property(
-      handle,
-      graph_view,
-      vertex_property_view_t{
-        thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-        graph_view.local_vertex_partition_range_size()},
-      src_properties.mutable_view());
-    update_edge_dst_property(
-      handle,
-      graph_view,
-      vertex_property_view_t{
-        thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-        graph_view.local_vertex_partition_range_size()},
-      dst_properties.mutable_view());
+    update_edge_src_property(handle,
+                             graph_view,
+                             view_concat(distances.view(), sigmas.view(), deltas.view()),
+                             src_properties.mutable_view());
+    update_edge_dst_property(handle,
+                             graph_view,
+                             view_concat(distances.view(), sigmas.view(), deltas.view()),
+                             dst_properties.mutable_view());
   }
 }
 
@@ -672,18 +645,13 @@ batch_partition_frontier(raft::handle_t const& handle,
   return std::make_tuple(std::move(frontier), batch_offsets);
 }
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool multi_gpu,
-          typename VertexIterator>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisource_bfs(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   raft::device_span<edge_t const> out_degrees,
-  VertexIterator sources_first,
-  VertexIterator sources_last,
+  raft::device_span<vertex_t const> sources,
   bool do_expensive_check)
 {
   static_assert(!multi_gpu, "Multi-GPU is currently not supported for multisource_bfs");
@@ -695,7 +663,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
   // Use 2D arrays to track per-source distances and sigmas
   // Layout: [source_idx * local_vertex_partition_range_size + v_offset]
   auto local_vertex_partition_range_size = graph_view.local_vertex_partition_range_size();
-  auto num_sources = static_cast<size_t>(cuda::std::distance(sources_first, sources_last));
+  auto num_sources                       = sources.size();
 
   CUGRAPH_EXPECTS(
     num_sources <= std::numeric_limits<origin_t>::max(),
@@ -717,7 +685,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
 
   {
     auto tagged_source_first =
-      thrust::make_zip_iterator(sources_first, thrust::make_counting_iterator(origin_t{0}));
+      thrust::make_zip_iterator(sources.begin(), thrust::make_counting_iterator(origin_t{0}));
 
     cur_frontier.insert(tagged_source_first, tagged_source_first + num_sources);
 
@@ -892,21 +860,16 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
   return std::make_tuple(std::move(distances_2d), std::move(sigmas_2d));
 }
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool multi_gpu,
-          typename VertexIterator>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void multisource_backward_pass(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   raft::device_span<edge_t const> out_degrees,
-  raft::device_span<weight_t> centralities,
+  vertex_property_view_t<vertex_t, weight_t*> centralities,
   rmm::device_uvector<vertex_t>&& distances_2d,
   rmm::device_uvector<edge_t>&& sigmas_2d,
-  VertexIterator sources_first,
-  VertexIterator sources_last,
+  raft::device_span<vertex_t const> sources,
   bool include_endpoints,
   bool do_expensive_check)
 {
@@ -918,13 +881,13 @@ void multisource_backward_pass(
 
   auto local_vertex_partition_range_size =
     static_cast<size_t>(graph_view.local_vertex_partition_range_size());
-  auto num_sources = static_cast<size_t>(cuda::std::distance(sources_first, sources_last));
+  auto num_sources = sources.size();
 
   CUGRAPH_EXPECTS(
     num_sources <= std::numeric_limits<origin_t>::max(),
     "Number of sources exceeds maximum value for origin_t (uint16_t), would cause overflow");
 
-  cugraph::fill(handle.get_thrust_policy(), centralities.begin(), centralities.end(), weight_t{0});
+  fill_v(handle, graph_view, centralities, weight_t{0});
 
   rmm::device_uvector<weight_t> delta_buffer(num_sources * local_vertex_partition_range_size,
                                              handle.get_stream());
@@ -1221,7 +1184,7 @@ void multisource_backward_pass(
             [srcs           = srcs.data(),
              source_indices = source_indices.data(),
              deltas         = deltas.data(),
-             centralities   = centralities.data(),
+             centralities   = detail::vertex_property_device_view_t{centralities},
              delta_buffer   = delta_buffer.data(),
              local_vertex_partition_range_size,
              v_first = graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
@@ -1231,9 +1194,7 @@ void multisource_backward_pass(
 
               // Update centrality using atomic for floating point
               auto src_offset = src - v_first;
-              cuda::atomic_ref<weight_t, cuda::thread_scope_device> centrality_counter(
-                centralities[src_offset]);
-              centrality_counter.fetch_add(delta, cuda::std::memory_order_relaxed);
+              centralities.atomic_add(src_offset, delta);
 
               // Accumulate delta for next iteration using atomic for floating point
               weight_t* source_deltas =
@@ -1253,7 +1214,8 @@ void multisource_backward_pass(
 
     // Create small temporary buffer for source vertex access (needed for 2D array indexing)
     rmm::device_uvector<vertex_t> sources_buffer(num_sources, handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(), sources_first, sources_last, sources_buffer.begin());
+    thrust::copy(
+      handle.get_thrust_policy(), sources.begin(), sources.end(), sources_buffer.begin());
 
     // Handle source vertex contributions
     thrust::for_each(
@@ -1263,7 +1225,7 @@ void multisource_backward_pass(
       [distances_2d = distances_2d.data(),
        sigmas_2d    = sigmas_2d.data(),
        sources      = sources_buffer.data(),
-       centralities = centralities.data(),
+       centralities = detail::vertex_property_device_view_t{centralities},
        local_vertex_partition_range_size,
        v_first] __device__(size_t source_idx) {
         const vertex_t* distances = distances_2d + source_idx * local_vertex_partition_range_size;
@@ -1279,9 +1241,7 @@ void multisource_backward_pass(
         }
         // Convert global vertex ID to local offset
         auto source_offset = source_vertex - v_first;
-        cuda::atomic_ref<weight_t, cuda::thread_scope_device> centrality_counter(
-          centralities[source_offset]);
-        centrality_counter.fetch_add(source_contribution, cuda::std::memory_order_relaxed);
+        centralities.atomic_add(source_offset, source_contribution);
       });
 
     // Handle destination vertex contributions
@@ -1292,7 +1252,7 @@ void multisource_backward_pass(
       [distances_2d = distances_2d.data(),
        sigmas_2d    = sigmas_2d.data(),
        sources      = sources_buffer.data(),
-       centralities = centralities.data(),
+       centralities = detail::vertex_property_device_view_t{centralities},
        local_vertex_partition_range_size,
        v_first] __device__(size_t source_idx) {
         const vertex_t* distances = distances_2d + source_idx * local_vertex_partition_range_size;
@@ -1303,27 +1263,20 @@ void multisource_backward_pass(
         for (vertex_t v = 0; v < local_vertex_partition_range_size; ++v) {
           if (v != source_vertex && distances[v] != std::numeric_limits<vertex_t>::max()) {
             // Each destination vertex contributes 1 to its own centrality
-            auto dest_offset = v - v_first;
-            cuda::atomic_ref<weight_t, cuda::thread_scope_device> centrality_counter(
-              centralities[dest_offset]);
-            centrality_counter.fetch_add(1.0, cuda::std::memory_order_relaxed);
+            auto dst_offset = v - v_first;
+            centralities.atomic_add(dst_offset, weight_t{1});
           }
         }
       });
   }
 }
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool multi_gpu,
-          typename VertexIterator>
-rmm::device_uvector<weight_t> betweenness_centrality(
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+vertex_property_t<vertex_t, weight_t> betweenness_centrality(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  VertexIterator vertices_begin,
-  VertexIterator vertices_end,
+  std::optional<raft::device_span<vertex_t const>> seeds,
   bool const normalized,
   bool const include_endpoints,
   bool const do_expensive_check)
@@ -1331,13 +1284,13 @@ rmm::device_uvector<weight_t> betweenness_centrality(
   //
   // Betweenness Centrality algorithm based on the Brandes Algorithm (2001)
   //
-  if (do_expensive_check) {
+  if (do_expensive_check && seeds) {
     auto vertex_partition =
       vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
     auto num_invalid_vertices =
       thrust::count_if(handle.get_thrust_policy(),
-                       vertices_begin,
-                       vertices_end,
+                       seeds->begin(),
+                       seeds->end(),
                        [vertex_partition] __device__(auto val) {
                          return !(vertex_partition.is_valid_vertex(val) &&
                                   vertex_partition.in_local_vertex_partition_range_nocheck(val));
@@ -1350,14 +1303,11 @@ rmm::device_uvector<weight_t> betweenness_centrality(
                     "Invalid input argument: sources have invalid vertex IDs.");
   }
 
-  rmm::device_uvector<weight_t> centralities(graph_view.local_vertex_partition_range_size(),
-                                             handle.get_stream());
-  cugraph::fill(handle.get_thrust_policy(),
-                centralities.data(),
-                (centralities.data()) + (centralities.size()),
-                weight_t{0});
+  vertex_property_t<vertex_t, weight_t> centralities(handle, graph_view);
+  fill_v(handle, graph_view, centralities.mutable_view(), weight_t{0});
 
-  size_t num_sources = cuda::std::distance(vertices_begin, vertices_end);
+  size_t num_sources =
+    seeds ? seeds->size() : static_cast<size_t>(graph_view.local_vertex_partition_range_size());
   std::vector<size_t> source_offsets{{0, num_sources}};
   int my_rank = 0;
 
@@ -1384,22 +1334,27 @@ rmm::device_uvector<weight_t> betweenness_centrality(
       vertex_frontier_t<vertex_t, void, multi_gpu, true> vertex_frontier(handle, num_buckets);
 
       if ((source_idx >= source_offsets[my_rank]) && (source_idx < source_offsets[my_rank + 1])) {
-        vertex_frontier.bucket(bucket_idx_cur)
-          .insert(vertices_begin + (source_idx - source_offsets[my_rank]),
-                  vertices_begin + (source_idx - source_offsets[my_rank]) + 1);
+        auto local_offset = source_idx - source_offsets[my_rank];
+        if (seeds) {
+          auto seed_first = seeds->data() + local_offset;
+          vertex_frontier.bucket(bucket_idx_cur).insert(seed_first, seed_first + 1);
+        } else {
+          auto seed_first = thrust::make_counting_iterator(
+            graph_view.local_vertex_partition_range_first() + static_cast<vertex_t>(local_offset));
+          vertex_frontier.bucket(bucket_idx_cur).insert(seed_first, seed_first + 1);
+        }
       }
 
       auto [distances, sigmas] = detail::brandes_bfs(
         handle, graph_view, edge_weight_view, vertex_frontier, do_expensive_check);
-      detail::accumulate_vertex_results(
-        handle,
-        graph_view,
-        edge_weight_view,
-        raft::device_span<weight_t>{centralities.data(), centralities.size()},
-        std::move(distances),
-        std::move(sigmas),
-        include_endpoints,
-        do_expensive_check);
+      detail::accumulate_vertex_results(handle,
+                                        graph_view,
+                                        edge_weight_view,
+                                        centralities.mutable_view(),
+                                        std::move(distances),
+                                        std::move(sigmas),
+                                        include_endpoints,
+                                        do_expensive_check);
     }
   } else {
     auto out_degrees = graph_view.compute_out_degrees(handle);
@@ -1427,16 +1382,28 @@ rmm::device_uvector<weight_t> betweenness_centrality(
       size_t batch_start = batch_idx * max_sources_per_batch;
       size_t batch_end   = std::min(batch_start + max_sources_per_batch, num_sources);
 
-      auto batch_vertices_begin = vertices_begin + batch_start;
-      auto batch_vertices_end   = vertices_begin + batch_end;
+      auto batch_size = batch_end - batch_start;
+      std::optional<rmm::device_uvector<vertex_t>> implicit_batch{std::nullopt};
+      raft::device_span<vertex_t const> batch_seeds{};
+      if (seeds) {
+        batch_seeds = raft::device_span<vertex_t const>{seeds->data() + batch_start, batch_size};
+      } else {
+        implicit_batch.emplace(batch_size, handle.get_stream());
+        cugraph::sequence(
+          handle.get_thrust_policy(),
+          implicit_batch->begin(),
+          implicit_batch->end(),
+          graph_view.local_vertex_partition_range_first() + static_cast<vertex_t>(batch_start));
+        batch_seeds =
+          raft::device_span<vertex_t const>{implicit_batch->data(), implicit_batch->size()};
+      }
 
       auto [distances_2d, sigmas_2d] = detail::multisource_bfs(
         handle,
         graph_view,
         edge_weight_view,
         raft::device_span<edge_t const>(out_degrees.data(), out_degrees.size()),
-        batch_vertices_begin,
-        batch_vertices_end,
+        batch_seeds,
         do_expensive_check);
 
       detail::multisource_backward_pass(
@@ -1444,11 +1411,10 @@ rmm::device_uvector<weight_t> betweenness_centrality(
         graph_view,
         edge_weight_view,
         raft::device_span<edge_t const>(out_degrees.data(), out_degrees.size()),
-        raft::device_span<weight_t>{centralities.data(), centralities.size()},
+        centralities.mutable_view(),
         std::move(distances_2d),
         std::move(sigmas_2d),
-        batch_vertices_begin,
-        batch_vertices_end,
+        batch_seeds,
         include_endpoints,
         do_expensive_check);
     }
@@ -1485,55 +1451,48 @@ rmm::device_uvector<weight_t> betweenness_centrality(
   }
 
   if (scale_nonsource) {
-    auto iter = thrust::make_zip_iterator(
-      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
-      centralities.begin());
-
-    thrust::transform(
-      handle.get_thrust_policy(),
-      iter,
-      iter + centralities.size(),
-      centralities.begin(),
+    transform_v(
+      handle,
+      graph_view,
+      view_concat(vertex_property_view_t{thrust::make_counting_iterator(
+                                           graph_view.local_vertex_partition_range_first()),
+                                         graph_view.local_vertex_partition_range_size()},
+                  centralities.view()),
       [nonsource = *scale_nonsource,
        source    = *scale_source,
-       vertices_begin,
-       vertices_end] __device__(auto t) {
-        vertex_t v          = cuda::std::get<0>(t);
-        weight_t centrality = cuda::std::get<1>(t);
-
-        return (thrust::find(thrust::seq, vertices_begin, vertices_end, v) == vertices_end)
-                 ? centrality / nonsource
-                 : centrality / source;
-      });
+       seeds     = seeds ? cuda::std::optional{*seeds} : cuda::std::nullopt] __device__(auto pair) {
+        auto v          = cuda::std::get<0>(pair);
+        auto centrality = cuda::std::get<1>(pair);
+        bool is_seed    = !seeds.has_value() ||
+                       (thrust::find(thrust::seq, seeds->begin(), seeds->end(), v) != seeds->end());
+        return centrality / (is_seed ? source : nonsource);
+      },
+      centralities.mutable_view(),
+      do_expensive_check);
   }
 
   return centralities;
 }
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool multi_gpu,
-          typename VertexIterator>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  VertexIterator vertices_begin,
-  VertexIterator vertices_end,
+  std::optional<raft::device_span<vertex_t const>> seeds,
   bool const normalized,
   bool const do_expensive_check)
 {
   //
   // Betweenness Centrality algorithm based on the Brandes Algorithm (2001)
   //
-  if (do_expensive_check) {
+  if (do_expensive_check && seeds) {
     auto vertex_partition =
       vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
     auto num_invalid_vertices =
       thrust::count_if(handle.get_thrust_policy(),
-                       vertices_begin,
-                       vertices_end,
+                       seeds->begin(),
+                       seeds->end(),
                        [vertex_partition] __device__(auto val) {
                          return !(vertex_partition.is_valid_vertex(val) &&
                                   vertex_partition.in_local_vertex_partition_range_nocheck(val));
@@ -1549,7 +1508,8 @@ edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
   auto centralities =
     make_initialized_edge_property(handle, graph_view, weight_t{0.0}, do_expensive_check);
 
-  size_t num_sources = cuda::std::distance(vertices_begin, vertices_end);
+  size_t num_sources =
+    seeds ? seeds->size() : static_cast<size_t>(graph_view.local_vertex_partition_range_size());
   std::vector<size_t> source_offsets{{0, num_sources}};
   int my_rank = 0;
 
@@ -1581,9 +1541,15 @@ edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
     vertex_frontier_t<vertex_t, void, multi_gpu, true> vertex_frontier(handle, num_buckets);
 
     if ((source_idx >= source_offsets[my_rank]) && (source_idx < source_offsets[my_rank + 1])) {
-      vertex_frontier.bucket(bucket_idx_cur)
-        .insert(vertices_begin + (source_idx - source_offsets[my_rank]),
-                vertices_begin + (source_idx - source_offsets[my_rank]) + 1);
+      auto local_offset = source_idx - source_offsets[my_rank];
+      if (seeds) {
+        auto seed_first = seeds->begin() + local_offset;
+        vertex_frontier.bucket(bucket_idx_cur).insert(seed_first, seed_first + 1);
+      } else {
+        auto seed_first = thrust::make_counting_iterator(
+          graph_view.local_vertex_partition_range_first() + static_cast<vertex_t>(local_offset));
+        vertex_frontier.bucket(bucket_idx_cur).insert(seed_first, seed_first + 1);
+      }
     }
 
     //
@@ -1641,6 +1607,20 @@ edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+vertex_property_t<vertex_t, weight_t> vertex_betweenness_centrality(
+  const raft::handle_t& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<raft::device_span<vertex_t const>> seeds,
+  bool const normalized,
+  bool const include_endpoints,
+  bool const do_expensive_check)
+{
+  return detail::betweenness_centrality(
+    handle, graph_view, edge_weight_view, seeds, normalized, include_endpoints, do_expensive_check);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
@@ -1650,26 +1630,14 @@ rmm::device_uvector<weight_t> betweenness_centrality(
   bool const include_endpoints,
   bool const do_expensive_check)
 {
-  if (vertices) {
-    return detail::betweenness_centrality(handle,
-                                          graph_view,
-                                          edge_weight_view,
-                                          vertices->begin(),
-                                          vertices->end(),
-                                          normalized,
-                                          include_endpoints,
-                                          do_expensive_check);
-  } else {
-    return detail::betweenness_centrality(
-      handle,
-      graph_view,
-      edge_weight_view,
-      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
-      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
-      normalized,
-      include_endpoints,
-      do_expensive_check);
-  }
+  return vertex_betweenness_centrality(handle,
+                                       graph_view,
+                                       edge_weight_view,
+                                       vertices,
+                                       normalized,
+                                       include_endpoints,
+                                       do_expensive_check)
+    .release_buffer();
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -1677,28 +1645,12 @@ edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<raft::device_span<vertex_t const>> vertices,
+  std::optional<raft::device_span<vertex_t const>> seeds,
   bool const normalized,
   bool const do_expensive_check)
 {
-  if (vertices) {
-    return detail::edge_betweenness_centrality(handle,
-                                               graph_view,
-                                               edge_weight_view,
-                                               vertices->begin(),
-                                               vertices->end(),
-                                               normalized,
-                                               do_expensive_check);
-  } else {
-    return detail::edge_betweenness_centrality(
-      handle,
-      graph_view,
-      edge_weight_view,
-      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
-      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
-      normalized,
-      do_expensive_check);
-  }
+  return detail::edge_betweenness_centrality(
+    handle, graph_view, edge_weight_view, seeds, normalized, do_expensive_check);
 }
 
 }  // namespace cugraph
