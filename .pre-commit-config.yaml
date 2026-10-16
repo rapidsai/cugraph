@@ -61,8 +61,13 @@ repos:
             python/cugraph/cugraph/tests/structure/test_hypergraph[.]py$|
             python/cugraph/cugraph/structure/hypergraph[.]py$|
             cpp/src/generators/scramble[.]cuh$|
+            cpp/src/components/strongly_connected_components_ecl_impl[.]cuh$|
             cpp/tests/utilities/cxxopts[.]hpp$
           )
+      - id: verify-copyright
+        name: verify-copyright-ecl
+        args: [--fix, --spdx, "--spdx-license-identifier=Apache-2.0 AND BSD-3-Clause"]
+        files: ^cpp/src/components/strongly_connected_components_ecl_impl[.]cuh$
       - id: verify-copyright
         name: verify-copyright-pygraphistry
         args: [--fix, --spdx, "--spdx-license-identifier=Apache-2.0 AND BSD-3-Clause"]

@@ -4,6 +4,8 @@
  */
 #pragma once
 
+#include "components/strongly_connected_components_ecl_impl.cuh"
+
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -2387,15 +2389,25 @@ rmm::device_uvector<vertex_t> strongly_connected_components(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   bool do_expensive_check)
 {
-  rmm::device_uvector<vertex_t> components(graph_view.local_vertex_partition_range_size(),
-                                           handle.get_stream());
-  strongly_connected_components_impl(
-    handle,
-    graph_view,
-    raft::device_span<vertex_t>(components.data(), components.size()),
-    do_expensive_check);
-
-  return std::move(components);
+  if constexpr (multi_gpu) {
+    rmm::device_uvector<vertex_t> components(graph_view.local_vertex_partition_range_size(),
+                                             handle.get_stream());
+    strongly_connected_components_impl(
+      handle,
+      graph_view,
+      raft::device_span<vertex_t>(components.data(), components.size()),
+      do_expensive_check);
+    return components;
+  } else {
+    rmm::device_uvector<vertex_t> components(graph_view.local_vertex_partition_range_size(),
+                                             handle.get_stream());
+    strongly_connected_components_ecl_impl(
+      handle,
+      graph_view,
+      raft::device_span<vertex_t>(components.data(), components.size()),
+      do_expensive_check);
+    return components;
+  }
 }
 
 }  // namespace cugraph
