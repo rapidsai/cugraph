@@ -125,7 +125,16 @@ There is no recommended or preferred development environment.  There are a few *
 
 **Hardware**
 
-* You need to have accesses to an NVIDIA GPU that is Pascal or later.
+* You need access to an NVIDIA GPU with Compute Capability 7.0 (Volta) or later when using CUDA 12.x,
+  or 7.5 (Turing) or later when using CUDA 13.x.
+
+**Build requirements**
+
+* CMake 4.0+
+* GCC 13.3+
+* CUDA Toolkit 12.2+
+* Python 3.11+ (to build `pylibcugraph` and `cugraph`)
+* NCCL 2.19+
 
 
 **IDEs**
