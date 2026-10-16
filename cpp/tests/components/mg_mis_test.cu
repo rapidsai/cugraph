@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -134,9 +134,17 @@ class Tests_MGMaximalIndependentSet
         dst_inclusion_cache =
           cugraph::edge_dst_property_t<vertex_t, vertex_t>(*handle_, mg_graph_view);
         update_edge_src_property(
-          *handle_, mg_graph_view, inclusiong_flags.begin(), src_inclusion_cache.mutable_view());
+          *handle_,
+          mg_graph_view,
+          cugraph::vertex_property_view_t{inclusiong_flags.begin(),
+                                          mg_graph_view.local_vertex_partition_range_size()},
+          src_inclusion_cache.mutable_view());
         update_edge_dst_property(
-          *handle_, mg_graph_view, inclusiong_flags.begin(), dst_inclusion_cache.mutable_view());
+          *handle_,
+          mg_graph_view,
+          cugraph::vertex_property_view_t{inclusiong_flags.begin(),
+                                          mg_graph_view.local_vertex_partition_range_size()},
+          dst_inclusion_cache.mutable_view());
       }
 
       per_v_transform_reduce_outgoing_e(
@@ -150,7 +158,8 @@ class Tests_MGMaximalIndependentSet
         },
         vertex_t{0},
         cugraph::reduce_op::plus<vertex_t>{},
-        d_total_outgoing_nbrs_included_mis.begin());
+        cugraph::vertex_property_view_t{d_total_outgoing_nbrs_included_mis.begin(),
+                                        mg_graph_view.local_vertex_partition_range_size()});
 
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
 

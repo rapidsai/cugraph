@@ -71,7 +71,11 @@ edge_t compute_number_of_visited_undirected_edges(
                         [invalid_distance] __device__(auto d) { return d != invalid_distance; }));
     cugraph::edge_src_property_t<vertex_t, bool> edge_src_visited(handle, mg_pruned_graph_view);
     cugraph::update_edge_src_property(
-      handle, mg_pruned_graph_view, visited.begin(), edge_src_visited.mutable_view());
+      handle,
+      mg_pruned_graph_view,
+      cugraph::vertex_property_view_t{visited.begin(),
+                                      mg_pruned_graph_view.local_vertex_partition_range_size()},
+      edge_src_visited.mutable_view());
     visited_undirected_edges =
       cugraph::count_if_e(
         handle,

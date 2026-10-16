@@ -228,14 +228,18 @@ k_truss(raft::handle_t const& handle,
                    in_k_minus_1_core_first,
                    in_k_minus_1_core_first + core_numbers.size(),
                    in_k_minus_1_core_flags.begin());
-      update_edge_src_property(handle,
-                               cur_graph_view,
-                               in_k_minus_1_core_flags.begin(),
-                               edge_src_in_k_minus_1_cores.mutable_view());
-      update_edge_dst_property(handle,
-                               cur_graph_view,
-                               in_k_minus_1_core_flags.begin(),
-                               edge_dst_in_k_minus_1_cores.mutable_view());
+      update_edge_src_property(
+        handle,
+        cur_graph_view,
+        vertex_property_view_t{in_k_minus_1_core_flags.begin(),
+                               cur_graph_view.local_vertex_partition_range_size()},
+        edge_src_in_k_minus_1_cores.mutable_view());
+      update_edge_dst_property(
+        handle,
+        cur_graph_view,
+        vertex_property_view_t{in_k_minus_1_core_flags.begin(),
+                               cur_graph_view.local_vertex_partition_range_size()},
+        edge_dst_in_k_minus_1_cores.mutable_view());
 
       auto in_k_minus_1_core_edge_mask =
         make_initialized_edge_property(handle, cur_graph_view, false);
@@ -267,9 +271,17 @@ k_truss(raft::handle_t const& handle,
   {
     auto out_degrees = cur_graph_view.compute_out_degrees(handle);
     update_edge_src_property(
-      handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees.mutable_view());
+      handle,
+      cur_graph_view,
+      vertex_property_view_t{out_degrees.begin(),
+                             cur_graph_view.local_vertex_partition_range_size()},
+      edge_src_out_degrees.mutable_view());
     update_edge_dst_property(
-      handle, cur_graph_view, out_degrees.begin(), edge_dst_out_degrees.mutable_view());
+      handle,
+      cur_graph_view,
+      vertex_property_view_t{out_degrees.begin(),
+                             cur_graph_view.local_vertex_partition_range_size()},
+      edge_dst_out_degrees.mutable_view());
 
     cugraph::transform_e(
       handle,

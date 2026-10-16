@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "utilities/base_fixture.hpp"
@@ -264,10 +264,11 @@ class Tests_Multithreaded
 
           if (thread_handle.get_thread_rank() > 0) return;
 
+          auto thread_graph_view = graph_view.get(thread_handle);
           auto [local_pageranks, metadata] =
             cugraph::pagerank<vertex_t, edge_t, weight_t, weight_t, true>(
               thread_handle.raft_handle(),
-              graph_view.get(thread_handle),
+              thread_graph_view,
               edge_properties.size() > 0
                 ? std::make_optional(std::get<cugraph::edge_property_t<edge_t, weight_t>>(
                                        edge_properties[0].get(thread_handle))
@@ -275,13 +276,13 @@ class Tests_Multithreaded
                 : std::nullopt,
               std::nullopt,
               std::nullopt,
-              std::nullopt,
+              std::optional<cugraph::vertex_property_t<vertex_t, weight_t>>{std::nullopt},
               alpha,
               epsilon,
               500,
               true);
 
-          pageranks.set(thread_handle, std::move(local_pageranks));
+          pageranks.set(thread_handle, local_pageranks.release_buffer());
         });
     }
 
@@ -377,17 +378,18 @@ class Tests_Multithreaded
           std::move(std::get<cugraph::edge_property_t<edge_t, weight_t>>(sg_edge_properties[0]));
       }
 
+      auto sg_graph_view        = sg_graph.view();
       auto [sg_pageranks, meta] = cugraph::pagerank<vertex_t, edge_t, weight_t, weight_t, false>(
         handle,
-        sg_graph.view(),
+        sg_graph_view,
         sg_edge_weights ? std::make_optional(sg_edge_weights->view()) : std::nullopt,
         std::nullopt,
         std::nullopt,
-        std::nullopt,
+        std::optional<cugraph::vertex_property_t<vertex_t, weight_t>>{std::nullopt},
         alpha,
         epsilon);
 
-      auto h_sg_pageranks    = cugraph::test::to_host(handle, sg_pageranks);
+      auto h_sg_pageranks    = cugraph::test::to_host(handle, sg_pageranks.release_buffer());
       auto h_sg_renumber_map = cugraph::test::to_host(handle, sg_renumber_map);
       auto compare_functor   = cugraph::test::nearly_equal<weight_t>{
         weight_t{1e-3},

@@ -99,8 +99,11 @@ class Tests_MGCountIfV
     }
 
     vertex_t const* data = (*mg_renumber_map).data();
-    auto vertex_count =
-      count_if_v(*handle_, mg_graph_view, data, test_predicate<vertex_t>(hash_bin_count));
+    auto vertex_count    = count_if_v(
+      *handle_,
+      mg_graph_view,
+      cugraph::vertex_property_view_t{data, mg_graph_view.local_vertex_partition_range_size()},
+      test_predicate<vertex_t>(hash_bin_count));
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -129,7 +132,9 @@ class Tests_MGCountIfV
         auto expected_vertex_count = count_if_v(
           *handle_,
           sg_graph_view,
-          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+          cugraph::vertex_property_view_t{
+            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+            sg_graph_view.local_vertex_partition_range_size()},
           test_predicate<vertex_t>(hash_bin_count));
         ASSERT_TRUE(expected_vertex_count == vertex_count);
       }

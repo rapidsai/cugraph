@@ -12,6 +12,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/legacy/internals.hpp>
+#include <cugraph/vertex_property.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -1251,87 +1252,30 @@ rmm::device_uvector<weight_t> od_shortest_distances(
   bool do_expensive_check = false);
 
 /**
- * @ingroup link_analysis_cpp
- * @brief Compute PageRank scores.
- *
- * @deprecated This API will be deprecated to replaced by the new version below
- *             that returns metadata about the algorithm.
- *
- * This function computes general (if @p personalization_vertices is `nullptr`) or personalized (if
- * @p personalization_vertices is not `nullptr`.) PageRank scores.
- *
- * @throws cugraph::logic_error on erroneous input arguments or if fails to converge before @p
- * max_iterations.
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weights. Needs to be a floating point type.
- * @tparam result_t Type of PageRank scores.
- * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
- * or multi-GPU (true).
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Graph view object.
- * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
- * edge_weight_view.has_value() == false, edge weights are assumed to be 1.0.
- * @param precomputed_vertex_out_weight_sums Pointer to an array storing sums of out-going edge
- * weights for the vertices (for re-use) or `std::nullopt`. If `std::nullopt`, these values are
- * freshly computed. Computing these values outside this function reduces the number of memory
- * allocations/deallocations and computing if a user repeatedly computes PageRank scores using the
- * same graph with different personalization vectors.
- * @param personalization_vertices Pointer to an array storing personalization vertex identifiers
- * (compute personalized PageRank) or `std::nullopt` (compute general PageRank).
- * @param personalization_values Pointer to an array storing personalization values for the vertices
- * in the personalization set. Relevant only if @p personalization_vertices is not `std::nullopt`.
- * @param personalization_vector_size Size of the personalization set. If @personalization_vertices
- * is not `std::nullopt`, the sizes of the arrays pointed by @p personalization_vertices and @p
- * personalization_values should be @p personalization_vector_size.
- * @param pageranks Pointer to the output PageRank score array.
- * @param alpha PageRank damping factor.
- * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
- * differences in PageRank values between two consecutive iterations is less than the number of
- * vertices in the graph multiplied by @p epsilon.
- * @param max_iterations Maximum number of PageRank iterations.
- * @param has_initial_guess If set to `true`, values in the PageRank output array (pointed by @p
- * pageranks) is used as initial PageRank values. If false, initial PageRank values are set to 1.0
- * divided by the number of vertices in the graph.
- * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @brief Metadata about the execution of an iterative algorithm.
  */
-template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
-void pagerank(raft::handle_t const& handle,
-              graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
-              std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-              std::optional<weight_t const*> precomputed_vertex_out_weight_sums,
-              std::optional<vertex_t const*> personalization_vertices,
-              std::optional<result_t const*> personalization_values,
-              std::optional<vertex_t> personalization_vector_size,
-              result_t* pageranks,
-              result_t alpha,
-              result_t epsilon,
-              size_t max_iterations   = 500,
-              bool has_initial_guess  = false,
-              bool do_expensive_check = false);
-
-/**
- * @brief Metadata about the execution of one of the centrality algorithms
- */
-// FIXME:  This structure should be propagated to other algorithms that converge
-//   (eigenvector centrality, hits and katz centrality)
-//
-struct centrality_algorithm_metadata_t {
+struct iterative_algorithm_metadata_t {
   size_t number_of_iterations_{};
   bool converged_{};
 };
 
 /**
-.* @ingroup link_analysis_cpp
+ * @brief Metadata about the execution of one of the centrality algorithms.
+ *
+ * @deprecated Use iterative_algorithm_metadata_t.
+ */
+using centrality_algorithm_metadata_t = iterative_algorithm_metadata_t;
+
+/**
+ * @ingroup link_analysis_cpp
  * @brief Compute PageRank scores.
  *
- * This function computes general (if @p personalization_vertices is `nullptr`) or personalized (if
- * @p personalization_vertices is not `nullptr`.) PageRank scores.
+ * @deprecated This API is deprecated and replaced by the `vertex_property_t` version below.
  *
- * @throws cugraph::logic_error on erroneous input arguments or if fails to converge before @p
- * max_iterations.
+ * This function computes general (if @p personalization.has_value() == false) or personalized (if
+ * @p personalization.has_value() == true) PageRank scores.
+ *
+ * @throws cugraph::logic_error on erroneous input arguments.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -1352,20 +1296,17 @@ struct centrality_algorithm_metadata_t {
  * @param personalization Optional tuple containing device spans of vertex identifiers and
  * personalization values for the vertices (compute personalized PageRank) or `std::nullopt`
  * (compute general PageRank).
- * @param initial_pageranks Optional device span containing initial PageRank values.  If
- * specified this array will be used as the initial values and the PageRank values will be
- * updated in place.  If not specified then the initial values will be set to 1.0 divided by
- * the number of vertices in the graph and the return value will contain an `rmm::device_uvector`
- * containing the resulting PageRank values.
+ * @param initial_pageranks Optional device span containing initial PageRank values. If specified
+ * this array will be used as the initial values. If not specified then the initial values will be
+ * set to 1.0 divided by the number of vertices in the graph.
  * @param alpha PageRank damping factor.
  * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
  * differences in PageRank values between two consecutive iterations is less than the number of
  * vertices in the graph multiplied by @p epsilon.
  * @param max_iterations Maximum number of PageRank iterations.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return tuple containing the optional pagerank results (populated if @p initial_pageranks is
- * set to `std::nullopt`) and a metadata structure with metadata indicating how many iterations
- * were run and whether the algorithm converged or not.
+ * @return tuple containing the PageRank results and a metadata structure indicating how many
+ * iterations were run and whether the algorithm converged.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<result_t>, centrality_algorithm_metadata_t> pagerank(
@@ -1382,8 +1323,66 @@ std::tuple<rmm::device_uvector<result_t>, centrality_algorithm_metadata_t> pager
   bool do_expensive_check = false);
 
 /**
-.* @ingroup centrality_cpp
+ * @ingroup link_analysis_cpp
+ * @brief Compute PageRank scores.
+ *
+ * This function computes general (if @p personalization.has_value() == false) or personalized (if
+ * @p personalization.has_value() == true) PageRank scores.
+ *
+ * @throws cugraph::logic_error on erroneous input arguments or if fails to converge before @p
+ * max_iterations.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam result_t Type of PageRank scores.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == false, edge weights are assumed to be 1.0.
+ * @param precomputed_vertex_out_weight_sums View of precomputed sums of outgoing edge weights for
+ * the vertices assigned to this process, or `std::nullopt`. Use `vertex_property_t::view()`. If
+ * `std::nullopt`, these values are freshly computed. Computing these values outside this function
+ * reduces the number of memory allocations/deallocations and computing if a user repeatedly
+ * computes PageRank scores using the same graph with different personalization vectors.
+ * @param personalization Optional tuple containing device spans of vertex identifiers and
+ * personalization values for the vertices (compute personalized PageRank) or `std::nullopt`
+ * (compute general PageRank).
+ * @param initial_pageranks Optional initial PageRank scores for the vertices assigned to this
+ * process. If `std::nullopt`, initial values are set to 1.0 divided by the number of vertices in
+ * the graph. If provided, these values are used as the initial PageRank scores.
+ * @param alpha PageRank damping factor.
+ * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
+ * differences in PageRank values between two consecutive iterations is less than the number of
+ * vertices in the graph multiplied by @p epsilon.
+ * @param max_iterations Maximum number of PageRank iterations.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of PageRank scores for the vertices assigned to this process and metadata
+ * indicating how many iterations were run and whether the algorithm converged.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
+std::tuple<vertex_property_t<vertex_t, result_t>, iterative_algorithm_metadata_t> pagerank(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<vertex_property_view_t<vertex_t, weight_t const*>>
+    precomputed_vertex_out_weight_sums,
+  std::optional<std::tuple<raft::device_span<vertex_t const>, raft::device_span<result_t const>>>
+    personalization,
+  std::optional<vertex_property_t<vertex_t, result_t>>&& initial_pageranks,
+  result_t alpha,
+  result_t epsilon,
+  size_t max_iterations   = 500,
+  bool do_expensive_check = false);
+
+/**
+ * @ingroup centrality_cpp
  * @brief Compute Eigenvector Centrality scores.
+ *
+ * @deprecated This API is deprecated and replaced by the `vertex_property_t` version below.
  *
  * This function computes eigenvector centrality scores using the power method.
  *
@@ -1401,7 +1400,7 @@ std::tuple<rmm::device_uvector<result_t>, centrality_algorithm_metadata_t> pager
  * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
  * edge_weight_view.has_value() == false, edge weights are assumed to be 1.0.
  * @param initial_centralities Optional device span containing initial values for the eigenvector
- * centralities
+ * centralities.
  * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
  * differences in eigenvector centrality values between two consecutive iterations is less than the
  * number of vertices in the graph multiplied by @p epsilon.
@@ -1420,10 +1419,52 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
   bool do_expensive_check = false);
 
 /**
-.* @ingroup link_analysis_cpp
+ * @ingroup centrality_cpp
+ * @brief Compute Eigenvector Centrality scores.
+ *
+ * This function computes eigenvector centrality scores using the power method.
+ *
+ * @throws cugraph::logic_error on erroneous input arguments.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == false, edge weights are assumed to be 1.0.
+ * @param initial_centralities Optional initial eigenvector centrality scores for the vertices
+ * assigned to this process. If `std::nullopt`, initial values are set to 1.0 divided by the number
+ * of vertices in the graph. If provided, these values are used as the initial centrality scores.
+ * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
+ * differences in eigenvector centrality values between two consecutive iterations is less than the
+ * number of vertices in the graph multiplied by @p epsilon.
+ * @param max_iterations Maximum number of power iterations.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of eigenvector centrality scores for the vertices assigned to this process and
+ * metadata indicating how many iterations were run and whether the algorithm converged.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<vertex_property_t<vertex_t, weight_t>, iterative_algorithm_metadata_t>
+eigenvector_centrality(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<vertex_property_t<vertex_t, weight_t>>&& initial_centralities,
+  weight_t epsilon,
+  size_t max_iterations   = 500,
+  bool do_expensive_check = false);
+
+/**
+ * @ingroup link_analysis_cpp
  * @brief Compute HITS scores.
  *
- * This function computes HITS scores for the vertices of a graph
+ * @deprecated This API is deprecated and replaced by the `vertex_property_t` version below.
+ *
+ * This function computes HITS scores for the vertices of a graph.
  *
  * @throws cugraph::logic_error on erroneous input arguments
  *
@@ -1435,18 +1476,17 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
  * @param hubs Pointer to the input/output hub score array.
- * @param authorities Pointer to the output authorities score array.
+ * @param authorities Pointer to the output authority score array.
  * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
- * differences in hub values between two consecutive iterations is less than @p epsilon
+ * differences in hub values between two consecutive iterations is less than @p epsilon.
  * @param max_iterations Maximum number of HITS iterations.
- * @param has_initial_guess If set to `true`, values in the hubs output array (pointed by @p
- * hubs) is used as initial hub values. If false, initial hub values are set to 1.0
- * divided by the number of vertices in the graph.
+ * @param has_initial_hubs_guess If set to `true`, values in @p hubs are used as initial hub values.
+ * If false, initial hub values are set to 1.0 divided by the number of vertices in the graph.
  * @param normalize If set to `true`, final hub and authority scores are normalized (the L1-norm of
  * the returned hub and authority score arrays is 1.0) before returning.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return std::tuple<result_t, size_t> A tuple of sum of the differences of hub scores of the last
- * two iterations and the total number of iterations taken to reach the final result
+ * @return std::tuple<result_t, size_t> A tuple of the sum of the differences of hub scores of the
+ * last two iterations and the total number of iterations taken to reach the final result.
  */
 template <typename vertex_t, typename edge_t, typename result_t, bool multi_gpu>
 std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
@@ -1460,8 +1500,49 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
                                   bool do_expensive_check);
 
 /**
-.* @ingroup centrality_cpp
+ * @ingroup link_analysis_cpp
+ * @brief Compute HITS scores.
+ *
+ * This function computes HITS scores for the vertices of a graph
+ *
+ * @throws cugraph::logic_error on erroneous input arguments
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param initial_hubs Optional initial hub scores for the vertices assigned to this process. If
+ * `std::nullopt`, initial values are set to 1.0 divided by the number of vertices in the graph. If
+ * provided, these values are used as the initial hub scores.
+ * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
+ * differences in hub values between two consecutive iterations is less than @p epsilon.
+ * @param max_iterations Maximum number of HITS iterations.
+ * @param normalize If set to `true`, final hub and authority scores are normalized (the L1-norm of
+ * the returned hub and authority score arrays is 1.0) before returning.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of hub scores, authority scores, and metadata indicating how many iterations were
+ * run and whether the algorithm converged.
+ */
+template <typename vertex_t, typename edge_t, typename result_t, bool multi_gpu>
+std::tuple<vertex_property_t<vertex_t, result_t>,
+           vertex_property_t<vertex_t, result_t>,
+           iterative_algorithm_metadata_t>
+hits(raft::handle_t const& handle,
+     graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
+     std::optional<vertex_property_t<vertex_t, result_t>>&& initial_hubs,
+     result_t epsilon,
+     size_t max_iterations,
+     bool normalize,
+     bool do_expensive_check);
+
+/**
+ * @ingroup centrality_cpp
  * @brief Compute Katz Centrality scores.
+ *
+ * @deprecated This API is deprecated and replaced by the `vertex_property_t` version below.
  *
  * This function computes Katz Centrality scores.
  *
@@ -1511,6 +1592,59 @@ void katz_centrality(raft::handle_t const& handle,
                      bool has_initial_guess  = false,
                      bool normalize          = false,
                      bool do_expensive_check = false);
+
+/**
+ * @ingroup centrality_cpp
+ * @brief Compute Katz Centrality scores.
+ *
+ * This function computes Katz Centrality scores.
+ *
+ * @throws cugraph::logic_error on erroneous input arguments.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam result_t Type of Katz Centrality scores.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == false, edge weights are assumed to be 1.0.
+ * @param betas Optional view of per-vertex values added to each vertex's new Katz Centrality score
+ * in every iteration, or `std::nullopt`. Use `vertex_property_t::view()`. If `std::nullopt`,
+ * constant @p beta is used instead.
+ * @param initial_katz_centralities Optional initial Katz Centrality scores for the vertices
+ * assigned to this process. If `std::nullopt`, initial values are set to 0. If provided, these
+ * values are used as the initial Katz Centrality scores.
+ * @param alpha Katz Centrality attenuation factor. This should be smaller than the inverse of the
+ * maximum eigenvalue of the adjacency matrix of @p graph.
+ * @param beta Constant value to be added to each vertex's new Katz Centrality score in every
+ * iteration. Relevant only when @p betas is `std::nullopt`.
+ * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
+ * differences in Katz Centrality values between two consecutive iterations is less than the number
+ * of vertices in the graph multiplied by @p epsilon.
+ * @param max_iterations Maximum number of Katz Centrality iterations.
+ * @param normalize If set to `true`, final Katz Centrality scores are normalized (the L2-norm of
+ * the returned Katz Centrality score array is 1.0) before returning.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of Katz Centrality scores for the vertices assigned to this process and metadata
+ * indicating how many iterations were run and whether the algorithm converged.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
+std::tuple<vertex_property_t<vertex_t, result_t>, iterative_algorithm_metadata_t> katz_centrality(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<vertex_property_view_t<vertex_t, result_t const*>> betas,
+  std::optional<vertex_property_t<vertex_t, result_t>>&& initial_katz_centralities,
+  result_t alpha,
+  result_t beta,
+  result_t epsilon,
+  size_t max_iterations   = 500,
+  bool normalize          = false,
+  bool do_expensive_check = false);
 
 /**
 .* @ingroup community_cpp

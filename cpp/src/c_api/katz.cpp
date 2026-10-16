@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -85,11 +85,10 @@ struct katz_functor : public cugraph::c_api::abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<weight_t> centralities(graph_view.local_vertex_partition_range_size(),
-                                                 handle_.get_stream());
-      rmm::device_uvector<weight_t> betas(0, handle_.get_stream());
+      std::optional<cugraph::vertex_property_t<vertex_t, weight_t>> betas_property{std::nullopt};
 
       if (betas_ != nullptr) {
+        rmm::device_uvector<weight_t> betas(0, handle_.get_stream());
         rmm::device_uvector<vertex_t> betas_vertex_ids(
           graph_view.local_vertex_partition_range_size(), handle_.get_stream());
         cugraph::sequence(rmm::exec_policy(handle_.get_stream()),
@@ -111,29 +110,36 @@ struct katz_functor : public cugraph::c_api::abstract_functor {
             graph_view.local_vertex_partition_range_last(),
             weight_t{0},
             do_expensive_check_);
+        betas_property = cugraph::vertex_property_t<vertex_t, weight_t>(
+          std::move(betas), graph_view.local_vertex_partition_range_size());
       }
 
-      cugraph::katz_centrality<vertex_t, edge_t, weight_t, weight_t, multi_gpu>(
-        handle_,
-        graph_view,
-        (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
-        betas_ == nullptr ? nullptr : betas.data(),
-        centralities.data(),
-        static_cast<weight_t>(alpha_),
-        static_cast<weight_t>(beta_),
-        static_cast<weight_t>(epsilon_),
-        max_iterations_,
-        false,
-        true,
-        do_expensive_check_);
+      auto [centralities, metadata] =
+        cugraph::katz_centrality<vertex_t, edge_t, weight_t, weight_t, multi_gpu>(
+          handle_,
+          graph_view,
+          (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
+          betas_property ? std::make_optional(betas_property->view()) : std::nullopt,
+          std::optional<cugraph::vertex_property_t<vertex_t, weight_t>>{std::nullopt},
+          static_cast<weight_t>(alpha_),
+          static_cast<weight_t>(beta_),
+          static_cast<weight_t>(epsilon_),
+          max_iterations_,
+          true,
+          do_expensive_check_);
 
       rmm::device_uvector<vertex_t> vertex_ids(graph_view.local_vertex_partition_range_size(),
                                                handle_.get_stream());
       raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
 
+      auto centrality_values = centralities.release_buffer();
+
       result_ = new cugraph::c_api::cugraph_centrality_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(vertex_ids, graph_->vertex_type_),
-        new cugraph::c_api::cugraph_type_erased_device_array_t(centralities, graph_->weight_type_)};
+        new cugraph::c_api::cugraph_type_erased_device_array_t(centrality_values,
+                                                               graph_->weight_type_),
+        metadata.number_of_iterations_,
+        metadata.converged_};
     }
   }
 };

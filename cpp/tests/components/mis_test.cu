@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -126,7 +126,8 @@ class Tests_SGMaximalIndependentSet
         },
         vertex_t{0},
         cugraph::reduce_op::plus<vertex_t>{},
-        d_total_outgoing_nbrs_included_mis.begin());
+        cugraph::vertex_property_view_t{d_total_outgoing_nbrs_included_mis.begin(),
+                                        sg_graph_view.local_vertex_partition_range_size()});
 
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
 

@@ -224,7 +224,8 @@ refine_clustering(raft::handle_t const& handle,
       }),
     weight_t{0},
     cugraph::reduce_op::plus<weight_t>{},
-    weighted_cut_of_vertices_to_louvain.begin());
+    vertex_property_view_t{weighted_cut_of_vertices_to_louvain.begin(),
+                           graph_view.local_vertex_partition_range_size()});
 
   // FIXME: Consider using bit mask logic here.  Would reduce memory by 8x
   rmm::device_uvector<uint8_t> singleton_and_connected_flags(
@@ -260,13 +261,15 @@ refine_clustering(raft::handle_t const& handle,
     src_louvain_cluster_weight_cache = edge_src_property_t<vertex_t, weight_t>(handle, graph_view);
     update_edge_src_property(handle,
                              graph_view,
-                             vertex_louvain_cluster_weights.begin(),
+                             vertex_property_view_t{vertex_louvain_cluster_weights.begin(),
+                                                    graph_view.local_vertex_partition_range_size()},
                              src_louvain_cluster_weight_cache.mutable_view());
 
     src_cut_to_louvain_cache = edge_src_property_t<vertex_t, weight_t>(handle, graph_view);
     update_edge_src_property(handle,
                              graph_view,
-                             weighted_cut_of_vertices_to_louvain.begin(),
+                             vertex_property_view_t{weighted_cut_of_vertices_to_louvain.begin(),
+                                                    graph_view.local_vertex_partition_range_size()},
                              src_cut_to_louvain_cache.mutable_view());
 
     vertex_louvain_cluster_weights.resize(0, handle.get_stream());
@@ -332,15 +335,25 @@ refine_clustering(raft::handle_t const& handle,
         edge_src_property_t<vertex_t, uint8_t>(handle, graph_view);
 
       update_edge_src_property(
-        handle, graph_view, leiden_assignment.begin(), src_leiden_assignment_cache.mutable_view());
+        handle,
+        graph_view,
+        vertex_property_view_t{leiden_assignment.begin(),
+                               graph_view.local_vertex_partition_range_size()},
+        src_leiden_assignment_cache.mutable_view());
 
       update_edge_dst_property(
-        handle, graph_view, leiden_assignment.begin(), dst_leiden_assignment_cache.mutable_view());
+        handle,
+        graph_view,
+        vertex_property_view_t{leiden_assignment.begin(),
+                               graph_view.local_vertex_partition_range_size()},
+        dst_leiden_assignment_cache.mutable_view());
 
-      update_edge_src_property(handle,
-                               graph_view,
-                               singleton_and_connected_flags.begin(),
-                               src_singleton_and_connected_flag_cache.mutable_view());
+      update_edge_src_property(
+        handle,
+        graph_view,
+        vertex_property_view_t{singleton_and_connected_flags.begin(),
+                               graph_view.local_vertex_partition_range_size()},
+        src_singleton_and_connected_flag_cache.mutable_view());
     }
 
     auto src_input_property_values =

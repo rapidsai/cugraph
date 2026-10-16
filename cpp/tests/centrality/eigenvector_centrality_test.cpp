@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -142,22 +142,19 @@ class Tests_EigenvectorCentrality
 
     weight_t constexpr epsilon{1e-6};
 
-    rmm::device_uvector<weight_t> d_centralities(graph_view.number_of_vertices(),
-                                                 handle.get_stream());
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.start("Eigenvector centrality");
     }
 
-    d_centralities =
-      cugraph::eigenvector_centrality(handle,
-                                      graph_view,
-                                      edge_weight_view,
-                                      std::optional<raft::device_span<weight_t const>>{},
-                                      epsilon,
-                                      eigenvector_usecase.max_iterations,
-                                      false);
+    auto [d_centralities, metadata] = cugraph::eigenvector_centrality(
+      handle,
+      graph_view,
+      edge_weight_view,
+      std::optional<cugraph::vertex_property_t<vertex_t, weight_t>>{std::nullopt},
+      epsilon,
+      eigenvector_usecase.max_iterations,
+      false);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -194,7 +191,8 @@ class Tests_EigenvectorCentrality
         epsilon,
         eigenvector_usecase.max_iterations);
 
-      auto h_cugraph_centralities = cugraph::test::to_host(handle, d_centralities);
+      auto d_centrality_values    = d_centralities.release_buffer();
+      auto h_cugraph_centralities = cugraph::test::to_host(handle, d_centrality_values);
 
       auto max_centrality =
         *std::max_element(h_cugraph_centralities.begin(), h_cugraph_centralities.end());

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -13,8 +13,8 @@ namespace cugraph {
 template CUGRAPH_EXPORT std::tuple<float, size_t> hits(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, true, true> const& graph_view,
-  float* const hubs,
-  float* const authorities,
+  float* hubs,
+  float* authorities,
   float epsilon,
   size_t max_iterations,
   bool has_initial_hubs_guess,
@@ -24,12 +24,34 @@ template CUGRAPH_EXPORT std::tuple<float, size_t> hits(
 template CUGRAPH_EXPORT std::tuple<double, size_t> hits(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, true, true> const& graph_view,
-  double* const hubs,
-  double* const authorities,
+  double* hubs,
+  double* authorities,
   double epsilon,
   size_t max_iterations,
   bool has_initial_hubs_guess,
   bool normalize,
   bool do_expensive_check);
+
+template CUGRAPH_EXPORT std::tuple<vertex_property_t<int64_t, float>,
+                                   vertex_property_t<int64_t, float>,
+                                   iterative_algorithm_metadata_t>
+hits(raft::handle_t const& handle,
+     graph_view_t<int64_t, int64_t, true, true> const& graph_view,
+     std::optional<vertex_property_t<int64_t, float>>&& initial_hubs,
+     float epsilon,
+     size_t max_iterations,
+     bool normalize,
+     bool do_expensive_check);
+
+template CUGRAPH_EXPORT std::tuple<vertex_property_t<int64_t, double>,
+                                   vertex_property_t<int64_t, double>,
+                                   iterative_algorithm_metadata_t>
+hits(raft::handle_t const& handle,
+     graph_view_t<int64_t, int64_t, true, true> const& graph_view,
+     std::optional<vertex_property_t<int64_t, double>>&& initial_hubs,
+     double epsilon,
+     size_t max_iterations,
+     bool normalize,
+     bool do_expensive_check);
 
 }  // namespace cugraph

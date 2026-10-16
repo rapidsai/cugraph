@@ -1527,7 +1527,7 @@ rmm::device_uvector<edge_t> compute_homogeneous_uniform_sampling_index_without_r
             handle.get_thrust_policy(),
             (*retry_segment_indices).begin(),
             (*retry_segment_indices).end(),
-            indirection_and_is_greater_than_or_equal_t<edge_t>{
+            indirection_and_is_greater_than_or_equal_to_t<edge_t>{
               raft::device_span<edge_t const>(unique_counts.data(), unique_counts.size()),
               static_cast<edge_t>(K)});
           auto num_retry_segments = cuda::std::distance((*retry_segment_indices).begin(), last);
@@ -1541,7 +1541,7 @@ rmm::device_uvector<edge_t> compute_homogeneous_uniform_sampling_index_without_r
             thrust::count_if(handle.get_thrust_policy(),
                              unique_counts.begin(),
                              unique_counts.end(),
-                             is_less_than_to_t<edge_t>{static_cast<edge_t>(K)});
+                             is_less_than_t<edge_t>{static_cast<edge_t>(K)});
           if (num_retry_segments > 0) {
             retry_segment_indices =
               rmm::device_uvector<size_t>(num_retry_segments, handle.get_stream());

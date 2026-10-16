@@ -31,8 +31,16 @@ cugraph::edge_property_t<edge_t, bool> build_acyclic_edge_mask(
 
   cugraph::edge_src_property_t<vertex_t, vertex_t> src_labels(handle, graph_view);
   cugraph::edge_dst_property_t<vertex_t, vertex_t> dst_labels(handle, graph_view);
-  cugraph::update_edge_src_property(handle, graph_view, labels.begin(), src_labels.mutable_view());
-  cugraph::update_edge_dst_property(handle, graph_view, labels.begin(), dst_labels.mutable_view());
+  cugraph::update_edge_src_property(
+    handle,
+    graph_view,
+    cugraph::vertex_property_view_t{labels.begin(), graph_view.local_vertex_partition_range_size()},
+    src_labels.mutable_view());
+  cugraph::update_edge_dst_property(
+    handle,
+    graph_view,
+    cugraph::vertex_property_view_t{labels.begin(), graph_view.local_vertex_partition_range_size()},
+    dst_labels.mutable_view());
 
   auto edge_mask = make_initialized_edge_property(handle, graph_view, false);
 

@@ -475,7 +475,11 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
       edge_src_property_t<vertex_t, bool> edge_src_visited(handle, level_graph_view);
       update_edge_src_property(
-        handle, level_graph_view, visited.begin(), edge_src_visited.mutable_view());
+        handle,
+        level_graph_view,
+        vertex_property_view_t{visited.begin(),
+                               level_graph_view.local_vertex_partition_range_size()},
+        edge_src_visited.mutable_view());
       {
         auto tmp_graph_view = level_graph_view;
         auto edge_mask      = make_initialized_edge_property(handle, level_graph_view, false);

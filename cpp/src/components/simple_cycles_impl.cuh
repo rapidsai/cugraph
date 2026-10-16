@@ -871,8 +871,11 @@ enumerate_simple_cycles_including_roots(
   edge_dst_property_t<vertex_t, vertex_t> dst_reverse_distances(handle);
   if constexpr (multi_gpu) {
     dst_reverse_distances = edge_dst_property_t<vertex_t, vertex_t>(handle, graph_view);
-    update_edge_dst_property(
-      handle, graph_view, reverse_distances.begin(), dst_reverse_distances.mutable_view());
+    update_edge_dst_property(handle,
+                             graph_view,
+                             vertex_property_view_t{reverse_distances.begin(),
+                                                    graph_view.local_vertex_partition_range_size()},
+                             dst_reverse_distances.mutable_view());
   }
   rmm::device_uvector<vertex_t> root_path_vertices(roots.size(), handle.get_stream());
   thrust::copy(handle.get_thrust_policy(), roots.begin(), roots.end(), root_path_vertices.begin());
@@ -1148,9 +1151,15 @@ simple_cycles_impl(raft::handle_t const& handle,
       edge_src_property_t<vertex_t, vertex_t> src_components(handle, graph_view);
       edge_dst_property_t<vertex_t, vertex_t> dst_components(handle, graph_view);
       update_edge_src_property(
-        handle, graph_view, components.begin(), src_components.mutable_view());
+        handle,
+        graph_view,
+        vertex_property_view_t{components.begin(), graph_view.local_vertex_partition_range_size()},
+        src_components.mutable_view());
       update_edge_dst_property(
-        handle, graph_view, components.begin(), dst_components.mutable_view());
+        handle,
+        graph_view,
+        vertex_property_view_t{components.begin(), graph_view.local_vertex_partition_range_size()},
+        dst_components.mutable_view());
       std::tie(edgelist_srcs, edgelist_dsts) =
         extract_transform_if_e(handle,
                                graph_view,
@@ -1384,7 +1393,8 @@ simple_cycles_impl(raft::handle_t const& handle,
                 }),
               uint8_t{0},
               cugraph::reduce_op::maximum<uint8_t>{},
-              next_hop_flags.begin());
+              vertex_property_view_t{next_hop_flags.begin(),
+                                     scc_graph_view.local_vertex_partition_range_size()});
           } else {
             per_v_transform_reduce_outgoing_e(
               handle,
@@ -1399,7 +1409,8 @@ simple_cycles_impl(raft::handle_t const& handle,
                 }),
               uint8_t{0},
               cugraph::reduce_op::maximum<uint8_t>{},
-              next_hop_flags.begin());
+              vertex_property_view_t{next_hop_flags.begin(),
+                                     scc_graph_view.local_vertex_partition_range_size()});
           }
           thrust::transform(
             handle.get_thrust_policy(),
@@ -1687,9 +1698,17 @@ simple_cycles_impl(raft::handle_t const& handle,
         edge_src_property_t<vertex_t, vertex_t> src_components(handle, scc_graph_view);
         edge_dst_property_t<vertex_t, vertex_t> dst_components(handle, scc_graph_view);
         update_edge_src_property(
-          handle, scc_graph_view, components.begin(), src_components.mutable_view());
+          handle,
+          scc_graph_view,
+          vertex_property_view_t{components.begin(),
+                                 scc_graph_view.local_vertex_partition_range_size()},
+          src_components.mutable_view());
         update_edge_dst_property(
-          handle, scc_graph_view, components.begin(), dst_components.mutable_view());
+          handle,
+          scc_graph_view,
+          vertex_property_view_t{components.begin(),
+                                 scc_graph_view.local_vertex_partition_range_size()},
+          dst_components.mutable_view());
         transform_e(handle,
                     scc_graph_view,
                     src_components.view(),

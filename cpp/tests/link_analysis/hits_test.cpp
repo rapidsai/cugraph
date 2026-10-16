@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -180,26 +180,24 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
 
     auto maximum_iterations = 400;
     weight_t epsilon        = 1e-7;
-    rmm::device_uvector<weight_t> d_hubs(graph_view.local_vertex_partition_range_size(),
-                                         handle.get_stream());
-
-    rmm::device_uvector<weight_t> d_authorities(graph_view.local_vertex_partition_range_size(),
-                                                handle.get_stream());
-
-    std::optional<rmm::device_uvector<weight_t>> d_initial_random_hubs{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, weight_t>> initial_hubs{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, weight_t>> d_initial_random_hubs{
+      std::nullopt};
     if (hits_usecase.check_initial_input) {
       raft::random::RngState rng_state(0);
-      d_initial_random_hubs = rmm::device_uvector<weight_t>(d_hubs.size(), handle.get_stream());
+      rmm::device_uvector<weight_t> random_hubs(graph_view.local_vertex_partition_range_size(),
+                                                handle.get_stream());
       cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                           (*d_initial_random_hubs).data(),
-                                           (*d_initial_random_hubs).size(),
+                                           random_hubs.data(),
+                                           random_hubs.size(),
                                            weight_t{0.0},
                                            weight_t{1.0},
                                            rng_state);
-      raft::copy(d_hubs.data(),
-                 (*d_initial_random_hubs).data(),
-                 (*d_initial_random_hubs).size(),
-                 handle.get_stream());
+      rmm::device_uvector<weight_t> hubs_copy(random_hubs, handle.get_stream());
+      d_initial_random_hubs = cugraph::vertex_property_t<vertex_t, weight_t>(
+        std::move(random_hubs), graph_view.local_vertex_partition_range_size());
+      initial_hubs = cugraph::vertex_property_t<vertex_t, weight_t>(
+        std::move(hubs_copy), graph_view.local_vertex_partition_range_size());
 
       handle.sync_stream();  // before rng_state goes out-of-scope
     }
@@ -209,15 +207,13 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
       hr_timer.start("HITS");
     }
 
-    auto result = cugraph::hits(handle,
-                                graph_view,
-                                d_hubs.data(),
-                                d_authorities.data(),
-                                epsilon,
-                                maximum_iterations,
-                                hits_usecase.check_initial_input,
-                                true,
-                                hits_usecase.check_initial_input);
+    auto [d_hubs, d_authorities, metadata] = cugraph::hits(handle,
+                                                           graph_view,
+                                                           std::move(initial_hubs),
+                                                           epsilon,
+                                                           maximum_iterations,
+                                                           true,
+                                                           hits_usecase.check_initial_input);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -240,15 +236,16 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
 
       std::optional<std::vector<weight_t>> h_initial_random_hubs{std::nullopt};
       if (d_initial_random_hubs) {
+        auto d_initial_random_hub_values = d_initial_random_hubs->release_buffer();
         if (renumber) {
           rmm::device_uvector<weight_t> d_unrenumbered_initial_random_hubs(0, handle.get_stream());
           std::tie(std::ignore, d_unrenumbered_initial_random_hubs) =
             cugraph::test::sort_by_key<vertex_t, weight_t>(
-              handle, *d_renumber_map_labels, *d_initial_random_hubs);
+              handle, *d_renumber_map_labels, d_initial_random_hub_values);
           h_initial_random_hubs =
             cugraph::test::to_host(handle, d_unrenumbered_initial_random_hubs);
         } else {
-          h_initial_random_hubs = cugraph::test::to_host(handle, *d_initial_random_hubs);
+          h_initial_random_hubs = cugraph::test::to_host(handle, d_initial_random_hub_values);
         }
       }
 
@@ -263,13 +260,14 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
         epsilon);
 
       std::vector<weight_t> h_cugraph_hits{};
+      auto d_hub_values = d_hubs.release_buffer();
       if (renumber) {
         rmm::device_uvector<weight_t> d_unrenumbered_hubs(size_t{0}, handle.get_stream());
-        std::tie(std::ignore, d_unrenumbered_hubs) =
-          cugraph::test::sort_by_key<vertex_t, weight_t>(handle, *d_renumber_map_labels, d_hubs);
+        std::tie(std::ignore, d_unrenumbered_hubs) = cugraph::test::sort_by_key<vertex_t, weight_t>(
+          handle, *d_renumber_map_labels, d_hub_values);
         h_cugraph_hits = cugraph::test::to_host(handle, d_unrenumbered_hubs);
       } else {
-        h_cugraph_hits = cugraph::test::to_host(handle, d_hubs);
+        h_cugraph_hits = cugraph::test::to_host(handle, d_hub_values);
       }
       handle.sync_stream();
       auto threshold_ratio = 2e-3;
