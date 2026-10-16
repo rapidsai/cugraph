@@ -463,6 +463,8 @@ weight_t hungarian(raft::handle_t const& handle,
  * @ingroup community_cpp
  * @brief      Louvain implementation
  *
+ * @deprecated This API is deprecated. Use `louvain` with `compact_cluster_ids = false`.
+ *
  * Compute a clustering of the graph by maximizing modularity
  *
  * Computed using the Louvain method described in:
@@ -515,7 +517,9 @@ std::pair<size_t, weight_t> louvain(
 
 /**
  * @ingroup community_cpp
- * @brief      Louvain implementation, returning dendrogram
+ * @brief      Louvain implementation, returning a dendrogram
+ *
+ * @deprecated This API is deprecated. Use `louvain_dendrogram`.
  *
  * Compute a clustering of the graph by maximizing modularity
  *
@@ -555,7 +559,7 @@ std::pair<size_t, weight_t> louvain(
  *
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
+std::pair<std::unique_ptr<dendrogram_t<vertex_t>>, weight_t> louvain(
   raft::handle_t const& handle,
   std::optional<std::reference_wrapper<raft::random::RngState>> rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
@@ -566,85 +570,111 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
 
 /**
  * @ingroup community_cpp
- * @brief      Flatten a Dendrogram at a particular level
+ * @brief      Louvain implementation, returning a dendrogram
  *
- * A Dendrogram represents a hierarchical clustering/partitioning of
- * a graph.  This function will flatten the hierarchical clustering into
- * a label for each vertex representing the final cluster/partition to
- * which it is assigned
+ * Compute a clustering of the graph by maximizing modularity
+ *
+ * Computed using the Louvain method described in:
+ *
+ *    VD Blondel, J-L Guillaume, R Lambiotte and E Lefebvre: Fast unfolding of
+ *    community hierarchies in large networks, J Stat Mech P10008 (2008),
+ *    http://arxiv.org/abs/0803.0476
  *
  * @throws     cugraph::logic_error when an error occurs.
  *
- * @tparam     graph_view_t          Type of graph
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  *
- * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
- * @param[in]  graph                 input graph object
- * @param[in]  dendrogram            input dendrogram object
- * @param[out] clustering            Pointer to device array where the clustering should be stored
+ * @param[in]  handle            Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  rng_state         The RngState instance holding pseudo-random number generator state.
+ * @param[in]  graph_view        Input graph view object.
+ * @param[in]  edge_weight_view  Optional view object holding edge weights for @p graph_view.
+ *                               If @pedge_weight_view.has_value() == false, edge weights
+ *                               are assumed to be 1.0.
+ * @param[in]  max_level         (optional) maximum number of levels to run (default 100)
+ * @param[in]  threshold         (optional) Minimum modularity gain threshold for each level.
+ *                               A vertex move is accepted only if its delta modularity exceeds
+ *                               @p threshold, and an iteration is committed / the level loop
+ *                               continues only if the global modularity gain exceeds @p threshold.
+ *                               (default 1e-7)
+ * @param[in]  resolution        (optional) The value of the resolution parameter to use.
+ *                               Called gamma in the modularity formula, this changes the size
+ *                               of the communities.  Higher resolutions lead to more smaller
+ *                               communities, lower resolutions lead to fewer larger
+ *                               communities. (default 1)
+ * @return                       a pair containing:
+ *                                 1) dendrogram
+ *                                 2) modularity of the returned clustering
  *
  */
-template <typename graph_view_t>
-void flatten_dendrogram(raft::handle_t const& handle,
-                        graph_view_t const& graph_view,
-                        Dendrogram<typename graph_view_t::vertex_type> const& dendrogram,
-                        typename graph_view_t::vertex_type* clustering);
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::pair<dendrogram_t<vertex_t>, weight_t> louvain_dendrogram(
+  raft::handle_t const& handle,
+  std::optional<std::reference_wrapper<raft::random::RngState>> rng_state,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  size_t max_level    = 100,
+  weight_t threshold  = weight_t{1e-7},
+  weight_t resolution = weight_t{1});
+
+/**
+ * @ingroup community_cpp
+ * @brief      Louvain implementation, returning a clustering
+ *
+ * Compute a clustering of the graph by maximizing modularity. The returned clustering is the
+ * flattened dendrogram. If @p compact_cluster_ids is true, cluster ids are renumbered to a dense
+ * range.
+ *
+ * Computed using the Louvain method described in:
+ *
+ *    VD Blondel, J-L Guillaume, R Lambiotte and E Lefebvre: Fast unfolding of
+ *    community hierarchies in large networks, J Stat Mech P10008 (2008),
+ *    http://arxiv.org/abs/0803.0476
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ *
+ * @param[in]  handle               Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  rng_state            The RngState instance holding pseudo-random number generator
+ *                                  state.
+ * @param[in]  graph_view           Input graph view object.
+ * @param[in]  edge_weight_view     Optional view object holding edge weights for @p graph_view.
+ *                                  If @pedge_weight_view.has_value() == false, edge weights
+ *                                  are assumed to be 1.0.
+ * @param[in]  compact_cluster_ids  If true, renumber cluster ids to a dense range.
+ * @param[in]  max_level            (optional) maximum number of levels to run (default 100)
+ * @param[in]  threshold            (optional) Minimum modularity gain threshold for each level.
+ *                                  (default 1e-7)
+ * @param[in]  resolution           (optional) The value of the resolution parameter to use.
+ *                                  (default 1)
+ * @return                          a tuple containing:
+ *                                    1) vertex_property_t storing the clustering
+ *                                    2) number of levels of the returned clustering
+ *                                    3) modularity of the returned clustering
+ *
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<vertex_property_t<vertex_t, vertex_t>, size_t, weight_t> louvain(
+  raft::handle_t const& handle,
+  std::optional<std::reference_wrapper<raft::random::RngState>> rng_state,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  bool compact_cluster_ids,
+  size_t max_level    = 100,
+  weight_t threshold  = weight_t{1e-7},
+  weight_t resolution = weight_t{1});
 
 /**
  * @ingroup community_cpp
  * @brief      Leiden implementation
  *
- * Compute a clustering of the graph by maximizing modularity using the Leiden improvements
- * to the Louvain method.
- *
- * Computed using the Leiden method described in:
- *
- *    Traag, V. A., Waltman, L., & van Eck, N. J. (2019). From Louvain to Leiden:
- *    guaranteeing well-connected communities. Scientific reports, 9(1), 5233.
- *    doi: 10.1038/s41598-019-41695-z
- *
- * @throws cugraph::logic_error when an error occurs.
- *
- * @tparam vertex_t                  Type of vertex identifiers.
- *                                   Supported value : int (signed, 32-bit)
- * @tparam edge_t                    Type of edge identifiers.
- *                                   Supported value : int (signed, 32-bit)
- * @tparam weight_t                  Type of edge weights. Supported values : float or double.
- *
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param rng_state The RngState instance holding pseudo-random number generator state.
- * @param graph_view Graph view object.
- * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
- * edge_weight_view.has_value() == false, edge weights are assumed to be 1.0.
- * @param[in]  max_level             (optional) maximum number of levels to run (default 100)
- * @param[in]  resolution            (optional) The value of the resolution parameter to use.
- *                                   Called gamma in the modularity formula, this changes the size
- *                                   of the communities.  Higher resolutions lead to more smaller
- *                                   communities, lower resolutions lead to fewer larger
- * communities. (default 1)
- * @param[in]  theta                 (optional) The value of the parameter to scale modularity
- *                                    gain in Leiden refinement phase. It is used to compute
- *                                    the probability of joining a random leiden community.
- *                                    Called theta in the Leiden algorithm.
- *
- * @return                           a pair containing:
- *                                     1) unique pointer to dendrogram
- *                                     2) modularity of the returned clustering
- *
- */
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
-  raft::handle_t const& handle,
-  raft::random::RngState& rng_state,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  size_t max_level    = 100,
-  weight_t resolution = weight_t{1},
-  weight_t theta      = weight_t{1});
-
-/**
-.* @ingroup community_cpp
- * @brief      Leiden implementation
+ * @deprecated This API is deprecated. Use `leiden` with `compact_cluster_ids = true`.
  *
  * Compute a clustering of the graph by maximizing modularity using the Leiden improvements
  * to the Louvain method.
@@ -695,6 +725,218 @@ std::pair<size_t, weight_t> leiden(
   size_t max_level    = 100,
   weight_t resolution = weight_t{1},
   weight_t theta      = weight_t{1});
+
+/**
+ * @ingroup community_cpp
+ * @brief      Leiden implementation, returning a dendrogram
+ *
+ * @deprecated This API is deprecated. Use `leiden_dendrogram`.
+ *
+ * Compute a clustering of the graph by maximizing modularity using the Leiden improvements
+ * to the Louvain method.
+ *
+ * Computed using the Leiden method described in:
+ *
+ *    Traag, V. A., Waltman, L., & van Eck, N. J. (2019). From Louvain to Leiden:
+ *    guaranteeing well-connected communities. Scientific reports, 9(1), 5233.
+ *    doi: 10.1038/s41598-019-41695-z
+ *
+ * @throws cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t                  Type of vertex identifiers.
+ *                                   Supported value : int (signed, 32-bit)
+ * @tparam edge_t                    Type of edge identifiers.
+ *                                   Supported value : int (signed, 32-bit)
+ * @tparam weight_t                  Type of edge weights. Supported values : float or double.
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param rng_state The RngState instance holding pseudo-random number generator state.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == false, edge weights are assumed to be 1.0.
+ * @param[in]  max_level             (optional) maximum number of levels to run (default 100)
+ * @param[in]  resolution            (optional) The value of the resolution parameter to use.
+ *                                   Called gamma in the modularity formula, this changes the size
+ *                                   of the communities.  Higher resolutions lead to more smaller
+ *                                   communities, lower resolutions lead to fewer larger
+ * communities. (default 1)
+ * @param[in]  theta                 (optional) The value of the parameter to scale modularity
+ *                                    gain in Leiden refinement phase. It is used to compute
+ *                                    the probability of joining a random leiden community.
+ *                                    Called theta in the Leiden algorithm.
+ *
+ * @return                           a pair containing:
+ *                                     1) unique pointer to dendrogram
+ *                                     2) modularity of the returned clustering
+ *
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::pair<std::unique_ptr<dendrogram_t<vertex_t>>, weight_t> leiden(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  size_t max_level    = 100,
+  weight_t resolution = weight_t{1},
+  weight_t theta      = weight_t{1});
+
+/**
+ * @ingroup community_cpp
+ * @brief      Leiden implementation, returning a dendrogram
+ *
+ * Compute a clustering of the graph by maximizing modularity using the Leiden improvements
+ * to the Louvain method.
+ *
+ * Computed using the Leiden method described in:
+ *
+ *    Traag, V. A., Waltman, L., & van Eck, N. J. (2019). From Louvain to Leiden:
+ *    guaranteeing well-connected communities. Scientific reports, 9(1), 5233.
+ *    doi: 10.1038/s41598-019-41695-z
+ *
+ * @throws cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t                  Type of vertex identifiers.
+ *                                   Supported value : int (signed, 32-bit)
+ * @tparam edge_t                    Type of edge identifiers.
+ *                                   Supported value : int (signed, 32-bit)
+ * @tparam weight_t                  Type of edge weights. Supported values : float or double.
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param rng_state The RngState instance holding pseudo-random number generator state.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == false, edge weights are assumed to be 1.0.
+ * @param[in]  max_level             (optional) maximum number of levels to run (default 100)
+ * @param[in]  resolution            (optional) The value of the resolution parameter to use.
+ *                                   (default 1)
+ * @param[in]  theta                 (optional) The value of the parameter to scale modularity
+ *                                    gain in Leiden refinement phase. (default 1)
+ *
+ * @return                           a pair containing:
+ *                                     1) dendrogram
+ *                                     2) modularity of the returned clustering
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::pair<dendrogram_t<vertex_t>, weight_t> leiden_dendrogram(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  size_t max_level    = 100,
+  weight_t resolution = weight_t{1},
+  weight_t theta      = weight_t{1});
+
+/**
+ * @ingroup community_cpp
+ * @brief      Leiden implementation, returning a clustering
+ *
+ * Compute a clustering of the graph by maximizing modularity using the Leiden improvements
+ * to the Louvain method. The returned clustering is the flattened dendrogram. If @p
+ * compact_cluster_ids is true, cluster ids are renumbered to a dense range.
+ *
+ * Computed using the Leiden method described in:
+ *
+ *    Traag, V. A., Waltman, L., & van Eck, N. J. (2019). From Louvain to Leiden:
+ *    guaranteeing well-connected communities. Scientific reports, 9(1), 5233.
+ *    doi: 10.1038/s41598-019-41695-z
+ *
+ * @throws cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t                  Type of vertex identifiers.
+ *                                   Supported value : int (signed, 32-bit)
+ * @tparam edge_t                    Type of edge identifiers.
+ *                                   Supported value : int (signed, 32-bit)
+ * @tparam weight_t                  Type of edge weights. Supported values : float or double.
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param rng_state The RngState instance holding pseudo-random number generator state.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
+ * @param[in]  compact_cluster_ids   If true, renumber cluster ids to a dense range.
+ * @param[in]  max_level             (optional) maximum number of levels to run (default 100)
+ * @param[in]  resolution            (optional) The value of the resolution parameter to use.
+ *                                   (default 1)
+ * @param[in]  theta                 (optional) The value of the parameter to scale modularity
+ *                                    gain in Leiden refinement phase. (default 1)
+ *
+ * @return                           a tuple containing:
+ *                                     1) vertex_property_t storing the clustering
+ *                                     2) number of levels of the returned clustering
+ *                                     3) modularity of the returned clustering
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<vertex_property_t<vertex_t, vertex_t>, size_t, weight_t> leiden(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  bool compact_cluster_ids,
+  size_t max_level    = 100,
+  weight_t resolution = weight_t{1},
+  weight_t theta      = weight_t{1});
+
+/**
+ * @ingroup community_cpp
+ * @brief      Flatten a dendrogram_t at a particular level
+ *
+ * @deprecated This API is deprecated. Use `flatten_dendrogram`, which returns a
+ * `vertex_property_t`. Pass `compact_cluster_ids = false` to match this function.
+ *
+ * A dendrogram_t represents a hierarchical clustering/partitioning of
+ * a graph.  This function will flatten the hierarchical clustering into
+ * a label for each vertex representing the final cluster/partition to
+ * which it is assigned
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam     graph_view_t          Type of graph
+ *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  graph                 input graph object
+ * @param[in]  dendrogram            input dendrogram object
+ * @param[out] clustering            Pointer to device array where the clustering should be stored
+ *
+ */
+template <typename graph_view_t>
+void flatten_dendrogram(raft::handle_t const& handle,
+                        graph_view_t const& graph_view,
+                        dendrogram_t<typename graph_view_t::vertex_type> const& dendrogram,
+                        typename graph_view_t::vertex_type* clustering);
+
+/**
+ * @ingroup community_cpp
+ * @brief      Flatten a dendrogram
+ *
+ * A dendrogram_t represents a hierarchical clustering/partitioning of
+ * a graph.  This function will flatten the hierarchical clustering into
+ * a label for each vertex representing the final cluster/partition to
+ * which it is assigned. If @p compact_cluster_ids is true, those labels are renumbered to a dense
+ * range.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ *
+ * @param[in]  handle               Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  graph_view           Input graph view object.
+ * @param[in]  dendrogram           Input dendrogram object.
+ * @param[in]  compact_cluster_ids  If true, renumber cluster ids to a dense range. Defaults to
+ *                                  false.
+ *
+ * @return                          vertex_property_t storing the clustering for the local vertex
+ *                                  range.
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+vertex_property_t<vertex_t, vertex_t> flatten_dendrogram(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  dendrogram_t<vertex_t> const& dendrogram,
+  bool compact_cluster_ids = false);
 
 /**
 .* @ingroup community_cpp

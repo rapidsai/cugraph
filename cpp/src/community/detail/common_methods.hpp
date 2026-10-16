@@ -105,5 +105,9 @@ compute_cluster_keys_and_values(
   rmm::device_uvector<vertex_t> const& next_clusters_v,
   edge_src_property_t<vertex_t, vertex_t> const& src_clusters_cache);
 
+template <typename vertex_t, bool multi_gpu>
+vertex_t remove_duplicates(raft::handle_t const& handle,
+                           rmm::device_uvector<vertex_t>& input_array);
+
 }  // namespace detail
 }  // namespace cugraph

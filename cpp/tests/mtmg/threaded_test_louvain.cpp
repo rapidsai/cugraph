@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "utilities/base_fixture.hpp"
@@ -270,23 +270,23 @@ class Tests_Multithreaded
 
         if (thread_handle.get_thread_rank() > 0) return;
 
-        rmm::device_uvector<vertex_t> local_louvain_clusters(
-          graph_view.get(thread_handle).local_vertex_partition_range_size(),
-          thread_handle.get_stream());
-
-        std::tie(std::ignore, modularity) = cugraph::louvain<vertex_t, edge_t, weight_t, true>(
-          thread_handle.raft_handle(),
-          std::nullopt,
-          graph_view.get(thread_handle),
-          edge_properties.size() > 0
-            ? std::make_optional(std::get<cugraph::edge_property_t<edge_t, weight_t>>(
-                                   edge_properties[0].get(thread_handle))
-                                   .view())
-            : std::nullopt,
-          local_louvain_clusters.data(),
-          max_level,
-          threshold,
-          resolution);
+        auto [clustering_prop, num_levels, this_modularity] =
+          cugraph::louvain<vertex_t, edge_t, weight_t, true>(
+            thread_handle.raft_handle(),
+            std::nullopt,
+            graph_view.get(thread_handle),
+            edge_properties.size() > 0
+              ? std::make_optional(std::get<cugraph::edge_property_t<edge_t, weight_t>>(
+                                     edge_properties[0].get(thread_handle))
+                                     .view())
+              : std::nullopt,
+            false,
+            max_level,
+            threshold,
+            resolution);
+        (void)num_levels;
+        modularity                  = this_modularity;
+        auto local_louvain_clusters = clustering_prop.release_buffer();
 
         louvain_clusters.set(thread_handle, std::move(local_louvain_clusters));
       });
@@ -415,18 +415,21 @@ class Tests_Multithreaded
       running_threads.resize(0);
       instance_manager->reset_threads();
 
-      rmm::device_uvector<vertex_t> sg_clusters(sg_graph.number_of_vertices(), handle.get_stream());
       weight_t modularity;
 
-      std::tie(std::ignore, modularity) = cugraph::louvain<vertex_t, edge_t, weight_t, false>(
-        handle,
-        std::nullopt,
-        sg_graph.view(),
-        sg_edge_weights ? std::make_optional(sg_edge_weights->view()) : std::nullopt,
-        sg_clusters.data(),
-        max_level,
-        threshold,
-        resolution);
+      auto [clustering_prop, num_levels, modularity_result] =
+        cugraph::louvain<vertex_t, edge_t, weight_t, false>(
+          handle,
+          std::nullopt,
+          sg_graph.view(),
+          sg_edge_weights ? std::make_optional(sg_edge_weights->view()) : std::nullopt,
+          false,
+          max_level,
+          threshold,
+          resolution);
+      (void)num_levels;
+      modularity       = modularity_result;
+      auto sg_clusters = clustering_prop.release_buffer();
 
       auto h_sg_clusters = cugraph::test::to_host(handle, sg_clusters);
       std::map<vertex_t, vertex_t> h_cluster_map;

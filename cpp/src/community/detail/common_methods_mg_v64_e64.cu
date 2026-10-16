@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "community/detail/common_methods.cuh"
@@ -92,6 +92,9 @@ compute_cluster_keys_and_values(
   std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
   rmm::device_uvector<int64_t> const& next_clusters_v,
   edge_src_property_t<int64_t, int64_t> const& src_clusters_cache);
+
+template CUGRAPH_EXPORT int64_t remove_duplicates<int64_t, true>(
+  raft::handle_t const& handle, rmm::device_uvector<int64_t>& input_array);
 
 }  // namespace detail
 }  // namespace cugraph

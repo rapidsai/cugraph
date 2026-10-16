@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -62,7 +62,7 @@ class Tests_MGLouvain
     raft::handle_t const& handle,
     cugraph::graph_view_t<vertex_t, edge_t, false, true> const& mg_graph_view,
     std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> mg_edge_weight_view,
-    cugraph::Dendrogram<vertex_t> const& mg_dendrogram,
+    cugraph::dendrogram_t<vertex_t> const& mg_dendrogram,
     weight_t threshold,
     weight_t resolution,
     weight_t mg_modularity)
@@ -116,18 +116,17 @@ class Tests_MGLouvain
           auto sg_edge_weight_view =
             sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
 
-          rmm::device_uvector<vertex_t> d_sg_cluster_v(sg_graph_view.number_of_vertices(),
-                                                       handle_->get_stream());
-
-          std::tie(std::ignore, sg_modularity) = cugraph::louvain(
+          auto [dendrogram, this_modularity] = cugraph::louvain_dendrogram(
             handle,
             std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
             sg_graph_view,
             sg_edge_weight_view,
-            d_sg_cluster_v.data(),
             size_t{1},
             threshold,
             resolution);
+          sg_modularity = this_modularity;
+          auto d_sg_cluster_v =
+            cugraph::flatten_dendrogram(handle, sg_graph_view, dendrogram, false).release_buffer();
 
           EXPECT_TRUE(cugraph::test::check_invertible(
             handle,
@@ -184,14 +183,15 @@ class Tests_MGLouvain
       hr_timer.start("MG Louvain");
     }
 
-    auto [dendrogram, mg_modularity] = cugraph::louvain<vertex_t, edge_t, weight_t, true>(
-      *handle_,
-      std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
-      mg_graph_view,
-      mg_edge_weight_view,
-      louvain_usecase.max_level_,
-      static_cast<weight_t>(louvain_usecase.threshold_),
-      static_cast<weight_t>(louvain_usecase.resolution_));
+    auto [dendrogram, mg_modularity] =
+      cugraph::louvain_dendrogram<vertex_t, edge_t, weight_t, true>(
+        *handle_,
+        std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
+        mg_graph_view,
+        mg_edge_weight_view,
+        louvain_usecase.max_level_,
+        static_cast<weight_t>(louvain_usecase.threshold_),
+        static_cast<weight_t>(louvain_usecase.resolution_));
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -206,7 +206,7 @@ class Tests_MGLouvain
       compare_sg_results<vertex_t, edge_t, weight_t>(*handle_,
                                                      mg_graph_view,
                                                      mg_edge_weight_view,
-                                                     *dendrogram,
+                                                     dendrogram,
                                                      louvain_usecase.threshold_,
                                                      louvain_usecase.resolution_,
                                                      mg_modularity);

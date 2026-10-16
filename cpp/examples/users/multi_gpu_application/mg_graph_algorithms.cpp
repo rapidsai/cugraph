@@ -205,23 +205,21 @@ void run_graph_algorithms(
   // Louvain
   //
 
-  rmm::device_uvector<vertex_t> d_cluster_assignments(
-    graph_view.local_vertex_partition_range_size(), handle.get_stream());
-
   weight_t threshold  = 1e-7;
   weight_t resolution = 1.0;
   size_t max_level    = 10;
 
-  weight_t modularity{-1.0};
-  std::tie(std::ignore, modularity) =
+  auto [clustering_prop, num_levels, modularity] =
     cugraph::louvain(handle,
                      std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
                      graph_view,
                      edge_weight_view,
-                     d_cluster_assignments.data(),
+                     false,
                      max_level,
                      threshold,
                      resolution);
+  (void)num_levels;
+  auto d_cluster_assignments = clustering_prop.release_buffer();
 
   std::cout << "rank : " << comm_rank << ", modularity : " << modularity << std::endl;
 

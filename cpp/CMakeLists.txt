@@ -280,6 +280,8 @@ set(CUGRAPH_SG_SOURCES
     src/community/louvain_sg_v32_e32.cu
     src/community/leiden_sg_v64_e64.cu
     src/community/leiden_sg_v32_e32.cu
+    src/community/flatten_dendrogram_sg_v64_e64.cu
+    src/community/flatten_dendrogram_sg_v32_e32.cu
     src/community/ecg_sg_v64_e64.cu
     src/community/ecg_sg_v32_e32.cu
     src/community/egonet_sg_v64_e64.cu
@@ -426,6 +428,8 @@ set(CUGRAPH_MG_SOURCES
     src/community/louvain_mg_v32_e32.cu
     src/community/leiden_mg_v64_e64.cu
     src/community/leiden_mg_v32_e32.cu
+    src/community/flatten_dendrogram_mg_v64_e64.cu
+    src/community/flatten_dendrogram_mg_v32_e32.cu
     src/community/ecg_mg_v64_e64.cu
     src/community/ecg_mg_v32_e32.cu
     src/community/egonet_mg_v64_e64.cu

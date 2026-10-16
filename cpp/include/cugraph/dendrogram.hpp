@@ -17,7 +17,7 @@
 namespace CUGRAPH_EXPORT cugraph {
 
 template <typename vertex_t>
-class Dendrogram {
+class dendrogram_t {
  public:
   void add_level(vertex_t first_index,
                  vertex_t num_verts,
@@ -60,5 +60,9 @@ class Dendrogram {
   std::vector<vertex_t> level_first_index_;
   std::vector<std::unique_ptr<rmm::device_uvector<vertex_t>>> level_ptr_;
 };
+
+/** @deprecated Use dendrogram_t. */
+template <typename vertex_t>
+using Dendrogram = dendrogram_t<vertex_t>;
 
 }  // namespace CUGRAPH_EXPORT cugraph

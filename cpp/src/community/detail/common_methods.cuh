@@ -15,14 +15,19 @@
 #include <cugraph/prims/transform_reduce_e.cuh>
 #include <cugraph/prims/transform_reduce_e_by_src_dst_key.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/functional>
 #include <cuda/iterator>
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
@@ -500,6 +505,35 @@ compute_cluster_keys_and_values(
     reduce_op::plus<weight_t>{});
 
   return std::make_tuple(std::move(cluster_keys), std::move(cluster_values));
+}
+
+template <typename vertex_t, bool multi_gpu>
+vertex_t remove_duplicates(raft::handle_t const& handle, rmm::device_uvector<vertex_t>& input_array)
+{
+  cugraph::sort(handle.get_thrust_policy(), input_array.begin(), input_array.end());
+
+  auto nr_unique_elements = static_cast<vertex_t>(cuda::std::distance(
+    input_array.begin(),
+    cugraph::unique(handle.get_thrust_policy(), input_array.begin(), input_array.end())));
+
+  input_array.resize(nr_unique_elements, handle.get_stream());
+
+  if constexpr (multi_gpu) {
+    std::tie(input_array, std::ignore) = shuffle_ext_vertices(
+      handle, std::move(input_array), std::vector<cugraph::arithmetic_device_uvector_t>{});
+
+    cugraph::sort(handle.get_thrust_policy(), input_array.begin(), input_array.end());
+
+    nr_unique_elements = static_cast<vertex_t>(cuda::std::distance(
+      input_array.begin(),
+      cugraph::unique(handle.get_thrust_policy(), input_array.begin(), input_array.end())));
+
+    input_array.resize(nr_unique_elements, handle.get_stream());
+
+    nr_unique_elements = host_scalar_allreduce(
+      handle.get_comms(), nr_unique_elements, raft::comms::op_t::SUM, handle.get_stream());
+  }
+  return nr_unique_elements;
 }
 
 }  // namespace detail
