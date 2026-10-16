@@ -100,21 +100,20 @@ class Tests_ExtractBfsPaths
     ASSERT_TRUE(extract_bfs_paths_usecase.num_paths_to_check < graph_view.number_of_vertices())
       << "Invalid num_paths_to_check, more than number of vertices";
 
-    rmm::device_uvector<vertex_t> d_distances(graph_view.number_of_vertices(), handle.get_stream());
-    rmm::device_uvector<vertex_t> d_predecessors(graph_view.number_of_vertices(),
-                                                 handle.get_stream());
-
     vertex_t const source{static_cast<vertex_t>(extract_bfs_paths_usecase.source)};
-    rmm::device_scalar<vertex_t> const d_source(source, handle.get_stream());
-
-    cugraph::bfs(handle,
-                 graph_view,
-                 d_distances.data(),
-                 d_predecessors.data(),
-                 d_source.data(),
-                 size_t{1},
-                 false,
-                 std::numeric_limits<vertex_t>::max());
+    rmm::device_uvector<vertex_t> frontier(size_t{1}, handle.get_stream());
+    raft::update_device(frontier.data(), &source, size_t{1}, handle.get_stream());
+    handle
+      .sync_stream();  // to guarantee that async H2D copy finishes before source goes out-of-scope
+    auto [distance_property, predecessor_property] =
+      cugraph::bfs(handle,
+                   graph_view,
+                   raft::device_span<vertex_t const>(frontier.data(), frontier.size()),
+                   false,
+                   std::numeric_limits<vertex_t>::max(),
+                   true);
+    auto d_distances    = distance_property.release_buffer();
+    auto d_predecessors = predecessor_property->release_buffer();
 
     auto h_distances    = cugraph::test::to_host(handle, d_distances);
     auto h_predecessors = cugraph::test::to_host(handle, d_predecessors);

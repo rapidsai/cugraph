@@ -240,9 +240,6 @@ bool validate_sampling_depth(raft::handle_t const& handle,
   cugraph::fill(
     handle.get_thrust_policy(), d_distances.begin(), d_distances.end(), vertex_t{max_depth + 1});
 
-  rmm::device_uvector<vertex_t> d_local_distances(graph_view.number_of_vertices(),
-                                                  handle.get_stream());
-
   std::vector<vertex_t> h_source_vertices(d_source_vertices.size());
   raft::update_host(h_source_vertices.data(),
                     d_source_vertices.data(),
@@ -252,14 +249,14 @@ bool validate_sampling_depth(raft::handle_t const& handle,
   for (size_t i = 0; i < d_source_vertices.size(); ++i) {
     if (h_source_vertices[i] != cugraph::invalid_vertex_id<vertex_t>::value) {
       // Do BFS
-      cugraph::bfs<vertex_t, vertex_t, false>(handle,
-                                              graph_view,
-                                              d_local_distances.data(),
-                                              nullptr,
-                                              d_source_vertices.data() + i,
-                                              size_t{1},
-                                              bool{false},
-                                              vertex_t{max_depth});
+      auto [distance_property, predecessor_property] = cugraph::bfs<vertex_t, vertex_t, false>(
+        handle,
+        graph_view,
+        raft::device_span<vertex_t const>(d_source_vertices.data() + i, size_t{1}),
+        false,
+        vertex_t{max_depth},
+        false);
+      auto d_local_distances = distance_property.release_buffer();
 
       auto tuple_iter = thrust::make_zip_iterator(d_distances.begin(), d_local_distances.begin());
 

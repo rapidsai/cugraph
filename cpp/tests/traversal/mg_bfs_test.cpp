@@ -97,19 +97,14 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
 
     // 2. run MG BFS
 
-    rmm::device_uvector<vertex_t> d_mg_distances(mg_graph_view.local_vertex_partition_range_size(),
-                                                 handle_->get_stream());
-    rmm::device_uvector<vertex_t> d_mg_predecessors(
-      mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
-
     vertex_t const source{static_cast<vertex_t>(bfs_usecase.source)};
-    auto d_mg_source =
-      mg_graph_view.in_local_vertex_partition_range_nocheck(source)
-        ? std::make_optional<rmm::device_scalar<vertex_t>>(source, handle_->get_stream())
-        : std::nullopt;
-    if (d_mg_source) {
-      handle_->sync_stream();  // before source goes out-of-scope (async H2D copy from device_scalar
-                               // ctor)
+    rmm::device_uvector<vertex_t> mg_frontier(
+      mg_graph_view.in_local_vertex_partition_range_nocheck(source) ? size_t{1} : size_t{0},
+      handle_->get_stream());
+    if (mg_frontier.size() > 0) {
+      raft::update_device(mg_frontier.data(), &source, size_t{1}, handle_->get_stream());
+      handle_->sync_stream();  // to guarantee that async H2D copy finishes before source goes
+                               // out-of-scope
     }
 
     if (cugraph::test::g_perf) {
@@ -118,14 +113,15 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
       hr_timer.start("MG BFS");
     }
 
-    cugraph::bfs(*handle_,
-                 mg_graph_view,
-                 d_mg_distances.data(),
-                 d_mg_predecessors.data(),
-                 d_mg_source ? (*d_mg_source).data() : static_cast<vertex_t const*>(nullptr),
-                 d_mg_source ? size_t{1} : size_t{0},
-                 mg_graph_view.is_symmetric() ? true : false,
-                 std::numeric_limits<vertex_t>::max());
+    auto [mg_distance_property, mg_predecessor_property] =
+      cugraph::bfs(*handle_,
+                   mg_graph_view,
+                   raft::device_span<vertex_t const>(mg_frontier.data(), mg_frontier.size()),
+                   mg_graph_view.is_symmetric() ? true : false,
+                   std::numeric_limits<vertex_t>::max(),
+                   true);
+    auto d_mg_distances    = mg_distance_property.release_buffer();
+    auto d_mg_predecessors = mg_predecessor_property->release_buffer();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -148,8 +144,8 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
 
       cugraph::unrenumber_int_vertices<vertex_t, true>(
         *handle_,
-        d_mg_source ? (*d_mg_source).data() : static_cast<vertex_t*>(nullptr),
-        d_mg_source ? size_t{1} : size_t{0},
+        mg_frontier.data(),
+        mg_frontier.size(),
         (*mg_renumber_map).data(),
         mg_graph_view.vertex_partition_range_lasts());
 
@@ -177,10 +173,8 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           raft::device_span<vertex_t const>(d_mg_predecessors.data(), d_mg_predecessors.size()));
 
-      auto d_mg_aggregate_sources = cugraph::test::device_gatherv(
-        *handle_,
-        d_mg_source ? (*d_mg_source).data() : static_cast<vertex_t const*>(nullptr),
-        d_mg_source ? size_t{1} : size_t{0});
+      auto d_mg_aggregate_sources =
+        cugraph::test::device_gatherv(*handle_, mg_frontier.data(), mg_frontier.size());
 
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
       std::tie(sg_graph, std::ignore, std::ignore, std::ignore, std::ignore) =
@@ -201,19 +195,16 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
 
         ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
 
-        rmm::device_uvector<vertex_t> d_sg_distances(sg_graph_view.number_of_vertices(),
-                                                     handle_->get_stream());
-        rmm::device_uvector<vertex_t> d_sg_predecessors(
-          sg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
-
-        cugraph::bfs(*handle_,
-                     sg_graph_view,
-                     d_sg_distances.data(),
-                     d_sg_predecessors.data(),
-                     d_mg_aggregate_sources.data(),
-                     d_mg_aggregate_sources.size(),
-                     false,
-                     std::numeric_limits<vertex_t>::max());
+        auto [sg_distance_property, sg_predecessor_property] =
+          cugraph::bfs(*handle_,
+                       sg_graph_view,
+                       raft::device_span<vertex_t const>(d_mg_aggregate_sources.data(),
+                                                         d_mg_aggregate_sources.size()),
+                       false,
+                       std::numeric_limits<vertex_t>::max(),
+                       true);
+        auto d_sg_distances    = sg_distance_property.release_buffer();
+        auto d_sg_predecessors = sg_predecessor_property->release_buffer();
 
         // 3-4. compare
 

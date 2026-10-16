@@ -103,13 +103,7 @@ extract(raft::handle_t const& handle,
                                               worker_stream_view);
     reached.push_back(std::move(local_reach));
 
-    // BFS with cutoff
-    // consider adding a device API to BFS (ie. accept source on the device)
     bool direction_optimizing = false;
-    cugraph::fill(rmm::exec_policy(worker_stream_view),
-                  reached[i].begin(),
-                  reached[i].end(),
-                  std::numeric_limits<vertex_t>::max());
 
     raft::device_span<vertex_t const> source{source_vertex.data() + i, 1};
 
@@ -123,22 +117,22 @@ extract(raft::handle_t const& handle,
         source = raft::device_span<vertex_t const>{source_vertex.data(), size_t{0}};
     }
 
-    cugraph::bfs<vertex_t, edge_t, multi_gpu>(multi_gpu ? handle : light_handle,
-                                              graph_view,
-                                              reached[i].data(),
-                                              nullptr,
-                                              source.data(),
-                                              source.size(),
-                                              direction_optimizing,
-                                              radius,
-                                              do_expensive_check);
+    auto [distance_property, predecessor_property] =
+      cugraph::bfs<vertex_t, edge_t, multi_gpu>(multi_gpu ? handle : light_handle,
+                                                graph_view,
+                                                source,
+                                                direction_optimizing,
+                                                radius,
+                                                false,
+                                                do_expensive_check);
+    auto distances = distance_property.release_buffer();
 
     // identify reached vertex ids from distance array
     thrust::transform(
       rmm::exec_policy(worker_stream_view),
       thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
       thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
-      reached[i].begin(),
+      distances.begin(),
       reached[i].begin(),
       [sentinel = std::numeric_limits<vertex_t>::max()] __device__(auto id, auto val) {
         return val < sentinel ? id : sentinel;

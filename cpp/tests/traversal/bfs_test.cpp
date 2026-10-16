@@ -129,28 +129,25 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
                 static_cast<vertex_t>(bfs_usecase.source) < graph_view.number_of_vertices())
       << "Invalid starting source.";
 
-    rmm::device_uvector<vertex_t> d_distances(graph_view.number_of_vertices(), handle.get_stream());
-    rmm::device_uvector<vertex_t> d_predecessors(graph_view.number_of_vertices(),
-                                                 handle.get_stream());
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.start("BFS");
     }
 
     vertex_t const source{static_cast<vertex_t>(bfs_usecase.source)};
-    rmm::device_scalar<vertex_t> const d_source(source, handle.get_stream());
+    rmm::device_uvector<vertex_t> frontier(size_t{1}, handle.get_stream());
+    raft::update_device(frontier.data(), &source, size_t{1}, handle.get_stream());
     handle
-      .sync_stream();  // before source goes out-of-scope (async H2D copy from device_scalar ctor)
-
-    cugraph::bfs(handle,
-                 graph_view,
-                 d_distances.data(),
-                 d_predecessors.data(),
-                 d_source.data(),
-                 size_t{1},
-                 graph_view.is_symmetric() ? true : false,
-                 std::numeric_limits<vertex_t>::max());
+      .sync_stream();  // to guarantee that async H2D copy finishes before source goes out-of-scope
+    auto [distance_property, predecessor_property] =
+      cugraph::bfs(handle,
+                   graph_view,
+                   raft::device_span<vertex_t const>(frontier.data(), frontier.size()),
+                   graph_view.is_symmetric() ? true : false,
+                   std::numeric_limits<vertex_t>::max(),
+                   true);
+    auto d_distances    = distance_property.release_buffer();
+    auto d_predecessors = predecessor_property->release_buffer();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "detail/graph500_forest_pruning_utils.cuh"
@@ -630,22 +630,17 @@ class Tests_GRAPH500_MGBFS
         handle_->sync_stream();  // this should finish before h_staging_buffer goes out-of-scope
       }
 
-      rmm::device_uvector<vertex_t> d_mg_bfs_predecessors(
-        reachable_from_2cores ? mg_pruned_graph_view.local_vertex_partition_range_size()
-                              : mg_isolated_trees_view.local_vertex_partition_range_size(),
-        handle_->get_stream());
-      rmm::device_uvector<vertex_t> d_mg_bfs_distances(d_mg_bfs_predecessors.size(),
-                                                       handle_->get_stream());
-
-      cugraph::bfs(*handle_,
-                   reachable_from_2cores ? mg_pruned_graph_view : mg_isolated_trees_view,
-                   d_mg_bfs_distances.data(),
-                   d_mg_bfs_predecessors.data(),
-                   d_bfs_starting_vertex ? d_bfs_starting_vertex->data()
-                                         : static_cast<vertex_t const*>(nullptr),
-                   d_bfs_starting_vertex ? size_t{1} : size_t{0},
-                   true /* direction_optimizing */,
-                   std::numeric_limits<vertex_t>::max() /* depth limit */);
+      auto [distance_property, predecessor_property] =
+        cugraph::bfs(*handle_,
+                     reachable_from_2cores ? mg_pruned_graph_view : mg_isolated_trees_view,
+                     d_bfs_starting_vertex
+                       ? raft::device_span<vertex_t const>(d_bfs_starting_vertex->data(), size_t{1})
+                       : raft::device_span<vertex_t const>(nullptr, size_t{0}),
+                     true /* direction_optimizing */,
+                     std::numeric_limits<vertex_t>::max() /* depth limit */,
+                     true);
+      auto d_mg_bfs_distances    = distance_property.release_buffer();
+      auto d_mg_bfs_predecessors = predecessor_property->release_buffer();
 
       if (reachable_from_2cores && mg_pruned_graph_pred_unrenumber_cache) {
         mg_pruned_graph_pred_unrenumber_cache->unrenumber(

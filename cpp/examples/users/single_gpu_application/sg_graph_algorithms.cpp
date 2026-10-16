@@ -116,23 +116,19 @@ void run_graph_algorithms(
   // BFS
   //
 
-  rmm::device_uvector<vertex_t> d_distances(graph_view.local_vertex_partition_range_size(),
-                                            handle.get_stream());
-  rmm::device_uvector<vertex_t> d_predecessors(graph_view.local_vertex_partition_range_size(),
-                                               handle.get_stream());
-
   rmm::device_uvector<vertex_t> d_sources(1, handle.get_stream());
   std::vector<vertex_t> h_sources = {0};
   raft::update_device(d_sources.data(), h_sources.data(), h_sources.size(), handle.get_stream());
 
-  cugraph::bfs(handle,
-               graph_view,
-               d_distances.data(),
-               d_predecessors.data(),
-               d_sources.data(),
-               d_sources.size(),
-               false,
-               std::numeric_limits<vertex_t>::max());
+  auto [distance_property, predecessor_property] =
+    cugraph::bfs(handle,
+                 graph_view,
+                 raft::device_span<vertex_t const>(d_sources.data(), d_sources.size()),
+                 false,
+                 std::numeric_limits<vertex_t>::max(),
+                 true);
+  auto d_distances    = distance_property.release_buffer();
+  auto d_predecessors = predecessor_property->release_buffer();
 
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
