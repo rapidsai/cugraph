@@ -443,26 +443,21 @@ std::variant<vertex_property_t<vertex_t, edge_t>, rmm::device_uvector<edge_t>> t
 
   // 6. neighbor intersection
 
-  rmm::device_uvector<edge_t> cur_graph_counts(size_t{0}, handle.get_stream());
-  {
-    cur_graph_counts.resize(cur_graph_view.local_vertex_partition_range_size(),
-                            handle.get_stream());
-
-    transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(handle,
-                                                              cur_graph_view,
-                                                              edge_src_dummy_property_t{}.view(),
-                                                              edge_dst_dummy_property_t{}.view(),
-                                                              intersection_op_t<vertex_t, edge_t>{},
-                                                              edge_t{0},
-                                                              cur_graph_counts.begin(),
-                                                              do_expensive_check);
-  }
+  vertex_property_t<vertex_t, edge_t> cur_graph_counts(handle, cur_graph_view);
+  transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(handle,
+                                                            cur_graph_view,
+                                                            edge_src_dummy_property_t{}.view(),
+                                                            edge_dst_dummy_property_t{}.view(),
+                                                            intersection_op_t<vertex_t, edge_t>{},
+                                                            edge_t{0},
+                                                            cur_graph_counts.mutable_view(),
+                                                            do_expensive_check);
 
   // 7. update counts
 
   {
     auto local_vertices = std::move(*renumber_map);
-    auto local_counts   = std::move(cur_graph_counts);
+    auto local_counts   = cur_graph_counts.release_buffer();
 
     if constexpr (multi_gpu) {
       auto& comm       = handle.get_comms();

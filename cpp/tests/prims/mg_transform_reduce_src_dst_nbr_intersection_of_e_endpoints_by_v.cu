@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -20,6 +20,7 @@
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
+#include <cugraph/vertex_property.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
@@ -141,7 +142,8 @@ class Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV
         mg_dst_prop.view(),
         intersection_op_t<vertex_t, edge_t>{},
         property_initial_value,
-        mg_result_buffer.begin());
+        cugraph::vertex_property_view_t{mg_result_buffer.begin(),
+                                        mg_graph_view.local_vertex_partition_range_size()});
     } else {
       cugraph::transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
         *handle_,
@@ -150,7 +152,8 @@ class Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV
         mg_dst_prop.view(),
         intersection_op_t<vertex_t, edge_t>{},
         property_initial_value,
-        mg_result_buffer.begin());
+        cugraph::vertex_property_view_t{mg_result_buffer.begin(),
+                                        mg_graph_view.local_vertex_partition_range_size()});
     }
 
     if (cugraph::test::g_perf) {
@@ -211,7 +214,8 @@ class Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV
             sg_dst_prop.view(),
             intersection_op_t<vertex_t, edge_t>{},
             property_initial_value,
-            sg_result_buffer.begin());
+            cugraph::vertex_property_view_t{sg_result_buffer.begin(),
+                                            sg_graph_view.local_vertex_partition_range_size()});
         } else {
           cugraph::transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
             *handle_,
@@ -220,7 +224,8 @@ class Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV
             sg_dst_prop.view(),
             intersection_op_t<vertex_t, edge_t>{},
             property_initial_value,
-            sg_result_buffer.begin());
+            cugraph::vertex_property_view_t{sg_result_buffer.begin(),
+                                            sg_graph_view.local_vertex_partition_range_size()});
         }
 
         bool valid = thrust::equal(handle_->get_thrust_policy(),
