@@ -6,6 +6,7 @@
 
 #include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/utilities/thrust_wrappers/fill.hpp>
 
 #include <raft/core/handle.hpp>
@@ -48,10 +49,27 @@ void fill_v(raft::handle_t const& handle,
   }
 
   auto output_value_first = vertex_value_output.value_first();
-  cugraph::fill(handle.get_thrust_policy(),
-                output_value_first,
-                output_value_first + graph_view.local_vertex_partition_range_size(),
-                input);
+  if constexpr (cugraph::has_packed_bool_element<typename VertexValueOutputWrapper::value_iterator,
+                                                 typename VertexValueOutputWrapper::value_type>()) {
+    auto num_bools    = static_cast<size_t>(graph_view.local_vertex_partition_range_size());
+    auto rem          = num_bools % packed_bools_per_word();
+    auto packed_input = input ? packed_bool_full_mask() : packed_bool_empty_mask();
+    cugraph::fill(handle.get_thrust_policy(),
+                  output_value_first,
+                  output_value_first + packed_bool_size(num_bools - rem),
+                  packed_input);
+    if (rem > 0) {
+      cugraph::fill(handle.get_thrust_policy(),
+                    output_value_first + packed_bool_size(num_bools - rem),
+                    output_value_first + packed_bool_size(num_bools - rem) + 1,
+                    packed_input & packed_bool_partial_mask(rem));
+    }
+  } else {
+    cugraph::fill(handle.get_thrust_policy(),
+                  output_value_first,
+                  output_value_first + graph_view.local_vertex_partition_range_size(),
+                  input);
+  }
 }
 
 }  // namespace CUGRAPH_EXPORT cugraph

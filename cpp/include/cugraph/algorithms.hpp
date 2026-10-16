@@ -22,6 +22,7 @@
 
 #include <optional>
 #include <tuple>
+#include <variant>
 
 /** @ingroup cpp_api
  *  @{
@@ -2161,6 +2162,10 @@ k_core(raft::handle_t const& handle,
  * @ingroup community_cpp
  * @brief Compute triangle counts.
  *
+ * @deprecated This API is deprecated and replaced by the overload below. That overload returns a
+ * `vertex_property_t` when @p vertices is `std::nullopt` and an `rmm::device_uvector` when @p
+ * vertices has a value.
+ *
  * Compute triangle counts for the entire set of vertices (if @p vertices is std::nullopt) or the
  * given vertices (@p vertices.has_value() is true).
  *
@@ -2186,6 +2191,36 @@ void triangle_count(raft::handle_t const& handle,
                     std::optional<raft::device_span<vertex_t const>> vertices,
                     raft::device_span<edge_t> counts,
                     bool do_expensive_check = false);
+
+/**
+ * @ingroup community_cpp
+ * @brief Compute triangle counts.
+ *
+ * Compute triangle counts for the entire set of vertices (if @p vertices is std::nullopt) or the
+ * given vertices (@p vertices.has_value() is true).
+ *
+ * This algorithms does not support multi-graphs. Self-loops are excluded in computing triangle
+ * counts.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param vertices Vertices to compute triangle counts. If @p vertices.has_value() is false, compute
+ * triangle counts for the entire set of vertices.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return `vertex_property_t` containing a triangle count for every local vertex when @p vertices
+ * is `std::nullopt`. `rmm::device_uvector` containing the triangle count of each vertex in @p
+ * vertices, in the same order, when @p vertices.has_value() is true.
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::variant<vertex_property_t<vertex_t, edge_t>, rmm::device_uvector<edge_t>> triangle_count(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<raft::device_span<vertex_t const>> vertices,
+  bool do_expensive_check = false);
 
 /**
 .* @ingroup community_cpp

@@ -104,6 +104,20 @@ void pack_unaligned_bools(raft::handle_t const& handle,
              output_first + (num_first_word_bools > 0 ? 1 : 0));
 }
 
+template <bool input_is_packed, typename InputIterator, typename PackedBoolOutputIterator>
+void copy_or_pack_bools(raft::handle_t const& handle,
+                        InputIterator input_first,
+                        size_t num_bools,
+                        PackedBoolOutputIterator output_first)
+{
+  if constexpr (input_is_packed) {
+    auto packed_size = packed_bool_size(num_bools);
+    thrust::copy(handle.get_thrust_policy(), input_first, input_first + packed_size, output_first);
+  } else {
+    pack_bools(handle, input_first, input_first + num_bools, output_first);
+  }
+}
+
 template <typename GraphViewType,
           typename VertexValueInputWrapper,
           typename EdgeMajorPropertyOutputWrapper>
@@ -117,6 +131,9 @@ void update_edge_major_property(raft::handle_t const& handle,
   constexpr bool contains_packed_bool_element =
     cugraph::has_packed_bool_element<typename EdgeMajorPropertyOutputWrapper::value_iterator,
                                      typename EdgeMajorPropertyOutputWrapper::value_type>();
+  constexpr bool input_is_packed_bool =
+    cugraph::is_packed_bool<typename VertexValueInputWrapper::value_iterator,
+                            typename VertexValueInputWrapper::value_type>();
   static_assert(!contains_packed_bool_element ||
                   std::is_arithmetic_v<typename EdgeMajorPropertyOutputWrapper::value_type>,
                 "unimplemented for cuda::std::tuple types with a packed bool element.");
@@ -157,11 +174,12 @@ void update_edge_major_property(raft::handle_t const& handle,
             major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
         if constexpr (contains_packed_bool_element) {
           if (i == minor_comm_rank) {
-            pack_bools(handle,
-                       vertex_property_input_first,
-                       vertex_property_input_first +
-                         graph_view.vertex_partition_range_size(major_range_vertex_partition_id),
-                       rx_value_first);
+            copy_or_pack_bools<input_is_packed_bool>(
+              handle,
+              vertex_property_input_first,
+              static_cast<size_t>(
+                graph_view.vertex_partition_range_size(major_range_vertex_partition_id)),
+              rx_value_first);
           }
           device_bcast(minor_comm,
                        rx_value_first,
@@ -210,11 +228,12 @@ void update_edge_major_property(raft::handle_t const& handle,
             major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
         if constexpr (contains_packed_bool_element) {
           if (i == minor_comm_rank) {
-            pack_bools(handle,
-                       vertex_property_input_first,
-                       vertex_property_input_first +
-                         graph_view.vertex_partition_range_size(major_range_vertex_partition_id),
-                       edge_partition_value_firsts[i]);
+            copy_or_pack_bools<input_is_packed_bool>(
+              handle,
+              vertex_property_input_first,
+              static_cast<size_t>(
+                graph_view.vertex_partition_range_size(major_range_vertex_partition_id)),
+              edge_partition_value_firsts[i]);
           }
           device_bcast(minor_comm,
                        edge_partition_value_firsts[i],
@@ -239,10 +258,11 @@ void update_edge_major_property(raft::handle_t const& handle,
              : graph_view.local_edge_partition_src_range_size());
     assert(edge_partition_value_firsts.size() == size_t{1});
     if constexpr (contains_packed_bool_element) {
-      pack_bools(handle,
-                 vertex_property_input_first,
-                 vertex_property_input_first + graph_view.local_vertex_partition_range_size(),
-                 edge_partition_value_firsts[0]);
+      copy_or_pack_bools<input_is_packed_bool>(
+        handle,
+        vertex_property_input_first,
+        static_cast<size_t>(graph_view.local_vertex_partition_range_size()),
+        edge_partition_value_firsts[0]);
     } else {
       thrust::copy(handle.get_thrust_policy(),
                    vertex_property_input_first,
@@ -439,6 +459,9 @@ void update_edge_minor_property(raft::handle_t const& handle,
   constexpr bool contains_packed_bool_element =
     cugraph::has_packed_bool_element<typename EdgeMinorPropertyOutputWrapper::value_iterator,
                                      typename EdgeMinorPropertyOutputWrapper::value_type>();
+  constexpr bool input_is_packed_bool =
+    cugraph::is_packed_bool<typename VertexValueInputWrapper::value_iterator,
+                            typename VertexValueInputWrapper::value_type>();
   static_assert(!contains_packed_bool_element ||
                   std::is_arithmetic_v<typename EdgeMinorPropertyOutputWrapper::value_type>,
                 "unimplemented for cuda::std::tuple types with a packed bool element.");
@@ -543,11 +566,12 @@ void update_edge_minor_property(raft::handle_t const& handle,
               compute_local_edge_partition_minor_range_vertex_partition_id_t{
                 major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(j);
             auto rx_value_first = get_dataframe_buffer_begin((*rx_value_buffers)[i]);
-            pack_bools(handle,
-                       vertex_property_input_first,
-                       vertex_property_input_first +
-                         graph_view.vertex_partition_range_size(minor_range_vertex_partition_id),
-                       rx_value_first);
+            copy_or_pack_bools<input_is_packed_bool>(
+              handle,
+              vertex_property_input_first,
+              static_cast<size_t>(
+                graph_view.vertex_partition_range_size(minor_range_vertex_partition_id)),
+              rx_value_first);
           }
         }
       }
@@ -653,10 +677,11 @@ void update_edge_minor_property(raft::handle_t const& handle,
              ? graph_view.local_edge_partition_src_range_size()
              : graph_view.local_edge_partition_dst_range_size());
     if constexpr (contains_packed_bool_element) {
-      pack_bools(handle,
-                 vertex_property_input_first,
-                 vertex_property_input_first + graph_view.local_vertex_partition_range_size(),
-                 edge_partition_value_first);
+      copy_or_pack_bools<input_is_packed_bool>(
+        handle,
+        vertex_property_input_first,
+        static_cast<size_t>(graph_view.local_vertex_partition_range_size()),
+        edge_partition_value_first);
     } else {
       thrust::copy(handle.get_thrust_policy(),
                    vertex_property_input_first,

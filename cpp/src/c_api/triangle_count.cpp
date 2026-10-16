@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -91,8 +91,6 @@ struct triangle_count_functor : public cugraph::c_api::abstract_functor {
             handle_, std::move(vertices), std::vector<cugraph::arithmetic_device_uvector_t>{});
         }
 
-        counts.resize(vertices.size(), handle_.get_stream());
-
         cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
           handle_,
           vertices.data(),
@@ -101,18 +99,21 @@ struct triangle_count_functor : public cugraph::c_api::abstract_functor {
           graph_view.local_vertex_partition_range_first(),
           graph_view.local_vertex_partition_range_last(),
           do_expensive_check_);
-      } else {
-        counts.resize(graph_view.local_vertex_partition_range_size(), handle_.get_stream());
       }
 
-      cugraph::triangle_count<vertex_t, edge_t, multi_gpu>(
+      auto triangle_counts = cugraph::triangle_count<vertex_t, edge_t, multi_gpu>(
         handle_,
         graph_view,
         vertices_ == nullptr
           ? std::nullopt
-          : std::make_optional(raft::device_span<vertex_t>{vertices.data(), vertices.size()}),
-        raft::device_span<edge_t>{counts.data(), counts.size()},
+          : std::make_optional(raft::device_span<vertex_t const>{vertices.data(), vertices.size()}),
         do_expensive_check_);
+      if (vertices_ == nullptr) {
+        counts =
+          std::get<cugraph::vertex_property_t<vertex_t, edge_t>>(triangle_counts).release_buffer();
+      } else {
+        counts = std::move(std::get<rmm::device_uvector<edge_t>>(triangle_counts));
+      }
 
       if (vertices_ == nullptr) {
         vertices.resize(graph_view.local_vertex_partition_range_size(), handle_.get_stream());

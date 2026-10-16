@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -28,6 +28,7 @@
 #include <limits>
 #include <numeric>
 #include <random>
+#include <variant>
 #include <vector>
 
 template <typename vertex_t, typename edge_t>
@@ -163,22 +164,22 @@ class Tests_TriangleCount
         (*d_vertices).data(), (*h_vertices).data(), (*h_vertices).size(), handle.get_stream());
     }
 
-    rmm::device_uvector<edge_t> d_triangle_counts(
-      d_vertices ? (*d_vertices).size() : graph_view.number_of_vertices(), handle.get_stream());
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.start("TriangleCount");
     }
 
-    cugraph::triangle_count<vertex_t, edge_t, false>(
+    auto triangle_counts = cugraph::triangle_count<vertex_t, edge_t, false>(
       handle,
       graph_view,
       d_vertices ? std::make_optional<raft::device_span<vertex_t const>>((*d_vertices).begin(),
                                                                          (*d_vertices).end())
                  : std::nullopt,
-      raft::device_span<edge_t>(d_triangle_counts.begin(), d_triangle_counts.end()),
       false);
+    auto d_triangle_counts =
+      d_vertices
+        ? std::move(std::get<rmm::device_uvector<edge_t>>(triangle_counts))
+        : std::get<cugraph::vertex_property_t<vertex_t, edge_t>>(triangle_counts).release_buffer();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

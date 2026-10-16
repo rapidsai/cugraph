@@ -10,9 +10,12 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/prims/extract_transform_if_e.cuh>
 #include <cugraph/prims/fill_edge_property.cuh>
+#include <cugraph/prims/fill_v.cuh>
 #include <cugraph/prims/make_initialized_edge_property.cuh>
+#include <cugraph/prims/scatter_v.cuh>
 #include <cugraph/prims/transform_e.cuh>
 #include <cugraph/prims/transform_reduce_src_dst_nbr_intersection_of_e_endpoints_by_v.cuh>
+#include <cugraph/prims/transform_v.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -35,6 +38,8 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/unique.h>
+
+#include <variant>
 
 namespace cugraph {
 
@@ -121,11 +126,11 @@ struct vertex_to_count_t {
 }  // namespace
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-void triangle_count(raft::handle_t const& handle,
-                    graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-                    std::optional<raft::device_span<vertex_t const>> vertices,
-                    raft::device_span<edge_t> counts,
-                    bool do_expensive_check)
+std::variant<vertex_property_t<vertex_t, edge_t>, rmm::device_uvector<edge_t>> triangle_count(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<raft::device_span<vertex_t const>> vertices,
+  bool do_expensive_check)
 {
   using weight_t = float;  // dummy
 
@@ -137,14 +142,6 @@ void triangle_count(raft::handle_t const& handle,
   CUGRAPH_EXPECTS(
     !graph_view.is_multigraph(),
     "Invalid input arguments: triangle_count currently does not support multi-graphs.");
-  if (vertices) {
-    CUGRAPH_EXPECTS(counts.size() == (*vertices).size(),
-                    "Invalid arguments: counts.size() does not coincide with (*vertices).size().");
-  } else {
-    CUGRAPH_EXPECTS(
-      counts.size() == static_cast<size_t>(graph_view.local_vertex_partition_range_size()),
-      "Invalid arguments: counts.size() does not coincide with the number of local vertices.");
-  }
 
   if (do_expensive_check) {
     if (vertices) {
@@ -173,7 +170,9 @@ void triangle_count(raft::handle_t const& handle,
         ? host_scalar_allreduce(
             handle.get_comms(), (*vertices).size(), raft::comms::op_t::SUM, handle.get_stream())
         : (*vertices).size();
-    if (aggregate_vertex_count == 0) { return; }
+    if (aggregate_vertex_count == 0) {
+      return rmm::device_uvector<edge_t>(size_t{0}, handle.get_stream());
+    }
   }
 
   auto cur_graph_view = graph_view;
@@ -186,9 +185,9 @@ void triangle_count(raft::handle_t const& handle,
   if (vertices) {
     auto within_two_hop_edge_mask = make_initialized_edge_property(handle, cur_graph_view, false);
 
-    rmm::device_uvector<vertex_t> unique_vertices((*vertices).size(), handle.get_stream());
+    rmm::device_uvector<vertex_t> unique_vertices(vertices->size(), handle.get_stream());
     thrust::copy(
-      handle.get_thrust_policy(), (*vertices).begin(), (*vertices).end(), unique_vertices.begin());
+      handle.get_thrust_policy(), vertices->begin(), vertices->end(), unique_vertices.begin());
     cugraph::sort(handle.get_thrust_policy(), unique_vertices.begin(), unique_vertices.end());
     unique_vertices.resize(cuda::std::distance(unique_vertices.begin(),
                                                cugraph::unique(handle.get_thrust_policy(),
@@ -270,64 +269,46 @@ void triangle_count(raft::handle_t const& handle,
                                  handle.get_stream());
     }
 
-    rmm::device_uvector<bool> within_two_hop_flags(
-      cur_graph_view.local_vertex_partition_range_size(), handle.get_stream());
+    vertex_property_t<vertex_t, bool> within_two_hop_flags(handle, cur_graph_view);
+    fill_v(handle, cur_graph_view, within_two_hop_flags.mutable_view(), false);
 
-    cugraph::fill(
-      handle.get_thrust_policy(), within_two_hop_flags.begin(), within_two_hop_flags.end(), false);
-    thrust::for_each(handle.get_thrust_policy(),
-                     unique_vertices.begin(),
-                     unique_vertices.end(),
-                     [within_two_hop_flags = raft::device_span<bool>(within_two_hop_flags.data(),
-                                                                     within_two_hop_flags.size()),
-                      local_vertex_partition_range_first =
-                        cur_graph_view.local_vertex_partition_range_first()] __device__(auto v) {
-                       auto v_offset                  = v - local_vertex_partition_range_first;
-                       within_two_hop_flags[v_offset] = true;
-                     });
+    scatter_v(handle,
+              cur_graph_view,
+              cuda::make_constant_iterator(true),
+              cuda::make_constant_iterator(true) + unique_vertices.size(),
+              unique_vertices.begin(),
+              within_two_hop_flags.mutable_view());
     unique_vertices.resize(0, handle.get_stream());
     unique_vertices.shrink_to_fit(handle.get_stream());
 
-    thrust::for_each(handle.get_thrust_policy(),
-                     unique_one_hop_nbrs.begin(),
-                     unique_one_hop_nbrs.end(),
-                     [within_two_hop_flags = raft::device_span<bool>(within_two_hop_flags.data(),
-                                                                     within_two_hop_flags.size()),
-                      local_vertex_partition_range_first =
-                        cur_graph_view.local_vertex_partition_range_first()] __device__(auto v) {
-                       auto v_offset                  = v - local_vertex_partition_range_first;
-                       within_two_hop_flags[v_offset] = true;
-                     });
+    scatter_v(handle,
+              cur_graph_view,
+              cuda::make_constant_iterator(true),
+              cuda::make_constant_iterator(true) + unique_one_hop_nbrs.size(),
+              unique_one_hop_nbrs.begin(),
+              within_two_hop_flags.mutable_view());
     unique_one_hop_nbrs.resize(0, handle.get_stream());
     unique_one_hop_nbrs.shrink_to_fit(handle.get_stream());
 
-    thrust::for_each(handle.get_thrust_policy(),
-                     unique_two_hop_nbrs.begin(),
-                     unique_two_hop_nbrs.end(),
-                     [within_two_hop_flags = raft::device_span<bool>(within_two_hop_flags.data(),
-                                                                     within_two_hop_flags.size()),
-                      local_vertex_partition_range_first =
-                        cur_graph_view.local_vertex_partition_range_first()] __device__(auto v) {
-                       auto v_offset                  = v - local_vertex_partition_range_first;
-                       within_two_hop_flags[v_offset] = true;
-                     });
+    scatter_v(handle,
+              cur_graph_view,
+              cuda::make_constant_iterator(true),
+              cuda::make_constant_iterator(true) + unique_two_hop_nbrs.size(),
+              unique_two_hop_nbrs.begin(),
+              within_two_hop_flags.mutable_view());
     unique_two_hop_nbrs.resize(0, handle.get_stream());
     unique_two_hop_nbrs.shrink_to_fit(handle.get_stream());
 
     edge_src_property_t<vertex_t, bool> edge_src_within_two_hop_flags(handle, cur_graph_view);
     edge_dst_property_t<vertex_t, bool> edge_dst_within_two_hop_flags(handle, cur_graph_view);
-    update_edge_src_property(
-      handle,
-      cur_graph_view,
-      vertex_property_view_t{within_two_hop_flags.begin(),
-                             cur_graph_view.local_vertex_partition_range_size()},
-      edge_src_within_two_hop_flags.mutable_view());
-    update_edge_dst_property(
-      handle,
-      cur_graph_view,
-      vertex_property_view_t{within_two_hop_flags.begin(),
-                             cur_graph_view.local_vertex_partition_range_size()},
-      edge_dst_within_two_hop_flags.mutable_view());
+    update_edge_src_property(handle,
+                             cur_graph_view,
+                             within_two_hop_flags.view(),
+                             edge_src_within_two_hop_flags.mutable_view());
+    update_edge_dst_property(handle,
+                             cur_graph_view,
+                             within_two_hop_flags.view(),
+                             edge_dst_within_two_hop_flags.mutable_view());
 
     transform_e(
       handle,
@@ -376,25 +357,17 @@ void triangle_count(raft::handle_t const& handle,
 
     edge_src_property_t<vertex_t, bool> edge_src_in_two_cores(handle, cur_graph_view);
     edge_dst_property_t<vertex_t, bool> edge_dst_in_two_cores(handle, cur_graph_view);
-    auto in_two_core_first =
-      cuda::make_transform_iterator(core_numbers.begin(), is_two_or_greater_t<edge_t>{});
-    rmm::device_uvector<bool> in_two_core_flags(core_numbers.size(), handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(),
-                 in_two_core_first,
-                 in_two_core_first + core_numbers.size(),
-                 in_two_core_flags.begin());
+    vertex_property_t<vertex_t, bool> in_two_core_flags(handle, cur_graph_view);
+    transform_v(handle,
+                cur_graph_view,
+                vertex_property_view_t{core_numbers.begin(),
+                                       cur_graph_view.local_vertex_partition_range_size()},
+                is_two_or_greater_t<edge_t>{},
+                in_two_core_flags.mutable_view());
     update_edge_src_property(
-      handle,
-      cur_graph_view,
-      vertex_property_view_t{in_two_core_flags.begin(),
-                             cur_graph_view.local_vertex_partition_range_size()},
-      edge_src_in_two_cores.mutable_view());
+      handle, cur_graph_view, in_two_core_flags.view(), edge_src_in_two_cores.mutable_view());
     update_edge_dst_property(
-      handle,
-      cur_graph_view,
-      vertex_property_view_t{in_two_core_flags.begin(),
-                             cur_graph_view.local_vertex_partition_range_size()},
-      edge_dst_in_two_cores.mutable_view());
+      handle, cur_graph_view, in_two_core_flags.view(), edge_dst_in_two_cores.mutable_view());
 
     transform_e(
       handle,
@@ -488,7 +461,6 @@ void triangle_count(raft::handle_t const& handle,
   // 7. update counts
 
   {
-    cugraph::fill(handle.get_thrust_policy(), counts.begin(), counts.end(), edge_t{0});
     auto local_vertices = std::move(*renumber_map);
     auto local_counts   = std::move(cur_graph_counts);
 
@@ -531,27 +503,54 @@ void triangle_count(raft::handle_t const& handle,
                         local_counts.begin());
 
     if (vertices) {
+      rmm::device_uvector<edge_t> counts(vertices->size(), handle.get_stream());
       thrust::transform(
         handle.get_thrust_policy(),
-        (*vertices).begin(),
-        (*vertices).end(),
+        vertices->begin(),
+        vertices->end(),
         counts.begin(),
         vertex_to_count_t<vertex_t, edge_t>{
           raft::device_span<vertex_t const>(local_vertices.begin(), local_vertices.end()),
           raft::device_span<edge_t const>(local_counts.begin(), local_counts.end())});
+      return counts;
     } else {
-      cugraph::scatter(
-        handle.get_thrust_policy(),
-        local_counts.begin(),
-        local_counts.end(),
-        cuda::make_transform_iterator(
-          local_vertices.begin(),
-          detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
-        counts.begin());
+      vertex_property_t<vertex_t, edge_t> counts(handle, graph_view);
+      fill_v(handle, graph_view, counts.mutable_view(), edge_t{0});
+      scatter_v(handle,
+                graph_view,
+                local_counts.begin(),
+                local_counts.end(),
+                local_vertices.begin(),
+                counts.mutable_view());
+      return counts;
     }
   }
+}
 
-  return;
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+void triangle_count(raft::handle_t const& handle,
+                    graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                    std::optional<raft::device_span<vertex_t const>> vertices,
+                    raft::device_span<edge_t> counts,
+                    bool do_expensive_check)
+{
+  if (vertices) {
+    CUGRAPH_EXPECTS(counts.size() == (*vertices).size(),
+                    "Invalid arguments: counts.size() does not coincide with (*vertices).size().");
+  } else {
+    CUGRAPH_EXPECTS(
+      counts.size() == static_cast<size_t>(graph_view.local_vertex_partition_range_size()),
+      "Invalid arguments: counts.size() does not coincide with the number of local vertices.");
+  }
+
+  auto result = triangle_count(handle, graph_view, vertices, do_expensive_check);
+  if (vertices) {
+    auto values = std::move(std::get<rmm::device_uvector<edge_t>>(result));
+    thrust::copy(handle.get_thrust_policy(), values.begin(), values.end(), counts.begin());
+  } else {
+    auto values = std::get<vertex_property_t<vertex_t, edge_t>>(result).release_buffer();
+    thrust::copy(handle.get_thrust_policy(), values.begin(), values.end(), counts.begin());
+  }
 }
 
 }  // namespace cugraph

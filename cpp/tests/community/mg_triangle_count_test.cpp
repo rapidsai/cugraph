@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -27,6 +27,7 @@
 #include <gtest/gtest.h>
 
 #include <random>
+#include <variant>
 
 struct TriangleCount_Usecase {
   double vertex_subset_ratio{0.0};
@@ -126,24 +127,23 @@ class Tests_MGTriangleCount
 
     // 3. run MG TriangleCount
 
-    rmm::device_uvector<edge_t> d_mg_triangle_counts(
-      d_mg_vertices ? (*d_mg_vertices).size() : mg_graph_view.local_vertex_partition_range_size(),
-      handle_->get_stream());
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
       hr_timer.start("MG TriangleCount");
     }
 
-    cugraph::triangle_count<vertex_t, edge_t, true>(
+    auto mg_triangle_counts = cugraph::triangle_count<vertex_t, edge_t, true>(
       *handle_,
       mg_graph_view,
       d_mg_vertices ? std::make_optional<raft::device_span<vertex_t const>>(
                         (*d_mg_vertices).begin(), (*d_mg_vertices).end())
                     : std::nullopt,
-      raft::device_span<edge_t>(d_mg_triangle_counts.begin(), d_mg_triangle_counts.end()),
       false);
+    auto d_mg_triangle_counts =
+      d_mg_vertices ? std::move(std::get<rmm::device_uvector<edge_t>>(mg_triangle_counts))
+                    : std::get<cugraph::vertex_property_t<vertex_t, edge_t>>(mg_triangle_counts)
+                        .release_buffer();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -191,20 +191,19 @@ class Tests_MGTriangleCount
 
         ASSERT_EQ(mg_graph_view.number_of_vertices(), sg_graph_view.number_of_vertices());
 
-        rmm::device_uvector<edge_t> d_sg_triangle_counts(d_mg_aggregate_vertices
-                                                           ? (*d_mg_aggregate_vertices).size()
-                                                           : sg_graph_view.number_of_vertices(),
-                                                         handle_->get_stream());
-
-        cugraph::triangle_count<vertex_t, edge_t, false>(
+        auto sg_triangle_counts = cugraph::triangle_count<vertex_t, edge_t, false>(
           *handle_,
           sg_graph_view,
           d_mg_aggregate_vertices
             ? std::make_optional<raft::device_span<vertex_t const>>(
                 (*d_mg_aggregate_vertices).begin(), (*d_mg_aggregate_vertices).end())
             : std::nullopt,
-          raft::device_span<edge_t>(d_sg_triangle_counts.begin(), d_sg_triangle_counts.end()),
           false);
+        auto d_sg_triangle_counts =
+          d_mg_aggregate_vertices
+            ? std::move(std::get<rmm::device_uvector<edge_t>>(sg_triangle_counts))
+            : std::get<cugraph::vertex_property_t<vertex_t, edge_t>>(sg_triangle_counts)
+                .release_buffer();
 
         // 4-3. compare
 
