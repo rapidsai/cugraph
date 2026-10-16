@@ -17,7 +17,9 @@
 #include <raft/core/handle.hpp>
 #include <raft/random/rng_state.hpp>
 
-#include <rmm/resource_ref.hpp>
+#include <rmm/mr/per_device_resource.hpp>
+
+#include <cuda/memory_resource>
 
 #include <optional>
 #include <tuple>
@@ -817,7 +819,7 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 std::unique_ptr<legacy::GraphCOO<vertex_t, edge_t, weight_t>> minimum_spanning_tree(
   raft::handle_t const& handle,
   legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
-  rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource_ref());
+  cuda::mr::device_resource_ref mr = rmm::mr::get_current_device_resource_ref());
 
 namespace subgraph {
 /**

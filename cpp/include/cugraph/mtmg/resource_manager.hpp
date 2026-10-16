@@ -244,7 +244,7 @@ class resource_manager_t {
   mutable std::mutex lock_{};
   std::map<int, rmm::cuda_device_id> local_rank_map_{};
   std::set<int> remote_rank_set_{};
-  std::map<int, cuda::mr::any_resource<cuda::mr::device_accessible>> per_device_rmm_resources_{};
+  std::map<int, cuda::mr::any_device_resource> per_device_rmm_resources_{};
 };
 
 }  // namespace mtmg
