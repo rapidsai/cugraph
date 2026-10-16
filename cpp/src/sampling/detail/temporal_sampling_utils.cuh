@@ -67,6 +67,10 @@ __host__ __device__ inline bool passes_temporal_filter(
   time_stamp_t window_end,
   time_stamp_t edge_time)
 {
+  // lowest() marks an edge with no time. It is eligible regardless of the frontier bound and the
+  // window. Callers that propagate sampled times must not install this sentinel as the next bound.
+  if (edge_time == std::numeric_limits<time_stamp_t>::lowest()) { return true; }
+
   switch (temporal_sampling_comparison) {
     case temporal_sampling_comparison_t::STRICTLY_INCREASING:
       return (key_time < edge_time) && (edge_time <= window_end);
@@ -194,6 +198,20 @@ __device__ inline last_n_bias_t last_n_time_bias(
     }
     return rank + last_n_bias_t{1};
   }
+}
+
+// uniform_key comes from uniform_random_fill of [0, 1), one value per edge. Adding 1 places a
+// missing-time edge in [1, 2), below every ordinary time rank and selectable (bias 0 is rejected).
+template <typename time_stamp_t>
+__device__ inline last_n_bias_t last_n_selection_bias(
+  time_stamp_t edge_time,
+  temporal_sampling_comparison_t temporal_sampling_comparison,
+  last_n_bias_t uniform_key)
+{
+  if (edge_time == std::numeric_limits<time_stamp_t>::lowest()) {
+    return uniform_key + last_n_bias_t{1};
+  }
+  return last_n_time_bias(edge_time, temporal_sampling_comparison);
 }
 
 }  // namespace detail

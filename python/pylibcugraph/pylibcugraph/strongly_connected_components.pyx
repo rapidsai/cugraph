@@ -25,7 +25,7 @@ from pylibcugraph._cugraph_c.array cimport (
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
-from pylibcugraph._cugraph_c.labeling_algorithms cimport (
+from pylibcugraph._cugraph_c.components_algorithms cimport (
     cugraph_labeling_result_t,
     cugraph_strongly_connected_components,
     cugraph_labeling_result_get_vertices,
