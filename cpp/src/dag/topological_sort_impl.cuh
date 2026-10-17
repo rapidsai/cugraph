@@ -9,14 +9,18 @@
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/extract_transform_if_v.cuh>
+#include <cugraph/prims/fill_v.cuh>
 #include <cugraph/prims/reduce_op.cuh>
+#include <cugraph/prims/scatter_v.cuh>
 #include <cugraph/prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
-#include <cugraph/utilities/thrust_wrappers/fill.hpp>
 #include <cugraph/utilities/thrust_wrappers/sort.hpp>
+#include <cugraph/vertex_property.hpp>
+#include <cugraph/vertex_property_device_view.cuh>
 
 #include <raft/core/handle.hpp>
 
@@ -36,7 +40,7 @@
 namespace cugraph {
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-rmm::device_uvector<vertex_t> topological_sort(
+vertex_property_t<vertex_t, vertex_t> topological_sort_level(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   bool do_expensive_check)
@@ -70,30 +74,18 @@ rmm::device_uvector<vertex_t> topological_sort(
     }
   }
 
-  rmm::device_uvector<vertex_t> frontier_vertices(graph_view.local_vertex_partition_range_size(),
-                                                  handle.get_stream());
-  auto in_degrees = graph_view.compute_in_degrees(handle);
+  vertex_property_t<vertex_t, edge_t> in_degrees(graph_view.compute_in_degrees(handle),
+                                                 graph_view.local_vertex_partition_range_size());
 
-  frontier_vertices.resize(
-    cuda::std::distance(
-      frontier_vertices.begin(),
-      thrust::copy_if(
-        handle.get_thrust_policy(),
-        thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
-        thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
-        frontier_vertices.begin(),
-        cuda::proclaim_return_type<bool>(
-          [in_degrees = raft::device_span<edge_t const>(in_degrees.data(), in_degrees.size()),
-           v_first    = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
-            auto v_offset = v - v_first;
-            return in_degrees[v_offset] == 0;
-          }))),
-    handle.get_stream());
+  auto frontier_vertices = extract_transform_if_v(
+    handle,
+    graph_view,
+    in_degrees.view(),
+    cuda::proclaim_return_type<vertex_t>([] __device__(vertex_t v, edge_t) { return v; }),
+    cuda::proclaim_return_type<bool>([] __device__(vertex_t, edge_t d) { return d == 0; }));
 
-  rmm::device_uvector<vertex_t> topological_levels(graph_view.local_vertex_partition_range_size(),
-                                                   handle.get_stream());
-  cugraph::fill(
-    handle.get_thrust_policy(), topological_levels.begin(), topological_levels.end(), vertex_t{0});
+  vertex_property_t<vertex_t, vertex_t> topological_levels(handle, graph_view);
+  fill_v(handle, graph_view, topological_levels.mutable_view(), vertex_t{0});
 
   auto level                       = 0;
   auto sum_aggregate_frontier_size = 0;
@@ -127,11 +119,10 @@ rmm::device_uvector<vertex_t> topological_sort(
       handle.get_thrust_policy(),
       thrust::make_zip_iterator(dst_vertices.begin(), decrement_counts.begin()),
       thrust::make_zip_iterator(dst_vertices.end(), decrement_counts.end()),
-      [in_degrees = raft::device_span<edge_t>(in_degrees.data(), in_degrees.size()),
+      [in_degrees = detail::vertex_property_device_view_t{in_degrees.mutable_view()},
        v_first    = graph_view.local_vertex_partition_range_first()] __device__(auto pair) {
-        auto v_offset        = cuda::std::get<0>(pair) - v_first;
-        auto decrement_count = cuda::std::get<1>(pair);
-        in_degrees[v_offset] -= decrement_count;
+        auto v_offset = cuda::std::get<0>(pair) - v_first;
+        in_degrees.set(v_offset, in_degrees.get(v_offset) - cuda::std::get<1>(pair));
       });
 
     rmm::device_uvector<vertex_t> new_frontier_vertices(dst_vertices.size(), handle.get_stream());
@@ -144,10 +135,9 @@ rmm::device_uvector<vertex_t> topological_sort(
           dst_vertices.begin(),
           dst_vertices.end(),
           new_frontier_vertices.begin(),
-          [in_degrees = raft::device_span<edge_t const>(in_degrees.data(), in_degrees.size()),
+          [in_degrees = detail::vertex_property_device_view_t{in_degrees.view()},
            v_first    = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
-            auto v_offset = v - v_first;
-            return in_degrees[v_offset] == 0;
+            return in_degrees.get(v - v_first) == 0;
           })),
       handle.get_stream());
     new_frontier_vertices.shrink_to_fit(handle.get_stream());
@@ -155,22 +145,28 @@ rmm::device_uvector<vertex_t> topological_sort(
     frontier_vertices = std::move(new_frontier_vertices);
     level++;
 
-    thrust::for_each(handle.get_thrust_policy(),
-                     frontier_vertices.begin(),
-                     frontier_vertices.end(),
-                     [topological_levels = raft::device_span<vertex_t>(topological_levels.data(),
-                                                                       topological_levels.size()),
-                      v_first            = graph_view.local_vertex_partition_range_first(),
-                      level              = level] __device__(auto v) {
-                       auto v_offset                = v - v_first;
-                       topological_levels[v_offset] = level;
-                     });
+    scatter_v(
+      handle,
+      graph_view,
+      thrust::make_constant_iterator(static_cast<vertex_t>(level)),
+      thrust::make_constant_iterator(static_cast<vertex_t>(level)) + frontier_vertices.size(),
+      frontier_vertices.begin(),
+      topological_levels.mutable_view());
   }
 
   CUGRAPH_EXPECTS(sum_aggregate_frontier_size == graph_view.number_of_vertices(),
                   "Invalid input argument: graph may contain cycles");
 
   return topological_levels;
+}
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> topological_sort(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  bool do_expensive_check)
+{
+  return topological_sort_level(handle, graph_view, do_expensive_check).release_buffer();
 }
 
 }  // namespace cugraph

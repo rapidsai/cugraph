@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -134,7 +134,7 @@ class Tests_TopologicalSort
       hr_timer.start("topological_sort");
     }
 
-    auto d_levels = cugraph::topological_sort(handle, graph_view);
+    auto d_levels = cugraph::topological_sort_level(handle, graph_view).release_buffer();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

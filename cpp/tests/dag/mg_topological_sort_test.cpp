@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -102,7 +102,7 @@ class Tests_MGTopologicalSort
       hr_timer.start("MG topological_sort");
     }
 
-    auto d_mg_levels = cugraph::topological_sort(*handle_, mg_graph_view);
+    auto d_mg_levels = cugraph::topological_sort_level(*handle_, mg_graph_view).release_buffer();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -144,7 +144,8 @@ class Tests_MGTopologicalSort
 
         ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
 
-        auto d_sg_levels = cugraph::topological_sort(*handle_, sg_graph_view);
+        auto d_sg_levels =
+          cugraph::topological_sort_level(*handle_, sg_graph_view).release_buffer();
 
         // 3-3. compare
 
