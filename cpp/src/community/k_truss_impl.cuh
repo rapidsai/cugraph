@@ -210,7 +210,7 @@ k_truss(raft::handle_t const& handle,
 
     // 2.2 Find (k-1)-core and exclude edges that do not belong to (k-1)-core
     {
-      rmm::device_uvector<edge_t> core_numbers(cur_graph_view.number_of_vertices(),
+      rmm::device_uvector<edge_t> core_numbers(cur_graph_view.local_vertex_partition_range_size(),
                                                handle.get_stream());
       core_number(handle,
                   cur_graph_view,
