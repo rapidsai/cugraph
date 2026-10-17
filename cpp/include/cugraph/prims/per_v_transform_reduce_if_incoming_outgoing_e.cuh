@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -10,6 +10,7 @@
 #include <cugraph/prims/detail/per_v_transform_reduce_e.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/vertex_property.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -32,7 +33,7 @@ namespace CUGRAPH_EXPORT cugraph {
  * @tparam ReduceOp Type of the binary reduction operator.
  * @tparam PredOp Type of the quinary predicate operator.
  * @tparam T Type of the initial value for per-vertex reduction.
- * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
+ * @tparam VertexValueOutputWrapper Type of the wrapper for vertex output property values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
@@ -64,10 +65,8 @@ namespace CUGRAPH_EXPORT cugraph {
  * @param pred_op Quinary operator takes edge source, edge destination, property values for the
  * source, destination, and edge and returns whether this edge should be included (if true is
  * returned) or excluded.
- * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
- * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
- * (exclusive) is deduced as @p vertex_value_output_first + @p
- * graph_view.local_vertex_partition_range_size().
+ * @param vertex_value_output Wrapper used to store output vertex property values (for the vertices
+ * assigned to this process in multi-GPU). Use `vertex_property_t::mutable_view()`.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType,
@@ -78,7 +77,7 @@ template <typename GraphViewType,
           typename ReduceOp,
           typename PredOp,
           typename T,
-          typename VertexValueOutputIterator>
+          typename VertexValueOutputWrapper>
 void per_v_transform_reduce_if_incoming_e(raft::handle_t const& handle,
                                           GraphViewType const& graph_view,
                                           EdgeSrcValueInputWrapper edge_src_value_input,
@@ -88,7 +87,7 @@ void per_v_transform_reduce_if_incoming_e(raft::handle_t const& handle,
                                           T init,
                                           ReduceOp reduce_op,
                                           PredOp pred_op,
-                                          VertexValueOutputIterator vertex_value_output_first,
+                                          VertexValueOutputWrapper vertex_value_output,
                                           bool do_expensive_check = false)
 {
   if (do_expensive_check) {
@@ -108,7 +107,7 @@ void per_v_transform_reduce_if_incoming_e(raft::handle_t const& handle,
                                              init,
                                              reduce_op,
                                              pred_op,
-                                             vertex_value_output_first);
+                                             vertex_value_output.value_first());
 }
 
 /**
@@ -226,7 +225,7 @@ void per_v_transform_reduce_if_incoming_e(raft::handle_t const& handle,
  * @tparam ReduceOp Type of the binary reduction operator.
  * @tparam PredOp Type of the quinary predicate operator.
  * @tparam T Type of the initial value for per-vertex reduction.
- * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
+ * @tparam VertexValueOutputWrapper Type of the wrapper for vertex output property values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
@@ -258,10 +257,8 @@ void per_v_transform_reduce_if_incoming_e(raft::handle_t const& handle,
  * @param pred_op Quinary operator takes edge source, edge destination, property values for the
  * source, destination, and edge and returns whether this edge should be included (if true is
  * returned) or excluded.
- * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
- * first (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
- * (exclusive) is deduced as @p vertex_value_output_first + @p
- * graph_view.local_vertex_partition_range_size().
+ * @param vertex_value_output Wrapper used to store output vertex property values (for the vertices
+ * assigned to this process in multi-GPU). Use `vertex_property_t::mutable_view()`.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType,
@@ -272,7 +269,7 @@ template <typename GraphViewType,
           typename ReduceOp,
           typename PredOp,
           typename T,
-          typename VertexValueOutputIterator>
+          typename VertexValueOutputWrapper>
 void per_v_transform_reduce_if_outgoing_e(raft::handle_t const& handle,
                                           GraphViewType const& graph_view,
                                           EdgeSrcValueInputWrapper edge_src_value_input,
@@ -282,7 +279,7 @@ void per_v_transform_reduce_if_outgoing_e(raft::handle_t const& handle,
                                           T init,
                                           ReduceOp reduce_op,
                                           PredOp pred_op,
-                                          VertexValueOutputIterator vertex_value_output_first,
+                                          VertexValueOutputWrapper vertex_value_output,
                                           bool do_expensive_check = false)
 {
   if (do_expensive_check) {
@@ -302,7 +299,7 @@ void per_v_transform_reduce_if_outgoing_e(raft::handle_t const& handle,
                                              init,
                                              reduce_op,
                                              pred_op,
-                                             vertex_value_output_first);
+                                             vertex_value_output.value_first());
 }
 
 /**
