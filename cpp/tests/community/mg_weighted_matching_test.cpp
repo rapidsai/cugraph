@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -95,18 +95,16 @@ class Tests_MGWeightedMatching
       mg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
-    rmm::device_uvector<vertex_t> mg_partners(0, handle_->get_stream());
-    weight_t mg_matching_weights;
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
       hr_timer.start("MG Approximate Weighted Matching");
     }
 
-    std::forward_as_tuple(mg_partners, mg_matching_weights) =
-      cugraph::approximate_weighted_matching<vertex_t, edge_t, weight_t, multi_gpu>(
+    auto [mg_partners_prop, mg_matching_weights] =
+      cugraph::approx_weighted_matching<vertex_t, edge_t, weight_t, multi_gpu>(
         *handle_, mg_graph_view, (*mg_edge_weights).view());
+    auto mg_partners = mg_partners_prop.release_buffer();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -145,12 +143,10 @@ class Tests_MGWeightedMatching
       if (handle_->get_comms().get_rank() == 0) {
         auto sg_graph_view = sg_graph.view();
 
-        rmm::device_uvector<vertex_t> sg_partners(0, handle_->get_stream());
-        weight_t sg_matching_weights;
-
-        std::forward_as_tuple(sg_partners, sg_matching_weights) =
-          cugraph::approximate_weighted_matching<vertex_t, edge_t, weight_t, false>(
+        auto [sg_partners_prop, sg_matching_weights] =
+          cugraph::approx_weighted_matching<vertex_t, edge_t, weight_t, false>(
             *handle_, sg_graph_view, (*sg_edge_weights).view());
+        auto sg_partners             = sg_partners_prop.release_buffer();
         auto h_sg_partners           = cugraph::test::to_host(*handle_, sg_partners);
         auto h_mg_aggregate_partners = cugraph::test::to_host(*handle_, mg_aggregate_partners);
 

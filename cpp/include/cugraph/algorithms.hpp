@@ -2791,6 +2791,9 @@ rmm::device_uvector<vertex_t> vertex_coloring(
 .* @ingroup utility_cpp
  * @brief Approximate Weighted Matching
  *
+ * @deprecated This API is deprecated. Use `approx_weighted_matching`, which returns a
+ * `vertex_property_t`.
+ *
  * A matching in an undirected graph G = (V, E) is a pairing of adjacent vertices
  * such that each vertex is matched with at most one other vertex, the objective
  * being to match as many vertices as possible or to maximise the sum of the
@@ -2814,6 +2817,39 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
+
+/**
+ * @ingroup utility_cpp
+ * @brief Approximate Weighted Matching
+ *
+ * A matching in an undirected graph G = (V, E) is a pairing of adjacent vertices
+ * such that each vertex is matched with at most one other vertex, the objective
+ * being to match as many vertices as possible or to maximise the sum of the
+ * weights of the matched edges. Here we provide an implementation of an
+ * approximation algorithm to the weighted Maximum matching. See
+ * https://web.archive.org/web/20081031230449id_/http://www.ii.uib.no/~fredrikm/fredrik/papers/CP75.pdf
+ * for further information.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true) execution.
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in] graph_view Graph view object.
+ * @param[in] edge_weight_view View object holding edge weights for @p graph_view.
+ * @return A tuple containing:
+ *           1) a vertex property containing the matched partner ID for every local vertex, with
+ *              `invalid_vertex_id<vertex_t>::value` for unmatched vertices
+ *           2) the sum of the weights of the matched edges
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<vertex_property_t<vertex_t, vertex_t>, weight_t> approx_weighted_matching(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
+
 }  // namespace CUGRAPH_EXPORT cugraph
 
 /**
