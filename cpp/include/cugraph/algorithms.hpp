@@ -2113,8 +2113,8 @@ node2vec_random_walks(raft::handle_t const& handle,
 .* @ingroup components_cpp
  * @brief Finds (weakly-connected-)component IDs of each vertices in the input graph.
  *
- * @deprecated This API is deprecated. Use `weakly_connected_component`, which returns a
-`vertex_property_t`.
+ * @deprecated This API is deprecated and replaced by the overload below that returns a
+ * `vertex_property_t`.
  *
  * The input graph must be symmetric. Component IDs can be arbitrary integers (they can be
  * non-consecutive and are not ordered by component size or any other criterion).
@@ -2153,7 +2153,7 @@ void weakly_connected_components(raft::handle_t const& handle,
  * @return Component ID vertex property values for the vertices assigned to this process.
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-vertex_property_t<vertex_t, vertex_t> weakly_connected_component(
+vertex_property_t<vertex_t, vertex_t> weakly_connected_components(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   bool do_expensive_check = false);

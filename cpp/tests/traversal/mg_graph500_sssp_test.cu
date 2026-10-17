@@ -329,7 +329,7 @@ class Tests_GRAPH500_MGSSSP
         auto mg_graph_view       = mg_graph.view();
         auto mg_edge_weight_view = mg_edge_weights.view();
 
-        components = cugraph::weakly_connected_component(*handle_, mg_graph_view).release_buffer();
+        components = cugraph::weakly_connected_components(*handle_, mg_graph_view).release_buffer();
         std::optional<rmm::device_uvector<weight_t>> tmp_w_to_parents{std::nullopt};
         std::tie(parents, tmp_w_to_parents) =
           find_trees_from_2cores<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(

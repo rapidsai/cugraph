@@ -93,7 +93,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
       << "Weakly connected components works only on undirected (symmetric) graphs.";
 
     // Call WCC
-    auto d_labels = cugraph::weakly_connected_component(handle, graph_view).release_buffer();
+    auto d_labels = cugraph::weakly_connected_components(handle, graph_view).release_buffer();
 
     auto d_vertices = cugraph::test::sequence<vertex_t>(
       handle, graph_view.number_of_vertices(), size_t{1}, vertex_t{0});

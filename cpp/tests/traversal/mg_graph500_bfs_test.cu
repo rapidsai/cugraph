@@ -317,7 +317,7 @@ class Tests_GRAPH500_MGBFS
       {
         auto mg_graph_view = mg_graph.view();
 
-        components = cugraph::weakly_connected_component(*handle_, mg_graph_view).release_buffer();
+        components = cugraph::weakly_connected_components(*handle_, mg_graph_view).release_buffer();
         std::tie(parents, std::ignore) =
           find_trees_from_2cores<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
             *handle_, mg_graph_view, std::nullopt, invalid_vertex, std::nullopt);

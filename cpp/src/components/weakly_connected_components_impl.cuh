@@ -8,11 +8,13 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/copy_v.cuh>
 #include <cugraph/prims/fill_edge_property.cuh>
 #include <cugraph/prims/fill_edge_src_dst_property.cuh>
 #include <cugraph/prims/make_initialized_edge_property.cuh>
 #include <cugraph/prims/transform_e.cuh>
 #include <cugraph/prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh>
+#include <cugraph/prims/transform_v.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/prims/update_v_frontier.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
@@ -26,6 +28,7 @@
 #include <cugraph/utilities/thrust_wrappers/scan.hpp>
 #include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/utilities/thrust_wrappers/unique.hpp>
+#include <cugraph/vertex_property.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -265,10 +268,10 @@ struct v_op_t {
 };
 
 template <typename GraphViewType>
-void weakly_connected_components_impl(raft::handle_t const& handle,
-                                      GraphViewType const& push_graph_view,
-                                      typename GraphViewType::vertex_type* components,
-                                      bool do_expensive_check)
+vertex_property_t<typename GraphViewType::vertex_type, typename GraphViewType::vertex_type>
+weakly_connected_components_impl(raft::handle_t const& handle,
+                                 GraphViewType const& push_graph_view,
+                                 bool do_expensive_check)
 {
   using vertex_t    = typename GraphViewType::vertex_type;
   using edge_t      = typename GraphViewType::edge_type;
@@ -280,8 +283,9 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
   static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
 
-  auto const num_vertices = push_graph_view.number_of_vertices();
-  if (num_vertices == 0) { return; }
+  if (push_graph_view.number_of_vertices() == 0) {
+    return vertex_property_t<vertex_t, vertex_t>(handle, push_graph_view);
+  }
 
   // 1. check input arguments
 
@@ -336,8 +340,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
       level_graph_view.local_vertex_partition_view());
     level_component_vectors.push_back(rmm::device_uvector<vertex_t>(
-      num_levels == 0 ? vertex_t{0} : level_graph_view.local_vertex_partition_range_size(),
-      handle.get_stream()));
+      level_graph_view.local_vertex_partition_range_size(), handle.get_stream()));
     level_renumber_map_vectors.push_back(std::move(level_renumber_map));
     {
       auto lasts = level_graph_view.vertex_partition_range_lasts();
@@ -345,8 +348,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     }
     level_local_vertex_first_vectors.push_back(
       level_graph_view.local_vertex_partition_range_first());
-    auto level_components =
-      num_levels == 0 ? components : level_component_vectors[num_levels].data();
+    auto level_components = level_component_vectors[num_levels].data();
     ++num_levels;
     auto degrees = level_graph_view.compute_out_degrees(handle);
 
@@ -424,8 +426,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     if (bfs_start_vertex) {
       // 2-3-1. run BFS and find the vertices that are reachable from the starting vertex
 
-      rmm::device_uvector<bool> visited(level_graph_view.local_vertex_partition_range_size(),
-                                        handle.get_stream());
+      vertex_property_t<vertex_t, vertex_t> distances(handle);
       {
         rmm::device_uvector<vertex_t> sources(0, handle.get_stream());
         if ((*bfs_start_vertex >= level_graph_view.local_vertex_partition_range_first()) &&
@@ -434,53 +435,49 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           raft::update_device(
             sources.data(), std::addressof(*bfs_start_vertex), size_t{1}, handle.get_stream());
         }
-        rmm::device_uvector<vertex_t> distances(visited.size(), handle.get_stream());
-        bfs(handle,
-            level_graph_view,
-            distances.data(),
-            static_cast<vertex_t*>(nullptr),
-            sources.data(),
-            sources.size(),
-            true /* direction_optimizing */,
-            std::numeric_limits<vertex_t>::max());
-        thrust::transform(handle.get_thrust_policy(),
-                          distances.begin(),
-                          distances.end(),
-                          visited.begin(),
-                          [invalid_distance = std::numeric_limits<vertex_t>::max()] __device__(
-                            auto d) { return d != invalid_distance; });
+        distances =
+          std::get<0>(bfs(handle,
+                          level_graph_view,
+                          raft::device_span<vertex_t const>(sources.data(), sources.size()),
+                          true /* direction_optimizing */,
+                          std::numeric_limits<vertex_t>::max()));
       }
 
       // 2-3-2. set level_components[] = start_vertex if reachable from the starting vertex and
       // itself if not reachable
 
-      auto pair_first = thrust::make_zip_iterator(
-        thrust::make_counting_iterator(level_graph_view.local_vertex_partition_range_first()),
-        visited.begin());
-      thrust::transform_if(handle.get_thrust_policy(),
-                           pair_first,
-                           pair_first + level_graph_view.local_vertex_partition_range_size(),
-                           degrees.begin(),
-                           level_components,
-                           cuda::proclaim_return_type<vertex_t>(
-                             [start_vertex = *bfs_start_vertex] __device__(auto pair) {
-                               auto v       = cuda::std::get<0>(pair);
-                               auto visited = cuda::std::get<1>(pair);
-                               return visited ? start_vertex : v;
-                             }),
-                           cuda::proclaim_return_type<bool>([] __device__(auto d) {
-                             return d > edge_t{0};
-                           }) /* skip isolated vertices (already updated) */);
+      transform_v(
+        handle,
+        level_graph_view,
+        view_concat(vertex_property_view_t{thrust::make_counting_iterator(
+                                             level_graph_view.local_vertex_partition_range_first()),
+                                           level_graph_view.local_vertex_partition_range_size()},
+                    distances.view()),
+        cuda::proclaim_return_type<vertex_t>(
+          [start_vertex     = *bfs_start_vertex,
+           invalid_distance = std::numeric_limits<vertex_t>::max()] __device__(auto pair) {
+            auto v = cuda::std::get<0>(pair);
+            auto d = cuda::std::get<1>(pair);
+            return d != invalid_distance ? start_vertex : v;
+          }),
+        vertex_property_view_t{level_components,
+                               level_graph_view.local_vertex_partition_range_size()});
 
       // 2-3-3. extract edges that are unreachable from the starting vertex
 
+      vertex_property_t<vertex_t, bool> visited(handle, level_graph_view);
+      transform_v(handle,
+                  level_graph_view,
+                  distances.view(),
+                  cuda::proclaim_return_type<bool>(
+                    [invalid_distance = std::numeric_limits<vertex_t>::max()] __device__(auto d) {
+                      return d != invalid_distance;
+                    }),
+                  visited.mutable_view());
+
       edge_src_property_t<vertex_t, bool> edge_src_visited(handle, level_graph_view);
       update_edge_src_property(
-        handle,
-        level_graph_view,
-        vertex_property_view_t{visited.begin(),
-                               level_graph_view.local_vertex_partition_range_size()},
-        edge_src_visited.mutable_view());
+        handle, level_graph_view, visited.view(), edge_src_visited.mutable_view());
       {
         auto tmp_graph_view = level_graph_view;
         auto edge_mask      = make_initialized_edge_property(handle, level_graph_view, false);
@@ -970,11 +967,9 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       false /* key sorted */,
       handle.get_stream());
     auto next_level_kv_store_view = next_level_kv_store.view();
-    auto current_level_components =
-      (current_level == 0) ? components : level_component_vectors[current_level].data();
+    auto current_level_components = level_component_vectors[current_level].data();
     auto current_level_local_vertex_partition_range_size =
-      (current_level == 0) ? push_graph_view.local_vertex_partition_range_size()
-                           : level_component_vectors[current_level].size();
+      level_component_vectors[current_level].size();
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& comm           = handle.get_comms();
       auto const comm_size = comm.get_size();
@@ -1035,9 +1030,21 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           return val != invalid_value ? val : old;
         }));
   }
+
+  return vertex_property_t<vertex_t, vertex_t>(std::move(level_component_vectors[0]),
+                                               push_graph_view.local_vertex_partition_range_size());
 }
 
 }  // namespace
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+vertex_property_t<vertex_t, vertex_t> weakly_connected_components(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  bool do_expensive_check)
+{
+  return weakly_connected_components_impl(handle, graph_view, do_expensive_check);
+}
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 void weakly_connected_components(raft::handle_t const& handle,
@@ -1045,7 +1052,10 @@ void weakly_connected_components(raft::handle_t const& handle,
                                  vertex_t* components,
                                  bool do_expensive_check)
 {
-  weakly_connected_components_impl(handle, graph_view, components, do_expensive_check);
+  copy_v(handle,
+         graph_view,
+         weakly_connected_components(handle, graph_view, do_expensive_check).view(),
+         vertex_property_view_t{components, graph_view.local_vertex_partition_range_size()});
 }
 
 }  // namespace cugraph

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -127,15 +127,14 @@ class Tests_WeaklyConnectedComponent
       graph_view.attach_edge_mask(edge_mask->view());
     }
 
-    rmm::device_uvector<vertex_t> d_components(graph_view.number_of_vertices(),
-                                               handle.get_stream());
+    rmm::device_uvector<vertex_t> d_components(0, handle.get_stream());
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.start("Weakly_connected_components");
     }
 
-    cugraph::weakly_connected_components(handle, graph_view, d_components.data());
+    d_components = cugraph::weakly_connected_components(handle, graph_view).release_buffer();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
