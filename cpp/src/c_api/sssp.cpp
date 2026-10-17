@@ -100,7 +100,7 @@ struct sssp_functor : public abstract_functor {
       }
 
       auto [distance_property, predecessor_property] =
-        cugraph::sssp<vertex_t, edge_t, weight_t, multi_gpu>(
+        cugraph::shortest_path<vertex_t, edge_t, weight_t, multi_gpu>(
           handle_,
           graph_view,
           edge_weights->view(),

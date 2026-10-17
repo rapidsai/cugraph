@@ -329,9 +329,7 @@ class Tests_GRAPH500_MGSSSP
         auto mg_graph_view       = mg_graph.view();
         auto mg_edge_weight_view = mg_edge_weights.view();
 
-        components.resize(mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
-        cugraph::weakly_connected_components(
-          *handle_, mg_graph_view, components.data(), components.size());
+        components = cugraph::weakly_connected_component(*handle_, mg_graph_view).release_buffer();
         std::optional<rmm::device_uvector<weight_t>> tmp_w_to_parents{std::nullopt};
         std::tie(parents, tmp_w_to_parents) =
           find_trees_from_2cores<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
@@ -618,14 +616,14 @@ class Tests_GRAPH500_MGSSSP
         raft::update_device(
           sssp_frontier.data(), &sssp_starting_vertex, size_t{1}, handle_->get_stream());
       }
-      auto [distance_property, predecessor_property] =
-        cugraph::sssp(*handle_,
-                      sssp_graph_view,
-                      reachable_from_2cores ? mg_pruned_graph_edge_weight_view
-                                            : mg_isolated_trees_edge_weight_view,
-                      raft::device_span<vertex_t const>(sssp_frontier.data(), sssp_frontier.size()),
-                      std::numeric_limits<weight_t>::max(),
-                      true);
+      auto [distance_property, predecessor_property] = cugraph::shortest_path(
+        *handle_,
+        sssp_graph_view,
+        reachable_from_2cores ? mg_pruned_graph_edge_weight_view
+                              : mg_isolated_trees_edge_weight_view,
+        raft::device_span<vertex_t const>(sssp_frontier.data(), sssp_frontier.size()),
+        std::numeric_limits<weight_t>::max(),
+        true);
       auto d_mg_sssp_distances    = distance_property.release_buffer();
       auto d_mg_sssp_predecessors = predecessor_property->release_buffer();
 

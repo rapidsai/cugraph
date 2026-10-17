@@ -1421,7 +1421,7 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
  * @brief Run single-source shortest-path to compute the minimum distances (and predecessors) from
  * the source vertex.
  *
- * @deprecated This API is deprecated and replaced by the overload below that takes a
+ * @deprecated This API is deprecated and replaced by `shortest_path`, which takes a
  * `raft::device_span<vertex_t const>` frontier and returns `vertex_property_t` objects.
  *
  * This function computes the distances (minimum edge weight sums) from the source vertex. If @p
@@ -1491,13 +1491,13 @@ void sssp(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<vertex_property_t<vertex_t, weight_t>,
            std::optional<vertex_property_t<vertex_t, vertex_t>>>
-sssp(raft::handle_t const& handle,
-     graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-     edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
-     raft::device_span<vertex_t const> frontier,
-     weight_t cutoff          = std::numeric_limits<weight_t>::max(),
-     bool update_predecessors = false,
-     bool do_expensive_check  = false);
+shortest_path(raft::handle_t const& handle,
+              graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+              edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
+              raft::device_span<vertex_t const> frontier,
+              weight_t cutoff          = std::numeric_limits<weight_t>::max(),
+              bool update_predecessors = false,
+              bool do_expensive_check  = false);
 
 /**
 .* @ingroup traversal_cpp
@@ -2113,6 +2113,9 @@ node2vec_random_walks(raft::handle_t const& handle,
 .* @ingroup components_cpp
  * @brief Finds (weakly-connected-)component IDs of each vertices in the input graph.
  *
+ * @deprecated This API is deprecated. Use `weakly_connected_component`, which returns a
+`vertex_property_t`.
+ *
  * The input graph must be symmetric. Component IDs can be arbitrary integers (they can be
  * non-consecutive and are not ordered by component size or any other criterion).
  *
@@ -2131,6 +2134,29 @@ void weakly_connected_components(raft::handle_t const& handle,
                                  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                                  vertex_t* components,
                                  bool do_expensive_check = false);
+
+/**
+.* @ingroup components_cpp
+ * @brief Finds (weakly-connected-)component IDs of each vertices in the input graph.
+ *
+ * The input graph must be symmetric. Component IDs can be arbitrary integers (they can be
+ * non-consecutive and are not ordered by component size or any other criterion).
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Component ID vertex property values for the vertices assigned to this process.
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+vertex_property_t<vertex_t, vertex_t> weakly_connected_component(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  bool do_expensive_check = false);
 
 /**
 .* @ingroup components_cpp

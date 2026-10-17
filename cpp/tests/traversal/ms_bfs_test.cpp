@@ -89,13 +89,11 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
       graph_view.attach_edge_mask((*edge_mask).view());
     }
 
-    rmm::device_uvector<vertex_t> d_labels(graph_view.number_of_vertices(), handle.get_stream());
-
     ASSERT_TRUE(graph_view.is_symmetric())
       << "Weakly connected components works only on undirected (symmetric) graphs.";
 
     // Call WCC
-    cugraph::weakly_connected_components(handle, graph_view, d_labels.data());
+    auto d_labels = cugraph::weakly_connected_component(handle, graph_view).release_buffer();
 
     auto d_vertices = cugraph::test::sequence<vertex_t>(
       handle, graph_view.number_of_vertices(), size_t{1}, vertex_t{0});

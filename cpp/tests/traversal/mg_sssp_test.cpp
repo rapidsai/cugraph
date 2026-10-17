@@ -105,13 +105,13 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
     if (mg_frontier.size() > 0) {
       raft::update_device(mg_frontier.data(), &mg_source_vertex, size_t{1}, handle_->get_stream());
     }
-    auto [mg_distance_property, mg_predecessor_property] =
-      cugraph::sssp(*handle_,
-                    mg_graph_view,
-                    *mg_edge_weight_view,
-                    raft::device_span<vertex_t const>(mg_frontier.data(), mg_frontier.size()),
-                    std::numeric_limits<weight_t>::max(),
-                    true);
+    auto [mg_distance_property, mg_predecessor_property] = cugraph::shortest_path(
+      *handle_,
+      mg_graph_view,
+      *mg_edge_weight_view,
+      raft::device_span<vertex_t const>(mg_frontier.data(), mg_frontier.size()),
+      std::numeric_limits<weight_t>::max(),
+      true);
     auto d_mg_distances    = mg_distance_property.release_buffer();
     auto d_mg_predecessors = mg_predecessor_property->release_buffer();
 
@@ -196,13 +196,13 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
         rmm::device_uvector<vertex_t> sg_frontier(size_t{1}, handle_->get_stream());
         raft::update_device(
           sg_frontier.data(), &sg_source_vertex, size_t{1}, handle_->get_stream());
-        auto [sg_distance_property, sg_predecessor_property] =
-          cugraph::sssp(*handle_,
-                        sg_graph_view,
-                        *sg_edge_weight_view,
-                        raft::device_span<vertex_t const>(sg_frontier.data(), sg_frontier.size()),
-                        std::numeric_limits<weight_t>::max(),
-                        true);
+        auto [sg_distance_property, sg_predecessor_property] = cugraph::shortest_path(
+          *handle_,
+          sg_graph_view,
+          *sg_edge_weight_view,
+          raft::device_span<vertex_t const>(sg_frontier.data(), sg_frontier.size()),
+          std::numeric_limits<weight_t>::max(),
+          true);
         auto d_sg_distances    = sg_distance_property.release_buffer();
         auto d_sg_predecessors = sg_predecessor_property->release_buffer();
 

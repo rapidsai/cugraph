@@ -12,23 +12,23 @@ namespace cugraph {
 
 template CUGRAPH_EXPORT
   std::tuple<vertex_property_t<int64_t, float>, std::optional<vertex_property_t<int64_t, int64_t>>>
-  sssp(raft::handle_t const& handle,
-       graph_view_t<int64_t, int64_t, false, true> const& graph_view,
-       edge_property_view_t<int64_t, float const*> edge_weight_view,
-       raft::device_span<int64_t const> frontier,
-       float cutoff,
-       bool update_predecessors,
-       bool do_expensive_check);
+  shortest_path(raft::handle_t const& handle,
+                graph_view_t<int64_t, int64_t, false, true> const& graph_view,
+                edge_property_view_t<int64_t, float const*> edge_weight_view,
+                raft::device_span<int64_t const> frontier,
+                float cutoff,
+                bool update_predecessors,
+                bool do_expensive_check);
 
 template CUGRAPH_EXPORT
   std::tuple<vertex_property_t<int64_t, double>, std::optional<vertex_property_t<int64_t, int64_t>>>
-  sssp(raft::handle_t const& handle,
-       graph_view_t<int64_t, int64_t, false, true> const& graph_view,
-       edge_property_view_t<int64_t, double const*> edge_weight_view,
-       raft::device_span<int64_t const> frontier,
-       double cutoff,
-       bool update_predecessors,
-       bool do_expensive_check);
+  shortest_path(raft::handle_t const& handle,
+                graph_view_t<int64_t, int64_t, false, true> const& graph_view,
+                edge_property_view_t<int64_t, double const*> edge_weight_view,
+                raft::device_span<int64_t const> frontier,
+                double cutoff,
+                bool update_predecessors,
+                bool do_expensive_check);
 
 template CUGRAPH_EXPORT void sssp(raft::handle_t const& handle,
                                   graph_view_t<int64_t, int64_t, false, true> const& graph_view,

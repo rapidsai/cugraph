@@ -137,12 +137,12 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
     rmm::device_uvector<vertex_t> frontier(size_t{1}, handle.get_stream());
     raft::update_device(frontier.data(), &source_vertex, size_t{1}, handle.get_stream());
     auto [distance_property, predecessor_property] =
-      cugraph::sssp(handle,
-                    graph_view,
-                    *edge_weight_view,
-                    raft::device_span<vertex_t const>(frontier.data(), frontier.size()),
-                    std::numeric_limits<weight_t>::max(),
-                    true);
+      cugraph::shortest_path(handle,
+                             graph_view,
+                             *edge_weight_view,
+                             raft::device_span<vertex_t const>(frontier.data(), frontier.size()),
+                             std::numeric_limits<weight_t>::max(),
+                             true);
     auto d_distances    = distance_property.release_buffer();
     auto d_predecessors = predecessor_property->release_buffer();
 

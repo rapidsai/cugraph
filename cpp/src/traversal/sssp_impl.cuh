@@ -684,13 +684,13 @@ sssp(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<vertex_property_t<vertex_t, weight_t>,
            std::optional<vertex_property_t<vertex_t, vertex_t>>>
-sssp(raft::handle_t const& handle,
-     graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-     edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
-     raft::device_span<vertex_t const> frontier,
-     weight_t cutoff,
-     bool update_predecessors,
-     bool do_expensive_check)
+shortest_path(raft::handle_t const& handle,
+              graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+              edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
+              raft::device_span<vertex_t const> frontier,
+              weight_t cutoff,
+              bool update_predecessors,
+              bool do_expensive_check)
 {
   return detail::sssp(handle,
                       graph_view,
@@ -721,14 +721,14 @@ void sssp(raft::handle_t const& handle,
     raft::update_device(frontier_vertices.data(), &source_vertex, size_t{1}, handle.get_stream());
   }
 
-  auto [distance_property, predecessor_property] =
-    sssp(handle,
-         graph_view,
-         edge_weight_view,
-         raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size()),
-         cutoff,
-         predecessors != nullptr,
-         do_expensive_check);
+  auto [distance_property, predecessor_property] = shortest_path(
+    handle,
+    graph_view,
+    edge_weight_view,
+    raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size()),
+    cutoff,
+    predecessors != nullptr,
+    do_expensive_check);
 
   copy_v(handle,
          graph_view,
