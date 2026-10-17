@@ -155,12 +155,14 @@ class Tests_ExtractBfsPaths
 
     int32_t max_path_length{};
 
-    std::tie(d_paths, max_path_length) = extract_bfs_paths(handle,
-                                                           graph_view,
-                                                           d_distances.data(),
-                                                           d_predecessors.data(),
-                                                           d_destinations.data(),
-                                                           d_destinations.size());
+    std::tie(d_paths, max_path_length) = extract_bfs_paths(
+      handle,
+      graph_view,
+      cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+        d_distances.data(), static_cast<vertex_t>(d_distances.size())),
+      cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+        d_predecessors.data(), static_cast<vertex_t>(d_predecessors.size())),
+      raft::device_span<vertex_t const>(d_destinations.data(), d_destinations.size()));
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

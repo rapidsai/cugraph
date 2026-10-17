@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -18,5 +18,12 @@ template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>, int32_t> extrac
   int32_t const* predecessors,
   int32_t const* destinations,
   size_t n_destinations);
+
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>, int32_t> extract_bfs_paths(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
+  vertex_property_view_t<int32_t, int32_t const*> distances,
+  vertex_property_view_t<int32_t, int32_t const*> predecessors,
+  raft::device_span<int32_t const> destinations);
 
 }  // namespace cugraph

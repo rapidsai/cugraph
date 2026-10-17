@@ -1340,6 +1340,9 @@ vertex_property_t<vertex_t, vertex_t> topological_sort_level(
  * @ingroup traversal_cpp
  * @brief Extract paths from breadth-first search output
  *
+ * @deprecated This API is deprecated and replaced by the overload below that takes
+ * `vertex_property_view_t` distances and predecessors and a `raft::device_span` destinations.
+ *
  * This function extracts paths from the BFS output.  BFS outputs distances
  * and predecessors.  The path from a vertex v back to the original source vertex
  * can be extracted by recursively looking up the predecessor vertex until you arrive
@@ -1373,6 +1376,45 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
   vertex_t const* predecessors,
   vertex_t const* destinations,
   size_t n_destinations);
+
+/**
+ * @ingroup traversal_cpp
+ * @brief Extract paths from breadth-first search output
+ *
+ * This function extracts paths from the BFS output.  BFS outputs distances
+ * and predecessors.  The path from a vertex v back to the original source vertex
+ * can be extracted by recursively looking up the predecessor vertex until you arrive
+ * back at the original source vertex.
+ *
+ * @throws cugraph::logic_error on erroneous input arguments.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param distances View of the distance vertex property values computed by bfs (for the vertices
+ * assigned to this process in multi-GPU).
+ * @param predecessors View of the predecessor vertex property values computed by bfs (for the
+ * vertices assigned to this process in multi-GPU).
+ * @param destinations Destination vertices, extract path from source to each of these destinations
+ * (one source per component at most). In a multi-gpu context the destination vertex should be local
+ * to this GPU.
+ *
+ * @return std::tuple<rmm::device_uvector<vertex_t>, vertex_t> pair containing
+ *       the paths as a dense matrix in the vector and the maximum path length.
+ *       Unused elements in the paths will be set to invalid_vertex_id (-1 for a signed
+ *       vertex_t, std::numeric_limits<vertex_t>::max() for an unsigned vertex_t type).
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  vertex_property_view_t<vertex_t, vertex_t const*> distances,
+  vertex_property_view_t<vertex_t, vertex_t const*> predecessors,
+  raft::device_span<vertex_t const> destinations);
 
 /**
  * @ingroup traversal_cpp

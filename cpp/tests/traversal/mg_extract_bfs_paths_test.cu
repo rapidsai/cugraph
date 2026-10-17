@@ -166,12 +166,14 @@ class Tests_MGExtractBFSPaths
 
     vertex_t mg_max_path_length{0};
 
-    std::tie(d_mg_paths, mg_max_path_length) = extract_bfs_paths(*handle_,
-                                                                 mg_graph_view,
-                                                                 d_mg_distances.data(),
-                                                                 d_mg_predecessors.data(),
-                                                                 d_mg_destinations.data(),
-                                                                 d_mg_destinations.size());
+    std::tie(d_mg_paths, mg_max_path_length) = extract_bfs_paths(
+      *handle_,
+      mg_graph_view,
+      cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+        d_mg_distances.data(), static_cast<vertex_t>(d_mg_distances.size())),
+      cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+        d_mg_predecessors.data(), static_cast<vertex_t>(d_mg_predecessors.size())),
+      raft::device_span<vertex_t const>(d_mg_destinations.data(), d_mg_destinations.size()));
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -252,10 +254,14 @@ class Tests_MGExtractBFSPaths
         auto [d_sg_paths, sg_max_path_length] =
           extract_bfs_paths(*handle_,
                             sg_graph_view,
-                            d_mg_aggregate_distances.data(),
-                            d_mg_aggregate_predecessors.data(),
-                            d_mg_aggregate_destinations.data(),
-                            d_mg_aggregate_destinations.size());
+                            cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+                              d_mg_aggregate_distances.data(),
+                              static_cast<vertex_t>(d_mg_aggregate_distances.size())),
+                            cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+                              d_mg_aggregate_predecessors.data(),
+                              static_cast<vertex_t>(d_mg_aggregate_predecessors.size())),
+                            raft::device_span<vertex_t const>(d_mg_aggregate_destinations.data(),
+                                                              d_mg_aggregate_destinations.size()));
 
         // compare
 

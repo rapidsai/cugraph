@@ -14,6 +14,8 @@
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/utilities/thrust_wrappers/fill.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
+#include <cugraph/vertex_property.hpp>
+#include <cugraph/vertex_property_device_view.cuh>
 
 #include <raft/core/handle.hpp>
 
@@ -49,36 +51,36 @@ struct compute_max {
 template <typename vertex_t, bool is_multi_gpu>
 struct compute_max_distance {
   vertex_partition_device_view_t<vertex_t, is_multi_gpu> vertex_partition_;
+  vertex_property_device_view_t<vertex_t, vertex_t const*> predecessors_;
+  vertex_property_device_view_t<vertex_t, vertex_t const*> distances_;
   vertex_t invalid_vertex_;
-  vertex_t const* predecessors_;
-  vertex_t const* distances_;
 
   vertex_t __device__ operator()(vertex_t v)
   {
     auto offset = vertex_partition_.local_vertex_partition_offset_from_vertex_nocheck(v);
 
-    return (predecessors_[offset] == invalid_vertex_) ? vertex_t{0} : distances_[offset];
+    return (predecessors_.get(offset) == invalid_vertex_) ? vertex_t{0} : distances_.get(offset);
   }
 };
 
 template <typename vertex_t, bool is_multi_gpu>
 struct map_index_to_path_offset {
   vertex_partition_device_view_t<vertex_t, is_multi_gpu> vertex_partition_;
+  vertex_property_device_view_t<vertex_t, vertex_t const*> distances_;
+  raft::device_span<vertex_t const> destinations_;
   vertex_t max_path_length_;
-  vertex_t const* distances_;
-  vertex_t const* destinations_;
 
   size_t __device__ operator()(size_t idx)
   {
     return (idx * max_path_length_) +
-           distances_[vertex_partition_.local_vertex_partition_offset_from_vertex_nocheck(
-             destinations_[idx])];
+           distances_.get(vertex_partition_.local_vertex_partition_offset_from_vertex_nocheck(
+             destinations_[idx]));
   }
 };
 
 template <typename vertex_t>
 struct update_paths {
-  vertex_t* paths_;
+  raft::device_span<vertex_t> paths_;
   vertex_t invalid_vertex_;
 
   void __device__ operator()(cuda::std::tuple<vertex_t, size_t> tuple)
@@ -92,9 +94,9 @@ struct update_paths {
 
 template <typename vertex_t>
 struct sg_lookup_predecessor {
-  vertex_t const* predecessors_;
+  vertex_property_device_view_t<vertex_t, vertex_t const*> predecessors_;
 
-  vertex_t __device__ operator()(vertex_t v) { return predecessors_[v]; }
+  vertex_t __device__ operator()(vertex_t v) { return predecessors_.get(v); }
 };
 
 struct decrement_position {
@@ -130,29 +132,19 @@ template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  vertex_t const* distances,
-  vertex_t const* predecessors,
-  vertex_t const* destinations,
-  size_t n_destinations)
+  vertex_property_view_t<vertex_t, vertex_t const*> distances,
+  vertex_property_view_t<vertex_t, vertex_t const*> predecessors,
+  raft::device_span<vertex_t const> destinations)
 {
-  CUGRAPH_EXPECTS((graph_view.local_vertex_partition_range_size() == 0) || (distances != nullptr),
-                  "Invalid input argument: distances cannot be null");
-  CUGRAPH_EXPECTS(
-    (graph_view.local_vertex_partition_range_size() == 0) || (predecessors != nullptr),
-    "Invalid input argument: predecessors cannot be null");
-
-  CUGRAPH_EXPECTS((n_destinations == 0) || (destinations != nullptr),
-                  "Invalid input argument: destinations cannot be null");
-
-  vertex_partition_device_view_t<vertex_t, multi_gpu> vertex_partition_device_view(
+  vertex_partition_device_view_t<vertex_t, multi_gpu> vertex_partition(
     graph_view.local_vertex_partition_view());
 
   if constexpr (multi_gpu) {
     CUGRAPH_EXPECTS(0 == thrust::count_if(handle.get_thrust_policy(),
-                                          destinations,
-                                          destinations + n_destinations,
-                                          [vertex_partition_device_view] __device__(auto v) {
-                                            return !vertex_partition_device_view.is_valid_vertex(v);
+                                          destinations.begin(),
+                                          destinations.end(),
+                                          [vertex_partition] __device__(auto v) {
+                                            return !vertex_partition.is_valid_vertex(v);
                                           }),
                     "Invalid input argument: destinations must be partitioned on the correct GPU");
   }
@@ -163,26 +155,29 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
   auto constexpr invalid_vertex = invalid_vertex_id<vertex_t>::value;
 
   vertex_t max_path_length =
-    1 + thrust::transform_reduce(
-          handle.get_thrust_policy(),
-          destinations,
-          destinations + n_destinations,
-          detail::compute_max_distance<vertex_t, multi_gpu>{
-            vertex_partition_device_view, invalid_vertex, predecessors, distances},
-          vertex_t{0},
-          detail::compute_max<vertex_t>{});
+    1 + thrust::transform_reduce(handle.get_thrust_policy(),
+                                 destinations.begin(),
+                                 destinations.end(),
+                                 detail::compute_max_distance<vertex_t, multi_gpu>{
+                                   vertex_partition,
+                                   detail::vertex_property_device_view_t{predecessors},
+                                   detail::vertex_property_device_view_t{distances},
+                                   invalid_vertex},
+                                 vertex_t{0},
+                                 detail::compute_max<vertex_t>{});
 
   if constexpr (multi_gpu) {
     max_path_length = cugraph::host_scalar_allreduce(
       handle.get_comms(), max_path_length, raft::comms::op_t::MAX, handle.get_stream());
   }
 
-  rmm::device_uvector<vertex_t> paths(n_destinations * max_path_length, handle.get_stream());
-  rmm::device_uvector<vertex_t> current_frontier(n_destinations, handle.get_stream());
-  rmm::device_uvector<size_t> current_position(n_destinations, handle.get_stream());
+  rmm::device_uvector<vertex_t> paths(destinations.size() * max_path_length, handle.get_stream());
+  rmm::device_uvector<vertex_t> current_frontier(destinations.size(), handle.get_stream());
+  rmm::device_uvector<size_t> current_position(destinations.size(), handle.get_stream());
 
   cugraph::fill(handle.get_thrust_policy(), paths.begin(), paths.end(), invalid_vertex);
-  raft::copy(current_frontier.data(), destinations, n_destinations, handle.get_stream());
+  raft::copy(
+    current_frontier.data(), destinations.data(), destinations.size(), handle.get_stream());
 
   auto h_vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
 
@@ -190,7 +185,10 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
                    current_position.begin(),
                    current_position.end(),
                    detail::map_index_to_path_offset<vertex_t, multi_gpu>{
-                     vertex_partition_device_view, max_path_length, distances, destinations});
+                     vertex_partition,
+                     detail::vertex_property_device_view_t{distances},
+                     destinations,
+                     max_path_length});
 
   std::tie(current_frontier, current_position) = detail::shrink_extraction_list(
     handle, std::move(current_frontier), std::move(current_position));
@@ -199,7 +197,8 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
                      thrust::make_zip_iterator(
                        cuda::std::make_tuple(current_frontier.begin(), current_position.begin())),
                      current_frontier.size(),
-                     detail::update_paths<vertex_t>{paths.data(), invalid_vertex});
+                     detail::update_paths<vertex_t>{
+                       raft::device_span<vertex_t>(paths.data(), paths.size()), invalid_vertex});
 
   for (vertex_t count = 0; count < max_path_length; ++count) {
     thrust::transform(handle.get_thrust_policy(),
@@ -214,7 +213,7 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
         collect_values_for_int_vertices(handle,
                                         current_frontier.begin(),
                                         current_frontier.end(),
-                                        predecessors,
+                                        predecessors.value_first(),
                                         h_vertex_partition_range_lasts,
                                         graph_view.local_vertex_partition_range_first());
     } else {
@@ -222,7 +221,8 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
                         current_frontier.begin(),
                         current_frontier.end(),
                         current_frontier.data(),
-                        detail::sg_lookup_predecessor<vertex_t>{predecessors});
+                        detail::sg_lookup_predecessor<vertex_t>{
+                          detail::vertex_property_device_view_t{predecessors}});
     }
 
     std::tie(current_frontier, current_position) = detail::shrink_extraction_list(
@@ -232,10 +232,38 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
                        thrust::make_zip_iterator(
                          cuda::std::make_tuple(current_frontier.begin(), current_position.begin())),
                        current_frontier.size(),
-                       detail::update_paths<vertex_t>{paths.data(), invalid_vertex});
+                       detail::update_paths<vertex_t>{
+                         raft::device_span<vertex_t>(paths.data(), paths.size()), invalid_vertex});
   }
 
   return std::make_tuple(std::move(paths), max_path_length);
+}
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  vertex_t const* distances,
+  vertex_t const* predecessors,
+  vertex_t const* destinations,
+  size_t n_destinations)
+{
+  CUGRAPH_EXPECTS((graph_view.local_vertex_partition_range_size() == 0) || (distances != nullptr),
+                  "Invalid input argument: distances cannot be null");
+  CUGRAPH_EXPECTS(
+    (graph_view.local_vertex_partition_range_size() == 0) || (predecessors != nullptr),
+    "Invalid input argument: predecessors cannot be null");
+
+  CUGRAPH_EXPECTS((n_destinations == 0) || (destinations != nullptr),
+                  "Invalid input argument: destinations cannot be null");
+
+  return extract_bfs_paths(handle,
+                           graph_view,
+                           vertex_property_view_t<vertex_t, vertex_t const*>(
+                             distances, graph_view.local_vertex_partition_range_size()),
+                           vertex_property_view_t<vertex_t, vertex_t const*>(
+                             predecessors, graph_view.local_vertex_partition_range_size()),
+                           raft::device_span<vertex_t const>(destinations, n_destinations));
 }
 
 }  // namespace cugraph

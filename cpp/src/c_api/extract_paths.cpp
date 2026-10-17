@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -111,10 +111,12 @@ struct extract_paths_functor : public abstract_functor {
       auto [result, max_path_length] = cugraph::extract_bfs_paths<vertex_t, edge_t, multi_gpu>(
         handle_,
         graph_view,
-        paths_result_->distances_->view()->as_type<vertex_t>(),
-        predecessors.data(),
-        destinations.data(),
-        destinations.size());
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          paths_result_->distances_->view()->as_type<vertex_t>(),
+          static_cast<vertex_t>(paths_result_->distances_->size_)),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          predecessors.data(), static_cast<vertex_t>(predecessors.size())),
+        raft::device_span<vertex_t const>(destinations.data(), destinations.size()));
 
       unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
                                                    result.data(),
