@@ -724,4 +724,5 @@ k_truss(raft::handle_t const& handle,
       std::move(edgelist_srcs), std::move(edgelist_dsts), std::move(edgelist_wgts));
   }
 }
+
 }  // namespace cugraph
