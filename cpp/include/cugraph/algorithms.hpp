@@ -1869,42 +1869,6 @@ std::tuple<vertex_property_t<vertex_t, result_t>, iterative_algorithm_metadata_t
  * @brief returns induced EgoNet subgraph(s) of neighbors centered at nodes in source_vertex within
  * a given radius.
  *
- * @deprecated This algorithm will be deprecated to replaced by the new version
- *             that uses the raft::device_span.
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weights. Needs to be a floating point type.
- * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
- * or multi-GPU (true).
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms. Must have at least one worker stream.
- * @param graph_view Graph view object of, we extract induced egonet subgraphs from @p graph_view.
- * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
- * @param source_vertex Pointer to egonet center vertices (size == @p n_subgraphs).
- * @param n_subgraphs Number of induced EgoNet subgraphs to extract (ie. number of elements in @p
- * source_vertex).
- * @param radius  Include all neighbors of distance <= radius from @p source_vertex.
- * @return Quadraplet of edge source vertices, edge destination vertices, edge weights (if @p
- * edge_weight_view.has_value() == true), and edge offsets for each induced EgoNet subgraph.
- */
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>,
-           rmm::device_uvector<size_t>>
-extract_ego(raft::handle_t const& handle,
-            graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-            std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-            vertex_t* source_vertex,
-            vertex_t n_subgraphs,
-            vertex_t radius);
-
-/**
-.* @ingroup community_cpp
- * @brief returns induced EgoNet subgraph(s) of neighbors centered at nodes in source_vertex within
- * a given radius.
- *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.

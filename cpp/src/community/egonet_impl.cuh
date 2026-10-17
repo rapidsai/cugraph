@@ -205,35 +205,6 @@ std::tuple<rmm::device_uvector<vertex_t>,
 extract_ego(raft::handle_t const& handle,
             graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
             std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-            vertex_t* source_vertex,
-            vertex_t n_subgraphs,
-            vertex_t radius)
-{
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
-  CUGRAPH_EXPECTS(n_subgraphs > 0, "Need at least one source to extract the egonet from");
-  CUGRAPH_EXPECTS(n_subgraphs < graph_view.number_of_vertices(),
-                  "Can't have more sources to extract from than vertices in the graph");
-  CUGRAPH_EXPECTS(radius > 0, "Radius should be at least 1");
-  CUGRAPH_EXPECTS(radius < graph_view.number_of_vertices(), "radius is too large");
-  // source_vertex range is checked in bfs.
-
-  return extract(handle,
-                 graph_view,
-                 edge_weight_view,
-                 raft::device_span<vertex_t const>{source_vertex, static_cast<size_t>(n_subgraphs)},
-                 radius,
-                 false);
-}
-
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>,
-           rmm::device_uvector<size_t>>
-extract_ego(raft::handle_t const& handle,
-            graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-            std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
             raft::device_span<vertex_t const> source_vertex,
             vertex_t radius,
             bool do_expensive_check)
