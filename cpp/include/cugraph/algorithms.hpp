@@ -2897,6 +2897,9 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
  * @ingroup utility_cpp
  * @brief Find a Greedy Vertex Coloring
  *
+ * @deprecated This API is deprecated and replaced by the overload below that returns a
+ * `vertex_property_t`.
+ *
  * A vertex coloring is an assignment of colors or labels to each vertex of a graph so that
  * no two adjacent vertices have the same color or label. Finding the minimum number of colors
  * needed to color the vertices of a graph is an NP-hard problem and therefore for practical
@@ -2920,6 +2923,39 @@ rmm::device_uvector<vertex_t> vertex_coloring(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state);
+
+/**
+ * @ingroup utility_cpp
+ * @brief Find a Greedy Vertex Coloring
+ *
+ * A vertex coloring is an assignment of colors or labels to each vertex of a graph so that
+ * no two adjacent vertices have the same color or label. Finding the minimum number of colors
+ * needed to color the vertices of a graph is an NP-hard problem and therefore for practical
+ * use cases greedy coloring is used. Here we provide an implementation of greedy vertex
+ * coloring based on maximal independent set.
+ * See
+ * https://research.nvidia.com/sites/default/files/pubs/2015-05_Parallel-Graph-Coloring/nvr-2015-001.pdf
+ * for further information.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param rng_state The RngState instance holding pseudo-random number generator state.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Color vertex property values for the vertices assigned to this process.
+ */
+// FIXME: do_expensive_check does not have a default value for now as a call without
+// do_expensive_check would be ambiguous with the deprecated overload above. Once the deprecated
+// overload is deleted, set the default value to false like other functions.
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+vertex_property_t<vertex_t, vertex_t> vertex_coloring(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  raft::random::RngState& rng_state,
+  bool do_expensive_check);
 
 /**
 .* @ingroup utility_cpp

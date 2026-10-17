@@ -75,7 +75,8 @@ class Tests_SGGraphColoring
 
     raft::random::RngState rng_state(0);
     auto d_colors =
-      cugraph::vertex_coloring<vertex_t, edge_t, multi_gpu>(handle, sg_graph_view, rng_state);
+      cugraph::vertex_coloring<vertex_t, edge_t, multi_gpu>(handle, sg_graph_view, rng_state, false)
+        .release_buffer();
 
     // Test Graph Coloring
 

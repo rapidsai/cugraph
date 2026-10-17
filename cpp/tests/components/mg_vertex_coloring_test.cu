@@ -79,8 +79,9 @@ class Tests_MGGraphColoring
       mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
     raft::random::RngState rng_state(multi_gpu ? handle_->get_comms().get_rank() : 0);
-    auto d_colors =
-      cugraph::vertex_coloring<vertex_t, edge_t, multi_gpu>(*handle_, mg_graph_view, rng_state);
+    auto d_colors = cugraph::vertex_coloring<vertex_t, edge_t, multi_gpu>(
+                      *handle_, mg_graph_view, rng_state, false)
+                      .release_buffer();
 
     // Test Graph Coloring
 
