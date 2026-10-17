@@ -835,8 +835,11 @@ vertex_property_t<vertex_t, vertex_t> flatten_dendrogram(
   bool compact_cluster_ids = false);
 
 /**
-.* @ingroup community_cpp
+ * @ingroup community_cpp
  * @brief Computes the ecg clustering of the given graph.
+ *
+ * @deprecated This API is deprecated. Use `ecg` returning a `vertex_property_t` with
+ * `compact_cluster_ids = false`.
  *
  * ECG runs truncated Louvain on an ensemble of permutations of the input graph,
  * then uses the ensemble partitions to determine weights for the input graph.
@@ -884,6 +887,61 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   weight_t min_weight,
   size_t ensemble_size,
+  size_t max_level    = 100,
+  weight_t threshold  = weight_t{1e-7},
+  weight_t resolution = weight_t{1});
+
+/**
+ * @ingroup community_cpp
+ * @brief Computes the ecg clustering of the given graph.
+ *
+ * ECG runs truncated Louvain on an ensemble of permutations of the input graph,
+ * then uses the ensemble partitions to determine weights for the input graph.
+ * The final result is found by running full Louvain on the input graph using
+ * the determined weights. See https://arxiv.org/abs/1809.05578 for further
+ * information.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ *
+ * @param[in]  handle               Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  rng_state            The RngState instance holding pseudo-random number generator
+ *                                  state.
+ * @param[in]  graph_view           Input graph view object
+ * @param[in]  edge_weight_view     View object holding edge weights for @p graph_view.
+ * @param[in]  min_weight           Minimum edge weight to use in the final call of the clustering
+ *                                  algorithm if an edge does not appear in any ensemble run.
+ * @param[in]  ensemble_size        The ensemble size parameter
+ * @param[in]  compact_cluster_ids  If true, renumber cluster ids to a dense range.
+ * @param[in]  max_level            (optional) Maximum number of levels to run (default 100)
+ * @param[in]  threshold            (optional) Minimum modularity gain threshold for each level.
+ *                                  A vertex move is accepted only if its delta modularity exceeds
+ *                                  @p threshold, and an iteration is committed / the level loop
+ *                                  continues only if the global modularity gain exceeds
+ *                                  @p threshold. (default 1e-7)
+ * @param[in]  resolution           (optional) The resolution parameter. Higher resolutions lead
+ *                                  to smaller communities, while lower resolutions lead to fewer
+ *                                  larger communities. (default 1)
+ *
+ * @return                          a tuple containing:
+ *                                    1) vertex property containing the clustering for the local
+ *                                       vertex range
+ *                                    2) number of levels of the returned clustering
+ *                                    3) modularity of the returned clustering
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<vertex_property_t<vertex_t, vertex_t>, size_t, weight_t> ecg(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  weight_t min_weight,
+  size_t ensemble_size,
+  bool compact_cluster_ids,
   size_t max_level    = 100,
   weight_t threshold  = weight_t{1e-7},
   weight_t resolution = weight_t{1});

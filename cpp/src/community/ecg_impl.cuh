@@ -28,13 +28,14 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
+std::tuple<vertex_property_t<vertex_t, vertex_t>, size_t, weight_t> ecg(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   weight_t min_weight,
   size_t ensemble_size,
+  bool compact_cluster_ids,
   size_t max_level,
   weight_t threshold,
   weight_t resolution)
@@ -113,9 +114,10 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
     max_level,
     threshold,
     resolution);
-  modularity          = this_modularity;
-  max_level           = dendrogram.num_levels();
-  cluster_assignments = cugraph::flatten_dendrogram(handle, graph_view, dendrogram, false);
+  modularity = this_modularity;
+  max_level  = dendrogram.num_levels();
+  cluster_assignments =
+    cugraph::flatten_dendrogram(handle, graph_view, dendrogram, compact_cluster_ids);
 
   // Compute final modularity using original edge weights
   weight_t total_edge_weight =
@@ -143,10 +145,39 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
                                           total_edge_weight,
                                           resolution);
 
-  return std::make_tuple(std::move(cluster_assignment_ids), max_level, modularity);
+  return std::make_tuple(
+    vertex_property_t<vertex_t, vertex_t>(std::move(cluster_assignment_ids),
+                                          graph_view.local_vertex_partition_range_size()),
+    max_level,
+    modularity);
 }
 
 }  // namespace detail
+
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<vertex_property_t<vertex_t, vertex_t>, size_t, weight_t> ecg(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  weight_t min_weight,
+  size_t ensemble_size,
+  bool compact_cluster_ids,
+  size_t max_level,
+  weight_t threshold,
+  weight_t resolution)
+{
+  return detail::ecg(handle,
+                     rng_state,
+                     graph_view,
+                     edge_weight_view,
+                     min_weight,
+                     ensemble_size,
+                     compact_cluster_ids,
+                     max_level,
+                     threshold,
+                     resolution);
+}
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
@@ -160,15 +191,18 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
   weight_t threshold,
   weight_t resolution)
 {
-  return detail::ecg(handle,
-                     rng_state,
-                     graph_view,
-                     edge_weight_view,
-                     min_weight,
-                     ensemble_size,
-                     max_level,
-                     threshold,
-                     resolution);
+  auto [cluster_assignments, num_levels, modularity] = cugraph::ecg(handle,
+                                                                    rng_state,
+                                                                    graph_view,
+                                                                    edge_weight_view,
+                                                                    min_weight,
+                                                                    ensemble_size,
+                                                                    false,
+                                                                    max_level,
+                                                                    threshold,
+                                                                    resolution);
+
+  return std::make_tuple(cluster_assignments.release_buffer(), num_levels, modularity);
 }
 
 }  // namespace cugraph

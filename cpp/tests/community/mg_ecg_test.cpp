@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -101,6 +101,7 @@ class Tests_MGEcg : public ::testing::TestWithParam<std::tuple<Ecg_Usecase, inpu
                                                    mg_edge_weight_view,
                                                    ecg_usecase.min_weight_,
                                                    ecg_usecase.ensemble_size_,
+                                                   false,
                                                    ecg_usecase.max_level_,
                                                    ecg_usecase.threshold_,
                                                    ecg_usecase.resolution_);
@@ -138,6 +139,7 @@ class Tests_MGEcg : public ::testing::TestWithParam<std::tuple<Ecg_Usecase, inpu
                                                       sg_edge_weight_view,
                                                       ecg_usecase.min_weight_,
                                                       ecg_usecase.ensemble_size_,
+                                                      false,
                                                       ecg_usecase.max_level_,
                                                       ecg_usecase.threshold_,
                                                       ecg_usecase.resolution_);

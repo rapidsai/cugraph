@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -85,11 +85,7 @@ struct ecg_functor : public cugraph::c_api::abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<vertex_t> clusters(0, handle_.get_stream());
-
-      weight_t modularity;
-
-      std::tie(clusters, std::ignore, modularity) =
+      auto [clustering_prop, num_levels, modularity] =
         cugraph::ecg(handle_,
                      rng_state_->rng_state_,
                      graph_view,
@@ -100,9 +96,12 @@ struct ecg_functor : public cugraph::c_api::abstract_functor {
                                               .view()),
                      static_cast<weight_t>(min_weight_),
                      ensemble_size_,
+                     false,
                      max_level_,
                      static_cast<weight_t>(threshold_),
                      static_cast<weight_t>(resolution_));
+      (void)num_levels;
+      auto clusters = clustering_prop.release_buffer();
 
       rmm::device_uvector<vertex_t> vertices(graph_view.local_vertex_partition_range_size(),
                                              handle_.get_stream());
