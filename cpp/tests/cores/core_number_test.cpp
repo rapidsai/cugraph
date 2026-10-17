@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -244,20 +244,17 @@ class Tests_CoreNumber
     ASSERT_TRUE(core_number_usecase.k_first <= core_number_usecase.k_last)
       << "Invalid pair of (k_first, k_last).";
 
-    rmm::device_uvector<edge_t> d_core_numbers(graph_view.number_of_vertices(),
-                                               handle.get_stream());
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.start("Core number");
     }
 
-    cugraph::core_number(handle,
-                         graph_view,
-                         d_core_numbers.data(),
-                         core_number_usecase.degree_type,
-                         core_number_usecase.k_first,
-                         core_number_usecase.k_last);
+    auto d_core_numbers = cugraph::core_number(handle,
+                                               graph_view,
+                                               core_number_usecase.degree_type,
+                                               core_number_usecase.k_first,
+                                               core_number_usecase.k_last)
+                            .release_buffer();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

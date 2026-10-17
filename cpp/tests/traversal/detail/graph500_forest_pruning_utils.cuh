@@ -87,14 +87,10 @@ find_trees_from_2cores(
   rmm::device_uvector<bool> in_2cores(mg_graph_view.local_vertex_partition_range_size(),
                                       handle.get_stream());
   {
-    rmm::device_uvector<edge_t> core_numbers(mg_graph_view.local_vertex_partition_range_size(),
-                                             handle.get_stream());
-    cugraph::core_number(handle,
-                         mg_graph_view,
-                         core_numbers.data(),
-                         cugraph::k_core_degree_type_t::OUT,
-                         size_t{2},
-                         size_t{2});
+    auto core_numbers =
+      cugraph::core_number(
+        handle, mg_graph_view, cugraph::k_core_degree_type_t::OUT, size_t{2}, size_t{2})
+        .release_buffer();
     thrust::transform(handle.get_thrust_policy(),
                       core_numbers.begin(),
                       core_numbers.end(),

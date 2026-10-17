@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -13,6 +13,7 @@
 #include <cugraph/prims/make_initialized_edge_property.cuh>
 #include <cugraph/prims/per_v_pair_src_dst_nbr_intersection.cuh>
 #include <cugraph/prims/transform_e.cuh>
+#include <cugraph/prims/transform_v.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -210,36 +211,25 @@ k_truss(raft::handle_t const& handle,
 
     // 2.2 Find (k-1)-core and exclude edges that do not belong to (k-1)-core
     {
-      rmm::device_uvector<edge_t> core_numbers(cur_graph_view.local_vertex_partition_range_size(),
-                                               handle.get_stream());
-      core_number(handle,
-                  cur_graph_view,
-                  core_numbers.data(),
-                  k_core_degree_type_t::OUT,
-                  size_t{2},
-                  size_t{2});
+      auto core_numbers = cugraph::core_number(
+        handle, cur_graph_view, k_core_degree_type_t::OUT, size_t{2}, size_t{2});
 
       edge_src_property_t<vertex_t, bool> edge_src_in_k_minus_1_cores(handle, cur_graph_view);
       edge_dst_property_t<vertex_t, bool> edge_dst_in_k_minus_1_cores(handle, cur_graph_view);
-      auto in_k_minus_1_core_first =
-        cuda::make_transform_iterator(core_numbers.begin(), is_k_or_greater_t<edge_t>{k - 1});
-      rmm::device_uvector<bool> in_k_minus_1_core_flags(core_numbers.size(), handle.get_stream());
-      thrust::copy(handle.get_thrust_policy(),
-                   in_k_minus_1_core_first,
-                   in_k_minus_1_core_first + core_numbers.size(),
-                   in_k_minus_1_core_flags.begin());
-      update_edge_src_property(
-        handle,
-        cur_graph_view,
-        vertex_property_view_t{in_k_minus_1_core_flags.begin(),
-                               cur_graph_view.local_vertex_partition_range_size()},
-        edge_src_in_k_minus_1_cores.mutable_view());
-      update_edge_dst_property(
-        handle,
-        cur_graph_view,
-        vertex_property_view_t{in_k_minus_1_core_flags.begin(),
-                               cur_graph_view.local_vertex_partition_range_size()},
-        edge_dst_in_k_minus_1_cores.mutable_view());
+      vertex_property_t<vertex_t, bool> in_k_minus_1_core_flags(handle, cur_graph_view);
+      transform_v(handle,
+                  cur_graph_view,
+                  core_numbers.view(),
+                  is_k_or_greater_t<edge_t>{k - 1},
+                  in_k_minus_1_core_flags.mutable_view());
+      update_edge_src_property(handle,
+                               cur_graph_view,
+                               in_k_minus_1_core_flags.view(),
+                               edge_src_in_k_minus_1_cores.mutable_view());
+      update_edge_dst_property(handle,
+                               cur_graph_view,
+                               in_k_minus_1_core_flags.view(),
+                               edge_dst_in_k_minus_1_cores.mutable_view());
 
       auto in_k_minus_1_core_edge_mask =
         make_initialized_edge_property(handle, cur_graph_view, false);

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -93,21 +93,18 @@ class Tests_MGCoreNumber
 
     // 2. run MG CoreNumber
 
-    rmm::device_uvector<edge_t> d_mg_core_numbers(mg_graph_view.local_vertex_partition_range_size(),
-                                                  handle_->get_stream());
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
       hr_timer.start("MG Core number");
     }
 
-    cugraph::core_number(*handle_,
-                         mg_graph_view,
-                         d_mg_core_numbers.data(),
-                         core_number_usecase.degree_type,
-                         core_number_usecase.k_first,
-                         core_number_usecase.k_last);
+    auto d_mg_core_numbers = cugraph::core_number(*handle_,
+                                                  mg_graph_view,
+                                                  core_number_usecase.degree_type,
+                                                  core_number_usecase.k_first,
+                                                  core_number_usecase.k_last)
+                               .release_buffer();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -150,15 +147,12 @@ class Tests_MGCoreNumber
 
         ASSERT_EQ(mg_graph_view.number_of_vertices(), sg_graph_view.number_of_vertices());
 
-        rmm::device_uvector<edge_t> d_sg_core_numbers(sg_graph_view.number_of_vertices(),
-                                                      handle_->get_stream());
-
-        cugraph::core_number(*handle_,
-                             sg_graph_view,
-                             d_sg_core_numbers.data(),
-                             core_number_usecase.degree_type,
-                             core_number_usecase.k_first,
-                             core_number_usecase.k_last);
+        auto d_sg_core_numbers = cugraph::core_number(*handle_,
+                                                      sg_graph_view,
+                                                      core_number_usecase.degree_type,
+                                                      core_number_usecase.k_first,
+                                                      core_number_usecase.k_last)
+                                   .release_buffer();
 
         // 3-3. compare
 

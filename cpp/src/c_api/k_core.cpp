@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -110,16 +110,21 @@ struct k_core_functor : public cugraph::c_api::abstract_functor {
 
       auto degree_type = reinterpret_cast<cugraph::k_core_degree_type_t>(degree_type);
 
+      using core_numbers_or_degree_type_t =
+        std::variant<cugraph::vertex_property_view_t<vertex_t, edge_t const*>,
+                     cugraph::k_core_degree_type_t>;
+
       auto [result_src, result_dst, result_wgt] =
         cugraph::k_core<vertex_t, edge_t, weight_t, multi_gpu>(
           handle_,
           graph_view,
           (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
           k_,
-          std::make_optional(degree_type),
-          (core_result_ == nullptr) ? std::nullopt
-                                    : std::make_optional<raft::device_span<edge_t const>>(
-                                        core_result_values.data(), core_result_values.size()),
+          (core_result_ == nullptr)
+            ? core_numbers_or_degree_type_t{degree_type}
+            : core_numbers_or_degree_type_t{cugraph::vertex_property_view_t<vertex_t,
+                                                                            edge_t const*>{
+                core_result_values.data(), graph_view.local_vertex_partition_range_size()}},
           do_expensive_check_);
 
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(

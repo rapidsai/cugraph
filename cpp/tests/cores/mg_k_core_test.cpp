@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -77,15 +77,8 @@ class Tests_MGKCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, 
     auto mg_edge_weight_view =
       mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
-    rmm::device_uvector<edge_t> d_mg_core_numbers(mg_graph_view.local_vertex_partition_range_size(),
-                                                  handle_->get_stream());
-
-    cugraph::core_number(*handle_,
-                         mg_graph_view,
-                         d_mg_core_numbers.data(),
-                         k_core_usecase.degree_type,
-                         k_core_usecase.k,
-                         k_core_usecase.k);
+    auto mg_core_numbers = cugraph::core_number(
+      *handle_, mg_graph_view, k_core_usecase.degree_type, k_core_usecase.k, k_core_usecase.k);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -93,13 +86,10 @@ class Tests_MGKCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, 
     }
 
     auto [mg_subgraph_srcs, mg_subgraph_dsts, mg_subgraph_weights] =
-      cugraph::k_core(*handle_,
-                      mg_graph_view,
-                      mg_edge_weight_view,
-                      k_core_usecase.k,
-                      std::nullopt,
-                      std::make_optional<raft::device_span<edge_t const>>(
-                        d_mg_core_numbers.data(), d_mg_core_numbers.size()));
+      cugraph::k_core<vertex_t, edge_t, weight_t, true>(
+        *handle_, mg_graph_view, mg_edge_weight_view, k_core_usecase.k, mg_core_numbers.view());
+
+    auto d_mg_core_numbers = mg_core_numbers.release_buffer();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

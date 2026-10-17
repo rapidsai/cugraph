@@ -350,18 +350,15 @@ std::variant<vertex_property_t<vertex_t, edge_t>, rmm::device_uvector<edge_t>> t
   {
     auto in_two_core_edge_mask = make_initialized_edge_property(handle, cur_graph_view, false);
 
-    rmm::device_uvector<edge_t> core_numbers(cur_graph_view.number_of_vertices(),
-                                             handle.get_stream());
-    core_number(
-      handle, cur_graph_view, core_numbers.data(), k_core_degree_type_t::OUT, size_t{2}, size_t{2});
+    auto core_numbers =
+      cugraph::core_number(handle, cur_graph_view, k_core_degree_type_t::OUT, size_t{2}, size_t{2});
 
     edge_src_property_t<vertex_t, bool> edge_src_in_two_cores(handle, cur_graph_view);
     edge_dst_property_t<vertex_t, bool> edge_dst_in_two_cores(handle, cur_graph_view);
     vertex_property_t<vertex_t, bool> in_two_core_flags(handle, cur_graph_view);
     transform_v(handle,
                 cur_graph_view,
-                vertex_property_view_t{core_numbers.begin(),
-                                       cur_graph_view.local_vertex_partition_range_size()},
+                core_numbers.view(),
                 is_two_or_greater_t<edge_t>{},
                 in_two_core_flags.mutable_view());
     update_edge_src_property(

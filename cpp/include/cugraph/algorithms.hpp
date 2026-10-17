@@ -2135,6 +2135,8 @@ enum class k_core_degree_type_t { IN = 0, OUT = 1, INOUT = 2 };
 .* @ingroup core_cpp
  * @brief   Compute core numbers of individual vertices from K-Core decomposition.
  *
+ * @deprecated This API is deprecated. Use `core_number` returning a `vertex_property_t`.
+ *
  * This algorithms does not support multi-graphs. Self-loops are excluded in computing core
 nuumbers.
  *
@@ -2165,7 +2167,42 @@ void core_number(raft::handle_t const& handle,
 
 /**
 .* @ingroup core_cpp
+ * @brief   Compute core numbers of individual vertices from K-Core decomposition.
+ *
+ * This algorithms does not support multi-graphs. Self-loops are excluded in computing core
+ * numbers.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param degree_type Dictate whether to compute the K-Core decomposition based on in-degrees,
+ * out-degrees, or in-degrees + out_degrees.
+ * @param k_first Find K-Cores from K = k_first. Any vertices that do not belong to k_first-core
+ * will have core numbers of 0.
+ * @param k_last Find K-Cores to K = k_last. Any vertices that belong to (k_last)-core will have
+ * their core numbers set to their degrees on k_last-core.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return A vertex property containing the core number of every local vertex.
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+vertex_property_t<vertex_t, edge_t> core_number(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  k_core_degree_type_t degree_type,
+  size_t k_first          = 0,
+  size_t k_last           = std::numeric_limits<size_t>::max(),
+  bool do_expensive_check = false);
+
+/**
+.* @ingroup core_cpp
  * @brief   Extract K-Core of a graph
+ *
+ * @deprecated This API is deprecated. Use `k_core` taking a `std::variant` of the core numbers (as
+ * a `vertex_property_view_t`) or the degree type.
  *
  * This function internally calls core_number (if @p core_numbers.has_value() is false). core_number
 does not support multi-graphs. Self-loops are excluded in computing core nuumbers. Note that the
@@ -2197,6 +2234,43 @@ k_core(raft::handle_t const& handle,
        size_t k,
        std::optional<k_core_degree_type_t> degree_type,
        std::optional<raft::device_span<edge_t const>> core_numbers,
+       bool do_expensive_check = false);
+
+/**
+.* @ingroup core_cpp
+ * @brief   Extract K-Core of a graph
+ *
+ * This function internally calls core_number (if @p core_numbers_or_degree_type holds a
+ * `k_core_degree_type_t`). core_number does not support multi-graphs. Self-loops are excluded in
+ * computing core numbers. Note that the extracted K-Core can still include self-loops.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
+ * @param k Order of the core. This value must not be negative.
+ * @param core_numbers_or_degree_type Either a vertex property view holding the core numbers of the
+ * local vertices (output from core_number), or the degree type (in-degrees, out-degrees, or
+ * in-degrees + out_degrees) k_core uses to compute the core numbers by calling core_number itself.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ *
+ * @return edge list for the graph
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+k_core(raft::handle_t const& handle,
+       graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+       std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+       size_t k,
+       std::variant<vertex_property_view_t<vertex_t, edge_t const*>, k_core_degree_type_t>
+         core_numbers_or_degree_type,
        bool do_expensive_check = false);
 
 /**
