@@ -10,6 +10,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/transform_v.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #ifdef TIMING
@@ -25,7 +26,6 @@
 #include <thrust/fill.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/remove.h>
-#include <thrust/transform.h>
 
 #include <cstddef>
 #include <ctime>
@@ -99,10 +99,6 @@ extract(raft::handle_t const& handle,
     raft::handle_t light_handle(handle.get_next_usable_stream(i));
     auto worker_stream_view = multi_gpu ? handle.get_stream() : light_handle.get_stream();
 
-    rmm::device_uvector<vertex_t> local_reach(graph_view.local_vertex_partition_range_size(),
-                                              worker_stream_view);
-    reached.push_back(std::move(local_reach));
-
     bool direction_optimizing = false;
 
     raft::device_span<vertex_t const> source{source_vertex.data() + i, 1};
@@ -125,18 +121,25 @@ extract(raft::handle_t const& handle,
                                                 radius,
                                                 false,
                                                 do_expensive_check);
-    auto distances = distance_property.release_buffer();
 
     // identify reached vertex ids from distance array
-    thrust::transform(
-      rmm::exec_policy(worker_stream_view),
-      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
-      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
-      distances.begin(),
-      reached[i].begin(),
-      [sentinel = std::numeric_limits<vertex_t>::max()] __device__(auto id, auto val) {
-        return val < sentinel ? id : sentinel;
-      });
+    cugraph::vertex_property_t<vertex_t, vertex_t> local_reach(multi_gpu ? handle : light_handle,
+                                                               graph_view);
+    cugraph::transform_v(
+      multi_gpu ? handle : light_handle,
+      graph_view,
+      cugraph::view_concat(
+        cugraph::vertex_property_view_t{
+          thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
+          graph_view.local_vertex_partition_range_size()},
+        distance_property.view()),
+      [sentinel = std::numeric_limits<vertex_t>::max()] __device__(auto pair) {
+        auto v        = cuda::std::get<0>(pair);
+        auto distance = cuda::std::get<1>(pair);
+        return distance < sentinel ? v : sentinel;
+      },
+      local_reach.mutable_view());
+    reached.push_back(local_reach.release_buffer());
 
     // removes unreached data
     auto reached_end = thrust::remove(rmm::exec_policy(worker_stream_view),
