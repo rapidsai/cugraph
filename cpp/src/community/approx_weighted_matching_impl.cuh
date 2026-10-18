@@ -13,9 +13,9 @@
 #include <cugraph/prims/make_initialized_edge_property.cuh>
 #include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/prims/reduce_v.cuh>
-#include <cugraph/prims/sequence_v.cuh>
 #include <cugraph/prims/transform_e.cuh>
 #include <cugraph/prims/transform_reduce_e_by_src_dst_key.cuh>
+#include <cugraph/prims/transform_v.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/collect_comm.cuh>
@@ -83,10 +83,7 @@ std::tuple<vertex_property_t<vertex_t, vertex_t>, weight_t> approximate_weighted
 
   if constexpr (multi_gpu) {
     vertex_property_t<vertex_t, vertex_t> local_vertices(handle, current_graph_view);
-    sequence_v(handle,
-               current_graph_view,
-               local_vertices.mutable_view(),
-               current_graph_view.local_vertex_partition_range_first());
+    transform_v(handle, current_graph_view, cuda::std::identity{}, local_vertices.mutable_view());
 
     src_key_cache = cugraph::edge_src_property_t<vertex_t, vertex_t>(handle, current_graph_view);
 

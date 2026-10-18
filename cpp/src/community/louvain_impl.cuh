@@ -67,8 +67,8 @@ std::pair<dendrogram_t<vertex_t>, weight_t> louvain(
 
   rmm::device_uvector<vertex_t> cluster_keys_v(0, handle.get_stream());
   rmm::device_uvector<weight_t> cluster_weights_v(0, handle.get_stream());
-  rmm::device_uvector<weight_t> vertex_weights_v(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> next_clusters_v(0, handle.get_stream());
+  vertex_property_t<vertex_t, weight_t> vertex_weights_v(handle);
+  vertex_property_t<vertex_t, vertex_t> next_clusters_v(handle);
   edge_src_property_t<vertex_t, weight_t> src_vertex_weights_cache(handle);
   edge_src_property_t<vertex_t, vertex_t> src_clusters_cache(handle);
   edge_dst_property_t<vertex_t, vertex_t> dst_clusters_cache(handle);
@@ -110,20 +110,24 @@ std::pair<dendrogram_t<vertex_t>, weight_t> louvain(
       handle, hr_timer, "compute_vertex_and_cluster_weights");
 #endif
 
-    vertex_weights_v =
-      compute_out_weight_sums(handle, current_graph_view, *current_edge_weight_view);
-    cluster_keys_v.resize(vertex_weights_v.size(), handle.get_stream());
-    cluster_weights_v.resize(vertex_weights_v.size(), handle.get_stream());
+    vertex_weights_v = vertex_property_t<vertex_t, weight_t>(
+      compute_out_weight_sums(handle, current_graph_view, *current_edge_weight_view),
+      current_graph_view.local_vertex_partition_range_size());
+    cluster_keys_v.resize(current_graph_view.local_vertex_partition_range_size(),
+                          handle.get_stream());
+    cluster_weights_v.resize(current_graph_view.local_vertex_partition_range_size(),
+                             handle.get_stream());
 
     cugraph::sequence(rmm::exec_policy(handle.get_stream()),
                       cluster_keys_v.begin(),
                       cluster_keys_v.begin() + cluster_keys_v.size(),
                       current_graph_view.local_vertex_partition_range_first());
 
-    raft::copy(cluster_weights_v.begin(),
-               vertex_weights_v.begin(),
-               vertex_weights_v.size(),
-               handle.get_stream());
+    copy_v(handle,
+           current_graph_view,
+           vertex_weights_v.view(),
+           vertex_property_view_t{cluster_weights_v.begin(),
+                                  current_graph_view.local_vertex_partition_range_size()});
 
     if constexpr (graph_view_t::is_multi_gpu) {
       {
@@ -137,14 +141,11 @@ std::pair<dendrogram_t<vertex_t>, weight_t> louvain(
 
       src_vertex_weights_cache =
         edge_src_property_t<vertex_t, weight_t>(handle, current_graph_view);
-      update_edge_src_property(
-        handle,
-        current_graph_view,
-        vertex_property_view_t{vertex_weights_v.begin(),
-                               current_graph_view.local_vertex_partition_range_size()},
-        src_vertex_weights_cache.mutable_view());
-      vertex_weights_v.resize(0, handle.get_stream());
-      vertex_weights_v.shrink_to_fit(handle.get_stream());
+      update_edge_src_property(handle,
+                               current_graph_view,
+                               vertex_weights_v.view(),
+                               src_vertex_weights_cache.mutable_view());
+      vertex_weights_v = vertex_property_t<vertex_t, weight_t>(handle);
     }
 
 #ifdef TIMING
@@ -159,29 +160,20 @@ std::pair<dendrogram_t<vertex_t>, weight_t> louvain(
     detail::timer_start<graph_view_t::is_multi_gpu>(handle, hr_timer, "update_clustering");
 #endif
 
-    next_clusters_v =
-      rmm::device_uvector<vertex_t>(dendrogram.current_level_size(), handle.get_stream());
-
-    raft::copy(next_clusters_v.begin(),
-               dendrogram.current_level_begin(),
-               dendrogram.current_level_size(),
-               handle.get_stream());
+    next_clusters_v = vertex_property_t<vertex_t, vertex_t>(handle, current_graph_view);
+    copy_v(handle,
+           current_graph_view,
+           vertex_property_view_t{dendrogram.current_level_begin(),
+                                  current_graph_view.local_vertex_partition_range_size()},
+           next_clusters_v.mutable_view());
 
     if constexpr (multi_gpu) {
       src_clusters_cache = edge_src_property_t<vertex_t, vertex_t>(handle, current_graph_view);
       update_edge_src_property(
-        handle,
-        current_graph_view,
-        vertex_property_view_t{next_clusters_v.begin(),
-                               current_graph_view.local_vertex_partition_range_size()},
-        src_clusters_cache.mutable_view());
+        handle, current_graph_view, next_clusters_v.view(), src_clusters_cache.mutable_view());
       dst_clusters_cache = edge_dst_property_t<vertex_t, vertex_t>(handle, current_graph_view);
       update_edge_dst_property(
-        handle,
-        current_graph_view,
-        vertex_property_view_t{next_clusters_v.begin(),
-                               current_graph_view.local_vertex_partition_range_size()},
-        dst_clusters_cache.mutable_view());
+        handle, current_graph_view, next_clusters_v.view(), dst_clusters_cache.mutable_view());
     }
 
     weight_t new_Q = detail::compute_modularity(handle,
@@ -189,7 +181,7 @@ std::pair<dendrogram_t<vertex_t>, weight_t> louvain(
                                                 current_edge_weight_view,
                                                 src_clusters_cache,
                                                 dst_clusters_cache,
-                                                next_clusters_v,
+                                                next_clusters_v.view(),
                                                 cluster_weights_v,
                                                 total_edge_weight,
                                                 resolution);
@@ -208,7 +200,7 @@ std::pair<dendrogram_t<vertex_t>, weight_t> louvain(
                                                                       current_edge_weight_view,
                                                                       total_edge_weight,
                                                                       resolution,
-                                                                      vertex_weights_v,
+                                                                      vertex_weights_v.view(),
                                                                       std::move(cluster_keys_v),
                                                                       std::move(cluster_weights_v),
                                                                       std::move(next_clusters_v),
@@ -220,21 +212,17 @@ std::pair<dendrogram_t<vertex_t>, weight_t> louvain(
 
       if constexpr (graph_view_t::is_multi_gpu) {
         update_edge_src_property(
-          handle,
-          current_graph_view,
-          vertex_property_view_t{next_clusters_v.begin(),
-                                 current_graph_view.local_vertex_partition_range_size()},
-          src_clusters_cache.mutable_view());
+          handle, current_graph_view, next_clusters_v.view(), src_clusters_cache.mutable_view());
         update_edge_dst_property(
-          handle,
-          current_graph_view,
-          vertex_property_view_t{next_clusters_v.begin(),
-                                 current_graph_view.local_vertex_partition_range_size()},
-          dst_clusters_cache.mutable_view());
+          handle, current_graph_view, next_clusters_v.view(), dst_clusters_cache.mutable_view());
       }
 
-      std::tie(cluster_keys_v, cluster_weights_v) = detail::compute_cluster_keys_and_values(
-        handle, current_graph_view, current_edge_weight_view, next_clusters_v, src_clusters_cache);
+      std::tie(cluster_keys_v, cluster_weights_v) =
+        detail::compute_cluster_keys_and_values(handle,
+                                                current_graph_view,
+                                                current_edge_weight_view,
+                                                next_clusters_v.view(),
+                                                src_clusters_cache);
 
       up_down = !up_down;
 
@@ -243,16 +231,17 @@ std::pair<dendrogram_t<vertex_t>, weight_t> louvain(
                                          current_edge_weight_view,
                                          src_clusters_cache,
                                          dst_clusters_cache,
-                                         next_clusters_v,
+                                         next_clusters_v.view(),
                                          cluster_weights_v,
                                          total_edge_weight,
                                          resolution);
 
       if (new_Q > (cur_Q + threshold)) {
-        raft::copy(dendrogram.current_level_begin(),
-                   next_clusters_v.begin(),
-                   next_clusters_v.size(),
-                   handle.get_stream());
+        copy_v(handle,
+               current_graph_view,
+               next_clusters_v.view(),
+               vertex_property_view_t{dendrogram.current_level_begin(),
+                                      current_graph_view.local_vertex_partition_range_size()});
       }
     }
 
@@ -274,12 +263,10 @@ std::pair<dendrogram_t<vertex_t>, weight_t> louvain(
 
     cluster_keys_v.resize(0, handle.get_stream());
     cluster_weights_v.resize(0, handle.get_stream());
-    vertex_weights_v.resize(0, handle.get_stream());
-    next_clusters_v.resize(0, handle.get_stream());
     cluster_keys_v.shrink_to_fit(handle.get_stream());
     cluster_weights_v.shrink_to_fit(handle.get_stream());
-    vertex_weights_v.shrink_to_fit(handle.get_stream());
-    next_clusters_v.shrink_to_fit(handle.get_stream());
+    vertex_weights_v = vertex_property_t<vertex_t, weight_t>(handle);
+    next_clusters_v  = vertex_property_t<vertex_t, vertex_t>(handle);
     src_vertex_weights_cache.clear();
     src_clusters_cache.clear();
     dst_clusters_cache.clear();

@@ -130,26 +130,20 @@ std::tuple<vertex_property_t<vertex_t, vertex_t>, size_t, weight_t> ecg(
       handle, graph_view, cluster_assignments.view(), dst_cluster_assignments.mutable_view());
   }
 
-  auto cluster_assignment_ids = cluster_assignments.release_buffer();
-
   auto [cluster_keys, cluster_weights] = cugraph::detail::compute_cluster_keys_and_values(
-    handle, graph_view, edge_weight_view, cluster_assignment_ids, src_cluster_assignments);
+    handle, graph_view, edge_weight_view, cluster_assignments.view(), src_cluster_assignments);
 
   modularity = detail::compute_modularity(handle,
                                           graph_view,
                                           edge_weight_view,
                                           src_cluster_assignments,
                                           dst_cluster_assignments,
-                                          cluster_assignment_ids,
+                                          cluster_assignments.view(),
                                           cluster_weights,
                                           total_edge_weight,
                                           resolution);
 
-  return std::make_tuple(
-    vertex_property_t<vertex_t, vertex_t>(std::move(cluster_assignment_ids),
-                                          graph_view.local_vertex_partition_range_size()),
-    max_level,
-    modularity);
+  return std::make_tuple(std::move(cluster_assignments), max_level, modularity);
 }
 
 }  // namespace detail

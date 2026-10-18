@@ -200,7 +200,8 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
               key_aggregated_e_op_t<vertex_t, weight_t, result_t>{},
               property_initial_value,
               cugraph::reduce_op::plus<result_t>{},
-              cugraph::get_dataframe_buffer_begin(mg_results[i]));
+              cugraph::vertex_property_view_t{cugraph::get_dataframe_buffer_begin(mg_results[i]),
+                                              mg_graph_view.local_vertex_partition_range_size()});
           } else {
             per_v_transform_reduce_dst_key_aggregated_outgoing_e(
               *handle_,
@@ -212,7 +213,8 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
               key_aggregated_e_op_t<vertex_t, cuda::std::nullopt_t, result_t>{},
               property_initial_value,
               cugraph::reduce_op::plus<result_t>{},
-              cugraph::get_dataframe_buffer_begin(mg_results[i]));
+              cugraph::vertex_property_view_t{cugraph::get_dataframe_buffer_begin(mg_results[i]),
+                                              mg_graph_view.local_vertex_partition_range_size()});
           }
           break;
         case reduction_type_t::ELEMWISE_MIN:
@@ -227,7 +229,8 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
               key_aggregated_e_op_t<vertex_t, weight_t, result_t>{},
               property_initial_value,
               cugraph::reduce_op::elementwise_minimum<result_t>{},
-              cugraph::get_dataframe_buffer_begin(mg_results[i]));
+              cugraph::vertex_property_view_t{cugraph::get_dataframe_buffer_begin(mg_results[i]),
+                                              mg_graph_view.local_vertex_partition_range_size()});
           } else {
             per_v_transform_reduce_dst_key_aggregated_outgoing_e(
               *handle_,
@@ -239,7 +242,8 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
               key_aggregated_e_op_t<vertex_t, cuda::std::nullopt_t, result_t>{},
               property_initial_value,
               cugraph::reduce_op::elementwise_minimum<result_t>{},
-              cugraph::get_dataframe_buffer_begin(mg_results[i]));
+              cugraph::vertex_property_view_t{cugraph::get_dataframe_buffer_begin(mg_results[i]),
+                                              mg_graph_view.local_vertex_partition_range_size()});
           }
           break;
         case reduction_type_t::ELEMWISE_MAX:
@@ -254,7 +258,8 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
               key_aggregated_e_op_t<vertex_t, weight_t, result_t>{},
               property_initial_value,
               cugraph::reduce_op::elementwise_maximum<result_t>{},
-              cugraph::get_dataframe_buffer_begin(mg_results[i]));
+              cugraph::vertex_property_view_t{cugraph::get_dataframe_buffer_begin(mg_results[i]),
+                                              mg_graph_view.local_vertex_partition_range_size()});
           } else {
             per_v_transform_reduce_dst_key_aggregated_outgoing_e(
               *handle_,
@@ -266,7 +271,8 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
               key_aggregated_e_op_t<vertex_t, cuda::std::nullopt_t, result_t>{},
               property_initial_value,
               cugraph::reduce_op::elementwise_maximum<result_t>{},
-              cugraph::get_dataframe_buffer_begin(mg_results[i]));
+              cugraph::vertex_property_view_t{cugraph::get_dataframe_buffer_begin(mg_results[i]),
+                                              mg_graph_view.local_vertex_partition_range_size()});
           }
           break;
         default: FAIL() << "should not be reached.";
@@ -395,7 +401,9 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
                   key_aggregated_e_op_t<vertex_t, weight_t, result_t>{},
                   property_initial_value,
                   cugraph::reduce_op::plus<result_t>{},
-                  cugraph::get_dataframe_buffer_begin(global_result));
+                  cugraph::vertex_property_view_t{
+                    cugraph::get_dataframe_buffer_begin(global_result),
+                    sg_graph_view.local_vertex_partition_range_size()});
               } else {
                 per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                   *handle_,
@@ -407,7 +415,9 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
                   key_aggregated_e_op_t<vertex_t, cuda::std::nullopt_t, result_t>{},
                   property_initial_value,
                   cugraph::reduce_op::plus<result_t>{},
-                  cugraph::get_dataframe_buffer_begin(global_result));
+                  cugraph::vertex_property_view_t{
+                    cugraph::get_dataframe_buffer_begin(global_result),
+                    sg_graph_view.local_vertex_partition_range_size()});
               }
               break;
             case reduction_type_t::ELEMWISE_MIN:
@@ -422,7 +432,9 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
                   key_aggregated_e_op_t<vertex_t, weight_t, result_t>{},
                   property_initial_value,
                   cugraph::reduce_op::elementwise_minimum<result_t>{},
-                  cugraph::get_dataframe_buffer_begin(global_result));
+                  cugraph::vertex_property_view_t{
+                    cugraph::get_dataframe_buffer_begin(global_result),
+                    sg_graph_view.local_vertex_partition_range_size()});
               } else {
                 per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                   *handle_,
@@ -434,7 +446,9 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
                   key_aggregated_e_op_t<vertex_t, cuda::std::nullopt_t, result_t>{},
                   property_initial_value,
                   cugraph::reduce_op::elementwise_minimum<result_t>{},
-                  cugraph::get_dataframe_buffer_begin(global_result));
+                  cugraph::vertex_property_view_t{
+                    cugraph::get_dataframe_buffer_begin(global_result),
+                    sg_graph_view.local_vertex_partition_range_size()});
               }
               break;
             case reduction_type_t::ELEMWISE_MAX:
@@ -449,7 +463,9 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
                   key_aggregated_e_op_t<vertex_t, weight_t, result_t>{},
                   property_initial_value,
                   cugraph::reduce_op::elementwise_maximum<result_t>{},
-                  cugraph::get_dataframe_buffer_begin(global_result));
+                  cugraph::vertex_property_view_t{
+                    cugraph::get_dataframe_buffer_begin(global_result),
+                    sg_graph_view.local_vertex_partition_range_size()});
               } else {
                 per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                   *handle_,
@@ -461,7 +477,9 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
                   key_aggregated_e_op_t<vertex_t, cuda::std::nullopt_t, result_t>{},
                   property_initial_value,
                   cugraph::reduce_op::elementwise_maximum<result_t>{},
-                  cugraph::get_dataframe_buffer_begin(global_result));
+                  cugraph::vertex_property_view_t{
+                    cugraph::get_dataframe_buffer_begin(global_result),
+                    sg_graph_view.local_vertex_partition_range_size()});
               }
               break;
             default: FAIL() << "should not be reached.";
