@@ -28,7 +28,6 @@ jobs:
       - wheel-tests-pylibcugraph
       - wheel-build-cugraph
       - wheel-tests-cugraph
-      - telemetry-setup
       - devcontainer
     uses: rapidsai/shared-workflows/.github/workflows/pr-builder.yaml@main
     if: always()
@@ -36,15 +35,6 @@ jobs:
       needs: ${{ toJSON(needs) }}
     permissions:
       contents: read
-  telemetry-setup:
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    env:
-      OTEL_SERVICE_NAME: "pr-cugraph"
-    steps:
-      - name: Telemetry setup
-        if: ${{ vars.TELEMETRY_ENABLED == 'true' }}
-        uses: rapidsai/shared-actions/telemetry-dispatch-stash-base-env-vars@main
   build-details:
     uses: rapidsai/shared-workflows/.github/workflows/compute-build-details.yaml@main
   check-nightly-ci:
@@ -66,7 +56,6 @@ jobs:
           # TODO: remove this when nightly tests are passing again (ref: https://github.com/rapidsai/cugraph/issues/5421)
           max-days-without-success: 21
   changed-files:
-    needs: telemetry-setup
     uses: rapidsai/shared-workflows/.github/workflows/changed-files.yaml@main
     with:
       files_yaml: |
@@ -248,11 +237,9 @@ jobs:
       packages: read
       pull-requests: read
   checks:
-    needs: telemetry-setup
     uses: rapidsai/shared-workflows/.github/workflows/checks.yaml@main
     with:
       enable_check_generated_files: false
-      ignored_pr_jobs: telemetry-summarize
     permissions:
       contents: read
   conda-cpp-build:
@@ -458,7 +445,6 @@ jobs:
       pull-requests: read
   devcontainer:
     secrets: inherit # zizmor: ignore[secrets-inherit]
-    needs: telemetry-setup
     uses: rapidsai/shared-workflows/.github/workflows/build-in-devcontainer.yaml@main
     with:
       arch: '["amd64", "arm64"]'
@@ -470,24 +456,11 @@ jobs:
         SCCACHE_DIST_FALLBACK_TO_LOCAL_COMPILE=false
       build_command: |
         sccache --zero-stats;
-        build-all -j0 --verbose -DBUILD_CUGRAPH_MG_TESTS=ON 2>&1 | tee telemetry-artifacts/build.log;
-        sccache --show-adv-stats | tee telemetry-artifacts/sccache-stats.txt;
+        build-all -j0 --verbose -DBUILD_CUGRAPH_MG_TESTS=ON;
+        sccache --show-adv-stats;
     permissions:
       actions: read
       contents: read
       id-token: write
       packages: read
       pull-requests: read
-  telemetry-summarize:
-    # This job must use a self-hosted runner to record telemetry traces.
-    runs-on: linux-amd64-cpu4
-    needs: pr-builder
-    if: ${{ vars.TELEMETRY_ENABLED == 'true' && !cancelled() }}
-    continue-on-error: true
-    steps:
-      - name: Telemetry summarize
-        uses: rapidsai/shared-actions/telemetry-dispatch-summarize@main
-    env:
-      GH_TOKEN: ${{ github.token }}
-    permissions:
-      actions: write
