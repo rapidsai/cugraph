@@ -28,6 +28,7 @@ struct Temporal_Neighbor_Sampling_Usecase {
   cugraph::temporal_sampling_comparison_t temporal_sampling_comparison{
     cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING};
   bool check_correctness{true};
+  cugraph::neighbor_selection_t neighbor_selection{cugraph::neighbor_selection_t::RANDOM};
 };
 
 template <typename input_usecase_t>
@@ -188,6 +189,7 @@ class Tests_MGTemporal_Neighbor_Sampling
     sampling_flags.disjoint_sampling = true;
     sampling_flags.temporal_sampling_comparison =
       temporal_neighbor_sampling_usecase.temporal_sampling_comparison;
+    sampling_flags.neighbor_selection = temporal_neighbor_sampling_usecase.neighbor_selection;
 
     rmm::device_uvector<vertex_t> src_out(0, handle_->get_stream());
     rmm::device_uvector<vertex_t> dst_out(0, handle_->get_stream());
@@ -670,6 +672,32 @@ INSTANTIATE_TEST_SUITE_P(
                          true,
                          false,
                          cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING}),
+                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_test_last_selection,
+  Tests_MGTemporal_Neighbor_Sampling_File,
+  ::testing::Combine(::testing::Values(
+                       Temporal_Neighbor_Sampling_Usecase{
+                         {4, -1, 10},
+                         128,
+                         false,
+                         false,
+                         true,
+                         true,
+                         cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING,
+                         true,
+                         cugraph::neighbor_selection_t::LAST},
+                       Temporal_Neighbor_Sampling_Usecase{
+                         {4, -1, 10},
+                         128,
+                         false,
+                         false,
+                         true,
+                         true,
+                         cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING,
+                         true,
+                         cugraph::neighbor_selection_t::LAST}),
                      ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(

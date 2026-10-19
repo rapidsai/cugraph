@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -23,7 +23,7 @@ from pylibcugraph._cugraph_c.graph cimport (
 )
 
 
-cdef extern from "cugraph_c/labeling_algorithms.h":
+cdef extern from "cugraph_c/components_algorithms.h":
     ###########################################################################
     # weakly connected components
     ctypedef struct cugraph_labeling_result_t:
@@ -59,5 +59,41 @@ cdef extern from "cugraph_c/labeling_algorithms.h":
             cugraph_graph_t* graph,
             bool_t do_expensive_check,
             cugraph_labeling_result_t** result,
+            cugraph_error_t** error
+        )
+
+    ###########################################################################
+    # simple cycles
+    ctypedef struct cugraph_simple_cycles_result_t:
+        pass
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_simple_cycles_result_get_cycle_vertices(
+            cugraph_simple_cycles_result_t* result
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_simple_cycles_result_get_cycle_offsets(
+            cugraph_simple_cycles_result_t* result
+        )
+
+    cdef size_t \
+        cugraph_simple_cycles_result_get_num_cycles(
+            cugraph_simple_cycles_result_t* result
+        )
+
+    cdef void \
+        cugraph_simple_cycles_result_free(
+            cugraph_simple_cycles_result_t* result
+        )
+
+    cdef cugraph_error_code_t \
+        cugraph_simple_cycles(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            const cugraph_type_erased_device_array_view_t* seed_vertices,
+            size_t length_bound,
+            bool_t do_expensive_check,
+            cugraph_simple_cycles_result_t** result,
             cugraph_error_t** error
         )

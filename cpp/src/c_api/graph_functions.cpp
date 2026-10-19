@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -11,6 +11,7 @@
 #include "c_api/resource_handle.hpp"
 #include "c_api/utils.hpp"
 
+#include <cugraph_c/graph.h>
 #include <cugraph_c/graph_functions.h>
 
 #include <cugraph/algorithms.hpp>
@@ -206,6 +207,66 @@ struct two_hop_neighbors_functor : public cugraph::c_api::abstract_functor {
   }
 };
 
+struct number_of_vertices_functor : public cugraph::c_api::abstract_functor {
+  cugraph::c_api::cugraph_graph_t* graph_{nullptr};
+  size_t result_{};
+
+  explicit number_of_vertices_functor(::cugraph_graph_t* graph)
+    : abstract_functor(), graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph))
+  {
+  }
+
+  template <typename vertex_t,
+            typename edge_t,
+            typename weight_t,
+            typename edge_type_t,
+            typename time_stamp_t,
+            bool store_transposed,
+            bool multi_gpu>
+  void operator()()
+  {
+    if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
+      unsupported();
+    } else {
+      auto graph =
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>*>(
+          graph_->graph_);
+
+      result_ = static_cast<size_t>(graph->view().number_of_vertices());
+    }
+  }
+};
+
+struct number_of_edges_functor : public cugraph::c_api::abstract_functor {
+  cugraph::c_api::cugraph_graph_t* graph_{nullptr};
+  size_t result_{};
+
+  explicit number_of_edges_functor(::cugraph_graph_t* graph)
+    : abstract_functor(), graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph))
+  {
+  }
+
+  template <typename vertex_t,
+            typename edge_t,
+            typename weight_t,
+            typename edge_type_t,
+            typename time_stamp_t,
+            bool store_transposed,
+            bool multi_gpu>
+  void operator()()
+  {
+    if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
+      unsupported();
+    } else {
+      auto graph =
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>*>(
+          graph_->graph_);
+
+      result_ = static_cast<size_t>(graph->number_of_edges());
+    }
+  }
+};
+
 struct count_multi_edges_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_{};
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
@@ -377,6 +438,27 @@ extern "C" cugraph_error_code_t cugraph_two_hop_neighbors(
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
 
+extern "C" cugraph_error_code_t cugraph_graph_number_of_vertices(cugraph_graph_t* graph,
+                                                                 size_t* result,
+                                                                 cugraph_error_t** error)
+{
+  number_of_vertices_functor functor(graph);
+
+  return cugraph::c_api::run_algorithm(graph, functor, result, error);
+}
+
+extern "C" cugraph_error_code_t cugraph_graph_number_of_edges(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  size_t* result,
+  cugraph_error_t** error)
+{
+  (void)handle;
+  number_of_edges_functor functor(graph);
+
+  return cugraph::c_api::run_algorithm(graph, functor, result, error);
+}
+
 extern "C" cugraph_error_code_t cugraph_count_multi_edges(const cugraph_resource_handle_t* handle,
                                                           cugraph_graph_t* graph,
                                                           bool_t do_expensive_check,
@@ -407,4 +489,42 @@ extern "C" cugraph_error_code_t cugraph_has_vertex(
   has_vertex_functor functor(handle, graph, vertices, do_expensive_check);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
+}
+
+extern "C" bool_t cugraph_graph_has_edge_weights(cugraph_graph_t* graph)
+{
+  if (graph == nullptr) { return FALSE; }
+  return reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_weights_ != nullptr
+           ? TRUE
+           : FALSE;
+}
+
+extern "C" bool_t cugraph_graph_has_edge_ids(cugraph_graph_t* graph)
+{
+  if (graph == nullptr) { return FALSE; }
+  return reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_ids_ != nullptr ? TRUE
+                                                                                         : FALSE;
+}
+
+extern "C" bool_t cugraph_graph_has_edge_types(cugraph_graph_t* graph)
+{
+  if (graph == nullptr) { return FALSE; }
+  return reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_types_ != nullptr ? TRUE
+                                                                                           : FALSE;
+}
+
+extern "C" bool_t cugraph_graph_has_edge_start_times(cugraph_graph_t* graph)
+{
+  if (graph == nullptr) { return FALSE; }
+  return reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_start_times_ != nullptr
+           ? TRUE
+           : FALSE;
+}
+
+extern "C" bool_t cugraph_graph_has_edge_end_times(cugraph_graph_t* graph)
+{
+  if (graph == nullptr) { return FALSE; }
+  return reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_end_times_ != nullptr
+           ? TRUE
+           : FALSE;
 }

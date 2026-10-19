@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -8,6 +8,8 @@
 
 #include <raft/core/handle.hpp>
 #include <raft/random/rng_state.hpp>
+
+#include <cuda/stream>
 
 #include <iostream>
 #include <string>
@@ -19,7 +21,7 @@ std::unique_ptr<raft::handle_t> initialize_sg_handle()
   rmm::mr::set_current_device_resource(resource);
 
   std::unique_ptr<raft::handle_t> handle =
-    std::make_unique<raft::handle_t>(rmm::cuda_stream_per_thread, nullptr, resource);
+    std::make_unique<raft::handle_t>(cuda::stream_ref{cudaStreamPerThread}, nullptr, resource);
   return std::move(handle);
 }
 

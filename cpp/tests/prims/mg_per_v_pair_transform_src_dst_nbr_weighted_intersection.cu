@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -30,6 +30,7 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/functional>
 #include <cuda/std/tuple>
 #include <thrust/equal.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -153,7 +154,7 @@ class Tests_MGPerVPairTransformSrcDstNbrWeightedIntersection
       cugraph::get_dataframe_buffer_begin(mg_vertex_pair_buffer),
       cugraph::get_dataframe_buffer_end(mg_vertex_pair_buffer),
       [comm_rank, num_vertices = mg_graph_view.number_of_vertices()] __device__(size_t i) {
-        cuco::murmurhash3_32<size_t>
+        cuda::hash<size_t, cuda::hash_algorithm::murmurhash3_32>
           hash_func{};  // use hash_func to generate arbitrary vertex pairs
         auto v0 = static_cast<vertex_t>(hash_func(i + comm_rank) % num_vertices);
         auto v1 = static_cast<vertex_t>(hash_func(i + num_vertices + comm_rank) % num_vertices);

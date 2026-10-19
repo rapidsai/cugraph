@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -30,7 +30,7 @@
 
 #include <raft/core/handle.hpp>
 
-#include <cub/cub.cuh>
+#include <cub/device/device_segmented_sort.cuh>
 #include <cuda/atomic>
 #include <cuda/functional>
 #include <cuda/iterator>
@@ -1043,7 +1043,7 @@ void multisource_backward_pass(
                                             num_segments_in_chunk,
                                             offset_first,
                                             offset_first + 1,
-                                            handle.get_stream());
+                                            handle.get_stream().get());
 
         if (temp_storage_bytes > d_tmp_storage.size()) {
           d_tmp_storage = rmm::device_uvector<std::byte>(temp_storage_bytes, handle.get_stream());
@@ -1059,7 +1059,7 @@ void multisource_backward_pass(
                                             num_segments_in_chunk,
                                             offset_first,
                                             offset_first + 1,
-                                            handle.get_stream());
+                                            handle.get_stream().get());
       }
     }
 
@@ -1585,6 +1585,8 @@ edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
     scale_factor = n * (n - 1);
   } else if (graph_view.is_symmetric()) {
     scale_factor = weight_t{2};
+  } else if (static_cast<vertex_t>(num_sources) < graph_view.number_of_vertices()) {
+    scale_factor = weight_t{1};
   }
 
   if (scale_factor) {

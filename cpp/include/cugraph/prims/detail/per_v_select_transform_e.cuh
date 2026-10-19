@@ -24,7 +24,6 @@
 #include <raft/core/host_span.hpp>
 #include <raft/random/rng.cuh>
 
-#include <cub/cub.cuh>
 #include <cuda/atomic>
 #include <cuda/functional>
 #include <cuda/iterator>

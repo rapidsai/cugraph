@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -27,6 +27,7 @@
 #include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -206,7 +207,7 @@ void per_v_pair_transform_minor_nbr_intersection(
   auto num_input_pairs =
     static_cast<size_t>(cuda::std::distance(vertex_pair_first, vertex_pair_last));
   std::optional<rmm::device_uvector<vertex_t>> sorted_unique_vertices{std::nullopt};
-  std::optional<decltype(allocate_dataframe_buffer<property_t>(size_t{0}, rmm::cuda_stream_view{}))>
+  std::optional<decltype(allocate_dataframe_buffer<property_t>(size_t{0}, cuda::stream_ref{}))>
     property_buffer_for_sorted_unique_vertices{std::nullopt};
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& comm = handle.get_comms();

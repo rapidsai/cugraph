@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -24,6 +24,7 @@
 #include <cuda/functional>
 #include <cuda/std/cstddef>
 #include <cuda/std/iterator>
+#include <cuda/std/span>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -34,9 +35,8 @@
 #include <thrust/transform.h>
 #include <thrust/unique.h>
 
-#include <cuco/hash_functions.cuh>
-
 #include <algorithm>
+#include <cstdint>
 #include <optional>
 
 namespace cugraph {
@@ -45,11 +45,11 @@ namespace detail {
 
 template <typename vertex_t>
 struct hash_src_dst_pair_t {
-  using result_type = typename cuco::murmurhash3_32<vertex_t>::result_type;
+  using result_type = uint32_t;
 
   __device__ result_type operator()(cuda::std::tuple<vertex_t, vertex_t> pair) const
   {
-    cuco::murmurhash3_32<vertex_t> hash_func{};
+    cuda::hash<vertex_t, cuda::hash_algorithm::murmurhash3_32> hash_func{};
     auto hash0 = hash_func(cuda::std::get<0>(pair));
     auto hash1 = hash_func(cuda::std::get<1>(pair));
     return hash0 + hash1;
@@ -65,10 +65,11 @@ struct hash_and_mod_src_dst_pair_t {
     vertex_t buf[2];
     buf[0] = cuda::std::get<0>(pair);
     buf[1] = cuda::std::get<1>(pair);
-    std::conditional_t<sizeof(vertex_t) == 8, cuco::xxhash_64<vertex_t>, cuco::xxhash_32<vertex_t>>
+    std::conditional_t<sizeof(vertex_t) == 8,
+                       cuda::hash<vertex_t, cuda::hash_algorithm::xxhash_64>,
+                       cuda::hash<vertex_t, cuda::hash_algorithm::xxhash_32>>
       hash_func{};
-    return static_cast<int>(
-      hash_func.compute_hash(reinterpret_cast<cuda::std::byte*>(buf), 2 * sizeof(vertex_t)) % mod);
+    return static_cast<int>(hash_func(cuda::std::span<vertex_t>{buf, 2}) % mod);
   }
 };
 

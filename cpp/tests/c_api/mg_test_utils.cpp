@@ -25,6 +25,8 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/per_device_resource.hpp>
 
+#include <cuda/stream>
+
 #include <cuda_runtime.h>
 
 #include <cstdio>
@@ -81,9 +83,9 @@ extern "C" int run_mg_test(int (*test)(const cugraph_resource_handle_t*),
   rmm::device_uvector<int> d_input(1, raft_handle->get_stream());
   raft::update_device(d_input.data(), &ret_val, 1, raft_handle->get_stream());
   comm.allreduce(
-    d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, raft_handle->get_stream());
+    d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, raft_handle->get_stream().get());
   raft::update_host(&ret_val, d_input.data(), 1, raft_handle->get_stream());
-  auto status = comm.sync_stream(raft_handle->get_stream());
+  auto status = comm.sync_stream(raft_handle->get_stream().get());
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   if (rank == 0) {
@@ -121,8 +123,9 @@ extern "C" void* create_mg_raft_handle(int argc, char** argv)
 
   // Match initialize_mg_handle: per-thread default stream + stream pool.
   constexpr size_t stream_pool_size = 8;  // default CUDA_DEVICE_MAX_CONNECTIONS
-  raft::handle_t* handle            = new raft::handle_t{
-    rmm::cuda_stream_per_thread, std::make_shared<rmm::cuda_stream_pool>(stream_pool_size)};
+  raft::handle_t* handle =
+    new raft::handle_t{cuda::stream_ref{cudaStreamPerThread},
+                       std::make_shared<rmm::cuda_stream_pool>(stream_pool_size)};
   raft::comms::initialize_mpi_comms(handle, MPI_COMM_WORLD);
 
 #if 1
@@ -769,9 +772,9 @@ extern "C" size_t cugraph_test_device_gatherv_size(
   rmm::device_uvector<size_t> d_input(1, raft_handle->get_stream());
   raft::update_device(d_input.data(), &ret_value, 1, raft_handle->get_stream());
   comm.allreduce(
-    d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, raft_handle->get_stream());
+    d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, raft_handle->get_stream().get());
   raft::update_host(&ret_value, d_input.data(), 1, raft_handle->get_stream());
-  auto status = comm.sync_stream(raft_handle->get_stream());
+  auto status = comm.sync_stream(raft_handle->get_stream().get());
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   return (comm.get_rank() == 0) ? ret_value : 0;
@@ -786,9 +789,9 @@ extern "C" size_t cugraph_test_scalar_reduce(const cugraph_resource_handle_t* ha
   rmm::device_uvector<size_t> d_input(1, raft_handle->get_stream());
   raft::update_device(d_input.data(), &value, 1, raft_handle->get_stream());
   comm.allreduce(
-    d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, raft_handle->get_stream());
+    d_input.data(), d_input.data(), 1, raft::comms::op_t::SUM, raft_handle->get_stream().get());
   raft::update_host(&value, d_input.data(), 1, raft_handle->get_stream());
-  auto status = comm.sync_stream(raft_handle->get_stream());
+  auto status = comm.sync_stream(raft_handle->get_stream().get());
   CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
   return (comm.get_rank() == 0) ? value : 0;
@@ -1692,8 +1695,10 @@ int mg_validate_sample_result(const cugraph_resource_handle_t* handle,
           }
         }
 
-        if (validate_edge_times) {
-          // Check that the edge times are moving in the correct direction
+        if (validate_edge_times && internal_sampling_options->fixed_window_ != TRUE) {
+          // Check that the edge times are moving in the correct direction. fixed_window is
+          // excluded because it reuses the original seed window at every hop and does not impose
+          // path-wise monotonicity.
           time_stamp_t previous_vertex_times[num_vertices];
           for (size_t i = 0; i < num_vertices; ++i)
             if (temporal_sampling_comparison == STRICTLY_INCREASING) {

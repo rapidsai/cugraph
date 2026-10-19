@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -11,6 +11,8 @@
 #include <raft/random/rng_state.hpp>
 
 #include <rmm/device_uvector.hpp>
+
+#include <cuda/stream>
 
 namespace CUGRAPH_EXPORT cugraph {
 namespace detail {
@@ -37,7 +39,7 @@ namespace detail {
  *
  */
 template <typename value_t>
-void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
+void uniform_random_fill(cuda::stream_ref const& stream_view,
                          value_t* d_value,
                          size_t size,
                          value_t min_value,
@@ -58,7 +60,7 @@ void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
 template <typename value_t>
 void transform_increment_ints(raft::device_span<value_t> values,
                               value_t value,
-                              rmm::cuda_stream_view const& stream_view);
+                              cuda::stream_ref const& stream_view);
 
 /**
  * @ingroup utility_wrappers_cpp
@@ -76,7 +78,7 @@ template <typename value_t>
 void transform_not_equal(raft::device_span<value_t> values,
                          raft::device_span<bool> result,
                          value_t compare,
-                         rmm::cuda_stream_view const& stream_view);
+                         cuda::stream_ref const& stream_view);
 
 /**
  * @ingroup utility_wrappers_cpp
@@ -94,7 +96,7 @@ void transform_not_equal(raft::device_span<value_t> values,
  * @param the maximum value occurring in the edge list
  */
 template <typename vertex_t>
-vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
+vertex_t compute_maximum_vertex_id(cuda::stream_ref const& stream_view,
                                    vertex_t const* d_edgelist_srcs,
                                    vertex_t const* d_edgelist_dsts,
                                    size_t num_edges);
@@ -114,7 +116,7 @@ vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
  * @param the maximum value occurring in the edge list
  */
 template <typename vertex_t>
-vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
+vertex_t compute_maximum_vertex_id(cuda::stream_ref const& stream_view,
                                    rmm::device_uvector<vertex_t> const& d_edgelist_srcs,
                                    rmm::device_uvector<vertex_t> const& d_edgelist_dsts)
 {
