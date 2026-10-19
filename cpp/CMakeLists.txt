@@ -19,6 +19,17 @@ rapids_cuda_init_architectures(CUGRAPH)
 
 project(CUGRAPH VERSION "${RAPIDS_VERSION}" LANGUAGES C CXX CUDA)
 
+# Make CMake packages shipped in installed RAPIDS wheels discoverable. This is
+# needed for direct C++ builds in pip environments, where scikit-build-core is
+# not present to add the wheels' `cmake.prefix` entry points to CMAKE_PREFIX_PATH.
+find_package(Python COMPONENTS Interpreter)
+if(Python_FOUND)
+  include(${rapids-cmake-dir}/cython-core/find_prefix_paths.cmake)
+  rapids_cython_find_prefix_paths("${Python_EXECUTABLE}" wheel_prefix_paths)
+  set_property(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS TRUE)
+  list(APPEND CMAKE_PREFIX_PATH ${wheel_prefix_paths})
+endif()
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND
    CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.3)
     message(FATAL_ERROR "GCC compiler must be at least 9.3")
@@ -358,6 +369,8 @@ set(CUGRAPH_SG_SOURCES
     src/components/weakly_connected_components_sg_v32_e32.cu
     src/components/strongly_connected_components_sg_v64_e64.cu
     src/components/strongly_connected_components_sg_v32_e32.cu
+    src/components/simple_cycles_sg_v64_e64.cu
+    src/components/simple_cycles_sg_v32_e32.cu
     src/components/mis_sg_v64_e64.cu
     src/components/mis_sg_v32_e32.cu
     src/components/vertex_coloring_sg_v64_e64.cu
@@ -485,6 +498,8 @@ set(CUGRAPH_MG_SOURCES
     src/components/weakly_connected_components_mg_v32_e32.cu
     src/components/strongly_connected_components_mg_v64_e64.cu
     src/components/strongly_connected_components_mg_v32_e32.cu
+    src/components/simple_cycles_mg_v64_e64.cu
+    src/components/simple_cycles_mg_v32_e32.cu
     src/components/mis_mg_v64_e64.cu
     src/components/mis_mg_v32_e32.cu
     src/components/vertex_coloring_mg_v64_e64.cu
@@ -686,6 +701,8 @@ add_library(cugraph_c
         src/c_api/temporal_neighbor_sampling.cpp
         src/c_api/negative_sampling.cpp
         src/c_api/labeling_result.cpp
+        src/c_api/simple_cycles_result.cpp
+        src/c_api/simple_cycles.cpp
         src/c_api/weakly_connected_components.cpp
         src/c_api/strongly_connected_components.cpp
         src/c_api/allgather.cpp
@@ -817,7 +834,7 @@ rapids_export(BUILD cugraph
 # from build directory, run make docs_cugraph
 
 # doc targets for cugraph
-find_package(Doxygen 1.8.11)
+find_package(Doxygen 1.18.0)
 if(Doxygen_FOUND)
     add_custom_command(OUTPUT CUGRAPH_DOXYGEN
                        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doxygen

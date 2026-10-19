@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -40,7 +40,7 @@ def setup_function():
 def has_selfloop(dataset):
     if not dataset.metadata["is_directed"]:
         return False
-    df = dataset.get_edgelist()
+    df = dataset.get_edgelist(download=True)
     df.rename(columns={df.columns[0]: "src", df.columns[1]: "dst"}, inplace=True)
     res = df.where(df["src"] == df["dst"])
 
@@ -53,7 +53,7 @@ def is_symmetric(dataset):
     if not dataset.metadata["is_directed"]:
         return True
     else:
-        df = dataset.get_edgelist()
+        df = dataset.get_edgelist(download=True)
         df.rename(columns={df.columns[0]: "src", df.columns[1]: "dst"}, inplace=True)
         df_a = df.sort_values("src")
 
@@ -167,7 +167,7 @@ def test_get_edgelist(dataset):
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 def test_get_dask_edgelist(dask_client, dataset):
-    E = dataset.get_dask_edgelist()
+    E = dataset.get_dask_edgelist(download=True)
 
     assert E is not None
     assert isinstance(E, dask_cudf.DataFrame)
@@ -175,7 +175,7 @@ def test_get_dask_edgelist(dask_client, dataset):
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_graph(dataset):
-    G = dataset.get_graph()
+    G = dataset.get_graph(download=True)
 
     assert G is not None
     assert isinstance(G, cugraph.Graph)
@@ -185,7 +185,7 @@ def test_get_graph(dataset):
 @pytest.mark.parametrize("dataset", ALL_DATASETS[:1])
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 def test_get_dask_graph(dask_client, dataset):
-    G = dataset.get_dask_graph()
+    G = dataset.get_dask_graph(download=True)
 
     assert G is not None
     # TODO Check G is a DistributedGraph
@@ -211,7 +211,7 @@ def test_get_path(dataset, tmp_path):
 
 @pytest.mark.parametrize("dataset", WEIGHTED_DATASETS)
 def test_weights(dataset):
-    G = dataset.get_graph()
+    G = dataset.get_graph(download=True)
     assert G.is_weighted()
 
     G = dataset.get_graph(ignore_weights=True)
@@ -222,7 +222,7 @@ def test_weights(dataset):
 @pytest.mark.parametrize("dataset", WEIGHTED_DATASETS)
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 def test_weights_dask(dask_client, dataset):
-    G = dataset.get_dask_graph()
+    G = dataset.get_dask_graph(download=True)
     assert G.is_weighted()
     G = dataset.get_dask_graph(ignore_weights=True)
     assert not G.is_weighted()
@@ -336,7 +336,9 @@ def test_unload():
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_node_and_edge_count(dataset):
     dataset_is_directed = dataset.metadata["is_directed"]
-    G = dataset.get_graph(create_using=Graph(directed=dataset_is_directed))
+    G = dataset.get_graph(
+        download=True, create_using=Graph(directed=dataset_is_directed)
+    )
 
     df = cudf.DataFrame()
     if "weights" in G.edgelist.edgelist_df:
@@ -368,7 +370,9 @@ def test_node_and_edge_count(dataset):
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_is_directed(dataset):
     dataset_is_directed = dataset.metadata["is_directed"]
-    G = dataset.get_graph(create_using=Graph(directed=dataset_is_directed))
+    G = dataset.get_graph(
+        download=True, create_using=Graph(directed=dataset_is_directed)
+    )
 
     assert G.is_directed() == dataset.metadata["is_directed"]
 
@@ -385,7 +389,7 @@ def test_is_symmetric(dataset):
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_is_multigraph(dataset):
-    G = dataset.get_graph()
+    G = dataset.get_graph(download=True)
 
     assert G.is_multigraph() == dataset.metadata["is_multigraph"]
 

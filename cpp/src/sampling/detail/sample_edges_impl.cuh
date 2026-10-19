@@ -225,7 +225,8 @@ void dedupe_sorted_temporal_mg_side_table(
   rmm::device_uvector<time_stamp_t>& sorted_times,
   std::optional<rmm::device_uvector<time_stamp_t>>& sorted_window_ends,
   std::optional<rmm::device_uvector<int32_t>>& sorted_labels,
-  temporal_sampling_comparison_t temporal_sampling_comparison)
+  temporal_sampling_comparison_t temporal_sampling_comparison,
+  bool fixed_window)
 {
   auto const n = sorted_majors.size();
   if (n < 2) { return; }
@@ -233,7 +234,6 @@ void dedupe_sorted_temporal_mg_side_table(
   bool const increasing =
     temporal_sampling_comparison == temporal_sampling_comparison_t::MONOTONICALLY_INCREASING ||
     temporal_sampling_comparison == temporal_sampling_comparison_t::STRICTLY_INCREASING;
-  bool const fixed_window = is_fixed_window(temporal_sampling_comparison);
 
   if (sorted_labels && sorted_window_ends) {
     rmm::device_uvector<vertex_t> out_majors(n, handle.get_stream());
@@ -410,7 +410,8 @@ temporal_sample_edges_to_unvisited_neighbors(
   std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
   bool with_replacement,
   temporal_sampling_comparison_t temporal_sampling_comparison,
-  neighbor_selection_t neighbor_selection)
+  neighbor_selection_t neighbor_selection,
+  bool fixed_window)
 {
   CUGRAPH_EXPECTS(Ks.size() >= 1, "Must specify non-zero value for Ks");
   CUGRAPH_EXPECTS((Ks.size() == 1) || edge_type_view,
@@ -421,9 +422,9 @@ temporal_sample_edges_to_unvisited_neighbors(
                   "Active major labels and visited vertex labels must both be specified or both "
                   "be unspecified");
   CUGRAPH_EXPECTS((neighbor_selection == neighbor_selection_t::RANDOM) || !with_replacement,
-                  "FIRST and LAST neighbor selection do not support sampling with replacement.");
+                  "LAST neighbor selection does not support sampling with replacement.");
   CUGRAPH_EXPECTS((neighbor_selection == neighbor_selection_t::RANDOM) || !edge_bias_view,
-                  "FIRST and LAST neighbor selection do not accept edge biases.");
+                  "LAST neighbor selection does not accept edge biases.");
 
   // Build side spans sorted so the bias operator can recover (time, window_end) by (major[,
   // label]).  On MG, per_v_random_select_transform_outgoing_e allgathers frontier keys across
@@ -546,7 +547,8 @@ temporal_sample_edges_to_unvisited_neighbors(
                                                                    *sorted_times,
                                                                    sorted_window_ends,
                                                                    sorted_labels,
-                                                                   temporal_sampling_comparison);
+                                                                   temporal_sampling_comparison,
+                                                                   fixed_window);
     }
   }
 

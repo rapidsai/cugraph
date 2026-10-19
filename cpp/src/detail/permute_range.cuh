@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -160,7 +160,7 @@ rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
     raft::copy(permuted_integers.data() + local_range_size - nr_deficits,
                extra_cluster_ids.begin() + deficits[comm_rank],
                nr_deficits,
-               handle.get_stream());
+               handle.get_stream().get());
   }
 
   assert(permuted_integers.size() == local_range_size);

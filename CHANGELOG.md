@@ -1,3 +1,53 @@
+# cugraph 26.10.00 (7 Oct 2026)
+
+### 🚨 Breaking Changes
+* Time window sampling by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5603
+* Migrate stream APIs from rmm::cuda_stream_view to cuda::stream_ref by @bdice in https://github.com/rapidsai/cugraph/pull/5639
+### 🐛 Bug Fixes
+* Primitive MG tests not actually validating results by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5613
+* Fix flaky MG ZeroDivisionError in symmetrize_ddf by @jnke2016 in https://github.com/rapidsai/cugraph/pull/5612
+* Fix devcontainer cache version updates by @bdice in https://github.com/rapidsai/cugraph/pull/5631
+* Fix bug found in how we handle empty frontiers in sampling by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5629
+* Fix the potential ADL issue in cugraph::detail::gather/scatter by @seunghwak in https://github.com/rapidsai/cugraph/pull/5634
+* [BUG] Fix Segfault Caused by Incorrect Dereferencing of Renumber Map by @alexbarghi-nv in https://github.com/rapidsai/cugraph/pull/5632
+* Don't use the r-value reference constructor for rmm::device_scalar by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5637
+* Add synchronization to coo_to_csr by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5640
+### 📖 Documentation
+* First set of PLC doc updates by @BradReesWork in https://github.com/rapidsai/cugraph/pull/5616
+* Deprecate MTMG graph and result APIs for removal in 27.02 by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5667
+### 🚀 New Features
+* Sampling primitive updates to support last-N sampling by @seunghwak in https://github.com/rapidsai/cugraph/pull/5622
+* Add subgraph isomorphism (monomorphism) by @alexfallin in https://github.com/rapidsai/cugraph/pull/5598
+### 🛠️ Improvements
+* Dropping ForceAtlas Notebook by @BradReesWork in https://github.com/rapidsai/cugraph/pull/5586
+* Update RAPIDS.cmake to log source of rapids-cmake by @arhag23 in https://github.com/rapidsai/cugraph/pull/5572
+* Update notebook code owners by @alexbarghi-nv in https://github.com/rapidsai/cugraph/pull/5607
+* Improve performance of identifying unique seeds for sampling frontier by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5609
+* enforce 'yamllint' checks by @jameslamb in https://github.com/rapidsai/cugraph/pull/5605
+* Fix multi-seed ego_graph offset handling by @sauravsingla in https://github.com/rapidsai/cugraph/pull/5584
+* ensure nightly builds always produce new packages, expand 'changed-files' lists by @jameslamb in https://github.com/rapidsai/cugraph/pull/5620
+* Update to rapids-logger 0.3 by @bdice in https://github.com/rapidsai/cugraph/pull/5619
+* wheels: enforce 'abi3audit' checks by @jameslamb in https://github.com/rapidsai/cugraph/pull/5626
+* Update arithmetic_device_uvector_t (device_span_t) to support int8_t and int16_t types. by @seunghwak in https://github.com/rapidsai/cugraph/pull/5628
+* ci: avoid triggered-by-schedule and triggered-by-merge builds cancelling each other by @jameslamb in https://github.com/rapidsai/cugraph/pull/5633
+* Fixed window temporal sampling by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5625
+* Verify downloaded data by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5635
+* test: isolate library wheel smoke test by @bdice in https://github.com/rapidsai/cugraph/pull/5608
+* Last-n implementation using the new primitive by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5636
+* Use libcuvs wheels in wheel and pip-devcontainer builds by @bdice in https://github.com/rapidsai/cugraph/pull/5654
+* Fix RAPIDS wheel discovery in pip builds by @bdice in https://github.com/rapidsai/cugraph/pull/5656
+* Binary size improvement: use device functors instead of lambdas by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5641
+* Adopt CUDA stream compatibility accessors by @bdice in https://github.com/rapidsai/cugraph/pull/5648
+* Add MG C API test for Strongly Connected Components by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5643
+* wheels: exclude libkvikio.so from 'auditwheel repair' by @jameslamb in https://github.com/rapidsai/cugraph/pull/5663
+* Add functions to get num vertices and edges in the C API by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5664
+
+## New Contributors
+* @arhag23 made their first contribution in https://github.com/rapidsai/cugraph/pull/5572
+* @alexfallin made their first contribution in https://github.com/rapidsai/cugraph/pull/5598
+
+**Full Changelog**: https://github.com/rapidsai/cugraph/compare/v26.10.00a...release/26.10
+
 # cugraph 26.08.00 (5 Aug 2026)
 
 ### 🚨 Breaking Changes

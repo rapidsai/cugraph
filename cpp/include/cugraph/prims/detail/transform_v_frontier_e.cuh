@@ -21,6 +21,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cub/block/block_scan.cuh>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
@@ -540,7 +541,7 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
                                           detail::transform_v_frontier_e_kernel_block_size,
                                           handle.get_device_properties().maxGridSize[0]);
         detail::transform_v_frontier_e_high_degree<GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream().get()>>>(
             edge_partition,
             edge_partition_frontier_key_first,
             edge_partition_key_indices.begin() + edge_partition_v_frontier_partition_offsets[0],
@@ -560,7 +561,7 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
                                          detail::transform_v_frontier_e_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
         detail::transform_v_frontier_e_mid_degree<GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream().get()>>>(
             edge_partition,
             edge_partition_frontier_key_first,
             edge_partition_key_indices.begin() + edge_partition_v_frontier_partition_offsets[1],
@@ -580,7 +581,7 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
                                            detail::transform_v_frontier_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
         detail::transform_v_frontier_e_hypersparse_or_low_degree<false, GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream().get()>>>(
             edge_partition,
             edge_partition_frontier_key_first,
             edge_partition_key_indices.begin() + edge_partition_v_frontier_partition_offsets[2],
@@ -600,7 +601,7 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
                                            detail::transform_v_frontier_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
         detail::transform_v_frontier_e_hypersparse_or_low_degree<true, GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream().get()>>>(
             edge_partition,
             edge_partition_frontier_key_first,
             edge_partition_key_indices.begin() + edge_partition_v_frontier_partition_offsets[3],
@@ -621,7 +622,7 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
                                            handle.get_device_properties().maxGridSize[0]);
 
         detail::transform_v_frontier_e_hypersparse_or_low_degree<false, GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream().get()>>>(
             edge_partition,
             edge_partition_frontier_key_first,
             thrust::make_counting_iterator(size_t{0}),

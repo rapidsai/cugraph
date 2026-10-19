@@ -25,8 +25,6 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/transform.h>
 
-#include <cuco/hash_functions.cuh>
-
 #include <tuple>
 #include <vector>
 

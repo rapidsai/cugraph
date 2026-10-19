@@ -474,23 +474,67 @@ neighbor_sample_impl(raft::handle_t const& handle,
                     : std::nullopt,
       label_to_output_comm_rank);
 
+  CUGRAPH_EXPECTS(
+    std::holds_alternative<rmm::device_uvector<vertex_t>>(property_edges[0]),
+    "neighbor_sample output: property_edges[0] expected rmm::device_uvector<vertex_t>, variant "
+    "index %zu",
+    property_edges[0].index());
+  CUGRAPH_EXPECTS(
+    std::holds_alternative<rmm::device_uvector<vertex_t>>(property_edges[1]),
+    "neighbor_sample output: property_edges[1] expected rmm::device_uvector<vertex_t>, variant "
+    "index %zu",
+    property_edges[1].index());
   result_srcs = std::move(std::get<rmm::device_uvector<vertex_t>>(property_edges[0]));
   result_dsts = std::move(std::get<rmm::device_uvector<vertex_t>>(property_edges[1]));
 
-  auto result_weights =
-    weight_prop_idx
-      ? std::make_optional(
-          std::move(std::get<rmm::device_uvector<weight_t>>(property_edges[2 + *weight_prop_idx])))
-      : std::nullopt;
-  auto result_edge_ids =
-    edge_id_prop_idx
-      ? std::make_optional(
-          std::move(std::get<rmm::device_uvector<edge_t>>(property_edges[2 + *edge_id_prop_idx])))
-      : std::nullopt;
-  auto result_edge_types =
-    edge_type_prop_idx ? std::make_optional(std::move(std::get<rmm::device_uvector<edge_type_t>>(
-                           property_edges[2 + *edge_type_prop_idx])))
-                       : std::nullopt;
+  auto result_weights    = weight_prop_idx ? std::make_optional([&]() {
+    auto const idx = 2 + *weight_prop_idx;
+    CUGRAPH_EXPECTS(
+      idx < property_edges.size(),
+      "neighbor_sample output: weight index %zu out of range (property_edges.size()=%zu)",
+      idx,
+      property_edges.size());
+    CUGRAPH_EXPECTS(
+      std::holds_alternative<rmm::device_uvector<weight_t>>(property_edges[idx]),
+      "neighbor_sample output: property_edges[%zu] expected rmm::device_uvector<weight_t>, "
+         "variant index %zu",
+      idx,
+      property_edges[idx].index());
+    return std::move(std::get<rmm::device_uvector<weight_t>>(property_edges[idx]));
+  }())
+                                           : std::nullopt;
+  auto result_edge_ids   = edge_id_prop_idx ? std::make_optional([&]() {
+    auto const idx = 2 + *edge_id_prop_idx;
+    CUGRAPH_EXPECTS(
+      idx < property_edges.size(),
+      "neighbor_sample output: edge_id index %zu out of range (property_edges.size()=%zu)",
+      idx,
+      property_edges.size());
+    CUGRAPH_EXPECTS(
+      std::holds_alternative<rmm::device_uvector<edge_t>>(property_edges[idx]),
+      "neighbor_sample output: property_edges[%zu] expected rmm::device_uvector<edge_t>, "
+        "variant index %zu",
+      idx,
+      property_edges[idx].index());
+    return std::move(std::get<rmm::device_uvector<edge_t>>(property_edges[idx]));
+  }())
+                                            : std::nullopt;
+  auto result_edge_types = edge_type_prop_idx ? std::make_optional([&]() {
+    auto const idx = 2 + *edge_type_prop_idx;
+    CUGRAPH_EXPECTS(
+      idx < property_edges.size(),
+      "neighbor_sample output: edge_type index %zu out of range (property_edges.size()=%zu)",
+      idx,
+      property_edges.size());
+    CUGRAPH_EXPECTS(
+      std::holds_alternative<rmm::device_uvector<edge_type_t>>(property_edges[idx]),
+      "neighbor_sample output: property_edges[%zu] expected rmm::device_uvector<edge_type_t>, "
+      "variant index %zu",
+      idx,
+      property_edges[idx].index());
+    return std::move(std::get<rmm::device_uvector<edge_type_t>>(property_edges[idx]));
+  }())
+                                              : std::nullopt;
 
   return std::make_tuple(std::move(result_srcs),
                          std::move(result_dsts),

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -23,6 +23,7 @@
 #include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/tuple>
+#include <cuda/stream>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
@@ -56,7 +57,7 @@ inline std::tuple<std::vector<size_t>,
 compute_tx_rx_counts_displs_ranks(raft::comms::comms_t const& comm,
                                   raft::device_span<size_t const> d_tx_value_counts,
                                   bool drop_empty_ranks,
-                                  rmm::cuda_stream_view stream_view)
+                                  cuda::stream_ref stream_view)
 {
   auto const comm_size = comm.get_size();
 
@@ -74,9 +75,9 @@ compute_tx_rx_counts_displs_ranks(raft::comms::comms_t const& comm,
   rmm::device_uvector<size_t> d_rx_value_counts(comm_size, stream_view);
   device_alltoall(comm, d_tx_value_counts.data(), d_rx_value_counts.data(), size_t{1}, stream_view);
 
-  raft::update_host(tx_counts.data(), d_tx_value_counts.data(), comm_size, stream_view.value());
-  raft::update_host(rx_counts.data(), d_rx_value_counts.data(), comm_size, stream_view.value());
-  stream_view.synchronize();
+  raft::update_host(tx_counts.data(), d_tx_value_counts.data(), comm_size, stream_view);
+  raft::update_host(rx_counts.data(), d_rx_value_counts.data(), comm_size, stream_view);
+  stream_view.sync();
 
   std::partial_sum(tx_counts.begin(), tx_counts.end() - 1, tx_displs.begin() + 1);
   std::partial_sum(rx_counts.begin(), rx_counts.end() - 1, rx_displs.begin() + 1);
@@ -139,7 +140,7 @@ template <typename TxValueIterator>
 auto shuffle_values(raft::comms::comms_t const& comm,
                     TxValueIterator tx_value_first,
                     raft::device_span<size_t const> d_tx_value_counts,
-                    rmm::cuda_stream_view stream_view,
+                    cuda::stream_ref stream_view,
                     std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   using value_t = typename thrust::iterator_traits<TxValueIterator>::value_type;
@@ -188,7 +189,7 @@ template <typename TxValueIterator>
 auto shuffle_values(raft::comms::comms_t const& comm,
                     TxValueIterator tx_value_first,
                     raft::host_span<size_t const> tx_value_counts,
-                    rmm::cuda_stream_view stream_view,
+                    cuda::stream_ref stream_view,
                     std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   using value_t = typename thrust::iterator_traits<TxValueIterator>::value_type;
@@ -197,7 +198,7 @@ auto shuffle_values(raft::comms::comms_t const& comm,
 
   rmm::device_uvector<size_t> d_tx_value_counts(comm_size, stream_view);
   raft::update_device(
-    d_tx_value_counts.data(), tx_value_counts.data(), comm_size, stream_view.value());
+    d_tx_value_counts.data(), tx_value_counts.data(), comm_size, stream_view.get());
 
   return shuffle_values(
     comm,
@@ -217,7 +218,7 @@ auto shuffle_values(
   raft::host_span<size_t const> tx_value_counts,
   size_t alignment,  // # elements
   std::optional<typename thrust::iterator_traits<TxValueIterator>::value_type> fill_value,
-  rmm::cuda_stream_view stream_view,
+  cuda::stream_ref stream_view,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   using value_t = typename thrust::iterator_traits<TxValueIterator>::value_type;
@@ -296,7 +297,7 @@ auto shuffle_values(
                     stream_view);
   raft::update_host(
     rx_aligned_counts.data(), d_rx_aligned_counts.data(), d_rx_aligned_counts.size(), stream_view);
-  RAFT_CUDA_TRY(cudaStreamSynchronize(stream_view));
+  stream_view.sync();
   size_t offset{0};
   for (size_t i = 0; i < rx_counts.size(); ++i) {
     auto target_alignment = (alignment - rx_unaligned_counts[i]) % alignment;
@@ -364,7 +365,7 @@ auto shuffle_and_unique_segment_sorted_values(
                                     // tx_value_counts[i], where i = [0, comm_size); and bettter be
                                     // unique to reduce communication volume
   raft::host_span<size_t const> tx_value_counts,
-  rmm::cuda_stream_view stream_view,
+  cuda::stream_ref stream_view,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   using value_t = typename thrust::iterator_traits<TxValueIterator>::value_type;
@@ -394,7 +395,7 @@ auto shuffle_and_unique_segment_sorted_values(
   } else {
     rmm::device_uvector<size_t> d_tx_value_counts(comm_size, stream_view);
     raft::update_device(
-      d_tx_value_counts.data(), tx_value_counts.data(), comm_size, stream_view.value());
+      d_tx_value_counts.data(), tx_value_counts.data(), comm_size, stream_view.get());
 
     std::vector<size_t> tx_counts{};
     std::vector<size_t> tx_displs{};
@@ -469,7 +470,7 @@ auto groupby_gpu_id_and_shuffle_values(
   ValueIterator tx_value_first /* [INOUT */,
   ValueIterator tx_value_last /* [INOUT */,
   ValueToGPUIdOp value_to_gpu_id_op,
-  rmm::cuda_stream_view stream_view,
+  cuda::stream_ref stream_view,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   using value_t = typename thrust::iterator_traits<ValueIterator>::value_type;
@@ -536,7 +537,7 @@ auto groupby_gpu_id_and_shuffle_kv_pairs(
   KeyIterator tx_key_last /* [INOUT */,
   ValueIterator tx_value_first /* [INOUT */,
   KeyToGPUIdOp key_to_gpu_id_op,
-  rmm::cuda_stream_view stream_view,
+  cuda::stream_ref stream_view,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   using key_t   = typename thrust::iterator_traits<KeyIterator>::value_type;
