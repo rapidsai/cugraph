@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -56,6 +56,13 @@ struct sssp_functor : public abstract_functor {
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else {
+      if (graph_->edge_weights_ == nullptr) {
+        mark_error(CUGRAPH_INVALID_INPUT,
+                   "Invalid input arguments: SSSP requires a weighted graph; use BFS for "
+                   "unweighted graphs.");
+        return;
+      }
+
       // SSSP expects store_transposed == false
       if constexpr (store_transposed) {
         error_code_ = cugraph::c_api::

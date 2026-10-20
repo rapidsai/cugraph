@@ -54,6 +54,8 @@ cugraph_uniform_random_walks(const cugraph_resource_handle_t* handle,
 /**
  * @brief  Compute biased random walks
  *
+ * The graph must have edge weights; an unweighted graph returns CUGRAPH_INVALID_INPUT.
+ *
  * @param [in]  handle          Handle for accessing resources
  * @param [in,out] rng_state    State of the random number generator, updated with each call
  * @param [in]  graph           Pointer to graph.  NOTE: Graph might be modified if the storage
