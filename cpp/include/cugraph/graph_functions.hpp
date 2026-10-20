@@ -50,6 +50,10 @@ struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>
  * @ingroup graph_functions_cpp
  * @brief renumber edgelist (multi-GPU)
  *
+ * @deprecated This API is deprecated and replaced by `renumber_edgelist` taking @p edgelist_srcs
+ * and @p edgelist_dsts in `std::vector`s of `rmm::device_uvector`s (without @p
+ * edgelist_edge_counts) and returning the renumbered edge sources and destinations.
+ *
  * This function assumes that vertices are pre-shuffled to their target processes and edges are
  * pre-shuffled to their target processess and edge partitions using compute_gpu_id_from_vertex_t
  * and compute_gpu_id_from_ext_edge_endpoints_t & compute_partition_id_from_ext_edge_endpoints_t
@@ -120,7 +124,82 @@ renumber_edgelist(
 
 /**
  * @ingroup graph_functions_cpp
+ * @brief renumber edgelist (multi-GPU)
+ *
+ * This function assumes that vertices are pre-shuffled to their target processes and edges are
+ * pre-shuffled to their target processess and edge partitions using compute_gpu_id_from_vertex_t
+ * and compute_gpu_id_from_ext_edge_endpoints_t & compute_partition_id_from_ext_edge_endpoints_t
+ * functors, respectively.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param local_vertices If valid, part of the entire set of vertices in the graph to be renumbered.
+ * This parameter can be used to include isolated vertices. Applying the
+ * compute_gpu_id_from_vertex_t to every vertex should return the local GPU ID for this function to
+ * work (vertices should be pre-shuffled).
+ * @param edgelist_srcs Vectors (one vector per local edge partition assigned to this process) of
+ * edge source vertex IDs. Applying the
+ * compute_gpu_id_from_ext_edge_endpoints_t functor to every (destination ID, source ID) pair (if
+ * store_transposed = true) or (source ID, destination ID) pair (if store_transposed = false) should
+ * return the local GPU ID for this function to work (edges should be pre-shuffled). Applying the
+ * compute_partition_id_from_ext_edge_endpoints_t to every (destination ID, source ID) pair (if
+ * store_transposed = true) or (source ID, destination ID) pair (if store_transposed = false) should
+ * also return the corresponding edge partition ID. The best way to enforce this is to use
+ * shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning &
+ * groupby_and_count_edgelist_by_local_partition_id.
+ * @param edgelist_dsts Vectors (one vector per local edge partition assigned to this process) of
+ * edge destination vertex IDs.
+ * @param edgelist_intra_partition_segment_offsets If valid, store segment offsets within a local
+ * edge partition; a local edge partition can be further segmented by applying the
+ * compute_gpu_id_from_vertex_t function to edge minor vertex IDs. This optinoal information is used
+ * for further memory footprint optimization if provided.
+ * @param store_transposed Should be true if renumbered edges will be used to create a graph with
+ * store_transposed = true. Should be false if the edges will be used to create a graph with
+ * store_transposed = false.
+ * @param large_vertex_buffer_type Flag indicating the large buffer type to use when we need to
+ * create a per-vertex device-accessible vector object (if the value is std::nullopt, the default
+ * RMM per-device memory resource is used). The returned renumber map (storing vertex IDs before
+ * renumbering) will also be stored in the buffer type dictated by this parameter.
+ * @param large_edge_buffer_type Flag indicating the large buffer type to use when we need to create
+ * a per-edge device-accessible vector object (if the value is std::nullopt, the default RMM
+ * per-device memory resource is used).
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of labels (vertex IDs before renumbering) for the entire set of vertices assigned
+ * to this process, renumbered edge sources and destinations (one vector per local edge partition
+ * assigned to this process), and meta-data collected while renumbering. The meta-data includes
+ * total number of vertices, total number of edges, partition_t object storing graph partitioning
+ * information, vertex partition segment offsets (a vertex partition is partitioned to multiple
+ * segments based on vertex degrees), and the number of local unique edge major & minor vertex IDs.
+ * This meta-data is expected to be used in graph construction & graph primitives.
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::enable_if_t<multi_gpu,
+                 std::tuple<rmm::device_uvector<vertex_t>,
+                            std::vector<rmm::device_uvector<vertex_t>>,
+                            std::vector<rmm::device_uvector<vertex_t>>,
+                            renumber_meta_t<vertex_t, edge_t, multi_gpu>>>
+renumber_edgelist(
+  raft::handle_t const& handle,
+  std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
+  std::vector<rmm::device_uvector<vertex_t>>&& edgelist_srcs,
+  std::vector<rmm::device_uvector<vertex_t>>&& edgelist_dsts,
+  std::optional<std::vector<std::vector<edge_t>>> const& edgelist_intra_partition_segment_offsets,
+  bool store_transposed,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type = std::nullopt,
+  std::optional<large_buffer_type_t> large_edge_buffer_type   = std::nullopt,
+  bool do_expensive_check                                     = false);
+
+/**
+ * @ingroup graph_functions_cpp
  * @brief renumber edgelist (single-GPU)
+ *
+ * @deprecated This API is deprecated and replaced by `renumber_edgelist` taking @p edgelist_srcs
+ * and @p edgelist_dsts in `rmm::device_uvector`s (without @p num_edgelist_edges) and returning the
+ * renumbered edge sources and destinations.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -161,6 +240,52 @@ renumber_edgelist(raft::handle_t const& handle,
                   vertex_t* edgelist_srcs /* [INOUT] */,
                   vertex_t* edgelist_dsts /* [INOUT] */,
                   edge_t num_edgelist_edges,
+                  bool store_transposed,
+                  std::optional<large_buffer_type_t> large_vertex_buffer_type = std::nullopt,
+                  std::optional<large_buffer_type_t> large_edge_buffer_type   = std::nullopt,
+                  bool do_expensive_check                                     = false);
+
+/**
+ * @ingroup graph_functions_cpp
+ * @brief renumber edgelist (single-GPU)
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param vertices If valid, vertices in the graph to be renumbered. This parameter can be used to
+ * include isolated vertices.
+ * @param edgelist_srcs Edge source vertex IDs.
+ * @param edgelist_dsts Edge destination vertex IDs.
+ * @param store_transposed Should be true if renumbered edges will be used to create a graph with
+ * store_transposed = true. Should be false if the edges will be used to create a graph with
+ * store_transposed = false.
+ * @param large_vertex_buffer_type Flag indicating the large buffer type to use when we need to
+ * create a per-vertex device-accessible vector object (if the value is std::nullopt, the default
+ * RMM per-device memory resource is used). The returned renumber map (storing vertex IDs before
+ * renumbering) will also be stored in the buffer type dictated by this parameter.
+ * @param large_edge_buffer_type Flag indicating the large buffer type to use when we need to create
+ * a per-edge device-accessible vector object (if the value is std::nullopt, the default RMM
+ * per-device memory resource is used).
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of labels (vertex IDs before renumbering) for the entire set of vertices,
+ * renumbered edge sources and destinations, and meta-data collected while renumbering. The
+ * meta-data includes vertex partition segment offsets (a vertex partition is partitioned to
+ * multiple segments based on vertex degrees). This meta-data is expected to be used in graph
+ * construction & graph primitives.
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::enable_if_t<!multi_gpu,
+                 std::tuple<rmm::device_uvector<vertex_t>,
+                            rmm::device_uvector<vertex_t>,
+                            rmm::device_uvector<vertex_t>,
+                            renumber_meta_t<vertex_t, edge_t, multi_gpu>>>
+renumber_edgelist(raft::handle_t const& handle,
+                  std::optional<rmm::device_uvector<vertex_t>>&& vertices,
+                  rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                  rmm::device_uvector<vertex_t>&& edgelist_dsts,
                   bool store_transposed,
                   std::optional<large_buffer_type_t> large_vertex_buffer_type = std::nullopt,
                   std::optional<large_buffer_type_t> large_edge_buffer_type   = std::nullopt,

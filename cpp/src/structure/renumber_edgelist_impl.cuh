@@ -43,6 +43,7 @@
 #include <thrust/unique.h>
 
 #include <algorithm>
+#include <functional>
 #include <iterator>
 #include <numeric>
 #include <tuple>
@@ -1039,8 +1040,6 @@ std::vector<vertex_t> aggregate_offset_vectors(raft::handle_t const& handle,
   return h_aggregate_offset_vectors;
 }
 
-}  // namespace detail
-
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<
   multi_gpu,
@@ -1048,17 +1047,16 @@ std::enable_if_t<
 renumber_edgelist(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
-  std::vector<vertex_t*> const& edgelist_srcs /* [INOUT] */,
-  std::vector<vertex_t*> const& edgelist_dsts /* [INOUT] */,
-  std::vector<edge_t> const& edgelist_edge_counts,
+  std::vector<raft::device_span<vertex_t>> const& edgelist_srcs /* [INOUT] */,
+  std::vector<raft::device_span<vertex_t>> const& edgelist_dsts /* [INOUT] */,
   std::optional<std::vector<std::vector<edge_t>>> const& edgelist_intra_partition_segment_offsets,
   bool store_transposed,
   std::optional<large_buffer_type_t> large_vertex_buffer_type,
   std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check)
 {
-  auto edgelist_majors = store_transposed ? edgelist_dsts : edgelist_srcs;
-  auto edgelist_minors = store_transposed ? edgelist_srcs : edgelist_dsts;
+  auto const& edgelist_majors = store_transposed ? edgelist_dsts : edgelist_srcs;
+  auto const& edgelist_minors = store_transposed ? edgelist_srcs : edgelist_dsts;
 
   auto& comm                 = handle.get_comms();
   auto const comm_size       = comm.get_size();
@@ -1074,8 +1072,10 @@ renumber_edgelist(
                   "Invalid input arguments: erroneous edgelist_majors.size().");
   CUGRAPH_EXPECTS(edgelist_minors.size() == static_cast<size_t>(minor_comm_size),
                   "Invalid input arguments: erroneous edgelist_minors.size().");
-  CUGRAPH_EXPECTS(edgelist_edge_counts.size() == static_cast<size_t>(minor_comm_size),
-                  "Invalid input arguments: erroneous edgelist_edge_counts.size().");
+  for (size_t i = 0; i < edgelist_majors.size(); ++i) {
+    CUGRAPH_EXPECTS(edgelist_majors[i].size() == edgelist_minors[i].size(),
+                    "Invalid input arguments: edgelist_srcs[].size() != edgelist_dsts[].size().");
+  }
   if (edgelist_intra_partition_segment_offsets) {
     CUGRAPH_EXPECTS(
       (*edgelist_intra_partition_segment_offsets).size() == static_cast<size_t>(minor_comm_size),
@@ -1091,10 +1091,11 @@ renumber_edgelist(
         "Invalid input arguments: (*edgelist_intra_partition_segment_offsets)[] is not sorted.");
       CUGRAPH_EXPECTS(
         ((*edgelist_intra_partition_segment_offsets)[i][0] == 0) &&
-          ((*edgelist_intra_partition_segment_offsets)[i].back() == edgelist_edge_counts[i]),
+          ((*edgelist_intra_partition_segment_offsets)[i].back() ==
+           static_cast<edge_t>(edgelist_majors[i].size())),
         "Invalid input arguments: (*edgelist_intra_partition_segment_offsets)[][0] should be 0 "
         "and (*edgelist_intra_partition_segment_offsets)[].back() should coincide with "
-        "edgelist_edge_counts[].");
+        "edgelist_srcs[].size().");
     }
   }
   CUGRAPH_EXPECTS((!large_vertex_buffer_type && !large_edge_buffer_type) ||
@@ -1106,9 +1107,9 @@ renumber_edgelist(
     edgelist_const_majors.size());
   for (size_t i = 0; i < edgelist_const_majors.size(); ++i) {
     edgelist_const_majors[i] =
-      raft::device_span<vertex_t const>(edgelist_majors[i], edgelist_edge_counts[i]);
+      raft::device_span<vertex_t const>(edgelist_majors[i].data(), edgelist_majors[i].size());
     edgelist_const_minors[i] =
-      raft::device_span<vertex_t const>(edgelist_minors[i], edgelist_edge_counts[i]);
+      raft::device_span<vertex_t const>(edgelist_minors[i].data(), edgelist_minors[i].size());
   }
 
   if (do_expensive_check) {
@@ -1177,7 +1178,11 @@ renumber_edgelist(
 
   auto number_of_vertices = vertex_partition_range_offsets.back();
   auto number_of_edges =
-    std::accumulate(edgelist_edge_counts.begin(), edgelist_edge_counts.end(), edge_t{0});
+    std::transform_reduce(edgelist_majors.begin(),
+                          edgelist_majors.end(),
+                          edge_t{0},
+                          std::plus<edge_t>{},
+                          [](auto majors) { return static_cast<edge_t>(majors.size()); });
 #if 1  // FIXME: we should add host_allreduce to raft
   number_of_edges =
     host_scalar_allreduce(comm, number_of_edges, raft::comms::op_t::SUM, handle.get_stream());
@@ -1214,9 +1219,9 @@ renumber_edgelist(
         invalid_vertex_id<vertex_t>::value,
         handle.get_stream());
       auto renumber_map_view = renumber_map.view();
-      renumber_map_view.find(edgelist_majors[i],
-                             edgelist_majors[i] + edgelist_edge_counts[i],
-                             edgelist_majors[i],
+      renumber_map_view.find(edgelist_majors[i].begin(),
+                             edgelist_majors[i].end(),
+                             edgelist_majors[i].begin(),
                              handle.get_stream());
     }
   }
@@ -1249,9 +1254,9 @@ renumber_edgelist(
       auto renumber_map_view = renumber_map.view();
       for (size_t j = 0; j < edgelist_minors.size(); ++j) {
         renumber_map_view.find(
-          edgelist_minors[j] + (*edgelist_intra_partition_segment_offsets)[j][i],
-          edgelist_minors[j] + (*edgelist_intra_partition_segment_offsets)[j][i + 1],
-          edgelist_minors[j] + (*edgelist_intra_partition_segment_offsets)[j][i],
+          edgelist_minors[j].begin() + (*edgelist_intra_partition_segment_offsets)[j][i],
+          edgelist_minors[j].begin() + (*edgelist_intra_partition_segment_offsets)[j][i + 1],
+          edgelist_minors[j].begin() + (*edgelist_intra_partition_segment_offsets)[j][i],
           handle.get_stream());
       }
     }
@@ -1287,9 +1292,9 @@ renumber_edgelist(
       handle.get_stream());
     auto renumber_map_view = renumber_map.view();
     for (size_t i = 0; i < edgelist_minors.size(); ++i) {
-      renumber_map_view.find(edgelist_minors[i],
-                             edgelist_minors[i] + edgelist_edge_counts[i],
-                             edgelist_minors[i],
+      renumber_map_view.find(edgelist_minors[i].begin(),
+                             edgelist_minors[i].end(),
+                             edgelist_minors[i].begin(),
                              handle.get_stream());
     }
   }
@@ -1317,14 +1322,15 @@ std::enable_if_t<
   std::tuple<rmm::device_uvector<vertex_t>, renumber_meta_t<vertex_t, edge_t, multi_gpu>>>
 renumber_edgelist(raft::handle_t const& handle,
                   std::optional<rmm::device_uvector<vertex_t>>&& vertices,
-                  vertex_t* edgelist_srcs /* [INOUT] */,
-                  vertex_t* edgelist_dsts /* [INOUT] */,
-                  edge_t num_edgelist_edges,
+                  raft::device_span<vertex_t> edgelist_srcs /* [INOUT] */,
+                  raft::device_span<vertex_t> edgelist_dsts /* [INOUT] */,
                   bool store_transposed,
                   std::optional<large_buffer_type_t> large_vertex_buffer_type,
                   std::optional<large_buffer_type_t> large_edge_buffer_type,
                   bool do_expensive_check)
 {
+  CUGRAPH_EXPECTS(edgelist_srcs.size() == edgelist_dsts.size(),
+                  "Invalid input arguments: edgelist_srcs.size() != edgelist_dsts.size().");
   CUGRAPH_EXPECTS((!large_vertex_buffer_type && !large_edge_buffer_type) ||
                     cugraph::large_buffer_manager::memory_buffer_initialized(),
                   "Invalid input argument: large memory buffer is not initialized.");
@@ -1337,9 +1343,9 @@ renumber_edgelist(raft::handle_t const& handle,
       handle,
       vertices,
       std::vector<raft::device_span<vertex_t const>>{
-        raft::device_span<vertex_t const>(edgelist_majors, num_edgelist_edges)},
+        raft::device_span<vertex_t const>(edgelist_majors.data(), edgelist_majors.size())},
       std::vector<raft::device_span<vertex_t const>>{
-        raft::device_span<vertex_t const>(edgelist_minors, num_edgelist_edges)},
+        raft::device_span<vertex_t const>(edgelist_minors.data(), edgelist_minors.size())},
       std::nullopt);
   }
 
@@ -1351,9 +1357,9 @@ renumber_edgelist(raft::handle_t const& handle,
       handle,
       std::move(vertices),
       std::vector<raft::device_span<vertex_t const>>{
-        raft::device_span<vertex_t const>(edgelist_majors, num_edgelist_edges)},
+        raft::device_span<vertex_t const>(edgelist_majors.data(), edgelist_majors.size())},
       std::vector<raft::device_span<vertex_t const>>{
-        raft::device_span<vertex_t const>(edgelist_minors, num_edgelist_edges)},
+        raft::device_span<vertex_t const>(edgelist_minors.data(), edgelist_minors.size())},
       large_vertex_buffer_type,
       large_edge_buffer_type);
 
@@ -1366,13 +1372,153 @@ renumber_edgelist(raft::handle_t const& handle,
     handle.get_stream());
   auto renumber_map_view = renumber_map.view();
   renumber_map_view.find(
-    edgelist_majors, edgelist_majors + num_edgelist_edges, edgelist_majors, handle.get_stream());
+    edgelist_majors.begin(), edgelist_majors.end(), edgelist_majors.begin(), handle.get_stream());
   renumber_map_view.find(
-    edgelist_minors, edgelist_minors + num_edgelist_edges, edgelist_minors, handle.get_stream());
+    edgelist_minors.begin(), edgelist_minors.end(), edgelist_minors.begin(), handle.get_stream());
 
   return std::make_tuple(
     std::move(renumber_map_labels),
     renumber_meta_t<vertex_t, edge_t, multi_gpu>{segment_offsets, hypersparse_degree_offsets});
+}
+
+}  // namespace detail
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::enable_if_t<
+  multi_gpu,
+  std::tuple<rmm::device_uvector<vertex_t>, renumber_meta_t<vertex_t, edge_t, multi_gpu>>>
+renumber_edgelist(
+  raft::handle_t const& handle,
+  std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
+  std::vector<vertex_t*> const& edgelist_srcs /* [INOUT] */,
+  std::vector<vertex_t*> const& edgelist_dsts /* [INOUT] */,
+  std::vector<edge_t> const& edgelist_edge_counts,
+  std::optional<std::vector<std::vector<edge_t>>> const& edgelist_intra_partition_segment_offsets,
+  bool store_transposed,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
+  bool do_expensive_check)
+{
+  CUGRAPH_EXPECTS((edgelist_srcs.size() == edgelist_edge_counts.size()) &&
+                    (edgelist_dsts.size() == edgelist_edge_counts.size()),
+                  "Invalid input arguments: edgelist_srcs.size(), edgelist_dsts.size(), and "
+                  "edgelist_edge_counts.size() should coincide.");
+
+  std::vector<raft::device_span<vertex_t>> edgelist_src_spans(edgelist_srcs.size());
+  std::vector<raft::device_span<vertex_t>> edgelist_dst_spans(edgelist_dsts.size());
+  for (size_t i = 0; i < edgelist_src_spans.size(); ++i) {
+    edgelist_src_spans[i] = raft::device_span<vertex_t>(edgelist_srcs[i], edgelist_edge_counts[i]);
+    edgelist_dst_spans[i] = raft::device_span<vertex_t>(edgelist_dsts[i], edgelist_edge_counts[i]);
+  }
+  return detail::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
+    handle,
+    std::move(local_vertices),
+    edgelist_src_spans,
+    edgelist_dst_spans,
+    edgelist_intra_partition_segment_offsets,
+    store_transposed,
+    large_vertex_buffer_type,
+    large_edge_buffer_type,
+    do_expensive_check);
+}
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::enable_if_t<
+  !multi_gpu,
+  std::tuple<rmm::device_uvector<vertex_t>, renumber_meta_t<vertex_t, edge_t, multi_gpu>>>
+renumber_edgelist(raft::handle_t const& handle,
+                  std::optional<rmm::device_uvector<vertex_t>>&& vertices,
+                  vertex_t* edgelist_srcs /* [INOUT] */,
+                  vertex_t* edgelist_dsts /* [INOUT] */,
+                  edge_t num_edgelist_edges,
+                  bool store_transposed,
+                  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+                  std::optional<large_buffer_type_t> large_edge_buffer_type,
+                  bool do_expensive_check)
+{
+  return detail::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
+    handle,
+    std::move(vertices),
+    raft::device_span<vertex_t>(edgelist_srcs, num_edgelist_edges),
+    raft::device_span<vertex_t>(edgelist_dsts, num_edgelist_edges),
+    store_transposed,
+    large_vertex_buffer_type,
+    large_edge_buffer_type,
+    do_expensive_check);
+}
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::enable_if_t<multi_gpu,
+                 std::tuple<rmm::device_uvector<vertex_t>,
+                            std::vector<rmm::device_uvector<vertex_t>>,
+                            std::vector<rmm::device_uvector<vertex_t>>,
+                            renumber_meta_t<vertex_t, edge_t, multi_gpu>>>
+renumber_edgelist(
+  raft::handle_t const& handle,
+  std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
+  std::vector<rmm::device_uvector<vertex_t>>&& edgelist_srcs,
+  std::vector<rmm::device_uvector<vertex_t>>&& edgelist_dsts,
+  std::optional<std::vector<std::vector<edge_t>>> const& edgelist_intra_partition_segment_offsets,
+  bool store_transposed,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
+  bool do_expensive_check)
+{
+  CUGRAPH_EXPECTS(edgelist_srcs.size() == edgelist_dsts.size(),
+                  "Invalid input arguments: edgelist_srcs.size() != edgelist_dsts.size().");
+
+  std::vector<raft::device_span<vertex_t>> edgelist_src_spans(edgelist_srcs.size());
+  std::vector<raft::device_span<vertex_t>> edgelist_dst_spans(edgelist_dsts.size());
+  for (size_t i = 0; i < edgelist_src_spans.size(); ++i) {
+    edgelist_src_spans[i] =
+      raft::device_span<vertex_t>(edgelist_srcs[i].data(), edgelist_srcs[i].size());
+    edgelist_dst_spans[i] =
+      raft::device_span<vertex_t>(edgelist_dsts[i].data(), edgelist_dsts[i].size());
+  }
+  auto [renumber_map_labels, meta] =
+    detail::renumber_edgelist<vertex_t, edge_t, multi_gpu>(handle,
+                                                           std::move(local_vertices),
+                                                           edgelist_src_spans,
+                                                           edgelist_dst_spans,
+                                                           edgelist_intra_partition_segment_offsets,
+                                                           store_transposed,
+                                                           large_vertex_buffer_type,
+                                                           large_edge_buffer_type,
+                                                           do_expensive_check);
+  return std::make_tuple(std::move(renumber_map_labels),
+                         std::move(edgelist_srcs),
+                         std::move(edgelist_dsts),
+                         std::move(meta));
+}
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::enable_if_t<!multi_gpu,
+                 std::tuple<rmm::device_uvector<vertex_t>,
+                            rmm::device_uvector<vertex_t>,
+                            rmm::device_uvector<vertex_t>,
+                            renumber_meta_t<vertex_t, edge_t, multi_gpu>>>
+renumber_edgelist(raft::handle_t const& handle,
+                  std::optional<rmm::device_uvector<vertex_t>>&& vertices,
+                  rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                  rmm::device_uvector<vertex_t>&& edgelist_dsts,
+                  bool store_transposed,
+                  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+                  std::optional<large_buffer_type_t> large_edge_buffer_type,
+                  bool do_expensive_check)
+{
+  auto [renumber_map_labels, meta] = detail::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
+    handle,
+    std::move(vertices),
+    raft::device_span<vertex_t>(edgelist_srcs.data(), edgelist_srcs.size()),
+    raft::device_span<vertex_t>(edgelist_dsts.data(), edgelist_dsts.size()),
+    store_transposed,
+    large_vertex_buffer_type,
+    large_edge_buffer_type,
+    do_expensive_check);
+  return std::make_tuple(std::move(renumber_map_labels),
+                         std::move(edgelist_srcs),
+                         std::move(edgelist_dsts),
+                         std::move(meta));
 }
 
 }  // namespace cugraph

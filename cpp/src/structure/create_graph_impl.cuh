@@ -497,27 +497,18 @@ create_graph_from_partitioned_edgelist(
 
   // 1. renumber
 
-  std::vector<edge_t> edgelist_edge_counts(minor_comm_size, edge_t{0});
-  for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
-    edgelist_edge_counts[i] = static_cast<edge_t>(edge_partition_edgelist_srcs[i].size());
-  }
-
-  std::vector<vertex_t*> src_ptrs(minor_comm_size);
-  std::vector<vertex_t*> dst_ptrs(src_ptrs.size());
-  for (int i = 0; i < minor_comm_size; ++i) {
-    src_ptrs[i] = edge_partition_edgelist_srcs[i].begin();
-    dst_ptrs[i] = edge_partition_edgelist_dsts[i].begin();
-  }
-  auto [renumber_map_labels, meta] = cugraph::renumber_edgelist<vertex_t, edge_t, true>(
-    handle,
-    std::move(local_vertices),
-    src_ptrs,
-    dst_ptrs,
-    edgelist_edge_counts,
-    edgelist_intra_partition_segment_offset_vectors,
-    store_transposed,
-    large_vertex_buffer_type,
-    large_edge_buffer_type);
+  rmm::device_uvector<vertex_t> renumber_map_labels(0, handle.get_stream());
+  renumber_meta_t<vertex_t, edge_t, true> meta{};
+  std::tie(renumber_map_labels, edge_partition_edgelist_srcs, edge_partition_edgelist_dsts, meta) =
+    cugraph::renumber_edgelist<vertex_t, edge_t, true>(
+      handle,
+      std::move(local_vertices),
+      std::move(edge_partition_edgelist_srcs),
+      std::move(edge_partition_edgelist_dsts),
+      edgelist_intra_partition_segment_offset_vectors,
+      store_transposed,
+      large_vertex_buffer_type,
+      large_edge_buffer_type);
 
   auto num_segments_per_vertex_partition =
     static_cast<size_t>(meta.edge_partition_segment_offsets.size() / minor_comm_size);
@@ -1497,15 +1488,14 @@ create_graph_impl(raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>> renumber_map_labels{std::nullopt};
   renumber_meta_t<vertex_t, edge_t, multi_gpu> meta{};
   if (renumber) {
-    std::tie(renumber_map_labels, meta) = cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
-      handle,
-      std::move(vertices),
-      edgelist_srcs.data(),
-      edgelist_dsts.data(),
-      static_cast<edge_t>(edgelist_srcs.size()),
-      store_transposed,
-      large_vertex_buffer_type,
-      large_edge_buffer_type);
+    std::tie(renumber_map_labels, edgelist_srcs, edgelist_dsts, meta) =
+      cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(handle,
+                                                              std::move(vertices),
+                                                              std::move(edgelist_srcs),
+                                                              std::move(edgelist_dsts),
+                                                              store_transposed,
+                                                              large_vertex_buffer_type,
+                                                              large_edge_buffer_type);
   }
 
   vertex_t num_vertices{};
