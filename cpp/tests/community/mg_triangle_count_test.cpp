@@ -162,9 +162,9 @@ class Tests_MGTriangleCount
       std::tie(d_mg_aggregate_vertices, d_mg_aggregate_triangle_counts) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
+          mg_graph_view,
           std::make_optional(mg_renumber_map->view()),
-          mg_graph_view.local_vertex_partition_range(),
-          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
+          std::nullopt,
           d_mg_vertices ? std::make_optional<raft::device_span<vertex_t const>>(
                             (*d_mg_vertices).data(), (*d_mg_vertices).size())
                         : std::nullopt,

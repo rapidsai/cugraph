@@ -203,6 +203,10 @@ void renumber_ext_vertices(raft::handle_t const& handle,
  * @brief Unrenumber local internal vertices to external vertices based on the providied @p
  * renumber_map_labels.
  *
+ * @deprecated This API is deprecated and replaced by `unrenumber_local_int_vertices` taking and
+ * returning @p vertices in an `rmm::device_uvector` and taking @p renumber_map_labels in a
+ * `vertex_property_view_t`.
+ *
  * Note cugraph::invalid_id<vertex_t>::value remains unchanged.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -228,6 +232,36 @@ void unrenumber_local_int_vertices(
   vertex_t const* renumber_map_labels /* size = local_int_vertex_last - local_int_vertex_first */,
   vertex_t local_int_vertex_first,
   vertex_t local_int_vertex_last,
+  bool do_expensive_check = false);
+
+/**
+ * @ingroup graph_functions_cpp
+ * @brief Unrenumber local internal vertices to external vertices based on the providied @p
+ * renumber_map_labels.
+ *
+ * Note cugraph::invalid_id<vertex_t>::value remains unchanged.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
+ * true) as major indices in storing edges using a 2D sparse matrix.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object of the graph whose local vertices are unrenumbered.
+ * @param vertices The local internal vertices (of @p graph_view) to be unrenumbered.
+ * @param renumber_map_labels View object holding the external vertices corresponding to the local
+ * internal vertices of @p graph_view.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return The unrenumbered (external) vertices.
+ */
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+rmm::device_uvector<vertex_t> unrenumber_local_int_vertices(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  rmm::device_uvector<vertex_t>&& vertices,
+  vertex_property_view_t<vertex_t, vertex_t const*> renumber_map_labels,
   bool do_expensive_check = false);
 
 /**
@@ -263,6 +297,10 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
  * @ingroup graph_functions_cpp
  * @brief Unrenumber local edges' internal source & destination IDs to external IDs based on the
  * provided @p renumber_map_labels (multi-GPU).
+ *
+ * @deprecated This API is deprecated and replaced by `unrenumber_local_int_edges` taking a graph
+ * view, taking and returning @p edgelist_srcs and @p edgelist_dsts in `rmm::device_uvector`s with
+ * edge partition offsets, and taking @p renumber_map_labels in a `vertex_property_view_t`.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
@@ -303,7 +341,50 @@ std::enable_if_t<multi_gpu, void> unrenumber_local_int_edges(
 /**
  * @ingroup graph_functions_cpp
  * @brief Unrenumber local edges' internal source & destination IDs to external IDs based on the
+ * provided @p renumber_map (multi-GPU).
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
+ * true) as major indices in storing edges using a 2D sparse matrix.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object of the graph the edges belong to.
+ * @param edgelist_srcs The local internal source vertex IDs to be unrenumbered. Edges belonging to
+ * the i'th local edge partition of @p graph_view are stored in the range
+ * [@p edgelist_partition_offsets[i], @p edgelist_partition_offsets[i + 1]).
+ * @param edgelist_dsts The local internal destination vertex IDs to be unrenumbered (partitioned in
+ * the same way as @p edgelist_srcs).
+ * @param edgelist_partition_offsets Offsets (size = the number of local edge partitions + 1) to
+ * the edge partition boundaries in @p edgelist_srcs and @p edgelist_dsts.
+ * @param renumber_map View object holding the external vertices corresponding to the local
+ * internal vertices of @p graph_view.
+ * @param edgelist_intra_partition_segment_offsets If valid, store segment offsets within a local
+ * edge partition; a local edge partition can be further segmented by applying the
+ * compute_gpu_id_from_vertex_t function to edge minor vertex IDs. This optinoal information is used
+ * for further memory footprint optimization if provided.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of the unrenumbered (external) source and destination vertex IDs.
+ */
+template <typename vertex_t, typename edge_t, bool store_transposed>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> unrenumber_local_int_edges(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, true> const& graph_view,
+  rmm::device_uvector<vertex_t>&& edgelist_srcs,
+  rmm::device_uvector<vertex_t>&& edgelist_dsts,
+  std::vector<size_t> const& edgelist_partition_offsets,
+  vertex_property_view_t<vertex_t, vertex_t const*> renumber_map,
+  std::optional<std::vector<std::vector<size_t>>> const& edgelist_intra_partition_segment_offsets,
+  bool do_expensive_check = false);
+
+/**
+ * @ingroup graph_functions_cpp
+ * @brief Unrenumber local edges' internal source & destination IDs to external IDs based on the
  * provided @p renumber_map_labels (single-GPU).
+ *
+ * @deprecated This API is deprecated and replaced by `unrenumber_local_int_edges` taking a graph
+ * view, taking and returning @p edgelist_srcs and @p edgelist_dsts in `rmm::device_uvector`s, and
+ * taking @p renumber_map_labels in a `vertex_property_view_t`.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
@@ -330,6 +411,34 @@ std::enable_if_t<!multi_gpu, void> unrenumber_local_int_edges(raft::handle_t con
                                                               vertex_t const* renumber_map_labels,
                                                               vertex_t num_vertices,
                                                               bool do_expensive_check = false);
+
+/**
+ * @ingroup graph_functions_cpp
+ * @brief Unrenumber local edges' internal source & destination IDs to external IDs based on the
+ * provided @p renumber_map (single-GPU).
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
+ * true) as major indices in storing edges using a 2D sparse matrix.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object of the graph the edges belong to.
+ * @param edgelist_srcs The internal source vertex IDs to be unrenumbered.
+ * @param edgelist_dsts The internal destination vertex IDs to be unrenumbered.
+ * @param renumber_map View object holding the external vertices corresponding to the internal
+ * vertices of @p graph_view.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of the unrenumbered (external) source and destination vertex IDs.
+ */
+template <typename vertex_t, typename edge_t, bool store_transposed>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> unrenumber_local_int_edges(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, false> const& graph_view,
+  rmm::device_uvector<vertex_t>&& edgelist_srcs,
+  rmm::device_uvector<vertex_t>&& edgelist_dsts,
+  vertex_property_view_t<vertex_t, vertex_t const*> renumber_map,
+  bool do_expensive_check = false);
 
 /**
  * @ingroup graph_functions_cpp
@@ -365,6 +474,10 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
 /**
  * @ingroup graph_functions_cpp
  * @brief Construct the edge list from the graph view object.
+ *
+ * @deprecated This API is deprecated and replaced by `decompress_to_edgelist` taking edge
+ * property views in a `std::vector` and @p renumber_map in a `vertex_property_view_t` and returning
+ * edge property values in a `std::vector`.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -409,6 +522,43 @@ decompress_to_edgelist(
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
   std::optional<raft::device_span<vertex_t const>> renumber_map,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt,
+  bool do_expensive_check                              = false);
+
+/**
+ * @ingroup graph_functions_cpp
+ * @brief Construct the edge list from the graph view object.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
+ * true) as major indices in storing edges using a 2D sparse matrix.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object of the graph to be decompressed.
+ * @param edge_property_views View objects holding edge property values (e.g. edge weights, IDs, or
+ * types) for @p graph_view.
+ * @param renumber_map If valid, return the renumbered edge list based on the provided @p
+ * renumber_map (view object holding the external vertex IDs of the local vertices)
+ * @param large_buffer_type Flag indicating the large buffer type to use when we need to create a
+ * large device-accessible vector object (if the value is std::nullopt, the default RMM per-device
+ * memory resource is used). The returned edge list will also be stored in the buffer type dictated
+ * by this parameter.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of edge sources, destinations, and edge property values (one vector per element of
+ * @p edge_property_views, in the same order).
+ */
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::vector<arithmetic_device_uvector_t>>
+decompress_to_edgelist(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::vector<edge_arithmetic_property_view_t<edge_t>> const& edge_property_views,
+  std::optional<vertex_property_view_t<vertex_t, vertex_t const*>> renumber_map,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt,
   bool do_expensive_check                              = false);
 

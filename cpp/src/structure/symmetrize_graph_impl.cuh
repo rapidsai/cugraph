@@ -59,18 +59,16 @@ symmetrize_graph_impl(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
   std::optional<rmm::device_uvector<weight_t>> edgelist_weights{std::nullopt};
 
-  std::tie(edgelist_srcs, edgelist_dsts, edgelist_weights, std::ignore, std::ignore) =
-    decompress_to_edgelist(
-      handle,
-      graph_view,
-      edge_weights
-        ? std::optional<edge_property_view_t<edge_t, weight_t const*>>{(*edge_weights).view()}
-        : std::nullopt,
-      std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-      std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-      std::make_optional<raft::device_span<vertex_t const>>(
-        renumber_map->view().value_first(),
-        static_cast<size_t>(renumber_map->view().range_size())));
+  std::vector<arithmetic_device_uvector_t> edge_property_values{};
+  std::tie(edgelist_srcs, edgelist_dsts, edge_property_values) = decompress_to_edgelist(
+    handle,
+    graph_view,
+    edge_weights ? std::vector<edge_arithmetic_property_view_t<edge_t>>{edge_weights->view()}
+                 : std::vector<edge_arithmetic_property_view_t<edge_t>>{},
+    std::make_optional(renumber_map->view()));
+  if (edge_weights) {
+    edgelist_weights = std::move(std::get<rmm::device_uvector<weight_t>>(edge_property_values[0]));
+  }
   graph = graph_t<vertex_t, edge_t, store_transposed, multi_gpu>(handle);
 
   std::tie(edgelist_srcs,
@@ -148,19 +146,16 @@ symmetrize_graph_impl(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
   std::optional<rmm::device_uvector<weight_t>> edgelist_weights{std::nullopt};
 
-  std::tie(edgelist_srcs, edgelist_dsts, edgelist_weights, std::ignore, std::ignore) =
-    decompress_to_edgelist(
-      handle,
-      graph_view,
-      edge_weights
-        ? std::optional<edge_property_view_t<edge_t, weight_t const*>>{(*edge_weights).view()}
-        : std::nullopt,
-      std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-      std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-      renumber_map ? std::make_optional<raft::device_span<vertex_t const>>(
-                       renumber_map->view().value_first(),
-                       static_cast<size_t>(renumber_map->view().range_size()))
-                   : std::nullopt);
+  std::vector<arithmetic_device_uvector_t> edge_property_values{};
+  std::tie(edgelist_srcs, edgelist_dsts, edge_property_values) = decompress_to_edgelist(
+    handle,
+    graph_view,
+    edge_weights ? std::vector<edge_arithmetic_property_view_t<edge_t>>{edge_weights->view()}
+                 : std::vector<edge_arithmetic_property_view_t<edge_t>>{},
+    renumber_map ? std::make_optional(renumber_map->view()) : std::nullopt);
+  if (edge_weights) {
+    edgelist_weights = std::move(std::get<rmm::device_uvector<weight_t>>(edge_property_values[0]));
+  }
   graph = graph_t<vertex_t, edge_t, store_transposed, multi_gpu>(handle);
 
   std::tie(edgelist_srcs,

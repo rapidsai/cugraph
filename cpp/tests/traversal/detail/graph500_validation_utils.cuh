@@ -400,19 +400,18 @@ bool check_edge_endpoint_distances(
           }),
         edge_mask.mutable_view());
       tmp_mg_subgraph_view.attach_edge_mask(edge_mask.view());
-      auto subgraph_edges =
-        cugraph::decompress_to_edgelist<vertex_t, edge_t, distance_t, edge_type_t, false, true>(
-          handle,
-          tmp_mg_subgraph_view,
-          mg_subgraph_edge_weight_view,
-          std::nullopt,
-          std::nullopt,
-          std::nullopt);
+      auto subgraph_edges = cugraph::decompress_to_edgelist(
+        handle,
+        tmp_mg_subgraph_view,
+        std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{
+          *mg_subgraph_edge_weight_view},
+        std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
       tmp_mg_subgraph_view.clear_edge_mask();
 
-      auto srcs      = std::move(std::get<0>(subgraph_edges));
-      auto dsts      = std::move(std::get<1>(subgraph_edges));
-      auto weights   = std::move(*(std::get<2>(subgraph_edges)));
+      auto srcs = std::move(std::get<0>(subgraph_edges));
+      auto dsts = std::move(std::get<1>(subgraph_edges));
+      auto weights =
+        std::move(std::get<rmm::device_uvector<distance_t>>(std::get<2>(subgraph_edges)[0]));
       auto src_dists = cugraph::collect_values_for_int_vertices(
         handle,
         srcs.begin(),

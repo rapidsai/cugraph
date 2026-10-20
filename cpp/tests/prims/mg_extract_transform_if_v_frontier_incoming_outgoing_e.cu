@@ -374,9 +374,9 @@ class Tests_MGExtractTransformIfVFrontierIncomingOutgoingE
       std::tie(std::ignore, sg_vertex_prop) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
+          mg_graph_view,
           std::make_optional(d_mg_renumber_map_labels->view()),
-          mg_graph_view.local_vertex_partition_range(),
-          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
+          std::nullopt,
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           raft::device_span<result_t const>(mg_vertex_prop.view().value_first(),
                                             mg_vertex_prop.view().range_size()));

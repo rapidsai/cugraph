@@ -164,9 +164,13 @@ class Tests_Negative_Sampling : public ::testing::TestWithParam<input_usecase_t>
         rmm::device_uvector<vertex_t> graph_src(0, handle.get_stream());
         rmm::device_uvector<vertex_t> graph_dst(0, handle.get_stream());
 
-        std::tie(graph_src, graph_dst, std::ignore, std::ignore, std::ignore) =
-          cugraph::decompress_to_edgelist<vertex_t, edge_t, float, int, false, false>(
-            handle, graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
+        std::tie(graph_src, graph_dst, std::ignore) =
+          cugraph::decompress_to_edgelist<vertex_t, edge_t, false, false>(
+            handle,
+            graph_view,
+            std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{},
+            std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{
+              std::nullopt});
 
         error_count = cugraph::test::count_intersection<vertex_t, edge_t, weight_t, int32_t>(
           handle,

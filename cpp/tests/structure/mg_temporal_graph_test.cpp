@@ -235,22 +235,30 @@ class Tests_MGTemporalGraph
     auto graph_view = graph.view();
 
     if (temporal_graph_usecase.check_correctness) {
-      // FIXME:  decompress_to_edgelist should support all properties
-      //  This hack only works if edge_t == time_stamp_t
-      auto [local_result_srcs,
-            local_result_dsts,
-            local_result_wgts,
-            local_result_start_times,
-            local_result_end_times] = cugraph::
-        decompress_to_edgelist<vertex_t, edge_t, weight_t, time_stamp_t, store_transposed, true>(
+      std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>> edge_property_views{};
+      if (edge_weights) { edge_property_views.push_back(edge_weights->view()); }
+      if (edge_start_times) { edge_property_views.push_back(edge_start_times->view()); }
+      if (edge_end_times) { edge_property_views.push_back(edge_end_times->view()); }
+      auto [local_result_srcs, local_result_dsts, edge_property_values] =
+        cugraph::decompress_to_edgelist(
           *handle_,
           graph.view(),
-          edge_weights ? std::make_optional(edge_weights->view()) : std::nullopt,
-          edge_start_times ? std::make_optional(edge_start_times->view()) : std::nullopt,
-          edge_end_times ? std::make_optional(edge_end_times->view()) : std::nullopt,
-          renumber ? std::make_optional<raft::device_span<vertex_t const>>(
-                       renumber_map->view().value_first(), renumber_map->view().range_size())
-                   : std::nullopt);
+          edge_property_views,
+          renumber ? std::make_optional(renumber_map->view()) : std::nullopt);
+      size_t j{0};
+      auto local_result_wgts =
+        edge_weights ? std::make_optional(std::move(
+                         std::get<rmm::device_uvector<weight_t>>(edge_property_values[j++])))
+                     : std::nullopt;
+      auto local_result_start_times =
+        edge_start_times
+          ? std::make_optional(
+              std::move(std::get<rmm::device_uvector<time_stamp_t>>(edge_property_values[j++])))
+          : std::nullopt;
+      auto local_result_end_times =
+        edge_end_times ? std::make_optional(std::move(
+                           std::get<rmm::device_uvector<time_stamp_t>>(edge_property_values[j++])))
+                       : std::nullopt;
 
       auto result_srcs =
         cugraph::test::device_gatherv(*handle_, local_result_srcs.data(), local_result_srcs.size());

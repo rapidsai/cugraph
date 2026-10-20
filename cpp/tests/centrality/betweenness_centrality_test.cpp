@@ -126,12 +126,8 @@ class Tests_BetweennessCentrality
         rmm::device_uvector<vertex_t> d_unrenumbered_seeds(d_seeds.size(), handle.get_stream());
         raft::copy_async(
           d_unrenumbered_seeds.data(), d_seeds.data(), d_seeds.size(), handle.get_stream());
-        cugraph::unrenumber_local_int_vertices(handle,
-                                               d_unrenumbered_seeds.data(),
-                                               d_unrenumbered_seeds.size(),
-                                               d_renumber_map_labels->view().value_first(),
-                                               vertex_t{0},
-                                               graph_view.number_of_vertices());
+        d_unrenumbered_seeds = cugraph::unrenumber_local_int_vertices(
+          handle, graph_view, std::move(d_unrenumbered_seeds), d_renumber_map_labels->view());
         h_seeds = cugraph::test::to_host(handle, d_seeds);
         std::sort(h_seeds.begin(), h_seeds.end());
       } else {

@@ -132,19 +132,17 @@ class Tests_EdgeTriangleCount
 
     rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
     rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
-    std::optional<rmm::device_uvector<edge_t>> d_edge_triangle_counts{std::nullopt};
+    std::vector<cugraph::arithmetic_device_uvector_t> edge_property_values{};
 
     auto d_cugraph_results =
       cugraph::edge_triangle_count<vertex_t, edge_t, false>(handle, graph_view);
 
-    std::tie(edgelist_srcs, edgelist_dsts, std::ignore, d_edge_triangle_counts, std::ignore) =
-      cugraph::decompress_to_edgelist(
-        handle,
-        graph_view,
-        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
-        std::make_optional(d_cugraph_results.view()),
-        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-        std::optional<raft::device_span<vertex_t const>>{std::nullopt});  // FIXME: No longer needed
+    std::tie(edgelist_srcs, edgelist_dsts, edge_property_values) = cugraph::decompress_to_edgelist(
+      handle,
+      graph_view,
+      std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{d_cugraph_results.view()},
+      std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{
+        std::nullopt});  // FIXME: No longer needed
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -167,7 +165,8 @@ class Tests_EdgeTriangleCount
         edge_weight ? std::make_optional((*edge_weight).view()) : std::nullopt,
         std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
 
-      auto h_cugraph_edge_triangle_counts = cugraph::test::to_host(handle, *d_edge_triangle_counts);
+      auto h_cugraph_edge_triangle_counts = cugraph::test::to_host(
+        handle, std::get<rmm::device_uvector<edge_t>>(edge_property_values[0]));
 
       auto h_reference_edge_triangle_counts =
         edge_triangle_count_reference<vertex_t, edge_t>(h_srcs, h_dsts);

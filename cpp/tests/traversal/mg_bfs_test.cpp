@@ -155,9 +155,9 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
       std::tie(std::ignore, d_mg_aggregate_distances) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
+          mg_graph_view,
           std::make_optional(mg_renumber_map->view()),
-          mg_graph_view.local_vertex_partition_range(),
-          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
+          std::nullopt,
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           raft::device_span<vertex_t const>(d_mg_distances.data(), d_mg_distances.size()));
 
@@ -165,9 +165,9 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
       std::tie(std::ignore, d_mg_aggregate_predecessors) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
+          mg_graph_view,
           std::make_optional(mg_renumber_map->view()),
-          mg_graph_view.local_vertex_partition_range(),
-          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
+          std::nullopt,
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           raft::device_span<vertex_t const>(d_mg_predecessors.data(), d_mg_predecessors.size()));
 

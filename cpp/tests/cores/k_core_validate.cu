@@ -55,14 +55,17 @@ void check_correctness(
   rmm::device_uvector<vertex_t> graph_dst(0, handle.get_stream());
   std::optional<rmm::device_uvector<weight_t>> graph_wgt{std::nullopt};
 
-  std::tie(graph_src, graph_dst, graph_wgt, std::ignore, std::ignore) =
-    cugraph::decompress_to_edgelist(
-      handle,
-      graph_view,
-      edge_weight_view,
-      std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-      std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-      std::optional<raft::device_span<vertex_t const>>{std::nullopt});
+  std::vector<cugraph::arithmetic_device_uvector_t> edge_property_values{};
+  std::tie(graph_src, graph_dst, edge_property_values) = cugraph::decompress_to_edgelist(
+    handle,
+    graph_view,
+    edge_weight_view
+      ? std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{*edge_weight_view}
+      : std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{},
+    std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
+  if (edge_weight_view) {
+    graph_wgt = std::move(std::get<rmm::device_uvector<weight_t>>(edge_property_values[0]));
+  }
 
   // Now we'll count how many edges should be in the subgraph
   auto expected_edge_count =

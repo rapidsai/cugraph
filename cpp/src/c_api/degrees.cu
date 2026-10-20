@@ -144,13 +144,12 @@ struct degrees_functor : public cugraph::c_api::abstract_functor {
           out_degrees = std::move(tmp_out_degrees);
         }
 
-        cugraph::unrenumber_local_int_vertices<vertex_t>(
+        vertex_ids = cugraph::unrenumber_local_int_vertices(
           handle_,
-          vertex_ids.data(),
-          vertex_ids.size(),
-          number_map->data(),
-          graph_view.local_vertex_partition_range_first(),
-          graph_view.local_vertex_partition_range_last(),
+          graph_view,
+          std::move(vertex_ids),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
           do_expensive_check_);
       } else {
         vertex_ids.resize(graph_view.local_vertex_partition_range_size(), handle_.get_stream());

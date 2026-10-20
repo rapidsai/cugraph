@@ -433,19 +433,16 @@ all_pairs_similarity(raft::handle_t const& handle,
 
       auto [offsets, v2] = k_hop_nbrs(handle, graph_view, batch_seeds, 2, do_expensive_check);
 
-      auto v1 = cugraph::detail::expand_sparse_offsets(
+      auto v1_seed_indices = cugraph::detail::expand_sparse_offsets(
         raft::device_span<size_t const>{offsets.data(), offsets.size()},
         vertex_t{0},
         handle.get_stream());
-
-      cugraph::unrenumber_local_int_vertices(
-        handle,
-        v1.data(),
-        v1.size(),
-        tmp_vertices.data() + batch_offsets[batch_number],
-        vertex_t{0},
-        static_cast<vertex_t>(batch_offsets[batch_number + 1] - batch_offsets[batch_number]),
-        do_expensive_check);
+      rmm::device_uvector<vertex_t> v1(v1_seed_indices.size(), handle.get_stream());
+      cugraph::gather(handle.get_thrust_policy(),
+                      v1_seed_indices.begin(),
+                      v1_seed_indices.end(),
+                      batch_seeds.begin(),
+                      v1.begin());
 
       auto new_size = cuda::std::distance(
         thrust::make_zip_iterator(v1.begin(), v2.begin()),
@@ -615,18 +612,16 @@ all_pairs_similarity(raft::handle_t const& handle,
 
     auto [offsets, v2] = k_hop_nbrs(handle, graph_view, vertices_span, 2, do_expensive_check);
 
-    auto v1 = cugraph::detail::expand_sparse_offsets(
+    auto v1_seed_indices = cugraph::detail::expand_sparse_offsets(
       raft::device_span<size_t const>{offsets.data(), offsets.size()},
       vertex_t{0},
       handle.get_stream());
-
-    cugraph::unrenumber_local_int_vertices(handle,
-                                           v1.data(),
-                                           v1.size(),
-                                           vertices_span.data(),
-                                           vertex_t{0},
-                                           static_cast<vertex_t>(vertices_span.size()),
-                                           do_expensive_check);
+    rmm::device_uvector<vertex_t> v1(v1_seed_indices.size(), handle.get_stream());
+    cugraph::gather(handle.get_thrust_policy(),
+                    v1_seed_indices.begin(),
+                    v1_seed_indices.end(),
+                    vertices_span.begin(),
+                    v1.begin());
 
     auto new_size = cuda::std::distance(
       thrust::make_zip_iterator(v1.begin(), v2.begin()),

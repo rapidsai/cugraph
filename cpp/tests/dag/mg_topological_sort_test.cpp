@@ -120,9 +120,9 @@ class Tests_MGTopologicalSort
       std::tie(std::ignore, d_mg_aggregate_levels) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
+          mg_graph_view,
           std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
-          mg_graph_view.local_vertex_partition_range(),
-          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
+          std::nullopt,
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           raft::device_span<vertex_t const>(d_mg_levels.data(), d_mg_levels.size()));
 

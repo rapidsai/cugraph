@@ -228,25 +228,29 @@ struct edge_betweenness_centrality_functor : public cugraph::c_api::abstract_fun
           normalized_,
           do_expensive_check_);
 
-      auto [src_ids, dst_ids, output_centralities, output_edge_ids, output_edge_types] =
-        cugraph::decompress_to_edgelist<vertex_t, edge_t, weight_t, int32_t, false, multi_gpu>(
+      std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>> edge_property_views{
+        centralities.view()};
+      if (edge_ids != nullptr) { edge_property_views.push_back(edge_ids->view()); }
+
+      auto [src_ids, dst_ids, edge_property_values] =
+        cugraph::decompress_to_edgelist<vertex_t, edge_t, false, multi_gpu>(
           handle_,
           graph_view,
-          std::make_optional(centralities.view()),
-          (edge_ids != nullptr) ? std::make_optional(edge_ids->view()) : std::nullopt,
-          std::nullopt,
-          (number_map != nullptr) ? std::make_optional(raft::device_span<vertex_t const>{
-                                      number_map->data(), number_map->size()})
-                                  : std::nullopt);
+          edge_property_views,
+          (number_map != nullptr)
+            ? std::make_optional(cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+                number_map->data(), static_cast<vertex_t>(number_map->size())))
+            : std::nullopt);
 
       result_ = new cugraph::c_api::cugraph_edge_centrality_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(src_ids, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(dst_ids, graph_->vertex_type_),
-        output_edge_ids ? new cugraph::c_api::cugraph_type_erased_device_array_t(*output_edge_ids,
-                                                                                 graph_->edge_type_)
-                        : nullptr,
-        new cugraph::c_api::cugraph_type_erased_device_array_t(*output_centralities,
-                                                               graph_->weight_type_)};
+        (edge_ids != nullptr)
+          ? new cugraph::c_api::cugraph_type_erased_device_array_t(
+              std::get<rmm::device_uvector<edge_t>>(edge_property_values[1]), graph_->edge_type_)
+          : nullptr,
+        new cugraph::c_api::cugraph_type_erased_device_array_t(
+          std::get<rmm::device_uvector<weight_t>>(edge_property_values[0]), graph_->weight_type_)};
     }
   }
 };

@@ -348,20 +348,26 @@ class Tests_MGCoarsenGraph
 
       rmm::device_uvector<vertex_t> d_sg_labels(0, handle_->get_stream());
       std::tie(std::ignore, d_sg_labels) =
-        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values<vertex_t, vertex_t>(
+        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values<vertex_t,
+                                                                              edge_t,
+                                                                              vertex_t,
+                                                                              store_transposed>(
           *handle_,
+          mg_graph_view,
           std::nullopt,
-          mg_graph_view.local_vertex_partition_range(),
           std::nullopt,
           std::nullopt,
           raft::device_span<vertex_t const>(d_mg_labels.data(), d_mg_labels.size()));
 
       rmm::device_uvector<vertex_t> sg_coarse_vertices_to_labels(0, handle_->get_stream());
       std::tie(std::ignore, sg_coarse_vertices_to_labels) =
-        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values<vertex_t, vertex_t>(
+        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values<vertex_t,
+                                                                              edge_t,
+                                                                              vertex_t,
+                                                                              store_transposed>(
           *handle_,
+          mg_coarse_graph_view,
           std::nullopt,
-          mg_coarse_graph_view.local_vertex_partition_range(),
           std::nullopt,
           std::nullopt,
           raft::device_span<vertex_t const>(

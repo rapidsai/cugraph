@@ -172,19 +172,21 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
 
       // Decompress to edgelist
 
-      auto [srcs, dsts, wgts, edge_ids, edge_types] =
-        cugraph::decompress_to_edgelist<vertex_t, edge_t, weight_t, int32_t, false, multi_gpu>(
+      auto [srcs, dsts, edge_property_values] =
+        cugraph::decompress_to_edgelist<vertex_t, edge_t, false, multi_gpu>(
           handle_,
           graph_view,
-          (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
-          std::nullopt,
-          std::nullopt,
+          (edge_weights != nullptr)
+            ? std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{edge_weights->view()}
+            : std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{},
           std::nullopt);  // Renumber srcs and dsts to internal IDs by not passing number_map
 
       cugraph::legacy::GraphCOOView<vertex_t, edge_t, weight_t> legacy_coo_graph_view(
         const_cast<vertex_t*>(srcs.data()),
         const_cast<vertex_t*>(dsts.data()),
-        (edge_weights == nullptr) ? tmp_weights.data() : const_cast<weight_t*>(wgts->data()),
+        (edge_weights == nullptr)
+          ? tmp_weights.data()
+          : std::get<rmm::device_uvector<weight_t>>(edge_property_values[0]).data(),
         graph->number_of_vertices(),
         edge_partition_view.number_of_edges());
 

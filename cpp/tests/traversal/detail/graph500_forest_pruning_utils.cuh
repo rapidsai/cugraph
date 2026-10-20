@@ -380,25 +380,19 @@ extract_forest_pruned_graph_and_isolated_trees(
           }),
         edge_mask.mutable_view());
       mg_graph_view.attach_edge_mask(edge_mask.view());
-      auto pruned_graph_edges = cugraph::decompress_to_edgelist<vertex_t,
-                                                                edge_t,
-                                                                weight_t,
-                                                                edge_type_t,
-                                                                store_transposed,
-                                                                multi_gpu>(
+      auto pruned_graph_edges = cugraph::decompress_to_edgelist(
         handle,
         mg_graph_view,
-        mg_edge_weight_view,
-        std::nullopt,
-        std::nullopt,
-        std::make_optional<raft::device_span<vertex_t const>>(mg_renumber_map.value_first(),
-                                                              mg_renumber_map.range_size()),
+        mg_edge_weight_view
+          ? std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{*mg_edge_weight_view}
+          : std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{},
+        std::make_optional(mg_renumber_map),
         large_buffer_type);
       mg_graph_view.clear_edge_mask();
       pruned_graph_src_chunks[i] = std::move(std::get<0>(pruned_graph_edges));
       pruned_graph_dst_chunks[i] = std::move(std::get<1>(pruned_graph_edges));
       if (pruned_graph_edge_property_chunks.size() > 0) {
-        pruned_graph_edge_property_chunks[0][i] = std::move(*(std::get<2>(pruned_graph_edges)));
+        pruned_graph_edge_property_chunks[0][i] = std::move(std::get<2>(pruned_graph_edges)[0]);
       }
     }
   }
@@ -438,20 +432,18 @@ extract_forest_pruned_graph_and_isolated_trees(
         [] __device__(auto, auto, auto src_reachable, auto, auto) { return !src_reachable; }),
       edge_mask.mutable_view());
     mg_graph_view.attach_edge_mask(edge_mask.view());
-    auto isolated_tree_edges = cugraph::
-      decompress_to_edgelist<vertex_t, edge_t, weight_t, edge_type_t, store_transposed, multi_gpu>(
-        handle,
-        mg_graph_view,
-        mg_edge_weight_view,
-        std::nullopt,
-        std::nullopt,
-        std::make_optional<raft::device_span<vertex_t const>>(mg_renumber_map.value_first(),
-                                                              mg_renumber_map.range_size()),
-        large_buffer_type);
+    auto isolated_tree_edges = cugraph::decompress_to_edgelist(
+      handle,
+      mg_graph_view,
+      mg_edge_weight_view
+        ? std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{*mg_edge_weight_view}
+        : std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{},
+      std::make_optional(mg_renumber_map),
+      large_buffer_type);
     isolated_tree_edge_srcs = std::move(std::get<0>(isolated_tree_edges));
     isolated_tree_edge_dsts = std::move(std::get<1>(isolated_tree_edges));
     if (isolated_tree_edge_property_chunks.size() > 0) {
-      isolated_tree_edge_property_chunks[0] = std::move(*(std::get<2>(isolated_tree_edges)));
+      isolated_tree_edge_property_chunks[0] = std::move(std::get<2>(isolated_tree_edges)[0]);
     }
   }
 

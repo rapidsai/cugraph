@@ -292,20 +292,18 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
           std::tie(std::ignore, mg_aggregate_in_results) =
             cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
               *handle_,
+              mg_graph_view,
               std::make_optional(mg_renumber_map->view()),
-              mg_graph_view.local_vertex_partition_range(),
-              std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{
-                std::nullopt},
+              std::nullopt,
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
               raft::device_span<result_t const>(mg_in_results[i].data(), mg_in_results[i].size()));
 
           std::tie(std::ignore, mg_aggregate_out_results) =
             cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
               *handle_,
+              mg_graph_view,
               std::make_optional(mg_renumber_map->view()),
-              mg_graph_view.local_vertex_partition_range(),
-              std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{
-                std::nullopt},
+              std::nullopt,
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
               raft::device_span<result_t const>(mg_out_results[i].data(),
                                                 mg_out_results[i].size()));
@@ -313,10 +311,9 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
           std::tie(std::ignore, std::get<0>(mg_aggregate_in_results)) =
             cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
               *handle_,
+              mg_graph_view,
               std::make_optional(mg_renumber_map->view()),
-              mg_graph_view.local_vertex_partition_range(),
-              std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{
-                std::nullopt},
+              std::nullopt,
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
               raft::device_span<typename cuda::std::tuple_element<0, result_t>::type const>(
                 std::get<0>(mg_in_results[i]).data(), std::get<0>(mg_in_results[i]).size()));
@@ -324,10 +321,9 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
           std::tie(std::ignore, std::get<1>(mg_aggregate_in_results)) =
             cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
               *handle_,
+              mg_graph_view,
               std::make_optional(mg_renumber_map->view()),
-              mg_graph_view.local_vertex_partition_range(),
-              std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{
-                std::nullopt},
+              std::nullopt,
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
               raft::device_span<typename cuda::std::tuple_element<1, result_t>::type const>(
                 std::get<1>(mg_in_results[i]).data(), std::get<1>(mg_in_results[i]).size()));
@@ -335,10 +331,9 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
           std::tie(std::ignore, std::get<0>(mg_aggregate_out_results)) =
             cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
               *handle_,
+              mg_graph_view,
               std::make_optional(mg_renumber_map->view()),
-              mg_graph_view.local_vertex_partition_range(),
-              std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{
-                std::nullopt},
+              std::nullopt,
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
               raft::device_span<typename cuda::std::tuple_element<0, result_t>::type const>(
                 std::get<0>(mg_out_results[i]).data(), std::get<0>(mg_out_results[i]).size()));
@@ -346,10 +341,9 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
           std::tie(std::ignore, std::get<1>(mg_aggregate_out_results)) =
             cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
               *handle_,
+              mg_graph_view,
               std::make_optional(mg_renumber_map->view()),
-              mg_graph_view.local_vertex_partition_range(),
-              std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{
-                std::nullopt},
+              std::nullopt,
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
               raft::device_span<typename cuda::std::tuple_element<1, result_t>::type const>(
                 std::get<1>(mg_out_results[i]).data(), std::get<1>(mg_out_results[i]).size()));

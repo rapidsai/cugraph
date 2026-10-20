@@ -182,13 +182,8 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
       std::vector<weight_t> h_cugraph_distances(graph_view.number_of_vertices());
       std::vector<vertex_t> h_cugraph_predecessors(graph_view.number_of_vertices());
       if (renumber) {
-        cugraph::unrenumber_local_int_vertices(handle,
-                                               d_predecessors.data(),
-                                               d_predecessors.size(),
-                                               d_renumber_map_labels->view().value_first(),
-                                               vertex_t{0},
-                                               graph_view.number_of_vertices(),
-                                               true);
+        d_predecessors = cugraph::unrenumber_local_int_vertices(
+          handle, graph_view, std::move(d_predecessors), d_renumber_map_labels->view(), true);
 
         auto d_renumber_map = d_renumber_map_labels->release_buffer();
         rmm::device_uvector<weight_t> d_unrenumbered_distances(size_t{0}, handle.get_stream());

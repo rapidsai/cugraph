@@ -244,24 +244,22 @@ class Tests_MGTransformReduceIfVFrontierOutgoingEBySrcDst
       auto mg_reduce_by_dst_aggregate_new_frontier_key_buffer =
         cugraph::allocate_dataframe_buffer<key_t>(0, handle_->get_stream());
       if constexpr (std::is_same_v<key_t, vertex_t>) {
-        cugraph::unrenumber_local_int_vertices(*handle_,
-                                               mg_reduce_by_dst_new_frontier_key_buffer.data(),
-                                               mg_reduce_by_dst_new_frontier_key_buffer.size(),
-                                               mg_renumber_map->view().value_first(),
-                                               mg_graph_view.local_vertex_partition_range_first(),
-                                               mg_graph_view.local_vertex_partition_range_last());
+        mg_reduce_by_dst_new_frontier_key_buffer = cugraph::unrenumber_local_int_vertices(
+          *handle_,
+          mg_graph_view,
+          std::move(mg_reduce_by_dst_new_frontier_key_buffer),
+          mg_renumber_map->view());
         mg_reduce_by_dst_aggregate_new_frontier_key_buffer =
           cugraph::test::device_gatherv(*handle_,
                                         mg_reduce_by_dst_new_frontier_key_buffer.data(),
                                         mg_reduce_by_dst_new_frontier_key_buffer.size());
       } else {
-        cugraph::unrenumber_local_int_vertices(
-          *handle_,
-          std::get<0>(mg_reduce_by_dst_new_frontier_key_buffer).data(),
-          std::get<0>(mg_reduce_by_dst_new_frontier_key_buffer).size(),
-          mg_renumber_map->view().value_first(),
-          mg_graph_view.local_vertex_partition_range_first(),
-          mg_graph_view.local_vertex_partition_range_last());
+        std::get<0>(mg_reduce_by_dst_new_frontier_key_buffer) =
+          cugraph::unrenumber_local_int_vertices(
+            *handle_,
+            mg_graph_view,
+            std::move(std::get<0>(mg_reduce_by_dst_new_frontier_key_buffer)),
+            mg_renumber_map->view());
         std::get<0>(mg_reduce_by_dst_aggregate_new_frontier_key_buffer) =
           cugraph::test::device_gatherv(
             *handle_,

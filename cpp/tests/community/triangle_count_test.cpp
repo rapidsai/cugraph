@@ -208,13 +208,8 @@ class Tests_TriangleCount
       std::vector<vertex_t> h_cugraph_vertices{};
       if (d_vertices) {
         if (renumber) {
-          cugraph::unrenumber_local_int_vertices(handle,
-                                                 (*d_vertices).data(),
-                                                 (*d_vertices).size(),
-                                                 d_renumber_map_labels->view().value_first(),
-                                                 vertex_t{0},
-                                                 graph_view.number_of_vertices(),
-                                                 true);
+          d_vertices = cugraph::unrenumber_local_int_vertices(
+            handle, graph_view, std::move(*d_vertices), d_renumber_map_labels->view(), true);
         }
         h_cugraph_vertices = cugraph::test::to_host(handle, *d_vertices);
       } else {

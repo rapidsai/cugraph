@@ -167,13 +167,17 @@ class Tests_EigenvectorCentrality
       rmm::device_uvector<vertex_t> src_v(0, handle.get_stream());
       std::optional<rmm::device_uvector<weight_t>> opt_wgt_v{std::nullopt};
 
-      std::tie(dst_v, src_v, opt_wgt_v, std::ignore, std::ignore) = cugraph::decompress_to_edgelist(
+      std::vector<cugraph::arithmetic_device_uvector_t> edge_property_values{};
+      std::tie(dst_v, src_v, edge_property_values) = cugraph::decompress_to_edgelist(
         handle,
         graph_view,
-        edge_weight_view,
-        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-        std::optional<raft::device_span<vertex_t const>>{std::nullopt});
+        edge_weight_view
+          ? std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{*edge_weight_view}
+          : std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{},
+        std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
+      if (edge_weight_view) {
+        opt_wgt_v = std::move(std::get<rmm::device_uvector<weight_t>>(edge_property_values[0]));
+      }
 
       auto h_src     = cugraph::test::to_host(handle, src_v);
       auto h_dst     = cugraph::test::to_host(handle, dst_v);

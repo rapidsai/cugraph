@@ -149,18 +149,10 @@ class Tests_HasEdgeAndComputeMultiplicity
       raft::copy_async(
         d_unrenumbered_edge_dsts.data(), edge_dsts.data(), edge_dsts.size(), handle.get_stream());
       if (renumber) {
-        cugraph::unrenumber_local_int_vertices(handle,
-                                               d_unrenumbered_edge_srcs.data(),
-                                               d_unrenumbered_edge_srcs.size(),
-                                               d_renumber_map_labels->view().value_first(),
-                                               vertex_t{0},
-                                               graph_view.number_of_vertices());
-        cugraph::unrenumber_local_int_vertices(handle,
-                                               d_unrenumbered_edge_dsts.data(),
-                                               d_unrenumbered_edge_dsts.size(),
-                                               d_renumber_map_labels->view().value_first(),
-                                               vertex_t{0},
-                                               graph_view.number_of_vertices());
+        d_unrenumbered_edge_srcs = cugraph::unrenumber_local_int_vertices(
+          handle, graph_view, std::move(d_unrenumbered_edge_srcs), d_renumber_map_labels->view());
+        d_unrenumbered_edge_dsts = cugraph::unrenumber_local_int_vertices(
+          handle, graph_view, std::move(d_unrenumbered_edge_dsts), d_renumber_map_labels->view());
       }
       auto h_unrenumbered_edge_srcs = cugraph::test::to_host(handle, d_unrenumbered_edge_srcs);
       auto h_unrenumbered_edge_dsts = cugraph::test::to_host(handle, d_unrenumbered_edge_dsts);

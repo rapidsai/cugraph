@@ -261,12 +261,11 @@ class Tests_PageRank
                            (*d_personalization_values).data(),
                            (*d_personalization_values).size(),
                            handle.get_stream());
-          cugraph::unrenumber_local_int_vertices(handle,
-                                                 d_unrenumbered_personalization_vertices.data(),
-                                                 d_unrenumbered_personalization_vertices.size(),
-                                                 d_renumber_map_labels->view().value_first(),
-                                                 vertex_t{0},
-                                                 graph_view.number_of_vertices());
+          d_unrenumbered_personalization_vertices = cugraph::unrenumber_local_int_vertices(
+            handle,
+            graph_view,
+            std::move(d_unrenumbered_personalization_vertices),
+            d_renumber_map_labels->view());
           std::tie(d_unrenumbered_personalization_vertices, d_unrenumbered_personalization_values) =
             cugraph::test::sort_by_key<vertex_t, result_t>(handle,
                                                            d_unrenumbered_personalization_vertices,

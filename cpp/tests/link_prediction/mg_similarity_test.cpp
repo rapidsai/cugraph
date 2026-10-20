@@ -14,6 +14,7 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
 
 struct Similarity_Usecase {
   bool use_weights{false};
@@ -119,21 +120,19 @@ class Tests_MGSimilarity
 
       std::tie(offsets, v2) = cugraph::k_hop_nbrs(*handle_, mg_graph_view, *sources_span, 2);
 
-      v1.resize(v2.size(), handle_->get_stream());
+      rmm::device_uvector<vertex_t> v1_seed_indices(v2.size(), handle_->get_stream());
       cugraph::test::expand_sparse_offsets(
         *handle_,
         raft::device_span<size_t const>{offsets.data(), offsets.size()},
-        raft::device_span<vertex_t>{v1.data(), v1.size()},
+        raft::device_span<vertex_t>{v1_seed_indices.data(), v1_seed_indices.size()},
         size_t{0},
         vertex_t{0});
-
-      cugraph::unrenumber_local_int_vertices(*handle_,
-                                             v1.data(),
-                                             v1.size(),
-                                             sources.data(),
-                                             vertex_t{0},
-                                             static_cast<vertex_t>(sources.size()),
-                                             true);
+      v1.resize(v1_seed_indices.size(), handle_->get_stream());
+      cugraph::gather(handle_->get_thrust_policy(),
+                      v1_seed_indices.begin(),
+                      v1_seed_indices.end(),
+                      sources_span->begin(),
+                      v1.begin());
 
       std::tie(v1, v2) = cugraph::test::remove_self_loops(*handle_, std::move(v1), std::move(v2));
       std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};

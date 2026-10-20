@@ -137,9 +137,9 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
       std::tie(std::ignore, d_mg_aggregate_hubs) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
+          mg_graph_view,
           std::make_optional(mg_renumber_map->view()),
-          mg_graph_view.local_vertex_partition_range(),
-          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
+          std::nullopt,
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           raft::device_span<weight_t const>(d_mg_hub_values.data(), d_mg_hub_values.size()));
 
@@ -148,9 +148,9 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
       std::tie(std::ignore, d_mg_aggregate_authorities) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
+          mg_graph_view,
           std::make_optional(mg_renumber_map->view()),
-          mg_graph_view.local_vertex_partition_range(),
-          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
+          std::nullopt,
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           raft::device_span<weight_t const>(d_mg_authority_values.data(),
                                             d_mg_authority_values.size()));
@@ -161,9 +161,9 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
         std::tie(std::ignore, d_mg_aggregate_initial_random_hubs) =
           cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
             *handle_,
+            mg_graph_view,
             std::make_optional(mg_renumber_map->view()),
-            mg_graph_view.local_vertex_partition_range(),
-            std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
+            std::nullopt,
             std::optional<raft::device_span<vertex_t const>>{std::nullopt},
             raft::device_span<weight_t const>(d_mg_initial_random_hub_values.data(),
                                               d_mg_initial_random_hub_values.size()));

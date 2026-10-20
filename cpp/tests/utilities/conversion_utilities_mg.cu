@@ -362,72 +362,176 @@ mg_graph_to_sg_graph(
 template std::tuple<std::optional<rmm::device_uvector<int32_t>>, rmm::device_uvector<int32_t>>
 mg_vertex_property_values_to_sg_vertex_property_values(
   raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int32_t, false, true> const& mg_graph_view,
   std::optional<cugraph::vertex_property_view_t<int32_t, int32_t const*>> mg_renumber_map,
-  std::tuple<int32_t, int32_t> mg_local_vertex_partition_range,
-  std::optional<cugraph::vertex_property_view_t<int32_t, int32_t const*>> sg_renumber_map,
+  std::optional<std::tuple<cugraph::graph_view_t<int32_t, int32_t, false, false>,
+                           cugraph::vertex_property_view_t<int32_t, int32_t const*>>>
+    sg_graph_view_and_renumber_map,
+  std::optional<raft::device_span<int32_t const>> mg_vertices,
+  raft::device_span<int32_t const> mg_values);
+
+template std::tuple<std::optional<rmm::device_uvector<int32_t>>, rmm::device_uvector<int32_t>>
+mg_vertex_property_values_to_sg_vertex_property_values(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int32_t, true, true> const& mg_graph_view,
+  std::optional<cugraph::vertex_property_view_t<int32_t, int32_t const*>> mg_renumber_map,
+  std::optional<std::tuple<cugraph::graph_view_t<int32_t, int32_t, true, false>,
+                           cugraph::vertex_property_view_t<int32_t, int32_t const*>>>
+    sg_graph_view_and_renumber_map,
   std::optional<raft::device_span<int32_t const>> mg_vertices,
   raft::device_span<int32_t const> mg_values);
 
 template std::tuple<std::optional<rmm::device_uvector<int32_t>>, rmm::device_uvector<int64_t>>
 mg_vertex_property_values_to_sg_vertex_property_values(
   raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int32_t, false, true> const& mg_graph_view,
   std::optional<cugraph::vertex_property_view_t<int32_t, int32_t const*>> mg_renumber_map,
-  std::tuple<int32_t, int32_t> mg_local_vertex_partition_range,
-  std::optional<cugraph::vertex_property_view_t<int32_t, int32_t const*>> sg_renumber_map,
+  std::optional<std::tuple<cugraph::graph_view_t<int32_t, int32_t, false, false>,
+                           cugraph::vertex_property_view_t<int32_t, int32_t const*>>>
+    sg_graph_view_and_renumber_map,
+  std::optional<raft::device_span<int32_t const>> mg_vertices,
+  raft::device_span<int64_t const> mg_values);
+
+template std::tuple<std::optional<rmm::device_uvector<int32_t>>, rmm::device_uvector<int64_t>>
+mg_vertex_property_values_to_sg_vertex_property_values(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int32_t, true, true> const& mg_graph_view,
+  std::optional<cugraph::vertex_property_view_t<int32_t, int32_t const*>> mg_renumber_map,
+  std::optional<std::tuple<cugraph::graph_view_t<int32_t, int32_t, true, false>,
+                           cugraph::vertex_property_view_t<int32_t, int32_t const*>>>
+    sg_graph_view_and_renumber_map,
   std::optional<raft::device_span<int32_t const>> mg_vertices,
   raft::device_span<int64_t const> mg_values);
 
 template std::tuple<std::optional<rmm::device_uvector<int32_t>>, rmm::device_uvector<float>>
 mg_vertex_property_values_to_sg_vertex_property_values(
   raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int32_t, false, true> const& mg_graph_view,
   std::optional<cugraph::vertex_property_view_t<int32_t, int32_t const*>> mg_renumber_map,
-  std::tuple<int32_t, int32_t> mg_local_vertex_partition_range,
-  std::optional<cugraph::vertex_property_view_t<int32_t, int32_t const*>> sg_renumber_map,
+  std::optional<std::tuple<cugraph::graph_view_t<int32_t, int32_t, false, false>,
+                           cugraph::vertex_property_view_t<int32_t, int32_t const*>>>
+    sg_graph_view_and_renumber_map,
+  std::optional<raft::device_span<int32_t const>> mg_vertices,
+  raft::device_span<float const> mg_values);
+
+template std::tuple<std::optional<rmm::device_uvector<int32_t>>, rmm::device_uvector<float>>
+mg_vertex_property_values_to_sg_vertex_property_values(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int32_t, true, true> const& mg_graph_view,
+  std::optional<cugraph::vertex_property_view_t<int32_t, int32_t const*>> mg_renumber_map,
+  std::optional<std::tuple<cugraph::graph_view_t<int32_t, int32_t, true, false>,
+                           cugraph::vertex_property_view_t<int32_t, int32_t const*>>>
+    sg_graph_view_and_renumber_map,
   std::optional<raft::device_span<int32_t const>> mg_vertices,
   raft::device_span<float const> mg_values);
 
 template std::tuple<std::optional<rmm::device_uvector<int32_t>>, rmm::device_uvector<double>>
 mg_vertex_property_values_to_sg_vertex_property_values(
   raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int32_t, false, true> const& mg_graph_view,
   std::optional<cugraph::vertex_property_view_t<int32_t, int32_t const*>> mg_renumber_map,
-  std::tuple<int32_t, int32_t> mg_local_vertex_partition_range,
-  std::optional<cugraph::vertex_property_view_t<int32_t, int32_t const*>> sg_renumber_map,
+  std::optional<std::tuple<cugraph::graph_view_t<int32_t, int32_t, false, false>,
+                           cugraph::vertex_property_view_t<int32_t, int32_t const*>>>
+    sg_graph_view_and_renumber_map,
+  std::optional<raft::device_span<int32_t const>> mg_vertices,
+  raft::device_span<double const> mg_values);
+
+template std::tuple<std::optional<rmm::device_uvector<int32_t>>, rmm::device_uvector<double>>
+mg_vertex_property_values_to_sg_vertex_property_values(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int32_t, true, true> const& mg_graph_view,
+  std::optional<cugraph::vertex_property_view_t<int32_t, int32_t const*>> mg_renumber_map,
+  std::optional<std::tuple<cugraph::graph_view_t<int32_t, int32_t, true, false>,
+                           cugraph::vertex_property_view_t<int32_t, int32_t const*>>>
+    sg_graph_view_and_renumber_map,
   std::optional<raft::device_span<int32_t const>> mg_vertices,
   raft::device_span<double const> mg_values);
 
 template std::tuple<std::optional<rmm::device_uvector<int64_t>>, rmm::device_uvector<int32_t>>
 mg_vertex_property_values_to_sg_vertex_property_values(
   raft::handle_t const& handle,
+  cugraph::graph_view_t<int64_t, int64_t, false, true> const& mg_graph_view,
   std::optional<cugraph::vertex_property_view_t<int64_t, int64_t const*>> mg_renumber_map,
-  std::tuple<int64_t, int64_t> mg_local_vertex_partition_range,
-  std::optional<cugraph::vertex_property_view_t<int64_t, int64_t const*>> sg_renumber_map,
+  std::optional<std::tuple<cugraph::graph_view_t<int64_t, int64_t, false, false>,
+                           cugraph::vertex_property_view_t<int64_t, int64_t const*>>>
+    sg_graph_view_and_renumber_map,
+  std::optional<raft::device_span<int64_t const>> mg_vertices,
+  raft::device_span<int32_t const> mg_values);
+
+template std::tuple<std::optional<rmm::device_uvector<int64_t>>, rmm::device_uvector<int32_t>>
+mg_vertex_property_values_to_sg_vertex_property_values(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int64_t, int64_t, true, true> const& mg_graph_view,
+  std::optional<cugraph::vertex_property_view_t<int64_t, int64_t const*>> mg_renumber_map,
+  std::optional<std::tuple<cugraph::graph_view_t<int64_t, int64_t, true, false>,
+                           cugraph::vertex_property_view_t<int64_t, int64_t const*>>>
+    sg_graph_view_and_renumber_map,
   std::optional<raft::device_span<int64_t const>> mg_vertices,
   raft::device_span<int32_t const> mg_values);
 
 template std::tuple<std::optional<rmm::device_uvector<int64_t>>, rmm::device_uvector<int64_t>>
 mg_vertex_property_values_to_sg_vertex_property_values(
   raft::handle_t const& handle,
+  cugraph::graph_view_t<int64_t, int64_t, false, true> const& mg_graph_view,
   std::optional<cugraph::vertex_property_view_t<int64_t, int64_t const*>> mg_renumber_map,
-  std::tuple<int64_t, int64_t> mg_local_vertex_partition_range,
-  std::optional<cugraph::vertex_property_view_t<int64_t, int64_t const*>> sg_renumber_map,
+  std::optional<std::tuple<cugraph::graph_view_t<int64_t, int64_t, false, false>,
+                           cugraph::vertex_property_view_t<int64_t, int64_t const*>>>
+    sg_graph_view_and_renumber_map,
+  std::optional<raft::device_span<int64_t const>> mg_vertices,
+  raft::device_span<int64_t const> mg_values);
+
+template std::tuple<std::optional<rmm::device_uvector<int64_t>>, rmm::device_uvector<int64_t>>
+mg_vertex_property_values_to_sg_vertex_property_values(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int64_t, int64_t, true, true> const& mg_graph_view,
+  std::optional<cugraph::vertex_property_view_t<int64_t, int64_t const*>> mg_renumber_map,
+  std::optional<std::tuple<cugraph::graph_view_t<int64_t, int64_t, true, false>,
+                           cugraph::vertex_property_view_t<int64_t, int64_t const*>>>
+    sg_graph_view_and_renumber_map,
   std::optional<raft::device_span<int64_t const>> mg_vertices,
   raft::device_span<int64_t const> mg_values);
 
 template std::tuple<std::optional<rmm::device_uvector<int64_t>>, rmm::device_uvector<float>>
 mg_vertex_property_values_to_sg_vertex_property_values(
   raft::handle_t const& handle,
+  cugraph::graph_view_t<int64_t, int64_t, false, true> const& mg_graph_view,
   std::optional<cugraph::vertex_property_view_t<int64_t, int64_t const*>> mg_renumber_map,
-  std::tuple<int64_t, int64_t> mg_local_vertex_partition_range,
-  std::optional<cugraph::vertex_property_view_t<int64_t, int64_t const*>> sg_renumber_map,
+  std::optional<std::tuple<cugraph::graph_view_t<int64_t, int64_t, false, false>,
+                           cugraph::vertex_property_view_t<int64_t, int64_t const*>>>
+    sg_graph_view_and_renumber_map,
+  std::optional<raft::device_span<int64_t const>> mg_vertices,
+  raft::device_span<float const> mg_values);
+
+template std::tuple<std::optional<rmm::device_uvector<int64_t>>, rmm::device_uvector<float>>
+mg_vertex_property_values_to_sg_vertex_property_values(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int64_t, int64_t, true, true> const& mg_graph_view,
+  std::optional<cugraph::vertex_property_view_t<int64_t, int64_t const*>> mg_renumber_map,
+  std::optional<std::tuple<cugraph::graph_view_t<int64_t, int64_t, true, false>,
+                           cugraph::vertex_property_view_t<int64_t, int64_t const*>>>
+    sg_graph_view_and_renumber_map,
   std::optional<raft::device_span<int64_t const>> mg_vertices,
   raft::device_span<float const> mg_values);
 
 template std::tuple<std::optional<rmm::device_uvector<int64_t>>, rmm::device_uvector<double>>
 mg_vertex_property_values_to_sg_vertex_property_values(
   raft::handle_t const& handle,
+  cugraph::graph_view_t<int64_t, int64_t, false, true> const& mg_graph_view,
   std::optional<cugraph::vertex_property_view_t<int64_t, int64_t const*>> mg_renumber_map,
-  std::tuple<int64_t, int64_t> mg_local_vertex_partition_range,
-  std::optional<cugraph::vertex_property_view_t<int64_t, int64_t const*>> sg_renumber_map,
+  std::optional<std::tuple<cugraph::graph_view_t<int64_t, int64_t, false, false>,
+                           cugraph::vertex_property_view_t<int64_t, int64_t const*>>>
+    sg_graph_view_and_renumber_map,
+  std::optional<raft::device_span<int64_t const>> mg_vertices,
+  raft::device_span<double const> mg_values);
+
+template std::tuple<std::optional<rmm::device_uvector<int64_t>>, rmm::device_uvector<double>>
+mg_vertex_property_values_to_sg_vertex_property_values(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int64_t, int64_t, true, true> const& mg_graph_view,
+  std::optional<cugraph::vertex_property_view_t<int64_t, int64_t const*>> mg_renumber_map,
+  std::optional<std::tuple<cugraph::graph_view_t<int64_t, int64_t, true, false>,
+                           cugraph::vertex_property_view_t<int64_t, int64_t const*>>>
+    sg_graph_view_and_renumber_map,
   std::optional<raft::device_span<int64_t const>> mg_vertices,
   raft::device_span<double const> mg_values);
 

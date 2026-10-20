@@ -366,12 +366,8 @@ class Tests_SimpleCycles
       std::optional<std::unordered_set<vertex_t>> h_seed_set{std::nullopt};
       if (d_seed_vertices) {
         if (renumber) {
-          cugraph::unrenumber_local_int_vertices(handle,
-                                                 d_seed_vertices->data(),
-                                                 d_seed_vertices->size(),
-                                                 d_renumber_map_labels->view().value_first(),
-                                                 vertex_t{0},
-                                                 graph_view.number_of_vertices());
+          d_seed_vertices = cugraph::unrenumber_local_int_vertices(
+            handle, graph_view, std::move(*d_seed_vertices), d_renumber_map_labels->view());
         }
         auto h_seeds = cugraph::test::to_host(handle, *d_seed_vertices);
         h_seed_set.emplace(h_seeds.begin(), h_seeds.end());
@@ -389,12 +385,8 @@ class Tests_SimpleCycles
       }
 
       if (renumber) {
-        cugraph::unrenumber_local_int_vertices(handle,
-                                               d_cugraph_cycle_vertices.data(),
-                                               d_cugraph_cycle_vertices.size(),
-                                               d_renumber_map_labels->view().value_first(),
-                                               vertex_t{0},
-                                               graph_view.number_of_vertices());
+        d_cugraph_cycle_vertices = cugraph::unrenumber_local_int_vertices(
+          handle, graph_view, std::move(d_cugraph_cycle_vertices), d_renumber_map_labels->view());
       }
       auto h_cugraph_cycle_vertices = cugraph::test::to_host(handle, d_cugraph_cycle_vertices);
       auto h_cugraph_cycle_offsets  = cugraph::test::to_host(handle, d_cugraph_cycle_offsets);

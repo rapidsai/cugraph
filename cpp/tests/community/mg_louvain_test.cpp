@@ -98,18 +98,10 @@ class Tests_MGLouvain
        threshold,
        resolution,
        comm_rank](size_t i) {
-        rmm::device_uvector<vertex_t> d_mg_aggregate_cluster_v(0, handle.get_stream());
-        std::tie(std::ignore, d_mg_aggregate_cluster_v) =
-          cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
-            handle,
-            std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
-            std::make_tuple(mg_dendrogram.level_range_first(i),
-                            static_cast<vertex_t>(mg_dendrogram.level_range_first(i) +
-                                                  mg_dendrogram.level_size(i))),
-            std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
-            std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-            raft::device_span<vertex_t const>(mg_dendrogram.level_data(i).data(),
-                                              mg_dendrogram.level_size(i)));
+        auto d_mg_aggregate_cluster_v = cugraph::test::device_gatherv(
+          handle,
+          raft::device_span<vertex_t const>(mg_dendrogram.level_data(i).data(),
+                                            mg_dendrogram.level_size(i)));
 
         if (comm_rank == 0) {
           auto sg_graph_view = sg_graph.view();

@@ -198,13 +198,8 @@ class Tests_KHopNbrs
                              k_hop_nbrs_usecase.k);
 
       if (renumber) {
-        cugraph::unrenumber_local_int_vertices(handle,
-                                               nbrs.data(),
-                                               nbrs.size(),
-                                               d_renumber_map_labels->view().value_first(),
-                                               vertex_t{0},
-                                               graph_view.number_of_vertices(),
-                                               true);
+        nbrs = cugraph::unrenumber_local_int_vertices(
+          handle, graph_view, std::move(nbrs), d_renumber_map_labels->view(), true);
       }
       auto h_cugraph_offsets = cugraph::test::to_host(handle, offsets);
       auto h_cugraph_nbrs    = cugraph::test::to_host(handle, nbrs);

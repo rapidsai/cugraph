@@ -30,6 +30,8 @@
 #include <thrust/transform.h>
 #include <thrust/unique.h>
 
+#include <algorithm>
+
 namespace cugraph {
 
 namespace detail {
@@ -327,6 +329,40 @@ void unrenumber_local_int_edges(
   }
 }
 
+template <typename vertex_t>
+void unrenumber_local_int_vertices(
+  raft::handle_t const& handle,
+  vertex_t* vertices /* [INOUT] */,
+  size_t num_vertices,
+  vertex_t const* renumber_map_labels /* size = local_int_vertex_last - local_int_vertex_first */,
+  vertex_t local_int_vertex_first,
+  vertex_t local_int_vertex_last,
+  bool do_expensive_check)
+{
+  if (do_expensive_check) {
+    CUGRAPH_EXPECTS(
+      thrust::count_if(handle.get_thrust_policy(),
+                       vertices,
+                       vertices + num_vertices,
+                       [local_int_vertex_first, local_int_vertex_last] __device__(auto v) {
+                         return v != invalid_vertex_id<vertex_t>::value &&
+                                (v < local_int_vertex_first || v >= local_int_vertex_last);
+                       }) == 0,
+      "Invalid input arguments: there are non-local vertices in [vertices, vertices "
+      "+ num_vertices).");
+  }
+
+  thrust::transform(handle.get_thrust_policy(),
+                    vertices,
+                    vertices + num_vertices,
+                    vertices,
+                    [renumber_map_labels, local_int_vertex_first] __device__(auto v) {
+                      return v == invalid_vertex_id<vertex_t>::value
+                               ? v
+                               : renumber_map_labels[v - local_int_vertex_first];
+                    });
+}
+
 }  // namespace detail
 
 template <typename vertex_t, bool multi_gpu>
@@ -500,28 +536,31 @@ void unrenumber_local_int_vertices(
   vertex_t local_int_vertex_last,
   bool do_expensive_check)
 {
-  if (do_expensive_check) {
-    CUGRAPH_EXPECTS(
-      thrust::count_if(handle.get_thrust_policy(),
-                       vertices,
-                       vertices + num_vertices,
-                       [local_int_vertex_first, local_int_vertex_last] __device__(auto v) {
-                         return v != invalid_vertex_id<vertex_t>::value &&
-                                (v < local_int_vertex_first || v >= local_int_vertex_last);
-                       }) == 0,
-      "Invalid input arguments: there are non-local vertices in [vertices, vertices "
-      "+ num_vertices).");
-  }
+  detail::unrenumber_local_int_vertices(handle,
+                                        vertices,
+                                        num_vertices,
+                                        renumber_map_labels,
+                                        local_int_vertex_first,
+                                        local_int_vertex_last,
+                                        do_expensive_check);
+}
 
-  thrust::transform(handle.get_thrust_policy(),
-                    vertices,
-                    vertices + num_vertices,
-                    vertices,
-                    [renumber_map_labels, local_int_vertex_first] __device__(auto v) {
-                      return v == invalid_vertex_id<vertex_t>::value
-                               ? v
-                               : renumber_map_labels[v - local_int_vertex_first];
-                    });
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+rmm::device_uvector<vertex_t> unrenumber_local_int_vertices(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  rmm::device_uvector<vertex_t>&& vertices,
+  vertex_property_view_t<vertex_t, vertex_t const*> renumber_map_labels,
+  bool do_expensive_check)
+{
+  detail::unrenumber_local_int_vertices(handle,
+                                        vertices.data(),
+                                        vertices.size(),
+                                        renumber_map_labels.value_first(),
+                                        graph_view.local_vertex_partition_range_first(),
+                                        graph_view.local_vertex_partition_range_last(),
+                                        do_expensive_check);
+  return std::move(vertices);
 }
 
 template <typename vertex_t, bool multi_gpu>
@@ -601,13 +640,13 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
     auto renumber_map_view = renumber_map.view();
     renumber_map_view.find(vertices, vertices + num_vertices, vertices, handle.get_stream());
   } else {
-    unrenumber_local_int_vertices(handle,
-                                  vertices,
-                                  num_vertices,
-                                  renumber_map_labels,
-                                  vertex_t{0},
-                                  vertex_partition_range_lasts[0],
-                                  do_expensive_check);
+    detail::unrenumber_local_int_vertices(handle,
+                                          vertices,
+                                          num_vertices,
+                                          renumber_map_labels,
+                                          vertex_t{0},
+                                          vertex_partition_range_lasts[0],
+                                          do_expensive_check);
   }
 }
 
@@ -641,20 +680,97 @@ std::enable_if_t<!multi_gpu, void> unrenumber_local_int_edges(raft::handle_t con
                                                               vertex_t num_vertices,
                                                               bool do_expensive_check)
 {
-  unrenumber_local_int_vertices(handle,
-                                edgelist_srcs,
-                                num_edgelist_edges,
-                                renumber_map_labels,
-                                vertex_t{0},
-                                num_vertices,
-                                do_expensive_check);
-  unrenumber_local_int_vertices(handle,
-                                edgelist_dsts,
-                                num_edgelist_edges,
-                                renumber_map_labels,
-                                vertex_t{0},
-                                num_vertices,
-                                do_expensive_check);
+  detail::unrenumber_local_int_vertices(handle,
+                                        edgelist_srcs,
+                                        num_edgelist_edges,
+                                        renumber_map_labels,
+                                        vertex_t{0},
+                                        num_vertices,
+                                        do_expensive_check);
+  detail::unrenumber_local_int_vertices(handle,
+                                        edgelist_dsts,
+                                        num_edgelist_edges,
+                                        renumber_map_labels,
+                                        vertex_t{0},
+                                        num_vertices,
+                                        do_expensive_check);
+}
+
+template <typename vertex_t, typename edge_t, bool store_transposed>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> unrenumber_local_int_edges(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, true> const& graph_view,
+  rmm::device_uvector<vertex_t>&& edgelist_srcs,
+  rmm::device_uvector<vertex_t>&& edgelist_dsts,
+  std::vector<size_t> const& edgelist_partition_offsets,
+  vertex_property_view_t<vertex_t, vertex_t const*> renumber_map,
+  std::optional<std::vector<std::vector<size_t>>> const& edgelist_intra_partition_segment_offsets,
+  bool do_expensive_check)
+{
+  CUGRAPH_EXPECTS(edgelist_srcs.size() == edgelist_dsts.size(),
+                  "Invalid input arguments: edgelist_srcs.size() != edgelist_dsts.size().");
+  CUGRAPH_EXPECTS(
+    edgelist_partition_offsets.size() == graph_view.number_of_local_edge_partitions() + 1,
+    "Invalid input arguments: edgelist_partition_offsets.size() should be "
+    "graph_view.number_of_local_edge_partitions() + 1.");
+  CUGRAPH_EXPECTS(
+    (edgelist_partition_offsets.front() == 0) &&
+      (edgelist_partition_offsets.back() == edgelist_srcs.size()) &&
+      std::is_sorted(edgelist_partition_offsets.begin(), edgelist_partition_offsets.end()),
+    "Invalid input arguments: edgelist_partition_offsets should be sorted, start from 0, and end "
+    "at edgelist_srcs.size().");
+
+  auto& edgelist_majors = store_transposed ? edgelist_dsts : edgelist_srcs;
+  auto& edgelist_minors = store_transposed ? edgelist_srcs : edgelist_dsts;
+  std::vector<vertex_t*> major_ptrs(graph_view.number_of_local_edge_partitions());
+  std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
+  std::vector<size_t> edgelist_edge_counts(major_ptrs.size());
+  for (size_t i = 0; i < major_ptrs.size(); ++i) {
+    major_ptrs[i]           = edgelist_majors.data() + edgelist_partition_offsets[i];
+    minor_ptrs[i]           = edgelist_minors.data() + edgelist_partition_offsets[i];
+    edgelist_edge_counts[i] = edgelist_partition_offsets[i + 1] - edgelist_partition_offsets[i];
+  }
+  detail::unrenumber_local_int_edges(handle,
+                                     major_ptrs,
+                                     minor_ptrs,
+                                     edgelist_edge_counts,
+                                     renumber_map.value_first(),
+                                     graph_view.vertex_partition_range_lasts(),
+                                     edgelist_intra_partition_segment_offsets,
+                                     do_expensive_check);
+  return std::make_tuple(std::move(edgelist_srcs), std::move(edgelist_dsts));
+}
+
+template <typename vertex_t, typename edge_t, bool store_transposed>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> unrenumber_local_int_edges(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, false> const& graph_view,
+  rmm::device_uvector<vertex_t>&& edgelist_srcs,
+  rmm::device_uvector<vertex_t>&& edgelist_dsts,
+  vertex_property_view_t<vertex_t, vertex_t const*> renumber_map,
+  bool do_expensive_check)
+{
+  CUGRAPH_EXPECTS(edgelist_srcs.size() == edgelist_dsts.size(),
+                  "Invalid input arguments: edgelist_srcs.size() != edgelist_dsts.size().");
+  CUGRAPH_EXPECTS(renumber_map.range_size() == graph_view.local_vertex_partition_range_size(),
+                  "Invalid input arguments: renumber_map.range_size() should coincide with "
+                  "graph_view.local_vertex_partition_range_size().");
+
+  detail::unrenumber_local_int_vertices(handle,
+                                        edgelist_srcs.data(),
+                                        edgelist_srcs.size(),
+                                        renumber_map.value_first(),
+                                        graph_view.local_vertex_partition_range_first(),
+                                        graph_view.local_vertex_partition_range_last(),
+                                        do_expensive_check);
+  detail::unrenumber_local_int_vertices(handle,
+                                        edgelist_dsts.data(),
+                                        edgelist_dsts.size(),
+                                        renumber_map.value_first(),
+                                        graph_view.local_vertex_partition_range_first(),
+                                        graph_view.local_vertex_partition_range_last(),
+                                        do_expensive_check);
+  return std::make_tuple(std::move(edgelist_srcs), std::move(edgelist_dsts));
 }
 
 }  // namespace cugraph

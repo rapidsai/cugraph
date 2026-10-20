@@ -11,6 +11,7 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/copy_v.cuh>
 #include <cugraph/prims/extract_transform_if_e.cuh>
 #include <cugraph/prims/extract_transform_if_v_frontier_incoming_outgoing_e.cuh>
 #include <cugraph/prims/fill_edge_src_dst_property.cuh>
@@ -294,7 +295,7 @@ rmm::device_uvector<vertex_t> renumber_seed_vertices(
   raft::handle_t const& handle,
   raft::device_span<vertex_t const> seed_vertices,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  raft::device_span<vertex_t const> renumber_map,
+  vertex_property_view_t<vertex_t, vertex_t const*> renumber_map,
   bool do_expensive_check)
 {
   rmm::device_uvector<vertex_t> tmp_seed_vertices(seed_vertices.size(), handle.get_stream());
@@ -306,11 +307,12 @@ rmm::device_uvector<vertex_t> renumber_seed_vertices(
     std::tie(tmp_seed_vertices, std::ignore) = shuffle_ext_vertices(
       handle, std::move(tmp_seed_vertices), std::vector<cugraph::arithmetic_device_uvector_t>{});
   }
-  rmm::device_uvector<vertex_t> sorted_renumber_map(renumber_map.size(), handle.get_stream());
-  thrust::copy(handle.get_thrust_policy(),
-               renumber_map.begin(),
-               renumber_map.end(),
-               sorted_renumber_map.begin());
+  rmm::device_uvector<vertex_t> sorted_renumber_map(renumber_map.range_size(), handle.get_stream());
+  copy_v(handle,
+         graph_view,
+         renumber_map,
+         vertex_property_view_t<vertex_t, vertex_t*>(sorted_renumber_map.data(),
+                                                     renumber_map.range_size()));
   cugraph::sort(handle.get_thrust_policy(), sorted_renumber_map.begin(), sorted_renumber_map.end());
   tmp_seed_vertices.resize(
     cuda::std::distance(
@@ -331,7 +333,7 @@ rmm::device_uvector<vertex_t> renumber_seed_vertices(
     handle,
     tmp_seed_vertices.data(),
     tmp_seed_vertices.size(),
-    renumber_map.data(),
+    renumber_map.value_first(),
     graph_view.local_vertex_partition_range_first(),
     graph_view.local_vertex_partition_range_last(),
     do_expensive_check);
@@ -397,15 +399,15 @@ push_back_cycles(
   std::vector<rmm::device_uvector<vertex_t>>&& cycle_length_chunks,
   rmm::device_uvector<vertex_t>&& new_cycle_vertices,
   std::variant<vertex_t, rmm::device_uvector<vertex_t>>&& new_cycle_lengths,
-  std::optional<std::tuple<raft::device_span<vertex_t const>, raft::host_span<vertex_t const>>>
-    renumber_info = std::nullopt)
+  std::optional<std::tuple<vertex_property_view_t<vertex_t, vertex_t const*>,
+                           raft::host_span<vertex_t const>>> renumber_info = std::nullopt)
 {
   if (renumber_info) {
     auto [renumber_map, vertex_partition_range_lasts] = *renumber_info;
     unrenumber_int_vertices<vertex_t, multi_gpu>(handle,
                                                  new_cycle_vertices.data(),
                                                  new_cycle_vertices.size(),
-                                                 renumber_map.data(),
+                                                 renumber_map.value_first(),
                                                  vertex_partition_range_lasts);  // collective
   }
 
@@ -1121,7 +1123,7 @@ simple_cycles_impl(raft::handle_t const& handle,
   /* 5. enumerate intra-SCC edges for SCCs with more than 2 vertices and create a new graph */
 
   cugraph::graph_t<vertex_t, edge_t, false, multi_gpu> scc_graph(handle);
-  rmm::device_uvector<vertex_t> scc_graph_renumber_map(0, handle.get_stream());
+  vertex_property_t<vertex_t, vertex_t> scc_graph_renumber_map(handle);
   std::optional<rmm::device_uvector<vertex_t>> scc_graph_seed_vertices{std::nullopt};
   {
     thrust::transform_if(
@@ -1228,15 +1230,14 @@ simple_cycles_impl(raft::handle_t const& handle,
         std::vector<cugraph::arithmetic_device_uvector_t>{},
         graph_properties_t{false, false},
         true /* renumber */);
-    scc_graph_renumber_map = tmp_renumber_map->release_buffer();
+    scc_graph_renumber_map = std::move(*tmp_renumber_map);
     if (seed_vertices) {
-      scc_graph_seed_vertices = renumber_seed_vertices<vertex_t, edge_t, multi_gpu>(
-        handle,
-        *seed_vertices,
-        scc_graph.view(),
-        raft::device_span<vertex_t const>(scc_graph_renumber_map.data(),
-                                          scc_graph_renumber_map.size()),
-        do_expensive_check);
+      scc_graph_seed_vertices =
+        renumber_seed_vertices<vertex_t, edge_t, multi_gpu>(handle,
+                                                            *seed_vertices,
+                                                            scc_graph.view(),
+                                                            scc_graph_renumber_map.view(),
+                                                            do_expensive_check);
     }
   }
 
@@ -1483,10 +1484,8 @@ simple_cycles_impl(raft::handle_t const& handle,
           std::move(cycle_length_chunks),
           std::move(new_cycle_vertices),
           std::move(new_cycle_lengths),
-          std::make_optional(
-            std::make_tuple(raft::device_span<vertex_t const>(scc_graph_renumber_map.data(),
-                                                              scc_graph_renumber_map.size()),
-                            scc_graph_view.vertex_partition_range_lasts())));
+          std::make_optional(std::make_tuple(scc_graph_renumber_map.view(),
+                                             scc_graph_view.vertex_partition_range_lasts())));
       }
 
       // 6-4. Mask out the edges to/from the picked root vertices.
@@ -1582,15 +1581,12 @@ simple_cycles_impl(raft::handle_t const& handle,
         0.5 /* tuning parameter */) {
       rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
       rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
-      std::tie(edgelist_srcs, edgelist_dsts, std::ignore, std::ignore, std::ignore) =
-        decompress_to_edgelist<vertex_t, edge_t, weight_t, edge_type_t, false, multi_gpu>(
+      std::tie(edgelist_srcs, edgelist_dsts, std::ignore) =
+        decompress_to_edgelist<vertex_t, edge_t, false, multi_gpu>(
           handle,
           scc_graph_view,
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          std::make_optional<raft::device_span<vertex_t const>>(scc_graph_renumber_map.data(),
-                                                                scc_graph_renumber_map.size()),
+          std::vector<edge_arithmetic_property_view_t<edge_t>>{},
+          std::make_optional(scc_graph_renumber_map.view()),
           std::nullopt,
           do_expensive_check);
       auto aggregate_edge_count = edgelist_srcs.size();
@@ -1612,17 +1608,16 @@ simple_cycles_impl(raft::handle_t const& handle,
           std::vector<cugraph::arithmetic_device_uvector_t>{},
           graph_properties_t{false, false},
           true /* renumber */);
-      scc_graph_renumber_map = tmp_renumber_map->release_buffer();
+      scc_graph_renumber_map = std::move(*tmp_renumber_map);
       scc_graph_view         = scc_graph.view();
       scc_graph_edge_mask    = edge_property_t<edge_t, bool>(handle);
       if (seed_vertices) {
-        scc_graph_seed_vertices = renumber_seed_vertices<vertex_t, edge_t, multi_gpu>(
-          handle,
-          *seed_vertices,
-          scc_graph_view,
-          raft::device_span<vertex_t const>(scc_graph_renumber_map.data(),
-                                            scc_graph_renumber_map.size()),
-          do_expensive_check);
+        scc_graph_seed_vertices =
+          renumber_seed_vertices<vertex_t, edge_t, multi_gpu>(handle,
+                                                              *seed_vertices,
+                                                              scc_graph_view,
+                                                              scc_graph_renumber_map.view(),
+                                                              do_expensive_check);
       }
       std::tie(in_out_degree_products, sum_in_out_degree_products) =
         compute_in_out_degree_products<vertex_t, edge_t, multi_gpu>(handle, scc_graph_view);
@@ -1658,10 +1653,8 @@ simple_cycles_impl(raft::handle_t const& handle,
       std::move(cycle_length_chunks),
       std::move(length_2_cycle_vertices),
       vertex_t{2},
-      std::make_optional(
-        std::make_tuple(raft::device_span<vertex_t const>(scc_graph_renumber_map.data(),
-                                                          scc_graph_renumber_map.size()),
-                        scc_graph_view.vertex_partition_range_lasts())));
+      std::make_optional(std::make_tuple(scc_graph_renumber_map.view(),
+                                         scc_graph_view.vertex_partition_range_lasts())));
 
     // 6-8. Keep only the intra SCC edges for length 3+ SCCs
 

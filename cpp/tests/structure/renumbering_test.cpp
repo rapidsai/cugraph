@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -85,13 +85,20 @@ class Tests_Renumbering
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_timer.start("Renumbering");
+      hr_timer.start("Graph construction (with renumbering)");
     }
 
-    rmm::device_uvector<vertex_t> renumber_map_labels_v(0, handle.get_stream());
-    std::tie(renumber_map_labels_v, std::ignore) =
-      cugraph::renumber_edgelist<vertex_t, edge_t, false>(
-        handle, std::nullopt, src_v.begin(), dst_v.begin(), src_v.size(), false);
+    cugraph::graph_t<vertex_t, edge_t, false, false> graph(handle);
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> renumber_map{std::nullopt};
+    std::tie(graph, std::ignore, renumber_map) =
+      cugraph::create_graph<vertex_t, edge_t, false, false>(
+        handle,
+        std::nullopt,
+        rmm::device_uvector<vertex_t>(src_v, handle.get_stream()),
+        rmm::device_uvector<vertex_t>(dst_v, handle.get_stream()),
+        std::vector<cugraph::arithmetic_device_uvector_t>{},
+        cugraph::graph_properties_t{false, true},
+        true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -100,24 +107,31 @@ class Tests_Renumbering
     }
 
     if (renumbering_usecase.check_correctness) {
-      cugraph::unrenumber_local_int_vertices(handle,
-                                             src_v.data(),
-                                             src_v.size(),
-                                             renumber_map_labels_v.data(),
-                                             0,
-                                             static_cast<vertex_t>(renumber_map_labels_v.size()));
-      cugraph::unrenumber_local_int_vertices(handle,
-                                             dst_v.data(),
-                                             dst_v.size(),
-                                             renumber_map_labels_v.data(),
-                                             0,
-                                             static_cast<vertex_t>(renumber_map_labels_v.size()));
+      auto graph_view = graph.view();
+
+      cugraph::renumber_ext_vertices<vertex_t, false>(
+        handle,
+        src_v.data(),
+        src_v.size(),
+        renumber_map->view().value_first(),
+        graph_view.local_vertex_partition_range_first(),
+        graph_view.local_vertex_partition_range_last());
+      cugraph::renumber_ext_vertices<vertex_t, false>(
+        handle,
+        dst_v.data(),
+        dst_v.size(),
+        renumber_map->view().value_first(),
+        graph_view.local_vertex_partition_range_first(),
+        graph_view.local_vertex_partition_range_last());
+
+      std::tie(src_v, dst_v) = cugraph::unrenumber_local_int_edges(
+        handle, graph_view, std::move(src_v), std::move(dst_v), renumber_map->view());
 
       h_final_src_v = cugraph::test::to_host(handle, src_v);
       h_final_dst_v = cugraph::test::to_host(handle, dst_v);
 
-      EXPECT_EQ(h_original_src_v, h_original_src_v);
-      EXPECT_EQ(h_original_dst_v, h_original_dst_v);
+      EXPECT_EQ(h_original_src_v, h_final_src_v);
+      EXPECT_EQ(h_original_dst_v, h_final_dst_v);
     }
   }
 };

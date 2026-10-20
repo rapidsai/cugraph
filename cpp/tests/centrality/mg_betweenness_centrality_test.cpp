@@ -117,12 +117,8 @@ class Tests_MGBetweennessCentrality
 
     if (betweenness_usecase.check_correctness) {
       if (mg_renumber_map) {
-        cugraph::unrenumber_local_int_vertices(*handle_,
-                                               d_mg_seeds.data(),
-                                               d_mg_seeds.size(),
-                                               mg_renumber_map->view().value_first(),
-                                               mg_graph_view.local_vertex_partition_range_first(),
-                                               mg_graph_view.local_vertex_partition_range_last());
+        d_mg_seeds = cugraph::unrenumber_local_int_vertices(
+          *handle_, mg_graph_view, std::move(d_mg_seeds), mg_renumber_map->view());
       }
 
       auto d_mg_aggregate_seeds = cugraph::test::device_gatherv(
@@ -133,9 +129,9 @@ class Tests_MGBetweennessCentrality
       std::tie(std::ignore, d_mg_aggregate_centralities) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
+          mg_graph_view,
           std::make_optional(mg_renumber_map->view()),
-          mg_graph_view.local_vertex_partition_range(),
-          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
+          std::nullopt,
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           raft::device_span<weight_t const>(d_mg_centrality_values.data(),
                                             d_mg_centrality_values.size()));

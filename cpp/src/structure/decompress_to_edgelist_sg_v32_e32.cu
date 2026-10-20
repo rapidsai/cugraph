@@ -70,4 +70,26 @@ decompress_to_edgelist<int32_t, int32_t, double, int32_t, true, false>(
   std::optional<large_buffer_type_t> large_buffer_type,
   bool do_expensive_check);
 
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   std::vector<arithmetic_device_uvector_t>>
+decompress_to_edgelist<int32_t, int32_t, false, false>(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
+  std::vector<edge_arithmetic_property_view_t<int32_t>> const& edge_property_views,
+  std::optional<vertex_property_view_t<int32_t, int32_t const*>> renumber_map,
+  std::optional<large_buffer_type_t> large_buffer_type,
+  bool do_expensive_check);
+
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   std::vector<arithmetic_device_uvector_t>>
+decompress_to_edgelist<int32_t, int32_t, true, false>(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, true, false> const& graph_view,
+  std::vector<edge_arithmetic_property_view_t<int32_t>> const& edge_property_views,
+  std::optional<vertex_property_view_t<int32_t, int32_t const*>> renumber_map,
+  std::optional<large_buffer_type_t> large_buffer_type,
+  bool do_expensive_check);
+
 }  // namespace cugraph

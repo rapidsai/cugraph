@@ -693,14 +693,16 @@ k_truss(raft::handle_t const& handle,
     rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
     std::optional<rmm::device_uvector<weight_t>> edgelist_wgts{std::nullopt};
 
-    std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts, std::ignore, std::ignore) =
-      decompress_to_edgelist(
-        handle,
-        cur_graph_view,
-        edge_weight_view,
-        std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-        std::optional<raft::device_span<vertex_t const>>{std::nullopt});
+    std::vector<arithmetic_device_uvector_t> edge_property_values{};
+    std::tie(edgelist_srcs, edgelist_dsts, edge_property_values) = decompress_to_edgelist(
+      handle,
+      cur_graph_view,
+      edge_weight_view ? std::vector<edge_arithmetic_property_view_t<edge_t>>{*edge_weight_view}
+                       : std::vector<edge_arithmetic_property_view_t<edge_t>>{},
+      std::optional<vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
+    if (edge_weight_view) {
+      edgelist_wgts = std::move(std::get<rmm::device_uvector<weight_t>>(edge_property_values[0]));
+    }
 
     std::tie(edgelist_srcs,
              edgelist_dsts,

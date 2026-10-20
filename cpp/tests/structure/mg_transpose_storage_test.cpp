@@ -120,19 +120,19 @@ class Tests_MGTransposeStorage
       rmm::device_uvector<vertex_t> d_mg_dsts(0, handle_->get_stream());
       std::optional<rmm::device_uvector<weight_t>> d_mg_weights{std::nullopt};
 
-      std::tie(d_mg_srcs, d_mg_dsts, d_mg_weights, std::ignore, std::ignore) =
-        cugraph::decompress_to_edgelist(
-          *handle_,
-          mg_storage_transposed_graph.view(),
-          mg_storage_transposed_edge_weights
-            ? std::make_optional((*mg_storage_transposed_edge_weights).view())
-            : std::nullopt,
-          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-          std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-          mg_renumber_map
-            ? std::make_optional<raft::device_span<vertex_t const>>(
-                mg_renumber_map->view().value_first(), mg_renumber_map->view().range_size())
-            : std::nullopt);
+      std::vector<cugraph::arithmetic_device_uvector_t> edge_property_values{};
+      std::tie(d_mg_srcs, d_mg_dsts, edge_property_values) = cugraph::decompress_to_edgelist(
+        *handle_,
+        mg_storage_transposed_graph.view(),
+        mg_storage_transposed_edge_weights
+          ? std::vector<
+              cugraph::edge_arithmetic_property_view_t<edge_t>>{mg_storage_transposed_edge_weights
+                                                                  ->view()}
+          : std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{},
+        mg_renumber_map ? std::make_optional(mg_renumber_map->view()) : std::nullopt);
+      if (mg_storage_transposed_edge_weights) {
+        d_mg_weights = std::move(std::get<rmm::device_uvector<weight_t>>(edge_property_values[0]));
+      }
 
       // 3-2. aggregate MG results
 
@@ -152,14 +152,18 @@ class Tests_MGTransposeStorage
         rmm::device_uvector<vertex_t> d_sg_dsts(0, handle_->get_stream());
         std::optional<rmm::device_uvector<weight_t>> d_sg_weights{std::nullopt};
 
-        std::tie(d_sg_srcs, d_sg_dsts, d_sg_weights, std::ignore, std::ignore) =
-          cugraph::decompress_to_edgelist(
-            *handle_,
-            sg_graph.view(),
-            sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt,
-            std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-            std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-            std::optional<raft::device_span<vertex_t const>>{std::nullopt});
+        std::vector<cugraph::arithmetic_device_uvector_t> edge_property_values{};
+        std::tie(d_sg_srcs, d_sg_dsts, edge_property_values) = cugraph::decompress_to_edgelist(
+          *handle_,
+          sg_graph.view(),
+          sg_edge_weights
+            ? std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{sg_edge_weights->view()}
+            : std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{},
+          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
+        if (sg_edge_weights) {
+          d_sg_weights =
+            std::move(std::get<rmm::device_uvector<weight_t>>(edge_property_values[0]));
+        }
 
         // 3-4. compare
 

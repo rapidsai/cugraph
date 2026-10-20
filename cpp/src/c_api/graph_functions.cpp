@@ -18,6 +18,7 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
 #include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <rmm/exec_policy.hpp>
@@ -170,19 +171,16 @@ struct two_hop_neighbors_functor : public cugraph::c_api::abstract_functor {
         size_t{2},
         do_expensive_check_);
 
-      auto src = cugraph::c_api::expand_sparse_offsets(
+      auto src_start_vertex_indices = cugraph::c_api::expand_sparse_offsets(
         raft::device_span<size_t const>{offsets.data(), offsets.size()},
         vertex_t{0},
         handle_.get_stream());
-
-      // convert ids back to srcs:  src[i] = start_vertices[src[i]]
-      cugraph::unrenumber_local_int_vertices(handle_,
-                                             src.data(),
-                                             src.size(),
-                                             start_vertices.data(),
-                                             vertex_t{0},
-                                             graph_view.local_vertex_partition_range_size(),
-                                             do_expensive_check_);
+      rmm::device_uvector<vertex_t> src(src_start_vertex_indices.size(), handle_.get_stream());
+      cugraph::gather(handle_.get_thrust_policy(),
+                      src_start_vertex_indices.begin(),
+                      src_start_vertex_indices.end(),
+                      start_vertices.begin(),
+                      src.begin());
 
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
         handle_,

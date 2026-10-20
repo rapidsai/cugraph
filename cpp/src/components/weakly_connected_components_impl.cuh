@@ -497,17 +497,15 @@ weakly_connected_components_impl(raft::handle_t const& handle,
                     edge_mask.mutable_view());
         if (tmp_graph_view.has_edge_mask()) { tmp_graph_view.clear_edge_mask(); }
         tmp_graph_view.attach_edge_mask(edge_mask.view());
-        std::tie(std::get<0>(edge_buffer),
-                 std::get<1>(edge_buffer),
-                 std::ignore,
-                 std::ignore,
-                 std::ignore) = decompress_to_edgelist<vertex_t,
-                                                       edge_t,
-                                                       weight_t,
-                                                       edge_type_t,
-                                                       GraphViewType::is_storage_transposed,
-                                                       GraphViewType::is_multi_gpu>(
-          handle, tmp_graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
+        std::tie(std::get<0>(edge_buffer), std::get<1>(edge_buffer), std::ignore) =
+          decompress_to_edgelist<vertex_t,
+                                 edge_t,
+                                 GraphViewType::is_storage_transposed,
+                                 GraphViewType::is_multi_gpu>(
+            handle,
+            tmp_graph_view,
+            std::vector<edge_arithmetic_property_view_t<edge_t>>{},
+            std::nullopt);
       }
       cugraph::sort(handle.get_thrust_policy(),
                     get_dataframe_buffer_begin(edge_buffer),
