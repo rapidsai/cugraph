@@ -27,6 +27,8 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <thrust/iterator/counting_iterator.h>
+
 namespace cugraph {
 
 namespace detail {
@@ -77,28 +79,24 @@ std::pair<dendrogram_t<vertex_t>, weight_t> louvain(
     //
     //  Initialize every cluster to reference each vertex to itself
     //
-    dendrogram.add_level(current_graph_view.local_vertex_partition_range_first(),
-                         current_graph_view.local_vertex_partition_range_size(),
-                         handle.get_stream());
-
+    auto level_range_first = current_graph_view.local_vertex_partition_range_first();
+    vertex_property_t<vertex_t, vertex_t> level_clusters(handle);
     if (rng_state) {
-      auto random_cluster_assignments = cugraph::detail::permute_range<vertex_t>(
-        handle,
-        *rng_state,
-        current_graph_view.local_vertex_partition_range_first(),
-        current_graph_view.local_vertex_partition_range_size(),
-        multi_gpu);
-
-      raft::copy(dendrogram.current_level_begin(),
-                 random_cluster_assignments.begin(),
-                 random_cluster_assignments.size(),
-                 handle.get_stream());
-
+      level_clusters = vertex_property_t<vertex_t, vertex_t>(
+        cugraph::detail::permute_range<vertex_t>(
+          handle,
+          *rng_state,
+          current_graph_view.local_vertex_partition_range_first(),
+          current_graph_view.local_vertex_partition_range_size(),
+          multi_gpu),
+        current_graph_view.local_vertex_partition_range_size());
     } else {
-      cugraph::sequence(rmm::exec_policy(handle.get_stream()),
-                        dendrogram.current_level_begin(),
-                        dendrogram.current_level_begin() + dendrogram.current_level_size(),
-                        current_graph_view.local_vertex_partition_range_first());
+      level_clusters = vertex_property_t<vertex_t, vertex_t>(handle, current_graph_view);
+      copy_v(handle,
+             current_graph_view,
+             vertex_property_view_t{thrust::make_counting_iterator(level_range_first),
+                                    current_graph_view.local_vertex_partition_range_size()},
+             level_clusters.mutable_view());
     }
     //
     //  Compute the vertex and cluster weights, these are different for each
@@ -161,11 +159,7 @@ std::pair<dendrogram_t<vertex_t>, weight_t> louvain(
 #endif
 
     next_clusters_v = vertex_property_t<vertex_t, vertex_t>(handle, current_graph_view);
-    copy_v(handle,
-           current_graph_view,
-           vertex_property_view_t{dendrogram.current_level_begin(),
-                                  current_graph_view.local_vertex_partition_range_size()},
-           next_clusters_v.mutable_view());
+    copy_v(handle, current_graph_view, level_clusters.view(), next_clusters_v.mutable_view());
 
     if constexpr (multi_gpu) {
       src_clusters_cache = edge_src_property_t<vertex_t, vertex_t>(handle, current_graph_view);
@@ -237,11 +231,7 @@ std::pair<dendrogram_t<vertex_t>, weight_t> louvain(
                                          resolution);
 
       if (new_Q > (cur_Q + threshold)) {
-        copy_v(handle,
-               current_graph_view,
-               next_clusters_v.view(),
-               vertex_property_view_t{dendrogram.current_level_begin(),
-                                      current_graph_view.local_vertex_partition_range_size()});
+        copy_v(handle, current_graph_view, next_clusters_v.view(), level_clusters.mutable_view());
       }
     }
 
@@ -249,7 +239,10 @@ std::pair<dendrogram_t<vertex_t>, weight_t> louvain(
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
 #endif
 
-    if (cur_Q <= best_modularity) { break; }
+    if (cur_Q <= best_modularity) {
+      dendrogram.add_level(std::move(level_clusters), level_range_first);
+      break;
+    }
 
     best_modularity = cur_Q;
 
@@ -271,12 +264,10 @@ std::pair<dendrogram_t<vertex_t>, weight_t> louvain(
     src_clusters_cache.clear();
     dst_clusters_cache.clear();
 
-    std::tie(current_graph, current_edge_weights) = cugraph::detail::graph_contraction(
-      handle,
-      current_graph_view,
-      current_edge_weight_view,
-      raft::device_span<vertex_t>{dendrogram.current_level_begin(),
-                                  dendrogram.current_level_size()});
+    std::tie(current_graph, current_edge_weights, level_clusters) =
+      cugraph::detail::graph_contraction(
+        handle, current_graph_view, current_edge_weight_view, std::move(level_clusters));
+    dendrogram.add_level(std::move(level_clusters), level_range_first);
     current_graph_view       = current_graph.view();
     current_edge_weight_view = std::make_optional<edge_property_view_t<edge_t, weight_t const*>>(
       (*current_edge_weights).view());

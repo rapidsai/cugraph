@@ -81,7 +81,7 @@ class Tests_MGLouvain
         mg_edge_weight_view,
         std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
         std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+        std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
         false);  // crate an SG graph with MG graph vertex IDs
 
     weight_t sg_modularity{-1.0};
@@ -102,14 +102,14 @@ class Tests_MGLouvain
         std::tie(std::ignore, d_mg_aggregate_cluster_v) =
           cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
             handle,
+            std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
+            std::make_tuple(mg_dendrogram.level_range_first(i),
+                            static_cast<vertex_t>(mg_dendrogram.level_range_first(i) +
+                                                  mg_dendrogram.level_size(i))),
+            std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
             std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-            std::make_tuple(mg_dendrogram.get_level_first_index_nocheck(i),
-                            static_cast<vertex_t>(mg_dendrogram.get_level_first_index_nocheck(i) +
-                                                  mg_dendrogram.get_level_size_nocheck(i))),
-            std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-            std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-            raft::device_span<vertex_t const>(mg_dendrogram.get_level_ptr_nocheck(i),
-                                              mg_dendrogram.get_level_size_nocheck(i)));
+            raft::device_span<vertex_t const>(mg_dendrogram.level_data(i).data(),
+                                              mg_dendrogram.level_size(i)));
 
         if (comm_rank == 0) {
           auto sg_graph_view = sg_graph.view();
@@ -136,7 +136,12 @@ class Tests_MGLouvain
             << "(i = " << i << "), sg_modularity = " << sg_modularity;
 
           std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::coarsen_graph(
-            handle, sg_graph_view, sg_edge_weight_view, d_mg_aggregate_cluster_v.data(), false);
+            handle,
+            sg_graph_view,
+            sg_edge_weight_view,
+            cugraph::vertex_property_view_t<vertex_t, vertex_t const*>{
+              d_mg_aggregate_cluster_v.data(), sg_graph_view.local_vertex_partition_range_size()},
+            false);
         }
       });
 

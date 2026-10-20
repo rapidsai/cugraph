@@ -174,10 +174,7 @@ class Tests_KatzCentrality
           handle,
           graph_view,
           edge_weight_view,
-          d_renumber_map_labels
-            ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
-                                                                    (*d_renumber_map_labels).size())
-            : std::nullopt);
+          d_renumber_map_labels ? std::make_optional(d_renumber_map_labels->view()) : std::nullopt);
 
       std::vector<result_t> h_reference_katz_centralities(graph_view.number_of_vertices());
 
@@ -202,7 +199,7 @@ class Tests_KatzCentrality
                                                                        handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_katz_centralities) =
           cugraph::test::sort_by_key<vertex_t, result_t>(
-            handle, *d_renumber_map_labels, std::move(d_katz_centrality_values));
+            handle, d_renumber_map_labels->release_buffer(), std::move(d_katz_centrality_values));
         h_cugraph_katz_centralities =
           cugraph::test::to_host(handle, d_unrenumbered_katz_centralities);
       } else {

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -165,7 +165,7 @@ class Tests_EdgeTriangleCount
         handle,
         graph_view,
         edge_weight ? std::make_optional((*edge_weight).view()) : std::nullopt,
-        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+        std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
 
       auto h_cugraph_edge_triangle_counts = cugraph::test::to_host(handle, *d_edge_triangle_counts);
 

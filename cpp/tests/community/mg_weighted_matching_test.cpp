@@ -70,12 +70,7 @@ class Tests_MGWeightedMatching
         *handle_, input_usecase, test_weighted, renumber, drop_self_loops, drop_multi_edges);
 
     std::tie(mg_graph, mg_edge_weights, mg_renumber_map) = cugraph::symmetrize_graph(
-      *handle_,
-      std::move(mg_graph),
-      std::move(mg_edge_weights),
-      mg_renumber_map ? std::optional<rmm::device_uvector<vertex_t>>(std::move(*mg_renumber_map))
-                      : std::nullopt,
-      false);
+      *handle_, std::move(mg_graph), std::move(mg_edge_weights), std::move(mg_renumber_map), false);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
@@ -122,9 +117,9 @@ class Tests_MGWeightedMatching
       std::tie(std::ignore, mg_aggregate_partners) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
-          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
           mg_graph_view.local_vertex_partition_range(),
-          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           raft::device_span<vertex_t const>(mg_partners.data(), mg_partners.size()));
 
@@ -137,7 +132,7 @@ class Tests_MGWeightedMatching
           mg_edge_weight_view,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::optional<raft::device_span<vertex_t const>>(std::nullopt),
+          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
           false);
 
       if (handle_->get_comms().get_rank() == 0) {

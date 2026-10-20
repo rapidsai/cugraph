@@ -2100,9 +2100,9 @@ void strongly_connected_components_impl(
                           std::vector<cugraph::arithmetic_device_uvector_t>{},
                           store_transposed);
     }
-    std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
+    std::optional<vertex_property_t<vertex_t, vertex_t>> tmp_renumber_map{std::nullopt};
     std::tie(inverse_graph, std::ignore, tmp_renumber_map) =
-      create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+      create_graph<vertex_t, edge_t, store_transposed, multi_gpu>(
         handle,
         std::move(vertices),
         std::move(edgelist_srcs),
@@ -2110,7 +2110,7 @@ void strongly_connected_components_impl(
         std::vector<cugraph::arithmetic_device_uvector_t>{},
         graph_properties_t{false, false},
         true);
-    from_inverse_renumber_map = std::move(*tmp_renumber_map);
+    from_inverse_renumber_map = tmp_renumber_map->release_buffer();
   }
   auto inverse_graph_view = inverse_graph.view();
   kv_store_t<vertex_t, vertex_t, false> to_inverse_renumber_map(

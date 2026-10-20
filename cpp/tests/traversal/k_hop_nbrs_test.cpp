@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -123,7 +123,8 @@ class Tests_KHopNbrs
     }
 
     cugraph::graph_t<vertex_t, edge_t, false, false> graph(handle);
-    std::optional<rmm::device_uvector<vertex_t>> d_renumber_map_labels{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> d_renumber_map_labels{
+      std::nullopt};
     std::tie(graph, std::ignore, d_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, false, renumber);
@@ -179,14 +180,11 @@ class Tests_KHopNbrs
           handle,
           graph_view,
           std::nullopt,
-          d_renumber_map_labels
-            ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
-                                                                    (*d_renumber_map_labels).size())
-            : std::nullopt);
+          d_renumber_map_labels ? std::make_optional(d_renumber_map_labels->view()) : std::nullopt);
 
       auto unrenumbered_start_vertices = std::vector<vertex_t>(h_start_vertices.size());
       if (renumber) {
-        auto h_renumber_map_labels = cugraph::test::to_host(handle, *d_renumber_map_labels);
+        auto h_renumber_map_labels = cugraph::test::to_host(handle, d_renumber_map_labels->view());
         for (size_t i = 0; i < unrenumbered_start_vertices.size(); ++i) {
           unrenumbered_start_vertices[i] = h_renumber_map_labels[h_start_vertices[i]];
         }
@@ -203,7 +201,7 @@ class Tests_KHopNbrs
         cugraph::unrenumber_local_int_vertices(handle,
                                                nbrs.data(),
                                                nbrs.size(),
-                                               (*d_renumber_map_labels).data(),
+                                               d_renumber_map_labels->view().value_first(),
                                                vertex_t{0},
                                                graph_view.number_of_vertices(),
                                                true);

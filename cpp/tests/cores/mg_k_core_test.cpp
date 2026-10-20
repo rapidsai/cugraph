@@ -103,14 +103,14 @@ class Tests_MGKCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, 
         *handle_,
         mg_subgraph_srcs.data(),
         mg_subgraph_srcs.size(),
-        (*mg_renumber_map).data(),
+        mg_renumber_map->view().value_first(),
         mg_graph_view.vertex_partition_range_lasts());
 
       cugraph::unrenumber_int_vertices<vertex_t, true>(
         *handle_,
         mg_subgraph_dsts.data(),
         mg_subgraph_dsts.size(),
-        (*mg_renumber_map).data(),
+        mg_renumber_map->view().value_first(),
         mg_graph_view.vertex_partition_range_lasts());
 
       auto d_mg_aggregate_subgraph_srcs = cugraph::test::device_gatherv(
@@ -133,10 +133,9 @@ class Tests_MGKCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, 
       std::tie(std::ignore, d_mg_aggregate_core_numbers) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           mg_graph_view.local_vertex_partition_range(),
-          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           raft::device_span<edge_t const>(d_mg_core_numbers.data(), d_mg_core_numbers.size()));
 
@@ -149,8 +148,7 @@ class Tests_MGKCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, 
           mg_edge_weight_view,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
 
       if (handle_->get_comms().get_rank() == 0) {

@@ -89,7 +89,7 @@ class Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV
     }
 
     cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> mg_renumber_map{std::nullopt};
     std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, false, true);
@@ -119,11 +119,11 @@ class Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV
       cugraph::test::generate<decltype(mg_graph_view), edge_t>::initial_value(initial_value);
 
     auto mg_vertex_prop = cugraph::test::generate<decltype(mg_graph_view), edge_t>::vertex_property(
-      *handle_, *mg_renumber_map, hash_bin_count);
+      *handle_, mg_graph_view, mg_renumber_map->view(), hash_bin_count);
     auto mg_src_prop = cugraph::test::generate<decltype(mg_graph_view), edge_t>::src_property(
-      *handle_, mg_graph_view, mg_vertex_prop);
+      *handle_, mg_graph_view, mg_vertex_prop.view());
     auto mg_dst_prop = cugraph::test::generate<decltype(mg_graph_view), edge_t>::dst_property(
-      *handle_, mg_graph_view, mg_vertex_prop);
+      *handle_, mg_graph_view, mg_vertex_prop.view());
 
     auto mg_result_buffer = rmm::device_uvector<edge_t>(
       mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
@@ -170,10 +170,9 @@ class Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV
       std::tie(std::ignore, mg_aggregate_result_buffer) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           mg_graph_view.local_vertex_partition_range(),
-          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           raft::device_span<edge_t const>(mg_result_buffer.data(), mg_result_buffer.size()));
 
@@ -185,8 +184,7 @@ class Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
 
       if (handle_->get_comms().get_rank() == 0) {
@@ -194,14 +192,11 @@ class Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV
 
         auto sg_vertex_prop =
           cugraph::test::generate<decltype(sg_graph_view), edge_t>::vertex_property(
-            *handle_,
-            sg_graph_view.local_vertex_partition_range_first(),
-            sg_graph_view.local_vertex_partition_range_last(),
-            hash_bin_count);
+            *handle_, sg_graph_view, hash_bin_count);
         auto sg_src_prop = cugraph::test::generate<decltype(sg_graph_view), edge_t>::src_property(
-          *handle_, sg_graph_view, sg_vertex_prop);
+          *handle_, sg_graph_view, sg_vertex_prop.view());
         auto sg_dst_prop = cugraph::test::generate<decltype(sg_graph_view), edge_t>::dst_property(
-          *handle_, sg_graph_view, sg_vertex_prop);
+          *handle_, sg_graph_view, sg_vertex_prop.view());
 
         auto sg_result_buffer = cugraph::allocate_dataframe_buffer<edge_t>(
           sg_graph_view.number_of_vertices(), handle_->get_stream());

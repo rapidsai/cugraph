@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -84,8 +84,7 @@ class Tests_MGSymmetrize
           mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
     }
 
@@ -97,13 +96,12 @@ class Tests_MGSymmetrize
       hr_timer.start("MG symmetrize");
     }
 
-    std::tie(mg_graph, mg_edge_weights, mg_renumber_map) = cugraph::symmetrize_graph(
-      *handle_,
-      std::move(mg_graph),
-      std::move(mg_edge_weights),
-      mg_renumber_map ? std::optional<rmm::device_uvector<vertex_t>>(std::move(*mg_renumber_map))
-                      : std::nullopt,
-      symmetrize_usecase.reciprocal);
+    std::tie(mg_graph, mg_edge_weights, mg_renumber_map) =
+      cugraph::symmetrize_graph(*handle_,
+                                std::move(mg_graph),
+                                std::move(mg_edge_weights),
+                                std::move(mg_renumber_map),
+                                symmetrize_usecase.reciprocal);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -127,9 +125,10 @@ class Tests_MGSymmetrize
           mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-          mg_renumber_map ? std::make_optional<raft::device_span<vertex_t const>>(
-                              (*mg_renumber_map).data(), (*mg_renumber_map).size())
-                          : std::nullopt);
+          mg_renumber_map
+            ? std::make_optional<raft::device_span<vertex_t const>>(
+                mg_renumber_map->view().value_first(), mg_renumber_map->view().range_size())
+            : std::nullopt);
 
       // 4-2. aggregate MG results
 
@@ -146,13 +145,13 @@ class Tests_MGSymmetrize
       if (handle_->get_comms().get_rank() == int{0}) {
         // 4-3. run SG symmetrize
 
-        std::optional<rmm::device_uvector<vertex_t>> d_sg_renumber_map_labels{};
-        std::tie(sg_graph, sg_edge_weights, d_sg_renumber_map_labels) =
-          cugraph::symmetrize_graph(*handle_,
-                                    std::move(sg_graph),
-                                    std::move(sg_edge_weights),
-                                    std::optional<rmm::device_uvector<vertex_t>>{std::nullopt},
-                                    symmetrize_usecase.reciprocal);
+        std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> d_sg_renumber_map_labels{};
+        std::tie(sg_graph, sg_edge_weights, d_sg_renumber_map_labels) = cugraph::symmetrize_graph(
+          *handle_,
+          std::move(sg_graph),
+          std::move(sg_edge_weights),
+          std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>>{std::nullopt},
+          symmetrize_usecase.reciprocal);
         ASSERT_FALSE(d_sg_renumber_map_labels.has_value());
 
         // 4-4. decompress SG results

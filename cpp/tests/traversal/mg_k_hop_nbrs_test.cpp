@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -71,7 +71,7 @@ class Tests_MGKHopNbrs
     }
 
     cugraph::graph_t<vertex_t, edge_t, false, true> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> mg_renumber_map{std::nullopt};
     std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, false, true);
@@ -140,7 +140,7 @@ class Tests_MGKHopNbrs
         *handle_,
         d_mg_start_vertices.data(),
         d_mg_start_vertices.size(),
-        (*mg_renumber_map).data(),
+        mg_renumber_map->view().value_first(),
         mg_graph_view.vertex_partition_range_lasts());
 
       auto h_mg_offsets = cugraph::test::to_host(*handle_, d_mg_offsets);
@@ -154,7 +154,7 @@ class Tests_MGKHopNbrs
         *handle_,
         d_mg_nbrs.data(),
         d_mg_nbrs.size(),
-        (*mg_renumber_map).data(),
+        mg_renumber_map->view().value_first(),
         mg_graph_view.vertex_partition_range_lasts());
 
       auto d_mg_aggregate_start_vertices = cugraph::test::device_gatherv(
@@ -175,8 +175,7 @@ class Tests_MGKHopNbrs
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
 
       if (handle_->get_comms().get_rank() == int{0}) {

@@ -83,7 +83,7 @@ class Tests_Egonet : public ::testing::TestWithParam<std::tuple<Egonet_Usecase, 
     cugraph::renumber_ext_vertices<vertex_t, false>(handle,
                                                     d_ego_sources.data(),
                                                     d_ego_sources.size(),
-                                                    d_renumber_map_labels->data(),
+                                                    d_renumber_map_labels->view().value_first(),
                                                     graph_view.local_vertex_partition_range_first(),
                                                     graph_view.local_vertex_partition_range_last());
 

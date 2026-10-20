@@ -33,32 +33,31 @@ rmm::device_uvector<vertex_t> partition_at_level(raft::handle_t const& handle,
                                                  dendrogram_t<vertex_t> const& dendrogram,
                                                  size_t num_levels)
 {
-  rmm::device_uvector<vertex_t> partition(dendrogram.get_level_size_nocheck(0),
-                                          handle.get_stream());
+  rmm::device_uvector<vertex_t> partition(dendrogram.level_size(0), handle.get_stream());
 
   cugraph::sequence(rmm::exec_policy(handle.get_stream()),
                     partition.begin(),
                     partition.end(),
-                    dendrogram.get_level_first_index_nocheck(0));
+                    dendrogram.level_range_first(0));
 
   std::for_each(thrust::make_counting_iterator<size_t>(0),
                 thrust::make_counting_iterator<size_t>(num_levels),
                 [&handle, &dendrogram, &partition](size_t l) {
-                  rmm::device_uvector<vertex_t> local_vertex_ids_v(
-                    dendrogram.get_level_size_nocheck(l), handle.get_stream());
+                  rmm::device_uvector<vertex_t> local_vertex_ids_v(dendrogram.level_size(l),
+                                                                   handle.get_stream());
 
                   cugraph::sequence(rmm::exec_policy(handle.get_stream()),
                                     local_vertex_ids_v.begin(),
                                     local_vertex_ids_v.end(),
-                                    dendrogram.get_level_first_index_nocheck(l));
+                                    dendrogram.level_range_first(l));
 
                   cugraph::relabel<vertex_t, multi_gpu>(
                     handle,
-                    std::tuple<vertex_t const*, vertex_t const*>(
-                      local_vertex_ids_v.data(), dendrogram.get_level_ptr_nocheck(l)),
-                    dendrogram.get_level_size_nocheck(l),
+                    std::tuple<vertex_t const*, vertex_t const*>(local_vertex_ids_v.data(),
+                                                                 dendrogram.level_data(l).data()),
+                    dendrogram.level_size(l),
                     partition.data(),
-                    static_cast<vertex_t>(dendrogram.get_level_size_nocheck(0)),
+                    static_cast<vertex_t>(dendrogram.level_size(0)),
                     false);
                 });
 

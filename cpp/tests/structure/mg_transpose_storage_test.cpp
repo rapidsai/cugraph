@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -82,8 +82,7 @@ class Tests_MGTransposeStorage
           mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
     }
 
@@ -104,11 +103,7 @@ class Tests_MGTransposeStorage
       std::nullopt};
     std::tie(mg_storage_transposed_graph, mg_storage_transposed_edge_weights, mg_renumber_map) =
       cugraph::transpose_graph_storage(
-        *handle_,
-        std::move(mg_graph),
-        std::move(mg_edge_weights),
-        mg_renumber_map ? std::optional<rmm::device_uvector<vertex_t>>{std::move(*mg_renumber_map)}
-                        : std::nullopt);
+        *handle_, std::move(mg_graph), std::move(mg_edge_weights), std::move(mg_renumber_map));
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -134,9 +129,10 @@ class Tests_MGTransposeStorage
             : std::nullopt,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-          mg_renumber_map ? std::make_optional<raft::device_span<vertex_t const>>(
-                              (*mg_renumber_map).data(), (*mg_renumber_map).size())
-                          : std::nullopt);
+          mg_renumber_map
+            ? std::make_optional<raft::device_span<vertex_t const>>(
+                mg_renumber_map->view().value_first(), mg_renumber_map->view().range_size())
+            : std::nullopt);
 
       // 3-2. aggregate MG results
 

@@ -119,11 +119,11 @@ class Tests_SGGraphColoring
                         d_color_conflict_flags.size(),
                         handle.get_stream());
 
-      std::vector<vertex_t> h_vertices_in_this_proces((*sg_renumber_map).size());
+      std::vector<vertex_t> h_vertices_in_this_proces(sg_renumber_map->view().range_size());
 
       raft::update_host(h_vertices_in_this_proces.data(),
-                        (*sg_renumber_map).data(),
-                        (*sg_renumber_map).size(),
+                        sg_renumber_map->view().value_first(),
+                        sg_renumber_map->view().range_size(),
                         handle.get_stream());
       handle.sync_stream();
 
@@ -137,7 +137,7 @@ class Tests_SGGraphColoring
         cugraph::make_edge_dst_property_view(
           sg_graph_view, cugraph::vertex_property_view_t{d_colors.data(), vertex_t{1}}),
         cugraph::edge_dummy_property_t{}.view(),
-        [renumber_map = (*sg_renumber_map).data()] __device__(
+        [renumber_map = sg_renumber_map->view().value_first()] __device__(
           auto src, auto dst, auto src_color, auto dst_color, cuda::std::nullopt_t) {
           if ((src != dst) && (src_color == dst_color)) {
             return vertex_t{1};

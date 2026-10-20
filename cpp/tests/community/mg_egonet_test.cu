@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -111,7 +111,7 @@ class Tests_MGEgonet
       *handle_,
       d_mg_sources.data(),
       d_mg_sources.size(),
-      mg_renumber_map->data(),
+      mg_renumber_map->view().value_first(),
       mg_graph_view.local_vertex_partition_range_first(),
       mg_graph_view.local_vertex_partition_range_last());
 
@@ -135,21 +135,21 @@ class Tests_MGEgonet
         *handle_,
         d_mg_edgelist_src.data(),
         d_mg_edgelist_src.size(),
-        (*mg_renumber_map).data(),
+        mg_renumber_map->view().value_first(),
         mg_graph_view.vertex_partition_range_lasts());
 
       cugraph::unrenumber_int_vertices<vertex_t, true>(
         *handle_,
         d_mg_edgelist_dst.data(),
         d_mg_edgelist_dst.size(),
-        (*mg_renumber_map).data(),
+        mg_renumber_map->view().value_first(),
         mg_graph_view.vertex_partition_range_lasts());
 
       cugraph::unrenumber_int_vertices<vertex_t, true>(
         *handle_,
         d_mg_sources.data(),
         d_mg_sources.size(),
-        (*mg_renumber_map).data(),
+        mg_renumber_map->view().value_first(),
         mg_graph_view.vertex_partition_range_lasts());
 
       auto d_mg_aggregate_edgelist_src = cugraph::test::device_gatherv(
@@ -200,8 +200,7 @@ class Tests_MGEgonet
           mg_edge_weight_view,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
 
       if (handle_->get_comms().get_rank() == 0) {

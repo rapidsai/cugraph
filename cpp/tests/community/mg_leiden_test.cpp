@@ -83,7 +83,7 @@ class Tests_MGLeiden
         mg_edge_weight_view,
         std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
         std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+        std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
         false);  // crate an SG graph with MG graph vertex IDs
 
     // FIXME: We need to figure out how to test each iteration of

@@ -99,7 +99,8 @@ class Tests_TopologicalSort
     }
 
     cugraph::graph_t<vertex_t, edge_t, false, false> graph(handle);
-    std::optional<rmm::device_uvector<vertex_t>> d_renumber_map_labels{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> d_renumber_map_labels{
+      std::nullopt};
     std::tie(graph, std::ignore, d_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, false, renumber);

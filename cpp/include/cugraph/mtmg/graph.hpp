@@ -89,7 +89,7 @@ void create_graph_from_edgelist(
   }
 
   auto [local_graph, local_edge_properties, local_renumber_map] =
-    cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+    cugraph::create_graph<vertex_t, edge_t, store_transposed, multi_gpu>(
       handle.raft_handle(),
       std::nullopt,
       std::move(my_edgelist.get_src()[0]),
@@ -106,7 +106,7 @@ void create_graph_from_edgelist(
     edge_properties[i].set(handle, std::move(local_edge_properties[i]));
   }
 
-  if (renumber) renumber_map->set(handle, std::move(*local_renumber_map));
+  if (renumber) renumber_map->set(handle, local_renumber_map->release_buffer());
 }
 
 }  // namespace mtmg

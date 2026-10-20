@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -172,7 +172,7 @@ class Tests_MGSimilarity
         *handle_,
         mg_graph_view,
         mg_edge_weight_view,
-        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+        std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
 
       v1 = cugraph::test::device_gatherv(*handle_, v1.data(), v1.size());
       v2 = cugraph::test::device_gatherv(*handle_, v2.data(), v2.size());

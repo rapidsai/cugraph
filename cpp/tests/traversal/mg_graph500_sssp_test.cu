@@ -152,7 +152,7 @@ class Tests_GRAPH500_MGSSSP
 
     // 2. create a graph & meta data
 
-    rmm::device_uvector<vertex_t> mg_renumber_map(0, handle_->get_stream());
+    cugraph::vertex_property_t<vertex_t, vertex_t> mg_renumber_map(*handle_);
     rmm::device_uvector<vertex_t> components(0, handle_->get_stream());
     rmm::device_uvector<vertex_t> parents(0, handle_->get_stream());
     rmm::device_uvector<weight_t> w_to_parents(0, handle_->get_stream());
@@ -290,29 +290,24 @@ class Tests_GRAPH500_MGSSSP
       cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> mg_graph(*handle_);
       cugraph::edge_property_t<edge_t, weight_t> mg_edge_weights(*handle_);
       {
-        std::optional<cugraph::edge_property_t<edge_t, weight_t>> tmp_weights{std::nullopt};
-        std::optional<rmm::device_uvector<vertex_t>> tmp_map{};
-        std::tie(
-          mg_graph, tmp_weights, std::ignore, std::ignore, std::ignore, std::ignore, tmp_map) =
-          cugraph::create_graph_from_edgelist<vertex_t,
-                                              edge_t,
-                                              weight_t,
-                                              edge_type_t,
-                                              time_stamp_t,
-                                              store_transposed,
-                                              multi_gpu>(
+        std::vector<std::vector<cugraph::arithmetic_device_uvector_t>> edge_property_chunks(1);
+        edge_property_chunks[0].reserve(weight_chunks.size());
+        for (auto& weights : weight_chunks) {
+          edge_property_chunks[0].push_back(std::move(weights));
+        }
+        std::vector<cugraph::edge_arithmetic_property_t<edge_t>> edge_properties{};
+        std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> tmp_map{};
+        std::tie(mg_graph, edge_properties, tmp_map) =
+          cugraph::create_graph<vertex_t, edge_t, store_transposed, multi_gpu>(
             *handle_,
             std::nullopt,
             std::move(src_chunks),
             std::move(dst_chunks),
-            std::move(weight_chunks),
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
+            std::move(edge_property_chunks),
             cugraph::graph_properties_t{true /* symmetric */, false /* multi-graph */},
             renumber);
-        mg_edge_weights = std::move(*tmp_weights);
+        mg_edge_weights =
+          std::move(std::get<cugraph::edge_property_t<edge_t, weight_t>>(edge_properties[0]));
         mg_renumber_map = std::move(*tmp_map);
       }
       {
@@ -376,7 +371,7 @@ class Tests_GRAPH500_MGSSSP
             *handle_,
             std::move(mg_graph),
             std::move(mg_edge_weights),
-            raft::device_span<vertex_t const>(mg_renumber_map.data(), mg_renumber_map.size()),
+            mg_renumber_map.view(),
             raft::device_span<vertex_t const>(parents.data(), parents.size()),
             invalid_vertex,
             sssp_usecase.use_large_buffer ? std::make_optional(cugraph::large_buffer_type_t::MEMORY)
@@ -401,7 +396,7 @@ class Tests_GRAPH500_MGSSSP
         *handle_,
         unrenumbered_parents.data(),
         unrenumbered_parents.size(),
-        mg_renumber_map.data(),
+        mg_renumber_map.view().value_first(),
         raft::host_span<vertex_t const>(vertex_partition_range_offsets.data() + 1,
                                         vertex_partition_range_offsets.size() - 1));
 
@@ -465,10 +460,11 @@ class Tests_GRAPH500_MGSSSP
 
     // 4. run MG SSSP
 
-    rmm::device_uvector<weight_t> d_mg_distances(mg_renumber_map.size(), handle_->get_stream());
-    rmm::device_uvector<vertex_t> d_mg_unrenumbered_predecessors(mg_renumber_map.size(),
-                                                                 handle_->get_stream());
-    rmm::device_uvector<weight_t> d_mg_w_to_predecessors(mg_renumber_map.size(),
+    rmm::device_uvector<weight_t> d_mg_distances(mg_renumber_map.view().range_size(),
+                                                 handle_->get_stream());
+    rmm::device_uvector<vertex_t> d_mg_unrenumbered_predecessors(
+      mg_renumber_map.view().range_size(), handle_->get_stream());
+    rmm::device_uvector<weight_t> d_mg_w_to_predecessors(mg_renumber_map.view().range_size(),
                                                          handle_->get_stream());  // for validation
 
     double total_elapsed{0.0};
@@ -505,8 +501,11 @@ class Tests_GRAPH500_MGSSSP
       weight_t w_to_starting_vertex_parent{};
       vertex_t starting_vertex_component{};
       if (starting_vertex_vertex_partition_id == vertex_partition_id) {
-        unrenumbered_starting_vertex = mg_renumber_map.element(
-          starting_vertex - local_vertex_partition_range_first, handle_->get_stream());
+        raft::update_host(&unrenumbered_starting_vertex,
+                          mg_renumber_map.view().value_first() +
+                            (starting_vertex - local_vertex_partition_range_first),
+                          size_t{1},
+                          handle_->get_stream());
         starting_vertex_parent = parents.element(
           starting_vertex - local_vertex_partition_range_first, handle_->get_stream());
         w_to_starting_vertex_parent = w_to_parents.element(
@@ -567,7 +566,8 @@ class Tests_GRAPH500_MGSSSP
             *handle_,
             raft::device_span<vertex_t const>(parents.data(), parents.size()),
             raft::device_span<weight_t const>(w_to_parents.data(), w_to_parents.size()),
-            raft::device_span<vertex_t const>(mg_renumber_map.data(), mg_renumber_map.size()),
+            raft::device_span<vertex_t const>(mg_renumber_map.view().value_first(),
+                                              mg_renumber_map.view().range_size()),
             raft::host_span<vertex_t const>(vertex_partition_range_offsets.data(),
                                             vertex_partition_range_offsets.size()),
             raft::device_span<vertex_t>(d_mg_unrenumbered_predecessors.data(),
@@ -758,7 +758,7 @@ class Tests_GRAPH500_MGSSSP
         cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(*handle_,
                                                             d_mg_predecessors.data(),
                                                             d_mg_predecessors.size(),
-                                                            mg_renumber_map.data(),
+                                                            mg_renumber_map.view().value_first(),
                                                             local_vertex_partition_range_first,
                                                             local_vertex_partition_range_last);
 

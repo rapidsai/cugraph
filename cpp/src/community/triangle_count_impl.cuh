@@ -385,7 +385,7 @@ std::variant<vertex_property_t<vertex_t, edge_t>, rmm::device_uvector<edge_t>> t
   // 5. Keep only the edges from a low-degree vertex to a high-degree vertex.
 
   graph_t<vertex_t, edge_t, false, multi_gpu> modified_graph(handle);
-  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+  std::optional<vertex_property_t<vertex_t, vertex_t>> renumber_map{std::nullopt};
 
   {
     auto out_degrees = cur_graph_view.compute_out_degrees(handle);
@@ -423,7 +423,7 @@ std::variant<vertex_property_t<vertex_t, edge_t>, rmm::device_uvector<edge_t>> t
     }
 
     std::tie(modified_graph, std::ignore, renumber_map) =
-      create_graph_from_edgelist<vertex_t, edge_t, false, multi_gpu>(
+      create_graph<vertex_t, edge_t, false, multi_gpu>(
         handle,
         std::nullopt,
         std::move(srcs),
@@ -453,7 +453,7 @@ std::variant<vertex_property_t<vertex_t, edge_t>, rmm::device_uvector<edge_t>> t
   // 7. update counts
 
   {
-    auto local_vertices = std::move(*renumber_map);
+    auto local_vertices = renumber_map->release_buffer();
     auto local_counts   = cur_graph_counts.release_buffer();
 
     if constexpr (multi_gpu) {

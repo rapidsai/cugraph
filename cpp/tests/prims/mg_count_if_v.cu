@@ -74,7 +74,7 @@ class Tests_MGCountIfV
       hr_timer.start("MG Construct graph");
     }
     cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> mg_renumber_map{std::nullopt};
     std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, true, true);
@@ -98,7 +98,7 @@ class Tests_MGCountIfV
       hr_timer.start("MG count_if_v");
     }
 
-    vertex_t const* data = (*mg_renumber_map).data();
+    vertex_t const* data = mg_renumber_map->view().value_first();
     auto vertex_count    = count_if_v(
       *handle_,
       mg_graph_view,
@@ -123,8 +123,7 @@ class Tests_MGCountIfV
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
 
       if (handle_->get_comms().get_rank() == 0) {

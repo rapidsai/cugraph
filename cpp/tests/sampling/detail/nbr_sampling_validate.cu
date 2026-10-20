@@ -212,19 +212,18 @@ bool validate_sampling_depth(raft::handle_t const& handle,
                              int max_depth)
 {
   graph_t<vertex_t, vertex_t, false, false> graph(handle);
-  std::optional<rmm::device_uvector<vertex_t>> number_map{std::nullopt};
+  std::optional<vertex_property_t<vertex_t, vertex_t>> number_map{std::nullopt};
   std::tie(graph, std::ignore, number_map) =
-    create_graph_from_edgelist<vertex_t, vertex_t, false, false>(
-      handle,
-      std::nullopt,
-      std::move(d_src),
-      std::move(d_dst),
-      std::vector<arithmetic_device_uvector_t>{},
-      graph_properties_t{false, true},
-      true,
-      std::nullopt,
-      std::nullopt,
-      true);
+    create_graph<vertex_t, vertex_t, false, false>(handle,
+                                                   std::nullopt,
+                                                   std::move(d_src),
+                                                   std::move(d_dst),
+                                                   std::vector<arithmetic_device_uvector_t>{},
+                                                   graph_properties_t{false, true},
+                                                   true,
+                                                   std::nullopt,
+                                                   std::nullopt,
+                                                   true);
 
   auto graph_view = graph.view();
 
@@ -232,7 +231,7 @@ bool validate_sampling_depth(raft::handle_t const& handle,
   renumber_ext_vertices<vertex_t, false>(handle,
                                          d_source_vertices.data(),
                                          d_source_vertices.size(),
-                                         number_map->data(),
+                                         number_map->view().value_first(),
                                          graph_view.local_vertex_partition_range_first(),
                                          graph_view.local_vertex_partition_range_last());
 

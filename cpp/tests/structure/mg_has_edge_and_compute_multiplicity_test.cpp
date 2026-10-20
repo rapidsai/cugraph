@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -71,7 +71,7 @@ class Tests_MGHasEdgeAndComputeMultiplicity
     }
 
     cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> mg_renumber_map{std::nullopt};
     std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, false, true);
@@ -164,13 +164,13 @@ class Tests_MGHasEdgeAndComputeMultiplicity
         *handle_,
         d_mg_edge_srcs.data(),
         d_mg_edge_srcs.size(),
-        (*mg_renumber_map).data(),
+        mg_renumber_map->view().value_first(),
         mg_graph_view.vertex_partition_range_lasts());
       cugraph::unrenumber_int_vertices<vertex_t, true>(
         *handle_,
         d_mg_edge_dsts.data(),
         d_mg_edge_dsts.size(),
-        (*mg_renumber_map).data(),
+        mg_renumber_map->view().value_first(),
         mg_graph_view.vertex_partition_range_lasts());
 
       auto d_mg_aggregate_edge_srcs = cugraph::test::device_gatherv(
@@ -192,8 +192,7 @@ class Tests_MGHasEdgeAndComputeMultiplicity
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
 
       if (handle_->get_comms().get_rank() == 0) {

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -298,7 +298,12 @@ class Tests_MGCoarsenGraph
 
     auto [mg_coarse_graph, mg_coarse_edge_weights, mg_coarse_vertices_to_labels] =
       cugraph::coarsen_graph(
-        *handle_, mg_graph_view, mg_edge_weight_view, d_mg_labels.begin(), true);
+        *handle_,
+        mg_graph_view,
+        mg_edge_weight_view,
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>{
+          d_mg_labels.data(), mg_graph_view.local_vertex_partition_range_size()},
+        true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -325,7 +330,7 @@ class Tests_MGCoarsenGraph
           mg_edge_weight_view,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
           false);
 
       cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_coarse_graph(*handle_);
@@ -338,7 +343,7 @@ class Tests_MGCoarsenGraph
           mg_coarse_edge_weight_view,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
           false);
 
       rmm::device_uvector<vertex_t> d_sg_labels(0, handle_->get_stream());
@@ -359,8 +364,9 @@ class Tests_MGCoarsenGraph
           mg_coarse_graph_view.local_vertex_partition_range(),
           std::nullopt,
           std::nullopt,
-          raft::device_span<vertex_t const>((*mg_coarse_vertices_to_labels).data(),
-                                            (*mg_coarse_vertices_to_labels).size()));
+          raft::device_span<vertex_t const>(
+            mg_coarse_vertices_to_labels->view().value_first(),
+            static_cast<size_t>(mg_coarse_vertices_to_labels->view().range_size())));
 
       if (handle_->get_comms().get_rank() == 0) {
         auto sg_graph_view = sg_graph.view();

@@ -391,7 +391,8 @@ class Tests_Multithreaded
                   std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
                   std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{
                     std::nullopt},
-                  std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+                  std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{
+                    std::nullopt},
                   false);  // create an SG graph with MG graph vertex IDs
             } else {
               cugraph::test::mg_graph_to_sg_graph(
@@ -405,7 +406,8 @@ class Tests_Multithreaded
                 std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
                 std::optional<cugraph::edge_property_view_t<edge_type_t, edge_t const*>>{
                   std::nullopt},
-                std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+                std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{
+                  std::nullopt},
                 false);  // create an SG graph with MG graph vertex IDs
             }
           });

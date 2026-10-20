@@ -106,7 +106,8 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
     }
 
     cugraph::graph_t<vertex_t, edge_t, false, false> graph(handle);
-    std::optional<rmm::device_uvector<vertex_t>> d_renumber_map_labels{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> d_renumber_map_labels{
+      std::nullopt};
     std::tie(graph, std::ignore, d_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, test_weighted, renumber, drop_self_loops, drop_multi_edges);
@@ -163,14 +164,11 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
           handle,
           graph_view,
           std::nullopt,
-          d_renumber_map_labels
-            ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
-                                                                    (*d_renumber_map_labels).size())
-            : std::nullopt);
+          d_renumber_map_labels ? std::make_optional(d_renumber_map_labels->view()) : std::nullopt);
 
       auto unrenumbered_source = static_cast<vertex_t>(bfs_usecase.source);
       if (renumber) {
-        auto h_renumber_map_labels = cugraph::test::to_host(handle, *d_renumber_map_labels);
+        auto h_renumber_map_labels = cugraph::test::to_host(handle, d_renumber_map_labels->view());
         unrenumbered_source        = h_renumber_map_labels[bfs_usecase.source];
       }
 
@@ -191,18 +189,17 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
         cugraph::unrenumber_local_int_vertices(handle,
                                                d_predecessors.data(),
                                                d_predecessors.size(),
-                                               (*d_renumber_map_labels).data(),
+                                               d_renumber_map_labels->view().value_first(),
                                                vertex_t{0},
                                                graph_view.number_of_vertices());
 
+        auto d_renumber_map = d_renumber_map_labels->release_buffer();
         rmm::device_uvector<vertex_t> d_unrenumbered_distances(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_distances) =
-          cugraph::test::sort_by_key<vertex_t, vertex_t>(
-            handle, *d_renumber_map_labels, d_distances);
+          cugraph::test::sort_by_key<vertex_t, vertex_t>(handle, d_renumber_map, d_distances);
         rmm::device_uvector<vertex_t> d_unrenumbered_predecessors(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_predecessors) =
-          cugraph::test::sort_by_key<vertex_t, vertex_t>(
-            handle, *d_renumber_map_labels, d_predecessors);
+          cugraph::test::sort_by_key<vertex_t, vertex_t>(handle, d_renumber_map, d_predecessors);
         h_cugraph_distances    = cugraph::test::to_host(handle, d_unrenumbered_distances);
         h_cugraph_predecessors = cugraph::test::to_host(handle, d_unrenumbered_predecessors);
       } else {

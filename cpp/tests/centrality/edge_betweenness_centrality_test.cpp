@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "centrality/betweenness_centrality_reference.hpp"
@@ -119,7 +119,7 @@ class Tests_EdgeBetweennessCentrality
         handle,
         graph_view,
         edge_weight_view,
-        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+        std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
 
       std::vector<vertex_t> h_seeds{};
       if (renumber) {
@@ -129,7 +129,7 @@ class Tests_EdgeBetweennessCentrality
         cugraph::unrenumber_local_int_vertices(handle,
                                                d_unrenumbered_seeds.data(),
                                                d_unrenumbered_seeds.size(),
-                                               (*d_renumber_map_labels).data(),
+                                               d_renumber_map_labels->view().value_first(),
                                                vertex_t{0},
                                                graph_view.number_of_vertices());
         h_seeds = cugraph::test::to_host(handle, d_seeds);
@@ -154,7 +154,7 @@ class Tests_EdgeBetweennessCentrality
           handle,
           graph_view,
           edge_weight_view,
-          std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
 
       auto d_reference_centralities = cugraph::test::to_device(handle, h_reference_centralities);
 
@@ -163,7 +163,7 @@ class Tests_EdgeBetweennessCentrality
           handle,
           graph_view,
           std::make_optional(d_centralities.view()),
-          std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
 
       cugraph::test::edge_betweenness_centrality_validate(handle,
                                                           d_cugraph_src_vertex_ids,

@@ -93,7 +93,7 @@ class Tests_MGPerVPairTransformSrcDstNbrIntersection
     }
 
     cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> mg_renumber_map{std::nullopt};
     std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, false, true);
@@ -194,13 +194,13 @@ class Tests_MGPerVPairTransformSrcDstNbrIntersection
         *handle_,
         std::get<0>(mg_vertex_pair_buffer).data(),
         cugraph::size_dataframe_buffer(mg_vertex_pair_buffer),
-        (*mg_renumber_map).data(),
+        mg_renumber_map->view().value_first(),
         h_vertex_partition_range_lasts);
       cugraph::unrenumber_int_vertices<vertex_t, true>(
         *handle_,
         std::get<1>(mg_vertex_pair_buffer).data(),
         cugraph::size_dataframe_buffer(mg_vertex_pair_buffer),
-        (*mg_renumber_map).data(),
+        mg_renumber_map->view().value_first(),
         h_vertex_partition_range_lasts);
 
       auto mg_aggregate_vertex_pair_buffer =
@@ -231,8 +231,7 @@ class Tests_MGPerVPairTransformSrcDstNbrIntersection
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
 
       if (handle_->get_comms().get_rank() == 0) {

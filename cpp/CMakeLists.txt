@@ -377,8 +377,8 @@ set(CUGRAPH_SG_SOURCES
     src/components/mis_sg_v32_e32.cu
     src/components/vertex_coloring_sg_v64_e64.cu
     src/components/vertex_coloring_sg_v32_e32.cu
-    src/structure/create_graph_from_edgelist_sg_v64_e64.cu
-    src/structure/create_graph_from_edgelist_sg_v32_e32.cu
+    src/structure/create_graph_sg_v64_e64.cu
+    src/structure/create_graph_sg_v32_e32.cu
     src/structure/symmetrize_edgelist_sg_v64_e64.cu
     src/structure/symmetrize_edgelist_sg_v32_e32.cu
     src/community/triangle_count_sg_v64_e64.cu
@@ -508,8 +508,8 @@ set(CUGRAPH_MG_SOURCES
     src/components/mis_mg_v32_e32.cu
     src/components/vertex_coloring_mg_v64_e64.cu
     src/components/vertex_coloring_mg_v32_e32.cu
-    src/structure/create_graph_from_edgelist_mg_v64_e64.cu
-    src/structure/create_graph_from_edgelist_mg_v32_e32.cu
+    src/structure/create_graph_mg_v64_e64.cu
+    src/structure/create_graph_mg_v32_e32.cu
     src/structure/symmetrize_edgelist_mg_v64_e64.cu
     src/structure/symmetrize_edgelist_mg_v32_e32.cu
     src/community/triangle_count_mg_v64_e64.cu

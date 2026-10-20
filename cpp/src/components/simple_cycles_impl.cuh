@@ -1218,9 +1218,9 @@ simple_cycles_impl(raft::handle_t const& handle,
         std::nullopt,
         std::nullopt);
 
-    std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
+    std::optional<vertex_property_t<vertex_t, vertex_t>> tmp_renumber_map{std::nullopt};
     std::tie(scc_graph, std::ignore, tmp_renumber_map) =
-      create_graph_from_edgelist<vertex_t, edge_t, false, multi_gpu>(
+      create_graph<vertex_t, edge_t, false, multi_gpu>(
         handle,
         std::nullopt,
         std::move(edgelist_srcs),
@@ -1228,7 +1228,7 @@ simple_cycles_impl(raft::handle_t const& handle,
         std::vector<cugraph::arithmetic_device_uvector_t>{},
         graph_properties_t{false, false},
         true /* renumber */);
-    scc_graph_renumber_map = std::move(*tmp_renumber_map);
+    scc_graph_renumber_map = tmp_renumber_map->release_buffer();
     if (seed_vertices) {
       scc_graph_seed_vertices = renumber_seed_vertices<vertex_t, edge_t, multi_gpu>(
         handle,
@@ -1602,9 +1602,9 @@ simple_cycles_impl(raft::handle_t const& handle,
         return std::make_tuple(std::move(cycle_vertex_chunks), std::move(cycle_length_chunks));
       }
 
-      std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
+      std::optional<vertex_property_t<vertex_t, vertex_t>> tmp_renumber_map{std::nullopt};
       std::tie(scc_graph, std::ignore, tmp_renumber_map) =
-        create_graph_from_edgelist<vertex_t, edge_t, false, multi_gpu>(
+        create_graph<vertex_t, edge_t, false, multi_gpu>(
           handle,
           std::nullopt,
           std::move(edgelist_srcs),
@@ -1612,7 +1612,7 @@ simple_cycles_impl(raft::handle_t const& handle,
           std::vector<cugraph::arithmetic_device_uvector_t>{},
           graph_properties_t{false, false},
           true /* renumber */);
-      scc_graph_renumber_map = std::move(*tmp_renumber_map);
+      scc_graph_renumber_map = tmp_renumber_map->release_buffer();
       scc_graph_view         = scc_graph.view();
       scc_graph_edge_mask    = edge_property_t<edge_t, bool>(handle);
       if (seed_vertices) {

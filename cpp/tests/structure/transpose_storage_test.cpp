@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -74,10 +74,10 @@ class Tests_TransposeStorage
           edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-          d_renumber_map_labels
-            ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
-                                                                    (*d_renumber_map_labels).size())
-            : std::nullopt);
+          d_renumber_map_labels ? std::make_optional<raft::device_span<vertex_t const>>(
+                                    d_renumber_map_labels->view().value_first(),
+                                    d_renumber_map_labels->view().range_size())
+                                : std::nullopt);
     }
 
     if (cugraph::test::g_perf) {
@@ -116,10 +116,10 @@ class Tests_TransposeStorage
             : std::nullopt,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-          d_renumber_map_labels
-            ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
-                                                                    (*d_renumber_map_labels).size())
-            : std::nullopt);
+          d_renumber_map_labels ? std::make_optional<raft::device_span<vertex_t const>>(
+                                    d_renumber_map_labels->view().value_first(),
+                                    d_renumber_map_labels->view().range_size())
+                                : std::nullopt);
 
       std::vector<vertex_t> h_org_srcs = cugraph::test::to_host(handle, d_org_srcs);
       std::vector<vertex_t> h_org_dsts = cugraph::test::to_host(handle, d_org_dsts);

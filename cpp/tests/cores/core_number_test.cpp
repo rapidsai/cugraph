@@ -222,7 +222,8 @@ class Tests_CoreNumber
     }
 
     cugraph::graph_t<vertex_t, edge_t, false, false> graph(handle);
-    std::optional<rmm::device_uvector<vertex_t>> d_renumber_map_labels{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> d_renumber_map_labels{
+      std::nullopt};
     std::tie(graph, std::ignore, d_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, false, renumber, false, true);
@@ -270,10 +271,7 @@ class Tests_CoreNumber
           handle,
           graph_view,
           std::nullopt,
-          d_renumber_map_labels
-            ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
-                                                                    (*d_renumber_map_labels).size())
-            : std::nullopt);
+          d_renumber_map_labels ? std::make_optional(d_renumber_map_labels->view()) : std::nullopt);
 
       auto h_reference_core_numbers = core_number_reference(h_offsets.data(),
                                                             h_indices.data(),
@@ -287,7 +285,7 @@ class Tests_CoreNumber
         rmm::device_uvector<edge_t> d_unrenumbered_core_numbers(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_core_numbers) =
           cugraph::test::sort_by_key<vertex_t, edge_t>(
-            handle, *d_renumber_map_labels, d_core_numbers);
+            handle, d_renumber_map_labels->release_buffer(), d_core_numbers);
         h_cugraph_core_numbers = cugraph::test::to_host(handle, d_unrenumbered_core_numbers);
       } else {
         h_cugraph_core_numbers = cugraph::test::to_host(handle, d_core_numbers);

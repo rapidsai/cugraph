@@ -125,7 +125,8 @@ class Tests_MGExtractTransformIfE
     }
 
     cugraph::graph_t<vertex_t, edge_t, store_transposed, is_multi_gpu> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> d_mg_renumber_map_labels{
+      std::nullopt};
     std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, is_multi_gpu>(
         *handle_, input_usecase, false, renumber);
@@ -152,11 +153,11 @@ class Tests_MGExtractTransformIfE
 
     auto mg_vertex_prop =
       cugraph::test::generate<decltype(mg_graph_view), result_t>::vertex_property(
-        *handle_, *d_mg_renumber_map_labels, hash_bin_count);
+        *handle_, mg_graph_view, d_mg_renumber_map_labels->view(), hash_bin_count);
     auto mg_src_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::src_property(
-      *handle_, mg_graph_view, mg_vertex_prop);
+      *handle_, mg_graph_view, mg_vertex_prop.view());
     auto mg_dst_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::dst_property(
-      *handle_, mg_graph_view, mg_vertex_prop);
+      *handle_, mg_graph_view, mg_vertex_prop.view());
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -189,13 +190,13 @@ class Tests_MGExtractTransformIfE
         *handle_,
         std::get<0>(mg_extract_transform_output_buffer).data(),
         std::get<0>(mg_extract_transform_output_buffer).size(),
-        (*d_mg_renumber_map_labels).data(),
+        d_mg_renumber_map_labels->view().value_first(),
         mg_graph_view.vertex_partition_range_lasts());
       cugraph::unrenumber_int_vertices<vertex_t, true>(
         *handle_,
         std::get<1>(mg_extract_transform_output_buffer).data(),
         std::get<1>(mg_extract_transform_output_buffer).size(),
-        (*d_mg_renumber_map_labels).data(),
+        d_mg_renumber_map_labels->view().value_first(),
         mg_graph_view.vertex_partition_range_lasts());
 
       auto mg_aggregate_extract_transform_output_buffer = cugraph::allocate_dataframe_buffer<
@@ -228,19 +229,18 @@ class Tests_MGExtractTransformIfE
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map_labels).data(),
-                                                                (*d_mg_renumber_map_labels).size()),
+          std::make_optional(d_mg_renumber_map_labels->view()),
           false);
       rmm::device_uvector<result_t> sg_vertex_prop(0, handle_->get_stream());
       std::tie(std::ignore, sg_vertex_prop) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
-          std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map_labels).data(),
-                                                                (*d_mg_renumber_map_labels).size()),
+          std::make_optional(d_mg_renumber_map_labels->view()),
           mg_graph_view.local_vertex_partition_range(),
+          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-          raft::device_span<result_t const>(mg_vertex_prop.data(), mg_vertex_prop.size()));
+          raft::device_span<result_t const>(mg_vertex_prop.view().value_first(),
+                                            mg_vertex_prop.view().range_size()));
 
       if (handle_->get_comms().get_rank() == int{0}) {
         cugraph::sort(
@@ -248,12 +248,14 @@ class Tests_MGExtractTransformIfE
           cugraph::get_dataframe_buffer_begin(mg_aggregate_extract_transform_output_buffer),
           cugraph::get_dataframe_buffer_end(mg_aggregate_extract_transform_output_buffer));
 
-        auto sg_graph_view = sg_graph.view();
+        auto sg_graph_view       = sg_graph.view();
+        auto sg_vertex_prop_view = cugraph::vertex_property_view_t<vertex_t, result_t const*>{
+          sg_vertex_prop.data(), sg_graph_view.local_vertex_partition_range_size()};
 
         auto sg_src_prop = cugraph::test::generate<decltype(sg_graph_view), result_t>::src_property(
-          *handle_, sg_graph_view, sg_vertex_prop);
+          *handle_, sg_graph_view, sg_vertex_prop_view);
         auto sg_dst_prop = cugraph::test::generate<decltype(sg_graph_view), result_t>::dst_property(
-          *handle_, sg_graph_view, sg_vertex_prop);
+          *handle_, sg_graph_view, sg_vertex_prop_view);
 
         auto sg_extract_transform_output_buffer =
           cugraph::extract_transform_if_e(*handle_,

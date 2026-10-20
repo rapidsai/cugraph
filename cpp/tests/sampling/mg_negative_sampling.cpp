@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -191,7 +191,7 @@ class Tests_MGNegative_Sampling : public ::testing::TestWithParam<input_usecase_
   graph_t graph_;
   std::optional<cugraph::edge_property_t<edge_t, weight_t>> edge_weights_{std::nullopt};
   std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask_{std::nullopt};
-  std::optional<rmm::device_uvector<vertex_t>> renumber_map_labels_{std::nullopt};
+  std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> renumber_map_labels_{std::nullopt};
 };
 
 template <typename input_usecase_t, typename vertex_t, typename edge_t, typename weight_t>

@@ -143,11 +143,11 @@ class Tests_MGGraphColoring
                         d_color_conflicts.size(),
                         handle_->get_stream());
 
-      std::vector<vertex_t> h_vertices_in_this_proces((*mg_renumber_map).size());
+      std::vector<vertex_t> h_vertices_in_this_proces(mg_renumber_map->view().range_size());
 
       raft::update_host(h_vertices_in_this_proces.data(),
-                        (*mg_renumber_map).data(),
-                        (*mg_renumber_map).size(),
+                        mg_renumber_map->view().value_first(),
+                        mg_renumber_map->view().range_size(),
                         handle_->get_stream());
       handle_->sync_stream();
 
@@ -159,7 +159,7 @@ class Tests_MGGraphColoring
         src_color_cache.view(),
         dst_color_cache.view(),
         cugraph::edge_dummy_property_t{}.view(),
-        [renumber_map = (*mg_renumber_map).data()] __device__(
+        [renumber_map = mg_renumber_map->view().value_first()] __device__(
           auto src, auto dst, auto src_color, auto dst_color, cuda::std::nullopt_t) {
           if ((src != dst) && (src_color == dst_color)) {
             return vertex_t{1};

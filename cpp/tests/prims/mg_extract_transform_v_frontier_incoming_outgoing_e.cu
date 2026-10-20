@@ -181,7 +181,8 @@ class Tests_MGExtractTransformVFrontierIncomingOutgoingE
     }
 
     cugraph::graph_t<vertex_t, edge_t, store_transposed, is_multi_gpu> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> d_mg_renumber_map_labels{
+      std::nullopt};
     std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, is_multi_gpu>(
         *handle_, input_usecase, false, renumber);
@@ -215,7 +216,7 @@ class Tests_MGExtractTransformVFrontierIncomingOutgoingE
       thrust::tabulate(handle_->get_thrust_policy(),
                        cugraph::get_dataframe_buffer_begin(mg_key_buffer),
                        cugraph::get_dataframe_buffer_end(mg_key_buffer),
-                       [mg_renumber_map_labels = (*d_mg_renumber_map_labels).data(),
+                       [mg_renumber_map_labels = d_mg_renumber_map_labels->view().value_first(),
                         local_vertex_partition_range_first =
                           mg_graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
                          return cuda::std::make_tuple(
@@ -282,13 +283,13 @@ class Tests_MGExtractTransformVFrontierIncomingOutgoingE
           *handle_,
           std::get<src_idx>(mg_extract_transform_output_buffer).data(),
           std::get<src_idx>(mg_extract_transform_output_buffer).size(),
-          (*d_mg_renumber_map_labels).data(),
+          d_mg_renumber_map_labels->view().value_first(),
           mg_graph_view.vertex_partition_range_lasts());
         cugraph::unrenumber_int_vertices<vertex_t, true>(
           *handle_,
           std::get<dst_idx>(mg_extract_transform_output_buffer).data(),
           std::get<dst_idx>(mg_extract_transform_output_buffer).size(),
-          (*d_mg_renumber_map_labels).data(),
+          d_mg_renumber_map_labels->view().value_first(),
           mg_graph_view.vertex_partition_range_lasts());
       }
 
@@ -328,8 +329,7 @@ class Tests_MGExtractTransformVFrontierIncomingOutgoingE
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map_labels).data(),
-                                                                (*d_mg_renumber_map_labels).size()),
+          std::make_optional(d_mg_renumber_map_labels->view()),
           false);
 
       if (handle_->get_comms().get_rank() == int{0}) {

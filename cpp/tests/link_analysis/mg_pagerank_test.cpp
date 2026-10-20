@@ -168,10 +168,9 @@ class Tests_MGPageRank
         std::tie(d_mg_aggregate_personalization_vertices, d_mg_aggregate_personalization_values) =
           cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
             *handle_,
-            std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map).data(),
-                                                                  (*d_mg_renumber_map).size()),
+            std::make_optional(d_mg_renumber_map->view()),
             mg_graph_view.local_vertex_partition_range(),
-            std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+            std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
             std::make_optional<raft::device_span<vertex_t const>>(
               (*d_mg_personalization_vertices).data(), (*d_mg_personalization_vertices).size()),
             raft::device_span<result_t const>((*d_mg_personalization_values).data(),
@@ -183,10 +182,9 @@ class Tests_MGPageRank
       std::tie(std::ignore, d_mg_aggregate_pageranks) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
-          std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map).data(),
-                                                                (*d_mg_renumber_map).size()),
+          std::make_optional(d_mg_renumber_map->view()),
           mg_graph_view.local_vertex_partition_range(),
-          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           raft::device_span<result_t const>(d_mg_pagerank_values.data(),
                                             d_mg_pagerank_values.size()));
@@ -200,8 +198,7 @@ class Tests_MGPageRank
           mg_edge_weight_view,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map).data(),
-                                                                (*d_mg_renumber_map).size()),
+          std::make_optional(d_mg_renumber_map->view()),
           false);
 
       if (handle_->get_comms().get_rank() == int{0}) {

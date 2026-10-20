@@ -132,15 +132,15 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
 
     auto mg_vertex_prop =
       cugraph::test::generate<decltype(mg_graph_view), result_t>::vertex_property(
-        *handle_, *mg_renumber_map, vertex_prop_hash_bin_count);
+        *handle_, mg_graph_view, mg_renumber_map->view(), vertex_prop_hash_bin_count);
     auto mg_src_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::src_property(
-      *handle_, mg_graph_view, mg_vertex_prop);
+      *handle_, mg_graph_view, mg_vertex_prop.view());
 
     auto mg_vertex_key =
       cugraph::test::generate<decltype(mg_graph_view), vertex_t>::vertex_property(
-        *handle_, *mg_renumber_map, key_hash_bin_count);
+        *handle_, mg_graph_view, mg_renumber_map->view(), key_hash_bin_count);
     auto mg_dst_key = cugraph::test::generate<decltype(mg_graph_view), vertex_t>::dst_property(
-      *handle_, mg_graph_view, mg_vertex_key);
+      *handle_, mg_graph_view, mg_vertex_key.view());
 
     rmm::device_uvector<vertex_t> mg_kv_store_keys(comm_rank == 0 ? key_hash_bin_count : int{0},
                                                    handle_->get_stream());
@@ -298,8 +298,7 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
 
       for (size_t i = 0; i < reduction_types.size(); ++i) {
@@ -311,20 +310,20 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
           std::tie(std::ignore, mg_aggregate_results) =
             cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
               *handle_,
-              std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                    (*mg_renumber_map).size()),
+              std::make_optional(mg_renumber_map->view()),
               mg_graph_view.local_vertex_partition_range(),
-              std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+              std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{
+                std::nullopt},
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
               raft::device_span<result_t const>(mg_results[i].data(), mg_results[i].size()));
         } else {
           std::tie(std::ignore, std::get<0>(mg_aggregate_results)) =
             cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
               *handle_,
-              std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                    (*mg_renumber_map).size()),
+              std::make_optional(mg_renumber_map->view()),
               mg_graph_view.local_vertex_partition_range(),
-              std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+              std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{
+                std::nullopt},
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
               raft::device_span<typename cuda::std::tuple_element<0, result_t>::type const>(
                 std::get<0>(mg_results[i]).data(), std::get<0>(mg_results[i]).size()));
@@ -332,10 +331,10 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
           std::tie(std::ignore, std::get<1>(mg_aggregate_results)) =
             cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
               *handle_,
-              std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                    (*mg_renumber_map).size()),
+              std::make_optional(mg_renumber_map->view()),
               mg_graph_view.local_vertex_partition_range(),
-              std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+              std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{
+                std::nullopt},
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
               raft::device_span<typename cuda::std::tuple_element<1, result_t>::type const>(
                 std::get<1>(mg_results[i]).data(), std::get<1>(mg_results[i]).size()));
@@ -348,23 +347,17 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
 
           auto sg_vertex_prop =
             cugraph::test::generate<decltype(sg_graph_view), result_t>::vertex_property(
-              *handle_,
-              sg_graph_view.local_vertex_partition_range_first(),
-              sg_graph_view.local_vertex_partition_range_last(),
-              vertex_prop_hash_bin_count);
+              *handle_, sg_graph_view, vertex_prop_hash_bin_count);
           auto sg_src_prop =
             cugraph::test::generate<decltype(sg_graph_view), result_t>::src_property(
-              *handle_, sg_graph_view, sg_vertex_prop);
+              *handle_, sg_graph_view, sg_vertex_prop.view());
 
           auto sg_vertex_key =
             cugraph::test::generate<decltype(sg_graph_view), vertex_t>::vertex_property(
-              *handle_,
-              sg_graph_view.local_vertex_partition_range_first(),
-              sg_graph_view.local_vertex_partition_range_last(),
-              key_hash_bin_count);
+              *handle_, sg_graph_view, key_hash_bin_count);
           auto sg_dst_key =
             cugraph::test::generate<decltype(sg_graph_view), vertex_t>::dst_property(
-              *handle_, sg_graph_view, sg_vertex_key);
+              *handle_, sg_graph_view, sg_vertex_key.view());
 
           rmm::device_uvector<vertex_t> sg_kv_store_keys(key_hash_bin_count, handle_->get_stream());
           cugraph::sequence(handle_->get_thrust_policy(),

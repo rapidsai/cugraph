@@ -122,7 +122,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
     }
 
     cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> mg_renumber_map{std::nullopt};
     std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, false, renumber);
@@ -156,7 +156,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
       thrust::tabulate(handle_->get_thrust_policy(),
                        cugraph::get_dataframe_buffer_begin(mg_key_buffer),
                        cugraph::get_dataframe_buffer_end(mg_key_buffer),
-                       [mg_renumber_map_labels = (*mg_renumber_map).data(),
+                       [mg_renumber_map_labels = mg_renumber_map->view().value_first(),
                         local_vertex_partition_range_first =
                           mg_graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
                          return cuda::std::make_tuple(
@@ -225,7 +225,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
         cugraph::unrenumber_local_int_vertices(*handle_,
                                                mg_reduce_by_dst_new_frontier_key_buffer.data(),
                                                mg_reduce_by_dst_new_frontier_key_buffer.size(),
-                                               (*mg_renumber_map).data(),
+                                               mg_renumber_map->view().value_first(),
                                                mg_graph_view.local_vertex_partition_range_first(),
                                                mg_graph_view.local_vertex_partition_range_last());
         mg_reduce_by_dst_aggregate_new_frontier_key_buffer =
@@ -237,7 +237,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
           *handle_,
           std::get<0>(mg_reduce_by_dst_new_frontier_key_buffer).data(),
           std::get<0>(mg_reduce_by_dst_new_frontier_key_buffer).size(),
-          (*mg_renumber_map).data(),
+          mg_renumber_map->view().value_first(),
           mg_graph_view.local_vertex_partition_range_first(),
           mg_graph_view.local_vertex_partition_range_last());
         std::get<0>(mg_reduce_by_dst_aggregate_new_frontier_key_buffer) =
@@ -280,8 +280,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
 
       if (handle_->get_comms().get_rank() == int{0}) {

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -12,10 +12,11 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/prims/copy_v.cuh>
 #include <cugraph/shuffle_functions.hpp>
-#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/vertex_property.hpp>
 
-#include <rmm/exec_policy.hpp>
+#include <thrust/iterator/counting_iterator.h>
 
 #include <optional>
 #include <tuple>
@@ -48,9 +49,9 @@ rmm::device_uvector<vertex_t> vertices_in_mis_from_decision_edgelist(
                                  false);
   }
 
-  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+  std::optional<vertex_property_t<vertex_t, vertex_t>> renumber_map{std::nullopt};
   std::tie(decision_graph, std::ignore, renumber_map) =
-    create_graph_from_edgelist<vertex_t, edge_t, decision_store_transposed, multi_gpu>(
+    create_graph<vertex_t, edge_t, decision_store_transposed, multi_gpu>(
       handle,
       std::nullopt,
       std::move(d_srcs),
@@ -64,26 +65,25 @@ rmm::device_uvector<vertex_t> vertices_in_mis_from_decision_edgelist(
   auto vertices_in_mis =
     maximal_independent_moves<vertex_t, edge_t, multi_gpu>(handle, decision_graph_view, rng_state);
 
-  rmm::device_uvector<vertex_t> numbering_indices((*renumber_map).size(), handle.get_stream());
-  cugraph::sequence(rmm::exec_policy(handle.get_stream()),
-                    numbering_indices.data(),
-                    numbering_indices.data() + numbering_indices.size(),
-                    decision_graph_view.local_vertex_partition_range_first());
+  vertex_property_t<vertex_t, vertex_t> numbering_indices(handle, decision_graph_view);
+  copy_v(handle,
+         decision_graph_view,
+         vertex_property_view_t{
+           thrust::make_counting_iterator(decision_graph_view.local_vertex_partition_range_first()),
+           decision_graph_view.local_vertex_partition_range_size()},
+         numbering_indices.mutable_view());
 
   relabel<vertex_t, multi_gpu>(
     handle,
-    std::make_tuple(static_cast<vertex_t const*>(numbering_indices.begin()),
-                    static_cast<vertex_t const*>((*renumber_map).begin())),
+    std::make_tuple(numbering_indices.view().value_first(), renumber_map->view().value_first()),
     decision_graph_view.local_vertex_partition_range_size(),
     vertices_in_mis.data(),
     vertices_in_mis.size(),
     false);
 
-  numbering_indices.resize(0, handle.get_stream());
-  numbering_indices.shrink_to_fit(handle.get_stream());
+  numbering_indices = vertex_property_t<vertex_t, vertex_t>(handle);
 
-  (*renumber_map).resize(0, handle.get_stream());
-  (*renumber_map).shrink_to_fit(handle.get_stream());
+  renumber_map = std::nullopt;
 
   if constexpr (multi_gpu) {
     std::tie(vertices_in_mis, std::ignore) =

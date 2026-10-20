@@ -166,7 +166,7 @@ class Tests_GRAPH500_MGBFS
 
     // 2. create a graph & meta data
 
-    rmm::device_uvector<vertex_t> mg_renumber_map(0, handle_->get_stream());
+    cugraph::vertex_property_t<vertex_t, vertex_t> mg_renumber_map(*handle_);
     rmm::device_uvector<vertex_t> components(0, handle_->get_stream());
     rmm::device_uvector<vertex_t> parents(0, handle_->get_stream());
     rmm::device_uvector<vertex_t> unrenumbered_parents(0, handle_->get_stream());
@@ -293,9 +293,9 @@ class Tests_GRAPH500_MGBFS
 #endif
 
       cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> mg_graph(*handle_);
-      std::optional<rmm::device_uvector<vertex_t>> tmp_map{};
+      std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> tmp_map{};
       std::tie(mg_graph, std::ignore, tmp_map) =
-        cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+        cugraph::create_graph<vertex_t, edge_t, store_transposed, multi_gpu>(
           *handle_,
           std::nullopt,
           std::move(src_chunks),
@@ -357,7 +357,7 @@ class Tests_GRAPH500_MGBFS
           *handle_,
           std::move(mg_graph),
           std::nullopt,
-          raft::device_span<vertex_t const>(mg_renumber_map.data(), mg_renumber_map.size()),
+          mg_renumber_map.view(),
           raft::device_span<vertex_t const>(parents.data(), parents.size()),
           invalid_vertex,
           bfs_usecase.use_large_buffer ? std::make_optional(cugraph::large_buffer_type_t::MEMORY)
@@ -379,7 +379,7 @@ class Tests_GRAPH500_MGBFS
         *handle_,
         unrenumbered_parents.data(),
         unrenumbered_parents.size(),
-        mg_renumber_map.data(),
+        mg_renumber_map.view().value_first(),
         raft::host_span<vertex_t const>(vertex_partition_range_offsets.data() + 1,
                                         vertex_partition_range_offsets.size() - 1));
 
@@ -470,11 +470,11 @@ class Tests_GRAPH500_MGBFS
     }
 
     rmm::device_uvector<vertex_t> d_mg_distances(
-      mg_renumber_map.size(),
+      mg_renumber_map.view().range_size(),
       handle_->get_stream());  // Graph500 BFS doesn't require computing distances (so we can update
                                // this outside the timed region)
-    rmm::device_uvector<vertex_t> d_mg_unrenumbered_predecessors(mg_renumber_map.size(),
-                                                                 handle_->get_stream());
+    rmm::device_uvector<vertex_t> d_mg_unrenumbered_predecessors(
+      mg_renumber_map.view().range_size(), handle_->get_stream());
 
     double total_elapsed{0.0};
     double tteps_sum{0.0};
@@ -503,11 +503,11 @@ class Tests_GRAPH500_MGBFS
       if (starting_vertex_vertex_partition_id == vertex_partition_id) {  // root
         auto d_staging_buffer_ptr = reinterpret_cast<vertex_t*>(d_staging_buffer.data());
         assert(d_staging_buffer.size() >= 3);
-        raft::copy_async(
-          d_staging_buffer_ptr,
-          mg_renumber_map.data() + (starting_vertex - local_vertex_partition_range_first),
-          size_t{1},
-          handle_->get_stream());
+        raft::copy_async(d_staging_buffer_ptr,
+                         mg_renumber_map.view().value_first() +
+                           (starting_vertex - local_vertex_partition_range_first),
+                         size_t{1},
+                         handle_->get_stream());
         raft::copy_async(d_staging_buffer_ptr + 1,
                          parents.data() + (starting_vertex - local_vertex_partition_range_first),
                          size_t{1},
@@ -593,7 +593,8 @@ class Tests_GRAPH500_MGBFS
             *handle_,
             raft::device_span<vertex_t const>(parents.data(), parents.size()),
             std::nullopt,
-            raft::device_span<vertex_t const>(mg_renumber_map.data(), mg_renumber_map.size()),
+            raft::device_span<vertex_t const>(mg_renumber_map.view().value_first(),
+                                              mg_renumber_map.view().range_size()),
             raft::host_span<vertex_t const>(vertex_partition_range_offsets.data(),
                                             vertex_partition_range_offsets.size()),
             raft::device_span<vertex_t>(d_mg_unrenumbered_predecessors.data(),
@@ -771,7 +772,7 @@ class Tests_GRAPH500_MGBFS
         cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(*handle_,
                                                             d_mg_predecessors.data(),
                                                             d_mg_predecessors.size(),
-                                                            mg_renumber_map.data(),
+                                                            mg_renumber_map.view().value_first(),
                                                             local_vertex_partition_range_first,
                                                             local_vertex_partition_range_last);
 

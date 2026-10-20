@@ -36,7 +36,7 @@ template <typename vertex_t,
 
 std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
            std::optional<cugraph::edge_property_t<edge_t, weight_t>>,
-           std::optional<rmm::device_uvector<vertex_t>>>
+           std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>>>
 create_graph(raft::handle_t const& handle,
              std::vector<vertex_t>&& edge_srcs,
              std::vector<vertex_t>&& edge_dsts,
@@ -71,14 +71,14 @@ create_graph(raft::handle_t const& handle,
 
   std::optional<cugraph::edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
 
-  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+  std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> renumber_map{std::nullopt};
 
   std::vector<cugraph::arithmetic_device_uvector_t> edgelist_edge_property_vectors;
   if (d_edge_wgts) edgelist_edge_property_vectors.push_back(std::move(*d_edge_wgts));
   std::vector<cugraph::edge_arithmetic_property_t<edge_t>> edgelist_edge_properties;
 
   std::tie(graph, edgelist_edge_properties, renumber_map) =
-    cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+    cugraph::create_graph<vertex_t, edge_t, store_transposed, multi_gpu>(
       handle,
       std::nullopt,
       std::move(d_edge_srcs),

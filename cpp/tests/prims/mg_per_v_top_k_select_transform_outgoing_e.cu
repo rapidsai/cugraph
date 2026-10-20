@@ -188,11 +188,11 @@ class Tests_MGPerVTopKSelectTransformOutgoingE
 
     auto mg_vertex_prop =
       cugraph::test::generate<decltype(mg_graph_view), property_t>::vertex_property(
-        *handle_, *mg_renumber_map, hash_bin_count);
+        *handle_, mg_graph_view, mg_renumber_map->view(), hash_bin_count);
     auto mg_src_prop = cugraph::test::generate<decltype(mg_graph_view), property_t>::src_property(
-      *handle_, mg_graph_view, mg_vertex_prop);
+      *handle_, mg_graph_view, mg_vertex_prop.view());
     auto mg_dst_prop = cugraph::test::generate<decltype(mg_graph_view), property_t>::dst_property(
-      *handle_, mg_graph_view, mg_vertex_prop);
+      *handle_, mg_graph_view, mg_vertex_prop.view());
 
     raft::random::RngState rng_state(static_cast<uint64_t>(handle_->get_comms().get_rank()));
 
@@ -280,7 +280,7 @@ class Tests_MGPerVTopKSelectTransformOutgoingE
         *handle_,
         mg_vertex_frontier.bucket(bucket_idx_cur).begin(),
         mg_vertex_frontier.bucket(bucket_idx_cur).size(),
-        (*mg_renumber_map).data(),
+        mg_renumber_map->view().value_first(),
         mg_graph_view.vertex_partition_range_lasts());
 
       std::optional<rmm::device_uvector<size_t>> mg_sample_counts{std::nullopt};
@@ -297,13 +297,13 @@ class Tests_MGPerVTopKSelectTransformOutgoingE
         *handle_,
         std::get<0>(mg_sample_e_op_results).data(),
         std::get<0>(mg_sample_e_op_results).size(),
-        (*mg_renumber_map).data(),
+        mg_renumber_map->view().value_first(),
         mg_graph_view.vertex_partition_range_lasts());
       cugraph::unrenumber_int_vertices<vertex_t, true>(
         *handle_,
         std::get<1>(mg_sample_e_op_results).data(),
         std::get<1>(mg_sample_e_op_results).size(),
-        (*mg_renumber_map).data(),
+        mg_renumber_map->view().value_first(),
         mg_graph_view.vertex_partition_range_lasts());
 
       auto mg_aggregate_frontier_vertices = cugraph::test::device_gatherv(
@@ -361,8 +361,7 @@ class Tests_MGPerVTopKSelectTransformOutgoingE
           mg_edge_weight_view,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           mg_edge_type_view,
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
 
       if (handle_->get_comms().get_rank() == 0) {

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -71,12 +71,7 @@ class Tests_MGLookupEdgeSrcDst
         *handle_, input_usecase, test_weighted, renumber, drop_self_loops, drop_multi_edges);
 
     std::tie(mg_graph, mg_edge_weights, mg_renumber_map) = cugraph::symmetrize_graph(
-      *handle_,
-      std::move(mg_graph),
-      std::move(mg_edge_weights),
-      mg_renumber_map ? std::optional<rmm::device_uvector<vertex_t>>(std::move(*mg_renumber_map))
-                      : std::nullopt,
-      false);
+      *handle_, std::move(mg_graph), std::move(mg_edge_weights), std::move(mg_renumber_map), false);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());

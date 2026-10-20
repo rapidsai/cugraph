@@ -556,7 +556,7 @@ std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
            std::optional<cugraph::edge_property_t<edge_t, edge_type_t>>,
            std::optional<cugraph::edge_property_t<edge_t, time_stamp_t>>,
            std::optional<cugraph::edge_property_t<edge_t, time_stamp_t>>,
-           std::optional<rmm::device_uvector<vertex_t>>>
+           std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>>>
 construct_graph(
   raft::handle_t const& handle,
   input_usecase_t const& input_usecase,
@@ -728,7 +728,7 @@ construct_graph(
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> graph(handle);
   std::vector<cugraph::edge_arithmetic_property_t<edge_t>> edge_properties{};
 
-  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+  std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> renumber_map{std::nullopt};
   if (edge_src_chunks.size() == 1) {
     std::vector<cugraph::arithmetic_device_uvector_t> edgelist_edge_properties{};
     if (edge_weight_chunks) {
@@ -744,7 +744,7 @@ construct_graph(
     }
 
     std::tie(graph, edge_properties, renumber_map) =
-      cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+      cugraph::create_graph<vertex_t, edge_t, store_transposed, multi_gpu>(
         handle,
         std::move(d_vertices_v),
         std::move(edge_src_chunks[0]),
@@ -793,7 +793,7 @@ construct_graph(
     }
 
     std::tie(graph, edge_properties, renumber_map) =
-      cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+      cugraph::create_graph<vertex_t, edge_t, store_transposed, multi_gpu>(
         handle,
         std::move(d_vertices_v),
         std::move(edge_src_chunks),
@@ -849,7 +849,7 @@ template <typename vertex_t,
           typename input_usecase_t>
 std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
            std::optional<cugraph::edge_property_t<edge_t, weight_t>>,
-           std::optional<rmm::device_uvector<vertex_t>>>
+           std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>>>
 construct_graph(raft::handle_t const& handle,
                 input_usecase_t const& input_usecase,
                 bool test_weighted,
@@ -861,7 +861,7 @@ construct_graph(raft::handle_t const& handle,
 {
   cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> graph(handle);
   std::optional<cugraph::edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
-  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+  std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> renumber_map{std::nullopt};
 
   std::tie(graph, edge_weights, std::ignore, std::ignore, std::ignore, std::ignore, renumber_map) =
     construct_graph<vertex_t,

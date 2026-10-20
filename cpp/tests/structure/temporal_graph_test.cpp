@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -111,7 +111,7 @@ class Tests_TemporalGraph
     }
 
     cugraph::graph_t<vertex_t, edge_t, store_transposed, false> graph(handle);
-    std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> renumber_map{std::nullopt};
 
     size_t size = std::transform_reduce(edge_src_chunks.begin(),
                                         edge_src_chunks.end(),
@@ -187,7 +187,7 @@ class Tests_TemporalGraph
     std::vector<cugraph::edge_arithmetic_property_t<edge_t>> edge_properties{};
 
     std::tie(graph, edge_properties, renumber_map) =
-      cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, false>(
+      cugraph::create_graph<vertex_t, edge_t, store_transposed, false>(
         handle,
         std::move(d_vertices_v),
         std::move(edge_src_chunks),
@@ -231,8 +231,8 @@ class Tests_TemporalGraph
           edge_weights ? std::make_optional(edge_weights->view()) : std::nullopt,
           edge_start_times ? std::make_optional(edge_start_times->view()) : std::nullopt,
           edge_end_times ? std::make_optional(edge_end_times->view()) : std::nullopt,
-          renumber ? std::make_optional<raft::device_span<vertex_t const>>(renumber_map->data(),
-                                                                           renumber_map->size())
+          renumber ? std::make_optional<raft::device_span<vertex_t const>>(
+                       renumber_map->view().value_first(), renumber_map->view().range_size())
                    : std::nullopt);
 
       cugraph::test::sort<vertex_t, edge_t, weight_t, int32_t, time_stamp_t>(

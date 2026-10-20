@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -155,16 +155,13 @@ class Tests_ODShortestDistances
           handle,
           graph_view,
           edge_weight_view,
-          d_renumber_map_labels
-            ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
-                                                                    (*d_renumber_map_labels).size())
-            : std::nullopt);
+          d_renumber_map_labels ? std::make_optional(d_renumber_map_labels->view()) : std::nullopt);
       assert(h_weights.has_value());
 
       auto unrenumbered_origins      = cugraph::test::to_host(handle, origins);
       auto unrenumbered_destinations = cugraph::test::to_host(handle, destinations);
       if (renumber) {
-        auto h_renumber_map_labels = cugraph::test::to_host(handle, *d_renumber_map_labels);
+        auto h_renumber_map_labels = cugraph::test::to_host(handle, d_renumber_map_labels->view());
         std::transform(unrenumbered_origins.begin(),
                        unrenumbered_origins.end(),
                        unrenumbered_origins.begin(),

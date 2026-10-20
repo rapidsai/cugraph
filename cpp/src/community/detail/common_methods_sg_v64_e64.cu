@@ -32,18 +32,20 @@ template CUGRAPH_EXPORT double compute_modularity(
   double resolution);
 
 template CUGRAPH_EXPORT std::tuple<cugraph::graph_t<int64_t, int64_t, false, false>,
-                                   std::optional<edge_property_t<int64_t, float>>>
+                                   std::optional<edge_property_t<int64_t, float>>,
+                                   vertex_property_t<int64_t, int64_t>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<int64_t, int64_t, false, false> const& graph_view,
                   std::optional<edge_property_view_t<int64_t, float const*>> edge_weights,
-                  raft::device_span<int64_t> labels);
+                  vertex_property_t<int64_t, int64_t>&& labels);
 
 template CUGRAPH_EXPORT std::tuple<cugraph::graph_t<int64_t, int64_t, false, false>,
-                                   std::optional<edge_property_t<int64_t, double>>>
+                                   std::optional<edge_property_t<int64_t, double>>,
+                                   vertex_property_t<int64_t, int64_t>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<int64_t, int64_t, false, false> const& graph_view,
                   std::optional<edge_property_view_t<int64_t, double const*>> edge_weights,
-                  raft::device_span<int64_t> labels);
+                  vertex_property_t<int64_t, int64_t>&& labels);
 
 template CUGRAPH_EXPORT vertex_property_t<int64_t, int64_t> update_clustering_by_delta_modularity(
   raft::handle_t const& handle,

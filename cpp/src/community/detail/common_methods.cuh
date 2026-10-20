@@ -8,6 +8,7 @@
 
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/prims/copy_v.cuh>
 #include <cugraph/prims/count_if_v.cuh>
 #include <cugraph/prims/kv_store.cuh>
 #include <cugraph/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
@@ -21,7 +22,6 @@
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
-#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 #include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/utilities/thrust_wrappers/unique.hpp>
 #include <cugraph/vertex_property.hpp>
@@ -35,8 +35,8 @@
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/execution_policy.h>
+#include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/sequence.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
@@ -222,33 +222,35 @@ weight_t compute_modularity(
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>,
-           std::optional<edge_property_t<edge_t, weight_t>>>
+           std::optional<edge_property_t<edge_t, weight_t>>,
+           vertex_property_t<vertex_t, vertex_t>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights_view,
-                  raft::device_span<vertex_t> labels)
+                  vertex_property_t<vertex_t, vertex_t>&& labels)
 {
   auto [new_graph, new_edge_weights, numbering_map] =
-    coarsen_graph(handle, graph_view, edge_weights_view, labels.data(), true);
+    coarsen_graph(handle, graph_view, edge_weights_view, labels.view(), true);
 
   auto new_graph_view = new_graph.view();
 
-  rmm::device_uvector<vertex_t> numbering_indices((*numbering_map).size(), handle.get_stream());
-  cugraph::sequence(rmm::exec_policy(handle.get_stream()),
-                    numbering_indices.data(),
-                    numbering_indices.data() + numbering_indices.size(),
-                    new_graph_view.local_vertex_partition_range_first());
+  vertex_property_t<vertex_t, vertex_t> numbering_indices(handle, new_graph_view);
+  copy_v(handle,
+         new_graph_view,
+         vertex_property_view_t{
+           thrust::make_counting_iterator(new_graph_view.local_vertex_partition_range_first()),
+           new_graph_view.local_vertex_partition_range_size()},
+         numbering_indices.mutable_view());
 
   relabel<vertex_t, multi_gpu>(
     handle,
-    std::make_tuple(static_cast<vertex_t const*>((*numbering_map).begin()),
-                    static_cast<vertex_t const*>(numbering_indices.begin())),
+    std::make_tuple(numbering_map->view().value_first(), numbering_indices.view().value_first()),
     new_graph_view.local_vertex_partition_range_size(),
-    labels.data(),
-    labels.size(),
+    labels.mutable_view().value_first(),
+    labels.view().range_size(),
     false);
 
-  return std::make_tuple(std::move(new_graph), std::move(new_edge_weights));
+  return std::make_tuple(std::move(new_graph), std::move(new_edge_weights), std::move(labels));
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>

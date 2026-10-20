@@ -219,13 +219,13 @@ class Tests_MGPerVPairTransformSrcDstNbrWeightedIntersection
         *handle_,
         std::get<0>(mg_vertex_pair_buffer).data(),
         cugraph::size_dataframe_buffer(mg_vertex_pair_buffer),
-        (*mg_renumber_map).data(),
+        mg_renumber_map->view().value_first(),
         h_vertex_partition_range_lasts);
       cugraph::unrenumber_int_vertices<vertex_t, true>(
         *handle_,
         std::get<1>(mg_vertex_pair_buffer).data(),
         cugraph::size_dataframe_buffer(mg_vertex_pair_buffer),
-        (*mg_renumber_map).data(),
+        mg_renumber_map->view().value_first(),
         h_vertex_partition_range_lasts);
 
       auto mg_aggregate_vertex_pair_buffer =
@@ -261,8 +261,7 @@ class Tests_MGPerVPairTransformSrcDstNbrWeightedIntersection
             : std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
 
       if (handle_->get_comms().get_rank() == 0) {
