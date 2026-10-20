@@ -2,18 +2,18 @@
  * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
-#include "traversal/sssp_impl.cuh"
+#include "traversal/shortest_path_impl.cuh"
 
 #include <cugraph/export.hpp>
 
 namespace cugraph {
 
-// SG instantiation
+// MG instantiation
 
 template CUGRAPH_EXPORT
   std::tuple<vertex_property_t<int32_t, float>, std::optional<vertex_property_t<int32_t, int32_t>>>
   shortest_path(raft::handle_t const& handle,
-                graph_view_t<int32_t, int32_t, false, false> const& graph_view,
+                graph_view_t<int32_t, int32_t, false, true> const& graph_view,
                 edge_property_view_t<int32_t, float const*> edge_weight_view,
                 raft::device_span<int32_t const> frontier,
                 float cutoff,
@@ -23,7 +23,7 @@ template CUGRAPH_EXPORT
 template CUGRAPH_EXPORT
   std::tuple<vertex_property_t<int32_t, double>, std::optional<vertex_property_t<int32_t, int32_t>>>
   shortest_path(raft::handle_t const& handle,
-                graph_view_t<int32_t, int32_t, false, false> const& graph_view,
+                graph_view_t<int32_t, int32_t, false, true> const& graph_view,
                 edge_property_view_t<int32_t, double const*> edge_weight_view,
                 raft::device_span<int32_t const> frontier,
                 double cutoff,
@@ -31,7 +31,7 @@ template CUGRAPH_EXPORT
                 bool do_expensive_check);
 
 template CUGRAPH_EXPORT void sssp(raft::handle_t const& handle,
-                                  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
+                                  graph_view_t<int32_t, int32_t, false, true> const& graph_view,
                                   edge_property_view_t<int32_t, float const*> edge_weight_view,
                                   float* distances,
                                   int32_t* predecessors,
@@ -40,7 +40,7 @@ template CUGRAPH_EXPORT void sssp(raft::handle_t const& handle,
                                   bool do_expensive_check);
 
 template CUGRAPH_EXPORT void sssp(raft::handle_t const& handle,
-                                  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
+                                  graph_view_t<int32_t, int32_t, false, true> const& graph_view,
                                   edge_property_view_t<int32_t, double const*> edge_weight_view,
                                   double* distances,
                                   int32_t* predecessors,

@@ -2,7 +2,7 @@
  * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
-#include "traversal/sssp_impl.cuh"
+#include "traversal/shortest_path_impl.cuh"
 
 #include <cugraph/export.hpp>
 

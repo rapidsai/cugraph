@@ -350,8 +350,8 @@ set(CUGRAPH_SG_SOURCES
     src/traversal/extract_bfs_paths_sg_v32_e32.cu
     src/traversal/bfs_sg_v64_e64.cu
     src/traversal/bfs_sg_v32_e32.cu
-    src/traversal/sssp_sg_v64_e64.cu
-    src/traversal/sssp_sg_v32_e32.cu
+    src/traversal/shortest_path_sg_v64_e64.cu
+    src/traversal/shortest_path_sg_v32_e32.cu
     src/traversal/od_shortest_distances_sg_v64_e64.cu
     src/traversal/od_shortest_distances_sg_v32_e32.cu
     src/dag/topological_sort_sg_v64_e64.cu
@@ -484,8 +484,8 @@ set(CUGRAPH_MG_SOURCES
     src/traversal/k_hop_nbrs_mg_v32_e32.cu
     src/traversal/bfs_mg_v64_e64.cu
     src/traversal/bfs_mg_v32_e32.cu
-    src/traversal/sssp_mg_v64_e64.cu
-    src/traversal/sssp_mg_v32_e32.cu
+    src/traversal/shortest_path_mg_v64_e64.cu
+    src/traversal/shortest_path_mg_v32_e32.cu
     src/dag/topological_sort_mg_v64_e64.cu
     src/dag/topological_sort_mg_v32_e32.cu
     src/link_analysis/hits_mg_v64_e64.cu
