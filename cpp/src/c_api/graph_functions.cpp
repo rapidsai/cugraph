@@ -147,13 +147,12 @@ struct two_hop_neighbors_functor : public cugraph::c_api::abstract_functor {
                                           std::vector<cugraph::arithmetic_device_uvector_t>{});
         }
 
-        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+        start_vertices = cugraph::renumber_ext_vertices(
           handle_,
-          start_vertices.data(),
-          start_vertices.size(),
-          number_map->data(),
-          graph_view.local_vertex_partition_range_first(),
-          graph_view.local_vertex_partition_range_last(),
+          graph_view,
+          std::move(start_vertices),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
           do_expensive_check_);
 
       } else {
@@ -182,20 +181,20 @@ struct two_hop_neighbors_functor : public cugraph::c_api::abstract_functor {
                       start_vertices.begin(),
                       src.begin());
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+      src = cugraph::unrenumber_int_vertices(
         handle_,
-        src.data(),
-        src.size(),
-        number_map->data(),
-        graph_view.vertex_partition_range_lasts(),
+        graph_view,
+        std::move(src),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         do_expensive_check_);
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+      dst = cugraph::unrenumber_int_vertices(
         handle_,
-        dst.data(),
-        dst.size(),
-        number_map->data(),
-        graph_view.vertex_partition_range_lasts(),
+        graph_view,
+        std::move(dst),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         do_expensive_check_);
 
       result_ = new cugraph::c_api::cugraph_vertex_pairs_t{
@@ -346,13 +345,12 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
       raft::copy(
         vertices.data(), vertices_->as_type<vertex_t>(), vertices_->size_, handle_.get_stream());
 
-      cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+      vertices = cugraph::renumber_ext_vertices(
         handle_,
-        vertices.data(),
-        vertices.size(),
-        number_map->data(),
-        graph_view.local_vertex_partition_range_first(),
-        graph_view.local_vertex_partition_range_last(),
+        graph_view,
+        std::move(vertices),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         do_expensive_check_);
 
       rmm::device_uvector<bool> vertex_check(vertices.size(), handle_.get_stream());

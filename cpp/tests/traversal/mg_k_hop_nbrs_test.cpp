@@ -136,12 +136,8 @@ class Tests_MGKHopNbrs
     if (k_hop_nbrs_usecase.check_correctness) {
       // 3-1. unrenumber & aggregate MG start vertices & results
 
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        d_mg_start_vertices.data(),
-        d_mg_start_vertices.size(),
-        mg_renumber_map->view().value_first(),
-        mg_graph_view.vertex_partition_range_lasts());
+      d_mg_start_vertices = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(d_mg_start_vertices), mg_renumber_map->view());
 
       auto h_mg_offsets = cugraph::test::to_host(*handle_, d_mg_offsets);
       std::vector<size_t> h_mg_counts(d_mg_start_vertices.size());
@@ -150,12 +146,8 @@ class Tests_MGKHopNbrs
       raft::update_device(
         d_mg_counts.data(), h_mg_counts.data(), h_mg_counts.size(), handle_->get_stream());
 
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        d_mg_nbrs.data(),
-        d_mg_nbrs.size(),
-        mg_renumber_map->view().value_first(),
-        mg_graph_view.vertex_partition_range_lasts());
+      d_mg_nbrs = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(d_mg_nbrs), mg_renumber_map->view());
 
       auto d_mg_aggregate_start_vertices = cugraph::test::device_gatherv(
         *handle_,

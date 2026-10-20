@@ -100,18 +100,15 @@ struct katz_functor : public cugraph::c_api::abstract_functor {
 
         raft::copy(betas.data(), betas_->as_type<weight_t>(), betas.size(), handle_.get_stream());
 
-        betas = cugraph::detail::
-          collect_local_vertex_values_from_ext_vertex_value_pairs<vertex_t, weight_t, multi_gpu>(
-            handle_,
-            std::move(betas_vertex_ids),
-            std::move(betas),
-            *number_map,
-            graph_view.local_vertex_partition_range_first(),
-            graph_view.local_vertex_partition_range_last(),
-            weight_t{0},
-            do_expensive_check_);
-        betas_property = cugraph::vertex_property_t<vertex_t, weight_t>(
-          std::move(betas), graph_view.local_vertex_partition_range_size());
+        betas_property = cugraph::detail::collect_local_vertex_values_from_ext_vertex_value_pairs(
+          handle_,
+          graph_view,
+          std::move(betas_vertex_ids),
+          std::move(betas),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
+          weight_t{0},
+          do_expensive_check_);
       }
 
       auto [centralities, metadata] =

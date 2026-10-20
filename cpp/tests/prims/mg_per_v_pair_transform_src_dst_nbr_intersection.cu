@@ -190,18 +190,16 @@ class Tests_MGPerVPairTransformSrcDstNbrIntersection
     // 3. validate MG results
 
     if (prims_usecase.check_correctness) {
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        std::get<0>(mg_vertex_pair_buffer).data(),
-        cugraph::size_dataframe_buffer(mg_vertex_pair_buffer),
-        mg_renumber_map->view().value_first(),
-        h_vertex_partition_range_lasts);
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        std::get<1>(mg_vertex_pair_buffer).data(),
-        cugraph::size_dataframe_buffer(mg_vertex_pair_buffer),
-        mg_renumber_map->view().value_first(),
-        h_vertex_partition_range_lasts);
+      std::get<0>(mg_vertex_pair_buffer) =
+        cugraph::unrenumber_int_vertices(*handle_,
+                                         mg_graph_view,
+                                         std::move(std::get<0>(mg_vertex_pair_buffer)),
+                                         mg_renumber_map->view());
+      std::get<1>(mg_vertex_pair_buffer) =
+        cugraph::unrenumber_int_vertices(*handle_,
+                                         mg_graph_view,
+                                         std::move(std::get<1>(mg_vertex_pair_buffer)),
+                                         mg_renumber_map->view());
 
       auto mg_aggregate_vertex_pair_buffer =
         cugraph::allocate_dataframe_buffer<cuda::std::tuple<vertex_t, vertex_t>>(

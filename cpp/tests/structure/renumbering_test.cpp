@@ -109,20 +109,10 @@ class Tests_Renumbering
     if (renumbering_usecase.check_correctness) {
       auto graph_view = graph.view();
 
-      cugraph::renumber_ext_vertices<vertex_t, false>(
-        handle,
-        src_v.data(),
-        src_v.size(),
-        renumber_map->view().value_first(),
-        graph_view.local_vertex_partition_range_first(),
-        graph_view.local_vertex_partition_range_last());
-      cugraph::renumber_ext_vertices<vertex_t, false>(
-        handle,
-        dst_v.data(),
-        dst_v.size(),
-        renumber_map->view().value_first(),
-        graph_view.local_vertex_partition_range_first(),
-        graph_view.local_vertex_partition_range_last());
+      src_v =
+        cugraph::renumber_ext_vertices(handle, graph_view, std::move(src_v), renumber_map->view());
+      dst_v =
+        cugraph::renumber_ext_vertices(handle, graph_view, std::move(dst_v), renumber_map->view());
 
       std::tie(src_v, dst_v) = cugraph::unrenumber_local_int_edges(
         handle, graph_view, std::move(src_v), std::move(dst_v), renumber_map->view());

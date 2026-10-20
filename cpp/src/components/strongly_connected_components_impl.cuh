@@ -477,12 +477,13 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
                                       vertex_property_view_t<vertex_t, vertex_t const*>(
                                         from_inverse_renumber_map.data(),
                                         static_cast<vertex_t>(from_inverse_renumber_map.size())));
-      unrenumber_int_vertices<vertex_t, multi_gpu>(
+      ancestors = cugraph::unrenumber_int_vertices(
         handle,
-        ancestors.data(),
-        ancestors.size(),
-        from_inverse_renumber_map.data(),
-        inverse_graph_view.vertex_partition_range_lasts());
+        inverse_graph_view,
+        std::move(ancestors),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          from_inverse_renumber_map.data(),
+          static_cast<vertex_t>(from_inverse_renumber_map.size())));
 
       if constexpr (multi_gpu) {
         std::vector<arithmetic_device_uvector_t> properties{};

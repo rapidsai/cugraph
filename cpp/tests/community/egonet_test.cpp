@@ -80,12 +80,8 @@ class Tests_Egonet : public ::testing::TestWithParam<std::tuple<Egonet_Usecase, 
                         egonet_usecase.ego_sources_.size(),
                         handle.get_stream());
 
-    cugraph::renumber_ext_vertices<vertex_t, false>(handle,
-                                                    d_ego_sources.data(),
-                                                    d_ego_sources.size(),
-                                                    d_renumber_map_labels->view().value_first(),
-                                                    graph_view.local_vertex_partition_range_first(),
-                                                    graph_view.local_vertex_partition_range_last());
+    d_ego_sources = cugraph::renumber_ext_vertices(
+      handle, graph_view, std::move(d_ego_sources), d_renumber_map_labels->view());
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

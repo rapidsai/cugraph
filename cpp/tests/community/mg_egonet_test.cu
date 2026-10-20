@@ -107,13 +107,8 @@ class Tests_MGEgonet
     std::tie(d_mg_sources, std::ignore) = cugraph::shuffle_ext_vertices(
       *handle_, std::move(d_mg_sources), std::vector<cugraph::arithmetic_device_uvector_t>{});
 
-    cugraph::renumber_ext_vertices<vertex_t, true>(
-      *handle_,
-      d_mg_sources.data(),
-      d_mg_sources.size(),
-      mg_renumber_map->view().value_first(),
-      mg_graph_view.local_vertex_partition_range_first(),
-      mg_graph_view.local_vertex_partition_range_last());
+    d_mg_sources = cugraph::renumber_ext_vertices(
+      *handle_, mg_graph_view, std::move(d_mg_sources), mg_renumber_map->view());
 
     auto [d_mg_edgelist_src, d_mg_edgelist_dst, d_mg_edgelist_wgt, d_mg_edgelist_offsets] =
       cugraph::extract_ego(
@@ -131,26 +126,14 @@ class Tests_MGEgonet
     }
 
     if (egonet_usecase.check_correctness_) {
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        d_mg_edgelist_src.data(),
-        d_mg_edgelist_src.size(),
-        mg_renumber_map->view().value_first(),
-        mg_graph_view.vertex_partition_range_lasts());
+      d_mg_edgelist_src = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(d_mg_edgelist_src), mg_renumber_map->view());
 
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        d_mg_edgelist_dst.data(),
-        d_mg_edgelist_dst.size(),
-        mg_renumber_map->view().value_first(),
-        mg_graph_view.vertex_partition_range_lasts());
+      d_mg_edgelist_dst = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(d_mg_edgelist_dst), mg_renumber_map->view());
 
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        d_mg_sources.data(),
-        d_mg_sources.size(),
-        mg_renumber_map->view().value_first(),
-        mg_graph_view.vertex_partition_range_lasts());
+      d_mg_sources = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(d_mg_sources), mg_renumber_map->view());
 
       auto d_mg_aggregate_edgelist_src = cugraph::test::device_gatherv(
         *handle_,

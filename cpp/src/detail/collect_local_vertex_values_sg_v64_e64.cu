@@ -15,37 +15,54 @@
 namespace cugraph {
 namespace detail {
 
-template CUGRAPH_EXPORT rmm::device_uvector<float>
-collect_local_vertex_values_from_ext_vertex_value_pairs<int64_t, float, false>(
+template CUGRAPH_EXPORT vertex_property_t<int64_t, float>
+collect_local_vertex_values_from_ext_vertex_value_pairs<int64_t, int64_t, float, false, false>(
   raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
   rmm::device_uvector<int64_t>&& d_vertices,
   rmm::device_uvector<float>&& d_values,
-  rmm::device_uvector<int64_t> const& number_map,
-  int64_t local_vertex_first,
-  int64_t local_vertex_last,
+  vertex_property_view_t<int64_t, int64_t const*> renumber_map,
   float default_value,
   bool do_expensive_check);
 
-template CUGRAPH_EXPORT rmm::device_uvector<double>
-collect_local_vertex_values_from_ext_vertex_value_pairs<int64_t, double, false>(
+template CUGRAPH_EXPORT vertex_property_t<int64_t, double>
+collect_local_vertex_values_from_ext_vertex_value_pairs<int64_t, int64_t, double, false, false>(
   raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
   rmm::device_uvector<int64_t>&& d_vertices,
   rmm::device_uvector<double>&& d_values,
-  rmm::device_uvector<int64_t> const& number_map,
-  int64_t local_vertex_first,
-  int64_t local_vertex_last,
+  vertex_property_view_t<int64_t, int64_t const*> renumber_map,
   double default_value,
   bool do_expensive_check);
 
-template CUGRAPH_EXPORT rmm::device_uvector<int64_t>
-collect_local_vertex_values_from_ext_vertex_value_pairs<int64_t, int64_t, false>(
+template CUGRAPH_EXPORT vertex_property_t<int64_t, int64_t>
+collect_local_vertex_values_from_ext_vertex_value_pairs<int64_t, int64_t, int64_t, false, false>(
   raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
   rmm::device_uvector<int64_t>&& d_vertices,
   rmm::device_uvector<int64_t>&& d_values,
-  rmm::device_uvector<int64_t> const& number_map,
-  int64_t local_vertex_first,
-  int64_t local_vertex_last,
+  vertex_property_view_t<int64_t, int64_t const*> renumber_map,
   int64_t default_value,
+  bool do_expensive_check);
+
+template CUGRAPH_EXPORT vertex_property_t<int64_t, float>
+collect_local_vertex_values_from_ext_vertex_value_pairs<int64_t, int64_t, float, true, false>(
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, true, false> const& graph_view,
+  rmm::device_uvector<int64_t>&& d_vertices,
+  rmm::device_uvector<float>&& d_values,
+  vertex_property_view_t<int64_t, int64_t const*> renumber_map,
+  float default_value,
+  bool do_expensive_check);
+
+template CUGRAPH_EXPORT vertex_property_t<int64_t, double>
+collect_local_vertex_values_from_ext_vertex_value_pairs<int64_t, int64_t, double, true, false>(
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, true, false> const& graph_view,
+  rmm::device_uvector<int64_t>&& d_vertices,
+  rmm::device_uvector<double>&& d_values,
+  vertex_property_view_t<int64_t, int64_t const*> renumber_map,
+  double default_value,
   bool do_expensive_check);
 
 }  // namespace detail

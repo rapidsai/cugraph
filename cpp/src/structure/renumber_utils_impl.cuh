@@ -773,4 +773,72 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> unrenum
   return std::make_tuple(std::move(edgelist_srcs), std::move(edgelist_dsts));
 }
 
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+rmm::device_uvector<vertex_t> renumber_ext_vertices(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  rmm::device_uvector<vertex_t>&& vertices,
+  vertex_property_view_t<vertex_t, vertex_t const*> renumber_map_labels,
+  bool do_expensive_check)
+{
+  CUGRAPH_EXPECTS(
+    renumber_map_labels.range_size() == graph_view.local_vertex_partition_range_size(),
+    "Invalid input arguments: renumber_map_labels.range_size() should coincide with "
+    "graph_view.local_vertex_partition_range_size().");
+
+  renumber_ext_vertices<vertex_t, multi_gpu>(handle,
+                                             vertices.data(),
+                                             vertices.size(),
+                                             renumber_map_labels.value_first(),
+                                             graph_view.local_vertex_partition_range_first(),
+                                             graph_view.local_vertex_partition_range_last(),
+                                             do_expensive_check);
+  return std::move(vertices);
+}
+
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+rmm::device_uvector<vertex_t> renumber_local_ext_vertices(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  rmm::device_uvector<vertex_t>&& vertices,
+  vertex_property_view_t<vertex_t, vertex_t const*> renumber_map_labels,
+  bool do_expensive_check)
+{
+  CUGRAPH_EXPECTS(
+    renumber_map_labels.range_size() == graph_view.local_vertex_partition_range_size(),
+    "Invalid input arguments: renumber_map_labels.range_size() should coincide with "
+    "graph_view.local_vertex_partition_range_size().");
+
+  renumber_local_ext_vertices<vertex_t, multi_gpu>(handle,
+                                                   vertices.data(),
+                                                   vertices.size(),
+                                                   renumber_map_labels.value_first(),
+                                                   graph_view.local_vertex_partition_range_first(),
+                                                   graph_view.local_vertex_partition_range_last(),
+                                                   do_expensive_check);
+  return std::move(vertices);
+}
+
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+rmm::device_uvector<vertex_t> unrenumber_int_vertices(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  rmm::device_uvector<vertex_t>&& vertices,
+  vertex_property_view_t<vertex_t, vertex_t const*> renumber_map_labels,
+  bool do_expensive_check)
+{
+  CUGRAPH_EXPECTS(
+    renumber_map_labels.range_size() == graph_view.local_vertex_partition_range_size(),
+    "Invalid input arguments: renumber_map_labels.range_size() should coincide with "
+    "graph_view.local_vertex_partition_range_size().");
+
+  unrenumber_int_vertices<vertex_t, multi_gpu>(handle,
+                                               vertices.data(),
+                                               vertices.size(),
+                                               renumber_map_labels.value_first(),
+                                               graph_view.vertex_partition_range_lasts(),
+                                               do_expensive_check);
+  return std::move(vertices);
+}
+
 }  // namespace cugraph

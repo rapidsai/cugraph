@@ -113,18 +113,15 @@ struct hits_functor : public cugraph::c_api::abstract_functor {
                    guess_values.size(),
                    handle_.get_stream());
 
-        auto hubs_buffer = cugraph::detail::
-          collect_local_vertex_values_from_ext_vertex_value_pairs<vertex_t, weight_t, multi_gpu>(
-            handle_,
-            std::move(guess_vertices),
-            std::move(guess_values),
-            *number_map,
-            graph_view.local_vertex_partition_range_first(),
-            graph_view.local_vertex_partition_range_last(),
-            weight_t{0},
-            do_expensive_check_);
-        initial_hubs = cugraph::vertex_property_t<vertex_t, weight_t>(
-          std::move(hubs_buffer), graph_view.local_vertex_partition_range_size());
+        initial_hubs = cugraph::detail::collect_local_vertex_values_from_ext_vertex_value_pairs(
+          handle_,
+          graph_view,
+          std::move(guess_vertices),
+          std::move(guess_values),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
+          weight_t{0},
+          do_expensive_check_);
       }
 
       auto [hubs, authorities, metadata] =

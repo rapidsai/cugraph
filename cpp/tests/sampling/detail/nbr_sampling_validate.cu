@@ -228,12 +228,8 @@ bool validate_sampling_depth(raft::handle_t const& handle,
   auto graph_view = graph.view();
 
   //  Renumber sources
-  renumber_ext_vertices<vertex_t, false>(handle,
-                                         d_source_vertices.data(),
-                                         d_source_vertices.size(),
-                                         number_map->view().value_first(),
-                                         graph_view.local_vertex_partition_range_first(),
-                                         graph_view.local_vertex_partition_range_last());
+  d_source_vertices = cugraph::renumber_ext_vertices(
+    handle, graph_view, std::move(d_source_vertices), number_map->view());
 
   rmm::device_uvector<vertex_t> d_distances(graph_view.number_of_vertices(), handle.get_stream());
   cugraph::fill(

@@ -186,18 +186,16 @@ class Tests_MGExtractTransformIfE
     if (prims_usecase.check_correctness) {
       // the MG primitive returns renumbered (internal) vertex IDs while the SG reference graph
       // below is created in the unrenumbered (external) vertex ID space, so unrenumber first
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        std::get<0>(mg_extract_transform_output_buffer).data(),
-        std::get<0>(mg_extract_transform_output_buffer).size(),
-        d_mg_renumber_map_labels->view().value_first(),
-        mg_graph_view.vertex_partition_range_lasts());
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        std::get<1>(mg_extract_transform_output_buffer).data(),
-        std::get<1>(mg_extract_transform_output_buffer).size(),
-        d_mg_renumber_map_labels->view().value_first(),
-        mg_graph_view.vertex_partition_range_lasts());
+      std::get<0>(mg_extract_transform_output_buffer) =
+        cugraph::unrenumber_int_vertices(*handle_,
+                                         mg_graph_view,
+                                         std::move(std::get<0>(mg_extract_transform_output_buffer)),
+                                         d_mg_renumber_map_labels->view());
+      std::get<1>(mg_extract_transform_output_buffer) =
+        cugraph::unrenumber_int_vertices(*handle_,
+                                         mg_graph_view,
+                                         std::move(std::get<1>(mg_extract_transform_output_buffer)),
+                                         d_mg_renumber_map_labels->view());
 
       auto mg_aggregate_extract_transform_output_buffer = cugraph::allocate_dataframe_buffer<
         typename e_op_t<vertex_t, result_t, output_payload_t>::return_type>(size_t{0},

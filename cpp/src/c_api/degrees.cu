@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -102,13 +102,12 @@ struct degrees_functor : public cugraph::c_api::abstract_functor {
             handle_, std::move(vertex_ids), std::vector<cugraph::arithmetic_device_uvector_t>{});
         }
 
-        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+        vertex_ids = cugraph::renumber_ext_vertices(
           handle_,
-          vertex_ids.data(),
-          vertex_ids.size(),
-          number_map->data(),
-          graph_view.local_vertex_partition_range_first(),
-          graph_view.local_vertex_partition_range_last(),
+          graph_view,
+          std::move(vertex_ids),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
           do_expensive_check_);
 
         auto vertices_iter = cuda::make_transform_iterator(

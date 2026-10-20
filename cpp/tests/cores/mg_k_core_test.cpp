@@ -99,19 +99,11 @@ class Tests_MGKCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, 
     }
 
     if (k_core_usecase.check_correctness) {
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        mg_subgraph_srcs.data(),
-        mg_subgraph_srcs.size(),
-        mg_renumber_map->view().value_first(),
-        mg_graph_view.vertex_partition_range_lasts());
+      mg_subgraph_srcs = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(mg_subgraph_srcs), mg_renumber_map->view());
 
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        mg_subgraph_dsts.data(),
-        mg_subgraph_dsts.size(),
-        mg_renumber_map->view().value_first(),
-        mg_graph_view.vertex_partition_range_lasts());
+      mg_subgraph_dsts = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(mg_subgraph_dsts), mg_renumber_map->view());
 
       auto d_mg_aggregate_subgraph_srcs = cugraph::test::device_gatherv(
         *handle_,

@@ -318,18 +318,16 @@ class Tests_MGExtractTransformIfVFrontierIncomingOutgoingE
         constexpr size_t src_idx = 0;
         constexpr size_t dst_idx =
           (!std::is_same_v<key_t, vertex_t> && !store_transposed) ? size_t{2} : size_t{1};
-        cugraph::unrenumber_int_vertices<vertex_t, true>(
+        std::get<src_idx>(mg_extract_transform_output_buffer) = cugraph::unrenumber_int_vertices(
           *handle_,
-          std::get<src_idx>(mg_extract_transform_output_buffer).data(),
-          std::get<src_idx>(mg_extract_transform_output_buffer).size(),
-          d_mg_renumber_map_labels->view().value_first(),
-          mg_graph_view.vertex_partition_range_lasts());
-        cugraph::unrenumber_int_vertices<vertex_t, true>(
+          mg_graph_view,
+          std::move(std::get<src_idx>(mg_extract_transform_output_buffer)),
+          d_mg_renumber_map_labels->view());
+        std::get<dst_idx>(mg_extract_transform_output_buffer) = cugraph::unrenumber_int_vertices(
           *handle_,
-          std::get<dst_idx>(mg_extract_transform_output_buffer).data(),
-          std::get<dst_idx>(mg_extract_transform_output_buffer).size(),
-          d_mg_renumber_map_labels->view().value_first(),
-          mg_graph_view.vertex_partition_range_lasts());
+          mg_graph_view,
+          std::move(std::get<dst_idx>(mg_extract_transform_output_buffer)),
+          d_mg_renumber_map_labels->view());
       }
 
       auto mg_aggregate_extract_transform_output_buffer = cugraph::allocate_dataframe_buffer<

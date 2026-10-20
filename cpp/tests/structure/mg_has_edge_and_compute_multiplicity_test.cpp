@@ -160,18 +160,10 @@ class Tests_MGHasEdgeAndComputeMultiplicity
     if (has_edge_and_compute_multiplicity_usecase.check_correctness) {
       // 4-1. aggregate MG results
 
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        d_mg_edge_srcs.data(),
-        d_mg_edge_srcs.size(),
-        mg_renumber_map->view().value_first(),
-        mg_graph_view.vertex_partition_range_lasts());
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        d_mg_edge_dsts.data(),
-        d_mg_edge_dsts.size(),
-        mg_renumber_map->view().value_first(),
-        mg_graph_view.vertex_partition_range_lasts());
+      d_mg_edge_srcs = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(d_mg_edge_srcs), mg_renumber_map->view());
+      d_mg_edge_dsts = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(d_mg_edge_dsts), mg_renumber_map->view());
 
       auto d_mg_aggregate_edge_srcs = cugraph::test::device_gatherv(
         *handle_, raft::device_span<vertex_t const>(d_mg_edge_srcs.data(), d_mg_edge_srcs.size()));

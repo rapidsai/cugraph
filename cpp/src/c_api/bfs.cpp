@@ -87,13 +87,13 @@ struct bfs_functor : public abstract_functor {
       //
       // Need to renumber sources
       //
-      renumber_ext_vertices<vertex_t, multi_gpu>(handle_,
-                                                 sources.data(),
-                                                 sources.size(),
-                                                 number_map->data(),
-                                                 graph_view.local_vertex_partition_range_first(),
-                                                 graph_view.local_vertex_partition_range_last(),
-                                                 do_expensive_check_);
+      sources = cugraph::renumber_ext_vertices(
+        handle_,
+        graph_view,
+        std::move(sources),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
+        do_expensive_check_);
 
       size_t invalid_count = cugraph::detail::count_values(
         handle_,
@@ -129,12 +129,13 @@ struct bfs_functor : public abstract_functor {
                             : rmm::device_uvector<vertex_t>(0, handle_.get_stream());
 
       if (predecessor_property) {
-        unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
-                                                     predecessors.data(),
-                                                     predecessors.size(),
-                                                     number_map->data(),
-                                                     graph_view.vertex_partition_range_lasts(),
-                                                     do_expensive_check_);
+        predecessors = cugraph::unrenumber_int_vertices(
+          handle_,
+          graph_view,
+          std::move(predecessors),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
+          do_expensive_check_);
       }
 
       result_ = new cugraph_paths_result_t{

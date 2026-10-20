@@ -186,26 +186,14 @@ class Tests_MGExtractBFSPaths
       // unrenumber & aggregate MG destination vertices to extract paths, & results
       // collect MG BFS results instead of re-running SG BFS as BFS is non-deterministic
 
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        d_mg_predecessors.data(),
-        d_mg_predecessors.size(),
-        mg_renumber_map->view().value_first(),
-        mg_graph_view.vertex_partition_range_lasts());
+      d_mg_predecessors = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(d_mg_predecessors), mg_renumber_map->view());
 
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        d_mg_destinations.data(),
-        d_mg_destinations.size(),
-        mg_renumber_map->view().value_first(),
-        mg_graph_view.vertex_partition_range_lasts());
+      d_mg_destinations = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(d_mg_destinations), mg_renumber_map->view());
 
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        d_mg_paths.data(),
-        d_mg_paths.size(),
-        mg_renumber_map->view().value_first(),
-        mg_graph_view.vertex_partition_range_lasts());
+      d_mg_paths = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(d_mg_paths), mg_renumber_map->view());
 
       rmm::device_uvector<vertex_t> d_mg_aggregate_distances(0, handle_->get_stream());
       std::tie(std::ignore, d_mg_aggregate_distances) =

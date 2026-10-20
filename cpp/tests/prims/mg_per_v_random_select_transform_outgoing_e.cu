@@ -34,6 +34,7 @@
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/adjacent_difference.h>
+#include <thrust/copy.h>
 #include <thrust/iterator/counting_iterator.h>
 
 #include <gtest/gtest.h>
@@ -311,12 +312,14 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
     // 3. validate MG results
 
     if (prims_usecase.check_correctness) {
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        mg_vertex_frontier.bucket(bucket_idx_cur).begin(),
-        mg_vertex_frontier.bucket(bucket_idx_cur).size(),
-        mg_renumber_map->view().value_first(),
-        mg_graph_view.vertex_partition_range_lasts());
+      rmm::device_uvector<vertex_t> mg_frontier_vertices(
+        mg_vertex_frontier.bucket(bucket_idx_cur).size(), handle_->get_stream());
+      thrust::copy(handle_->get_thrust_policy(),
+                   mg_vertex_frontier.bucket(bucket_idx_cur).begin(),
+                   mg_vertex_frontier.bucket(bucket_idx_cur).end(),
+                   mg_frontier_vertices.begin());
+      mg_frontier_vertices = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(mg_frontier_vertices), mg_renumber_map->view());
 
       std::optional<rmm::device_uvector<size_t>> mg_sample_counts{std::nullopt};
       if (mg_sample_offsets) {
@@ -328,23 +331,21 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                                     (*mg_sample_counts).begin());
       }
 
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        std::get<0>(mg_sample_e_op_results).data(),
-        std::get<0>(mg_sample_e_op_results).size(),
-        mg_renumber_map->view().value_first(),
-        mg_graph_view.vertex_partition_range_lasts());
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        std::get<1>(mg_sample_e_op_results).data(),
-        std::get<1>(mg_sample_e_op_results).size(),
-        mg_renumber_map->view().value_first(),
-        mg_graph_view.vertex_partition_range_lasts());
+      std::get<0>(mg_sample_e_op_results) =
+        cugraph::unrenumber_int_vertices(*handle_,
+                                         mg_graph_view,
+                                         std::move(std::get<0>(mg_sample_e_op_results)),
+                                         mg_renumber_map->view());
+      std::get<1>(mg_sample_e_op_results) =
+        cugraph::unrenumber_int_vertices(*handle_,
+                                         mg_graph_view,
+                                         std::move(std::get<1>(mg_sample_e_op_results)),
+                                         mg_renumber_map->view());
 
-      auto mg_aggregate_frontier_vertices = cugraph::test::device_gatherv(
-        *handle_,
-        raft::device_span<vertex_t const>(mg_vertex_frontier.bucket(bucket_idx_cur).begin(),
-                                          mg_vertex_frontier.bucket(bucket_idx_cur).size()));
+      auto mg_aggregate_frontier_vertices =
+        cugraph::test::device_gatherv(*handle_,
+                                      raft::device_span<vertex_t const>(
+                                        mg_frontier_vertices.data(), mg_frontier_vertices.size()));
 
       std::optional<rmm::device_uvector<size_t>> mg_aggregate_sample_counts{std::nullopt};
       if (mg_sample_counts) {

@@ -92,21 +92,21 @@ struct extract_paths_functor : public abstract_functor {
       //
       // Need to renumber destinations
       //
-      renumber_ext_vertices<vertex_t, multi_gpu>(handle_,
-                                                 destinations.data(),
-                                                 destinations.size(),
-                                                 number_map->data(),
-                                                 graph_view.local_vertex_partition_range_first(),
-                                                 graph_view.local_vertex_partition_range_last(),
-                                                 false);
+      destinations = cugraph::renumber_ext_vertices(
+        handle_,
+        graph_view,
+        std::move(destinations),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
+        false);
 
-      renumber_ext_vertices<vertex_t, multi_gpu>(handle_,
-                                                 predecessors.data(),
-                                                 predecessors.size(),
-                                                 number_map->data(),
-                                                 graph_view.local_vertex_partition_range_first(),
-                                                 graph_view.local_vertex_partition_range_last(),
-                                                 false);
+      predecessors = cugraph::renumber_ext_vertices(
+        handle_,
+        graph_view,
+        std::move(predecessors),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
+        false);
 
       auto [result, max_path_length] = cugraph::extract_bfs_paths<vertex_t, edge_t, multi_gpu>(
         handle_,
@@ -118,12 +118,13 @@ struct extract_paths_functor : public abstract_functor {
           predecessors.data(), static_cast<vertex_t>(predecessors.size())),
         raft::device_span<vertex_t const>(destinations.data(), destinations.size()));
 
-      unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
-                                                   result.data(),
-                                                   result.size(),
-                                                   number_map->data(),
-                                                   graph_view.vertex_partition_range_lasts(),
-                                                   false);
+      result = cugraph::unrenumber_int_vertices(
+        handle_,
+        graph_view,
+        std::move(result),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
+        false);
 
       result_ = new cugraph_extract_paths_result_t{
         static_cast<size_t>(max_path_length),

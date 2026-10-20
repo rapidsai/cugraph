@@ -135,19 +135,11 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
     if (bfs_usecase.check_correctness) {
       // 3-1. unrenumber & aggregate MG source & results
 
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        d_mg_predecessors.data(),
-        d_mg_predecessors.size(),
-        mg_renumber_map->view().value_first(),
-        mg_graph_view.vertex_partition_range_lasts());
+      d_mg_predecessors = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(d_mg_predecessors), mg_renumber_map->view());
 
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        mg_frontier.data(),
-        mg_frontier.size(),
-        mg_renumber_map->view().value_first(),
-        mg_graph_view.vertex_partition_range_lasts());
+      mg_frontier = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(mg_frontier), mg_renumber_map->view());
 
       // 3-2. aggregate MG results
 

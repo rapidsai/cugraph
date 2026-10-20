@@ -26,6 +26,7 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
 #include <cugraph/utilities/thrust_wrappers/scan.hpp>
 #include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/utilities/thrust_wrappers/unique.hpp>
@@ -937,30 +938,50 @@ weakly_connected_components_impl(raft::handle_t const& handle,
     }
   }
 
-  // 3. recursive update the current level component IDs from the next level component IDs
+  // 3. recursive update the current level component IDs from the coarser level component IDs
 
-  for (size_t i = 0; i < num_levels - 1; ++i) {
-    size_t next_level    = num_levels - 1 - i;
-    size_t current_level = next_level - 1;
+  size_t coarser_level = num_levels - 1;
+  while (coarser_level > 0) {
+    auto current_level = coarser_level - 1;
 
-    unrenumber_int_vertices<vertex_t, GraphViewType::is_multi_gpu>(
-      handle,
-      level_component_vectors[next_level].mutable_view().value_first(),
-      level_component_vectors[next_level].view().range_size(),
-      level_renumber_map_vectors[next_level].view().value_first(),
-      raft::host_span<vertex_t const>(
-        level_vertex_partition_range_last_vectors[next_level].data(),
-        level_vertex_partition_range_last_vectors[next_level]
-          .size()));  // level_compponent_vectors[next_leve][]: component IDs are originally vertex
-                      // IDs of next_level, convert this to the vertex IDs of current_level
-    kv_store_t<vertex_t, vertex_t, true> next_level_kv_store(
-      level_renumber_map_vectors[next_level].release_buffer(),
-      level_component_vectors[next_level].release_buffer(),
-      invalid_vertex_id_v<vertex_t>,
-      false /* key sorted */,
-      handle.get_stream());
-    auto next_level_kv_store_view = next_level_kv_store.view();
-    auto current_level_components = level_component_vectors[current_level].mutable_view();
+    // maps current_level vertex IDs (only the ones that are coarser_level vertices) to the
+    // component IDs in current_level vertex IDs; coarser_level graphs are created here as static
+    // graphs (no vertex insertion/deletion), so every vertex ID in the local vertex partition range
+    // is valid and the component IDs (coarser_level vertex IDs) can be directly unrenumbered
+    // without a graph view
+    kv_store_t<vertex_t, vertex_t, true> coarser_level_kv_store(handle.get_stream());
+    {
+      // keys: current_level vertex IDs of the coarser_level vertices, values: component IDs,
+      // unrenumbered below from coarser_level vertex IDs to current_level vertex IDs
+      auto keys   = level_renumber_map_vectors[coarser_level].release_buffer();
+      auto values = level_component_vectors[coarser_level].release_buffer();
+      if constexpr (GraphViewType::is_multi_gpu) {
+        values = collect_values_for_int_vertices(
+          handle,
+          values.begin(),
+          values.end(),
+          keys.begin(),
+          raft::host_span<vertex_t const>(
+            level_vertex_partition_range_last_vectors[coarser_level].data(),
+            level_vertex_partition_range_last_vectors[coarser_level].size()),
+          level_local_vertex_first_vectors[coarser_level]);
+      } else {
+        rmm::device_uvector<vertex_t> tmp_values(values.size(), handle.get_stream());
+        cugraph::gather(handle.get_thrust_policy(),
+                        values.begin(),
+                        values.end(),
+                        keys.begin(),
+                        tmp_values.begin());
+        values = std::move(tmp_values);
+      }
+      coarser_level_kv_store = kv_store_t<vertex_t, vertex_t, true>(std::move(keys),
+                                                                    std::move(values),
+                                                                    invalid_vertex_id_v<vertex_t>,
+                                                                    false /* key sorted */,
+                                                                    handle.get_stream());
+    }
+    auto coarser_level_kv_store_view = coarser_level_kv_store.view();
+    auto current_level_components    = level_component_vectors[current_level].mutable_view();
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& comm           = handle.get_comms();
       auto const comm_size = comm.get_size();
@@ -986,7 +1007,7 @@ weakly_connected_components_impl(raft::handle_t const& handle,
                                 handle.get_stream());
       auto [unique_keys, values_for_unique_keys] = collect_values_for_unique_keys(
         handle,
-        next_level_kv_store.view(),
+        coarser_level_kv_store.view(),
         std::move(sorted_unique_keys),
         cuda::proclaim_return_type<int>([key_func] __device__(auto key) { return key_func(key); }));
       auto kv_pair_first =
@@ -1002,14 +1023,15 @@ weakly_connected_components_impl(raft::handle_t const& handle,
                                 auto pair) { return cuda::std::get<1>(pair) == invalid_value; }))),
         handle.get_stream());
       values_for_unique_keys.resize(unique_keys.size(), handle.get_stream());
-      next_level_kv_store      = kv_store_t<vertex_t, vertex_t, true>(std::move(unique_keys),
-                                                                 std::move(values_for_unique_keys),
-                                                                 invalid_vertex_id_v<vertex_t>,
-                                                                 false /* key sorted */,
-                                                                 handle.get_stream());
-      next_level_kv_store_view = next_level_kv_store.view();
+      coarser_level_kv_store =
+        kv_store_t<vertex_t, vertex_t, true>(std::move(unique_keys),
+                                             std::move(values_for_unique_keys),
+                                             invalid_vertex_id_v<vertex_t>,
+                                             false /* key sorted */,
+                                             handle.get_stream());
+      coarser_level_kv_store_view = coarser_level_kv_store.view();
     }
-    auto device_view = detail::kv_binary_search_store_device_view_t(next_level_kv_store_view);
+    auto device_view = detail::kv_binary_search_store_device_view_t(coarser_level_kv_store_view);
     auto update_op   = cuda::proclaim_return_type<vertex_t>(
       [device_view, invalid_value = invalid_vertex_id_v<vertex_t>] __device__(vertex_t old) {
         auto val = device_view.find(old);
@@ -1032,6 +1054,8 @@ weakly_connected_components_impl(raft::handle_t const& handle,
         current_level_components.value_first(),
         update_op);
     }
+
+    --coarser_level;
   }
 
   return std::move(level_component_vectors[0]);

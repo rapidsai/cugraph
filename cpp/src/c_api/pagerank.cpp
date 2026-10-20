@@ -137,13 +137,12 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
         //
         // Need to renumber personalization_vertices
         //
-        cugraph::renumber_local_ext_vertices<vertex_t, multi_gpu>(
+        personalization_vertices = cugraph::renumber_local_ext_vertices(
           handle_,
-          personalization_vertices.data(),
-          personalization_vertices.size(),
-          number_map->data(),
-          graph_view.local_vertex_partition_range_first(),
-          graph_view.local_vertex_partition_range_last(),
+          graph_view,
+          std::move(personalization_vertices),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
           do_expensive_check_);
       }
 
@@ -164,18 +163,16 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
                    precomputed_vertex_out_weight_sums_->size_,
                    handle_.get_stream());
 
-        auto sum_values = cugraph::detail::
-          collect_local_vertex_values_from_ext_vertex_value_pairs<vertex_t, weight_t, multi_gpu>(
+        precomputed_vertex_out_weight_sums =
+          cugraph::detail::collect_local_vertex_values_from_ext_vertex_value_pairs(
             handle_,
+            graph_view,
             std::move(precomputed_vertex_out_weight_vertices),
             std::move(precomputed_vertex_out_weight_sum_values),
-            *number_map,
-            graph_view.local_vertex_partition_range_first(),
-            graph_view.local_vertex_partition_range_last(),
+            cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+              number_map->data(), static_cast<vertex_t>(number_map->size())),
             weight_t{0},
             do_expensive_check_);
-        precomputed_vertex_out_weight_sums = cugraph::vertex_property_t<vertex_t, weight_t>(
-          std::move(sum_values), graph_view.local_vertex_partition_range_size());
       }
 
       std::optional<cugraph::vertex_property_t<vertex_t, weight_t>> pageranks{std::nullopt};
@@ -195,18 +192,15 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
                    initial_guess_values.size(),
                    handle_.get_stream());
 
-        auto initial_pageranks = cugraph::detail::
-          collect_local_vertex_values_from_ext_vertex_value_pairs<vertex_t, weight_t, multi_gpu>(
-            handle_,
-            std::move(initial_guess_vertices),
-            std::move(initial_guess_values),
-            *number_map,
-            graph_view.local_vertex_partition_range_first(),
-            graph_view.local_vertex_partition_range_last(),
-            weight_t{0},
-            do_expensive_check_);
-        pageranks = cugraph::vertex_property_t<vertex_t, weight_t>(
-          std::move(initial_pageranks), graph_view.local_vertex_partition_range_size());
+        pageranks = cugraph::detail::collect_local_vertex_values_from_ext_vertex_value_pairs(
+          handle_,
+          graph_view,
+          std::move(initial_guess_vertices),
+          std::move(initial_guess_values),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
+          weight_t{0},
+          do_expensive_check_);
       }
 
       auto [pagerank_values, metadata] =

@@ -1,11 +1,13 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
 #include <cugraph/arithmetic_variant_types.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/large_buffer_manager.hpp>
+#include <cugraph/vertex_property.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/core/host_span.hpp>
@@ -83,32 +85,37 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
  *        local value arrays on the GPU responsible for each vertex.
  *
  * Data will be shuffled, renumbered and initialized with the default value,
- * then:  return_array[d_vertices[i]] = d_values[i]
+ * then:  return_property[d_vertices[i]] = d_values[i]
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam value_t  Type of value associated with the vertex.
- * @tparam bool     multi_gpu flag
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
+ * true) as major indices in storing edges using a 2D sparse matrix.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
  *
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in] graph_view Graph view object.
  * @param[in] d_vertices Vertex IDs for the k/v pair
  * @param[in] d_values Values for the k/v pair
- * @param[in] The number map for performing renumbering
- * @param[in] local_vertex_first The first vertex id assigned to the local GPU
- * @param[in] local_vertex_last The last vertex id assigned to the local GPU
- * @param[in] default_value The default value the return array will be initialized by
+ * @param[in] renumber_map View of the renumber map of @p graph_view (local vertex partition range).
+ * @param[in] default_value The default value the return property will be initialized by
  * @param[in] do_expensive_check If true, enable expensive validation checks
- * @return device vector of values, where return[i] is the value associated with
- *         vertex (i + local_vertex_first)
+ * @return Vertex property holding the value associated with each local vertex of @p graph_view
  */
-template <typename vertex_t, typename value_t, bool multi_gpu>
-rmm::device_uvector<value_t> collect_local_vertex_values_from_ext_vertex_value_pairs(
+template <typename vertex_t,
+          typename edge_t,
+          typename value_t,
+          bool store_transposed,
+          bool multi_gpu>
+vertex_property_t<vertex_t, value_t> collect_local_vertex_values_from_ext_vertex_value_pairs(
   raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   rmm::device_uvector<vertex_t>&& d_vertices,
   rmm::device_uvector<value_t>&& d_values,
-  rmm::device_uvector<vertex_t> const& number_map,
-  vertex_t local_vertex_first,
-  vertex_t local_vertex_last,
+  vertex_property_view_t<vertex_t, vertex_t const*> renumber_map,
   value_t default_value,
   bool do_expensive_check);
 

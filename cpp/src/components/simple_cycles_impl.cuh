@@ -329,14 +329,8 @@ rmm::device_uvector<vertex_t> renumber_seed_vertices(
           }))),
     handle.get_stream());
   tmp_seed_vertices.shrink_to_fit(handle.get_stream());
-  cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
-    handle,
-    tmp_seed_vertices.data(),
-    tmp_seed_vertices.size(),
-    renumber_map.value_first(),
-    graph_view.local_vertex_partition_range_first(),
-    graph_view.local_vertex_partition_range_last(),
-    do_expensive_check);
+  tmp_seed_vertices = cugraph::renumber_ext_vertices(
+    handle, graph_view, std::move(tmp_seed_vertices), renumber_map, do_expensive_check);
   cugraph::sort(handle.get_thrust_policy(), tmp_seed_vertices.begin(), tmp_seed_vertices.end());
   return tmp_seed_vertices;
 }
@@ -391,24 +385,21 @@ rmm::device_uvector<T> concatenate(raft::handle_t const& handle,
   return output;
 }
 
-template <typename vertex_t, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<std::vector<rmm::device_uvector<vertex_t>>, std::vector<rmm::device_uvector<vertex_t>>>
-push_back_cycles(
-  raft::handle_t const& handle,
-  std::vector<rmm::device_uvector<vertex_t>>&& cycle_vertex_chunks,
-  std::vector<rmm::device_uvector<vertex_t>>&& cycle_length_chunks,
-  rmm::device_uvector<vertex_t>&& new_cycle_vertices,
-  std::variant<vertex_t, rmm::device_uvector<vertex_t>>&& new_cycle_lengths,
-  std::optional<std::tuple<vertex_property_view_t<vertex_t, vertex_t const*>,
-                           raft::host_span<vertex_t const>>> renumber_info = std::nullopt)
+push_back_cycles(raft::handle_t const& handle,
+                 std::vector<rmm::device_uvector<vertex_t>>&& cycle_vertex_chunks,
+                 std::vector<rmm::device_uvector<vertex_t>>&& cycle_length_chunks,
+                 rmm::device_uvector<vertex_t>&& new_cycle_vertices,
+                 std::variant<vertex_t, rmm::device_uvector<vertex_t>>&& new_cycle_lengths,
+                 std::optional<std::tuple<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
+                                          vertex_property_view_t<vertex_t, vertex_t const*>>>
+                   renumber_info = std::nullopt)
 {
   if (renumber_info) {
-    auto [renumber_map, vertex_partition_range_lasts] = *renumber_info;
-    unrenumber_int_vertices<vertex_t, multi_gpu>(handle,
-                                                 new_cycle_vertices.data(),
-                                                 new_cycle_vertices.size(),
-                                                 renumber_map.value_first(),
-                                                 vertex_partition_range_lasts);  // collective
+    auto [graph_view, renumber_map] = *renumber_info;
+    new_cycle_vertices              = unrenumber_int_vertices(
+      handle, graph_view, std::move(new_cycle_vertices), renumber_map);  // collective
   }
 
   if (new_cycle_vertices.size() == 0) {
@@ -644,11 +635,11 @@ enumerate_simple_cycles_expanding_paths(
                      new_cycle_vertices.begin() + output_offset);
       });
     std::tie(cycle_vertex_chunks, cycle_length_chunks) =
-      push_back_cycles<vertex_t, multi_gpu>(handle,
-                                            std::move(cycle_vertex_chunks),
-                                            std::move(cycle_length_chunks),
-                                            std::move(new_cycle_vertices),
-                                            path_length);
+      push_back_cycles<vertex_t, edge_t, multi_gpu>(handle,
+                                                    std::move(cycle_vertex_chunks),
+                                                    std::move(cycle_length_chunks),
+                                                    std::move(new_cycle_vertices),
+                                                    path_length);
     nbrs.resize(num_extensions, handle.get_stream());
     nbr_path_idxs.resize(num_extensions, handle.get_stream());
     nbrs.shrink_to_fit(handle.get_stream());
@@ -846,11 +837,11 @@ enumerate_simple_cycles_expanding_paths(
   // path is already a simple cycle. Skip a last-hop extract and emit the leftover paths as cycles.
   if (!next_path_length && (path_vertices.size() > 0)) {
     std::tie(cycle_vertex_chunks, cycle_length_chunks) =
-      push_back_cycles<vertex_t, multi_gpu>(handle,
-                                            std::move(cycle_vertex_chunks),
-                                            std::move(cycle_length_chunks),
-                                            std::move(path_vertices),
-                                            length_bound);
+      push_back_cycles<vertex_t, edge_t, multi_gpu>(handle,
+                                                    std::move(cycle_vertex_chunks),
+                                                    std::move(cycle_length_chunks),
+                                                    std::move(path_vertices),
+                                                    length_bound);
   }
 
   return std::make_tuple(concatenate(handle, std::move(cycle_vertex_chunks)),
@@ -911,11 +902,11 @@ enumerate_simple_cycles_including_roots(
       length_bound,
       max_aggregate_paths);
   std::tie(cycle_vertex_chunks, cycle_length_chunks) =
-    push_back_cycles<vertex_t, multi_gpu>(handle,
-                                          std::move(cycle_vertex_chunks),
-                                          std::move(cycle_length_chunks),
-                                          std::move(new_cycle_vertices),
-                                          std::move(new_cycle_lengths));
+    push_back_cycles<vertex_t, edge_t, multi_gpu>(handle,
+                                                  std::move(cycle_vertex_chunks),
+                                                  std::move(cycle_length_chunks),
+                                                  std::move(new_cycle_vertices),
+                                                  std::move(new_cycle_lengths));
   if (new_path_length) {
     // expanding a chunk may again exceed max_aggregate_paths, so keep the unfinished path sets in a
     // worklist. The worklist is traversed in the DFS order (chunks created by expanding a chunk sit
@@ -962,11 +953,11 @@ enumerate_simple_cycles_including_roots(
           length_bound,
           max_aggregate_paths);
       std::tie(cycle_vertex_chunks, cycle_length_chunks) =
-        push_back_cycles<vertex_t, multi_gpu>(handle,
-                                              std::move(cycle_vertex_chunks),
-                                              std::move(cycle_length_chunks),
-                                              std::move(new_cycle_vertices),
-                                              std::move(new_cycle_lengths));
+        push_back_cycles<vertex_t, edge_t, multi_gpu>(handle,
+                                                      std::move(cycle_vertex_chunks),
+                                                      std::move(cycle_length_chunks),
+                                                      std::move(new_cycle_vertices),
+                                                      std::move(new_cycle_lengths));
       if (new_path_length) { push_unfinished(std::move(new_path_vertices), *new_path_length); }
     }
   }
@@ -1082,11 +1073,11 @@ simple_cycles_impl(raft::handle_t const& handle,
   }
 
   std::tie(cycle_vertex_chunks, cycle_length_chunks) =
-    push_back_cycles<vertex_t, multi_gpu>(handle,
-                                          std::move(cycle_vertex_chunks),
-                                          std::move(cycle_length_chunks),
-                                          std::move(length_1_cycle_vertices),
-                                          vertex_t{1});
+    push_back_cycles<vertex_t, edge_t, multi_gpu>(handle,
+                                                  std::move(cycle_vertex_chunks),
+                                                  std::move(cycle_length_chunks),
+                                                  std::move(length_1_cycle_vertices),
+                                                  vertex_t{1});
 
   if (length_bound == 1) {
     return std::make_tuple(std::move(cycle_vertex_chunks), std::move(cycle_length_chunks));
@@ -1110,11 +1101,11 @@ simple_cycles_impl(raft::handle_t const& handle,
     graph_view.local_vertex_partition_range_first());
 
   std::tie(cycle_vertex_chunks, cycle_length_chunks) =
-    push_back_cycles<vertex_t, multi_gpu>(handle,
-                                          std::move(cycle_vertex_chunks),
-                                          std::move(cycle_length_chunks),
-                                          std::move(length_2_cycle_vertices),
-                                          vertex_t{2});
+    push_back_cycles<vertex_t, edge_t, multi_gpu>(handle,
+                                                  std::move(cycle_vertex_chunks),
+                                                  std::move(cycle_length_chunks),
+                                                  std::move(length_2_cycle_vertices),
+                                                  vertex_t{2});
 
   if (length_bound == 2) {
     return std::make_tuple(std::move(cycle_vertex_chunks), std::move(cycle_length_chunks));
@@ -1477,15 +1468,15 @@ simple_cycles_impl(raft::handle_t const& handle,
             raft::device_span<vertex_t const>(reverse_distances.data(), reverse_distances.size()),
             length_bound,
             approx_path_expansion_factor);
-        num_new_cycle_vertices                             = new_cycle_vertices.size();
-        std::tie(cycle_vertex_chunks, cycle_length_chunks) = push_back_cycles<vertex_t, multi_gpu>(
-          handle,
-          std::move(cycle_vertex_chunks),
-          std::move(cycle_length_chunks),
-          std::move(new_cycle_vertices),
-          std::move(new_cycle_lengths),
-          std::make_optional(std::make_tuple(scc_graph_renumber_map.view(),
-                                             scc_graph_view.vertex_partition_range_lasts())));
+        num_new_cycle_vertices = new_cycle_vertices.size();
+        std::tie(cycle_vertex_chunks, cycle_length_chunks) =
+          push_back_cycles<vertex_t, edge_t, multi_gpu>(
+            handle,
+            std::move(cycle_vertex_chunks),
+            std::move(cycle_length_chunks),
+            std::move(new_cycle_vertices),
+            std::move(new_cycle_lengths),
+            std::make_optional(std::make_tuple(scc_graph_view, scc_graph_renumber_map.view())));
       }
 
       // 6-4. Mask out the edges to/from the picked root vertices.
@@ -1647,14 +1638,14 @@ simple_cycles_impl(raft::handle_t const& handle,
       raft::device_span<vertex_t const>(component_sizes.data(), component_sizes.size()),
       scc_graph_view.local_vertex_partition_range_first());
 
-    std::tie(cycle_vertex_chunks, cycle_length_chunks) = push_back_cycles<vertex_t, multi_gpu>(
-      handle,
-      std::move(cycle_vertex_chunks),
-      std::move(cycle_length_chunks),
-      std::move(length_2_cycle_vertices),
-      vertex_t{2},
-      std::make_optional(std::make_tuple(scc_graph_renumber_map.view(),
-                                         scc_graph_view.vertex_partition_range_lasts())));
+    std::tie(cycle_vertex_chunks, cycle_length_chunks) =
+      push_back_cycles<vertex_t, edge_t, multi_gpu>(
+        handle,
+        std::move(cycle_vertex_chunks),
+        std::move(cycle_length_chunks),
+        std::move(length_2_cycle_vertices),
+        vertex_t{2},
+        std::make_optional(std::make_tuple(scc_graph_view, scc_graph_renumber_map.view())));
 
     // 6-8. Keep only the intra SCC edges for length 3+ SCCs
 

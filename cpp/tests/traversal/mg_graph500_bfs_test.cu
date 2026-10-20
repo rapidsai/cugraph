@@ -26,6 +26,7 @@
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/device_functors.cuh>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
@@ -175,16 +176,16 @@ class Tests_GRAPH500_MGBFS
     vertex_t local_vertex_partition_range_last{};
 
     cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> mg_pruned_graph(*handle_);
-    rmm::device_uvector<vertex_t> mg_pruned_graph_renumber_map(0, handle_->get_stream());
+    cugraph::vertex_property_t<vertex_t, vertex_t> mg_pruned_graph_renumber_map(*handle_);
     rmm::device_uvector<vertex_t> mg_graph_to_pruned_graph_map(
       0, handle_->get_stream());  // we may store this in host buffer to save HBM
-    rmm::device_uvector<vertex_t> mg_pruned_graph_to_graph_map(0, handle_->get_stream());
+    cugraph::vertex_property_t<vertex_t, vertex_t> mg_pruned_graph_to_graph_map(*handle_);
 
     cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> mg_isolated_trees(*handle_);
-    rmm::device_uvector<vertex_t> mg_isolated_trees_renumber_map(0, handle_->get_stream());
+    cugraph::vertex_property_t<vertex_t, vertex_t> mg_isolated_trees_renumber_map(*handle_);
     rmm::device_uvector<vertex_t> mg_graph_to_isolated_trees_map(
       0, handle_->get_stream());  // we may store this in host buffer to save HBM
-    rmm::device_uvector<vertex_t> mg_isolated_trees_to_graph_map(0, handle_->get_stream());
+    cugraph::vertex_property_t<vertex_t, vertex_t> mg_isolated_trees_to_graph_map(*handle_);
 
     std::optional<cugraph::test::nbr_unrenumber_cache_t<vertex_t>>
       mg_pruned_graph_pred_unrenumber_cache{std::nullopt};
@@ -321,6 +322,11 @@ class Tests_GRAPH500_MGBFS
         std::tie(parents, std::ignore) =
           find_trees_from_2cores<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
             *handle_, mg_graph_view, std::nullopt, invalid_vertex, std::nullopt);
+        unrenumbered_parents = cugraph::unrenumber_int_vertices(
+          *handle_,
+          mg_graph_view,
+          rmm::device_uvector<vertex_t>(parents, handle_->get_stream()),
+          mg_renumber_map.view());
       }
 
       std::optional<rmm::device_uvector<vertex_t>> tmp_components{std::nullopt};
@@ -372,23 +378,11 @@ class Tests_GRAPH500_MGBFS
         tmp_components = std::nullopt;
       }
 
-      unrenumbered_parents.resize(parents.size(), handle_->get_stream());
-      thrust::copy(
-        handle_->get_thrust_policy(), parents.begin(), parents.end(), unrenumbered_parents.begin());
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
-        *handle_,
-        unrenumbered_parents.data(),
-        unrenumbered_parents.size(),
-        mg_renumber_map.view().value_first(),
-        raft::host_span<vertex_t const>(vertex_partition_range_offsets.data() + 1,
-                                        vertex_partition_range_offsets.size() - 1));
-
       if (bfs_usecase.use_pruned_graph_unrenumber_cache) {
         mg_pruned_graph_pred_unrenumber_cache = cugraph::test::build_nbr_unrenumber_cache(
           *handle_,
           mg_pruned_graph.view(),
-          raft::device_span<vertex_t const>(mg_pruned_graph_renumber_map.data(),
-                                            mg_pruned_graph_renumber_map.size()),
+          mg_pruned_graph_renumber_map.view(),
           invalid_vertex,
           bfs_usecase.use_large_buffer ? std::make_optional(cugraph::large_buffer_type_t::MEMORY)
                                        : std::nullopt);
@@ -647,21 +641,19 @@ class Tests_GRAPH500_MGBFS
           *handle_,
           raft::device_span<vertex_t>(d_mg_bfs_predecessors.data(), d_mg_bfs_predecessors.size()));
       } else {
-        cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        d_mg_bfs_predecessors = cugraph::unrenumber_int_vertices(
           *handle_,
-          d_mg_bfs_predecessors.data(),
-          d_mg_bfs_predecessors.size(),
-          reachable_from_2cores ? mg_pruned_graph_renumber_map.data()
-                                : mg_isolated_trees_renumber_map.data(),
-          reachable_from_2cores ? mg_pruned_graph_view.vertex_partition_range_lasts()
-                                : mg_isolated_trees_view.vertex_partition_range_lasts());
+          reachable_from_2cores ? mg_pruned_graph_view : mg_isolated_trees_view,
+          std::move(d_mg_bfs_predecessors),
+          reachable_from_2cores ? mg_pruned_graph_renumber_map.view()
+                                : mg_isolated_trees_renumber_map.view());
       }
 
       cugraph::scatter(handle_->get_thrust_policy(),
                        d_mg_bfs_predecessors.begin(),
                        d_mg_bfs_predecessors.end(),
-                       reachable_from_2cores ? mg_pruned_graph_to_graph_map.begin()
-                                             : mg_isolated_trees_to_graph_map.begin(),
+                       reachable_from_2cores ? mg_pruned_graph_to_graph_map.view().value_first()
+                                             : mg_isolated_trees_to_graph_map.view().value_first(),
                        d_mg_unrenumbered_predecessors.begin());
 
       {  // update the starting vertex's parent
@@ -712,7 +704,7 @@ class Tests_GRAPH500_MGBFS
         cugraph::scatter(handle_->get_thrust_policy(),
                          d_mg_bfs_distances.begin(),
                          d_mg_bfs_distances.end(),
-                         mg_pruned_graph_to_graph_map.begin(),
+                         mg_pruned_graph_to_graph_map.view().value_first(),
                          d_mg_distances.begin());
         update_unvisited_vertex_distances<vertex_t, vertex_t>(
           *handle_,
@@ -731,7 +723,7 @@ class Tests_GRAPH500_MGBFS
         cugraph::scatter(handle_->get_thrust_policy(),
                          d_mg_bfs_distances.begin(),
                          d_mg_bfs_distances.end(),
-                         mg_isolated_trees_to_graph_map.begin(),
+                         mg_isolated_trees_to_graph_map.view().value_first(),
                          d_mg_distances.begin());
       }
 
@@ -763,18 +755,23 @@ class Tests_GRAPH500_MGBFS
       if (bfs_usecase.validate) {
         /* renumber for validation */
 
-        rmm::device_uvector<vertex_t> d_mg_predecessors(d_mg_unrenumbered_predecessors.size(),
-                                                        handle_->get_stream());
-        thrust::copy(handle_->get_thrust_policy(),
-                     d_mg_unrenumbered_predecessors.begin(),
-                     d_mg_unrenumbered_predecessors.end(),
-                     d_mg_predecessors.begin());
-        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(*handle_,
-                                                            d_mg_predecessors.data(),
-                                                            d_mg_predecessors.size(),
-                                                            mg_renumber_map.view().value_first(),
-                                                            local_vertex_partition_range_first,
-                                                            local_vertex_partition_range_last);
+        rmm::device_uvector<vertex_t> d_mg_predecessors(0, handle_->get_stream());
+        {
+          cugraph::kv_store_t<vertex_t, vertex_t, false> ext_to_int_map(
+            mg_renumber_map.view().value_first(),
+            mg_renumber_map.view().value_first() + mg_renumber_map.view().range_size(),
+            thrust::make_counting_iterator(local_vertex_partition_range_first),
+            invalid_vertex,
+            invalid_vertex,
+            handle_->get_stream());
+          d_mg_predecessors = cugraph::collect_values_for_keys(
+            *handle_,
+            ext_to_int_map.view(),
+            d_mg_unrenumbered_predecessors.begin(),
+            d_mg_unrenumbered_predecessors.end(),
+            cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+              comm_size, major_comm_size, minor_comm_size});
+        }
 
         /* check starting vertex's predecessor */
 

@@ -436,13 +436,8 @@ mg_vertex_property_values_to_sg_vertex_property_values(
     auto sg_values   = std::move(mg_aggregate_values);
     if (sg_graph_view_and_renumber_map) {
       auto [sg_graph_view, sg_renumber_map] = *sg_graph_view_and_renumber_map;
-      cugraph::renumber_ext_vertices<vertex_t, false>(
-        handle,
-        sg_vertices.data(),
-        sg_vertices.size(),
-        sg_renumber_map.value_first(),
-        sg_graph_view.local_vertex_partition_range_first(),
-        sg_graph_view.local_vertex_partition_range_last());
+      sg_vertices                           = cugraph::renumber_ext_vertices(
+        handle, sg_graph_view, std::move(sg_vertices), sg_renumber_map);
     }
 
     std::tie(sg_vertices, sg_values) = cugraph::test::sort_by_key<vertex_t, value_t>(

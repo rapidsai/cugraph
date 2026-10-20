@@ -91,13 +91,12 @@ struct triangle_count_functor : public cugraph::c_api::abstract_functor {
             handle_, std::move(vertices), std::vector<cugraph::arithmetic_device_uvector_t>{});
         }
 
-        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+        vertices = cugraph::renumber_ext_vertices(
           handle_,
-          vertices.data(),
-          vertices.size(),
-          number_map->data(),
-          graph_view.local_vertex_partition_range_first(),
-          graph_view.local_vertex_partition_range_last(),
+          graph_view,
+          std::move(vertices),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
           do_expensive_check_);
       }
 
@@ -119,12 +118,12 @@ struct triangle_count_functor : public cugraph::c_api::abstract_functor {
         vertices.resize(graph_view.local_vertex_partition_range_size(), handle_.get_stream());
         raft::copy(vertices.data(), number_map->data(), vertices.size(), handle_.get_stream());
       } else {
-        cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        vertices = cugraph::unrenumber_int_vertices(
           handle_,
-          vertices.data(),
-          vertices.size(),
-          number_map->data(),
-          graph_view.vertex_partition_range_lasts(),
+          graph_view,
+          std::move(vertices),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
           do_expensive_check_);
       }
 

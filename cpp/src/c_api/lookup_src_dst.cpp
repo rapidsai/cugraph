@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -149,20 +149,20 @@ struct lookup_using_edge_ids_of_single_type_functor : public cugraph::c_api::abs
       auto result_srcs = std::move(std::get<0>(result));
       auto result_dsts = std::move(std::get<1>(result));
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+      result_srcs = cugraph::unrenumber_int_vertices(
         handle_,
-        result_srcs.data(),
-        result_srcs.size(),
-        renumber_map->data(),
-        graph_view.vertex_partition_range_lasts(),
+        graph_view,
+        std::move(result_srcs),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          renumber_map->data(), static_cast<vertex_t>(renumber_map->size())),
         false);
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+      result_dsts = cugraph::unrenumber_int_vertices(
         handle_,
-        result_dsts.data(),
-        result_dsts.size(),
-        renumber_map->data(),
-        graph_view.vertex_partition_range_lasts(),
+        graph_view,
+        std::move(result_dsts),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          renumber_map->data(), static_cast<vertex_t>(renumber_map->size())),
         false);
 
       result_ = new cugraph::c_api::cugraph_lookup_result_t{
@@ -245,20 +245,20 @@ struct lookup_using_edge_ids_and_types_functor : public cugraph::c_api::abstract
       auto result_srcs = std::move(std::get<0>(result));
       auto result_dsts = std::move(std::get<1>(result));
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+      result_srcs = cugraph::unrenumber_int_vertices(
         handle_,
-        result_srcs.data(),
-        result_srcs.size(),
-        renumber_map->data(),
-        graph_view.vertex_partition_range_lasts(),
+        graph_view,
+        std::move(result_srcs),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          renumber_map->data(), static_cast<vertex_t>(renumber_map->size())),
         false);
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+      result_dsts = cugraph::unrenumber_int_vertices(
         handle_,
-        result_dsts.data(),
-        result_dsts.size(),
-        renumber_map->data(),
-        graph_view.vertex_partition_range_lasts(),
+        graph_view,
+        std::move(result_dsts),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          renumber_map->data(), static_cast<vertex_t>(renumber_map->size())),
         false);
 
       result_ = new cugraph::c_api::cugraph_lookup_result_t{

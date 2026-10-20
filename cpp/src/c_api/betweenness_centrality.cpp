@@ -95,13 +95,12 @@ struct betweenness_centrality_functor : public cugraph::c_api::abstract_functor 
                                           std::vector<cugraph::arithmetic_device_uvector_t>{});
         }
 
-        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+        local_vertices = cugraph::renumber_ext_vertices(
           handle_,
-          local_vertices.data(),
-          local_vertices.size(),
-          number_map->data(),
-          graph_view.local_vertex_partition_range_first(),
-          graph_view.local_vertex_partition_range_last(),
+          graph_view,
+          std::move(local_vertices),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
           do_expensive_check_);
 
         vertex_span =
@@ -206,13 +205,12 @@ struct edge_betweenness_centrality_functor : public cugraph::c_api::abstract_fun
                                           std::vector<cugraph::arithmetic_device_uvector_t>{});
         }
 
-        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+        local_vertices = cugraph::renumber_ext_vertices(
           handle_,
-          local_vertices.data(),
-          local_vertices.size(),
-          number_map->data(),
-          graph_view.local_vertex_partition_range_first(),
-          graph_view.local_vertex_partition_range_last(),
+          graph_view,
+          std::move(local_vertices),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
           do_expensive_check_);
 
         vertex_span =
