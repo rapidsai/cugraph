@@ -12,11 +12,8 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
-#include <cugraph/prims/copy_v.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/vertex_property.hpp>
-
-#include <thrust/iterator/counting_iterator.h>
 
 #include <optional>
 #include <tuple>
@@ -65,23 +62,8 @@ rmm::device_uvector<vertex_t> vertices_in_mis_from_decision_edgelist(
   auto vertices_in_mis =
     maximal_independent_moves<vertex_t, edge_t, multi_gpu>(handle, decision_graph_view, rng_state);
 
-  vertex_property_t<vertex_t, vertex_t> numbering_indices(handle, decision_graph_view);
-  copy_v(handle,
-         decision_graph_view,
-         vertex_property_view_t{
-           thrust::make_counting_iterator(decision_graph_view.local_vertex_partition_range_first()),
-           decision_graph_view.local_vertex_partition_range_size()},
-         numbering_indices.mutable_view());
-
-  relabel<vertex_t, multi_gpu>(
-    handle,
-    std::make_tuple(numbering_indices.view().value_first(), renumber_map->view().value_first()),
-    decision_graph_view.local_vertex_partition_range_size(),
-    vertices_in_mis.data(),
-    vertices_in_mis.size(),
-    false);
-
-  numbering_indices = vertex_property_t<vertex_t, vertex_t>(handle);
+  vertices_in_mis = unrenumber_local_int_vertices(
+    handle, decision_graph_view, std::move(vertices_in_mis), renumber_map->view());
 
   renumber_map = std::nullopt;
 

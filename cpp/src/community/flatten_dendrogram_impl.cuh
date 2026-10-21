@@ -9,8 +9,11 @@
 #include <cugraph/dendrogram.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/partition_manager.hpp>
 #include <cugraph/prims/copy_v.cuh>
+#include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
 #include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 #include <cugraph/vertex_property.hpp>
 
@@ -18,8 +21,6 @@
 
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
-
-#include <thrust/iterator/counting_iterator.h>
 
 #include <numeric>
 #include <vector>
@@ -40,35 +41,36 @@ rmm::device_uvector<vertex_t> partition_at_level(raft::handle_t const& handle,
                     partition.end(),
                     dendrogram.level_range_first(0));
 
-  std::for_each(thrust::make_counting_iterator<size_t>(0),
-                thrust::make_counting_iterator<size_t>(num_levels),
-                [&handle, &dendrogram, &partition](size_t l) {
-                  rmm::device_uvector<vertex_t> local_vertex_ids_v(dendrogram.level_size(l),
-                                                                   handle.get_stream());
-
-                  cugraph::sequence(rmm::exec_policy(handle.get_stream()),
-                                    local_vertex_ids_v.begin(),
-                                    local_vertex_ids_v.end(),
-                                    dendrogram.level_range_first(l));
-
-                  cugraph::relabel<vertex_t, multi_gpu>(
-                    handle,
-                    std::tuple<vertex_t const*, vertex_t const*>(local_vertex_ids_v.data(),
-                                                                 dendrogram.level_data(l).data()),
-                    dendrogram.level_size(l),
-                    partition.data(),
-                    static_cast<vertex_t>(dendrogram.level_size(0)),
-                    false);
-                });
+  for (size_t l = 0; l < num_levels; ++l) {
+    if constexpr (multi_gpu) {
+      auto vertex_partition_range_lasts = partition_manager::compute_partition_range_lasts(
+        handle, static_cast<vertex_t>(dendrogram.level_size(l)));
+      partition = collect_values_for_int_vertices(
+        handle,
+        partition.begin(),
+        partition.end(),
+        dendrogram.level_data(l).begin(),
+        raft::host_span<vertex_t const>(vertex_partition_range_lasts.data(),
+                                        vertex_partition_range_lasts.size()),
+        dendrogram.level_range_first(l));
+    } else {
+      rmm::device_uvector<vertex_t> tmp_partition(partition.size(), handle.get_stream());
+      cugraph::gather(handle.get_thrust_policy(),
+                      partition.begin(),
+                      partition.end(),
+                      dendrogram.level_data(l).begin(),
+                      tmp_partition.begin());
+      partition = std::move(tmp_partition);
+    }
+  }
 
   return partition;
 }
 
 template <typename vertex_t, bool multi_gpu>
-void relabel_cluster_ids(raft::handle_t const& handle,
-                         rmm::device_uvector<vertex_t>& unique_cluster_ids,
-                         vertex_t* clustering,
-                         size_t num_nodes)
+rmm::device_uvector<vertex_t> relabel_cluster_ids(raft::handle_t const& handle,
+                                                  rmm::device_uvector<vertex_t>& unique_cluster_ids,
+                                                  rmm::device_uvector<vertex_t>&& clustering)
 {
   vertex_t local_cluster_id_first{0};
 
@@ -92,13 +94,12 @@ void relabel_cluster_ids(raft::handle_t const& handle,
                     numbering_indices.data() + numbering_indices.size(),
                     local_cluster_id_first);
 
-  relabel<vertex_t, multi_gpu>(
+  return relabel<vertex_t, multi_gpu>(
     handle,
-    std::make_tuple(static_cast<vertex_t const*>(unique_cluster_ids.begin()),
-                    static_cast<vertex_t const*>(numbering_indices.begin())),
-    unique_cluster_ids.size(),
-    clustering,
-    num_nodes,
+    raft::device_span<vertex_t const>(unique_cluster_ids.data(), unique_cluster_ids.size()),
+    raft::device_span<vertex_t const>(numbering_indices.data(), numbering_indices.size()),
+    std::move(clustering),
+    std::nullopt,
     false);
 }
 
@@ -124,8 +125,8 @@ vertex_property_t<vertex_t, vertex_t> flatten_dendrogram(
              cluster_ids.data(), static_cast<vertex_t>(cluster_ids.size())},
            vertex_property_view_t<vertex_t, vertex_t*, vertex_t>{
              unique_cluster_ids.data(), graph_view.local_vertex_partition_range_size()});
-    detail::relabel_cluster_ids<vertex_t, multi_gpu>(
-      handle, unique_cluster_ids, cluster_ids.data(), cluster_ids.size());
+    cluster_ids = detail::relabel_cluster_ids<vertex_t, multi_gpu>(
+      handle, unique_cluster_ids, std::move(cluster_ids));
   }
   auto const num_verts = static_cast<vertex_t>(cluster_ids.size());
 

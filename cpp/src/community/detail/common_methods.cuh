@@ -8,7 +8,6 @@
 
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
-#include <cugraph/prims/copy_v.cuh>
 #include <cugraph/prims/count_if_v.cuh>
 #include <cugraph/prims/kv_store.cuh>
 #include <cugraph/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
@@ -35,7 +34,6 @@
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/execution_policy.h>
-#include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
@@ -234,21 +232,9 @@ graph_contraction(raft::handle_t const& handle,
 
   auto new_graph_view = new_graph.view();
 
-  vertex_property_t<vertex_t, vertex_t> numbering_indices(handle, new_graph_view);
-  copy_v(handle,
-         new_graph_view,
-         vertex_property_view_t{
-           thrust::make_counting_iterator(new_graph_view.local_vertex_partition_range_first()),
-           new_graph_view.local_vertex_partition_range_size()},
-         numbering_indices.mutable_view());
-
-  relabel<vertex_t, multi_gpu>(
-    handle,
-    std::make_tuple(numbering_map->view().value_first(), numbering_indices.view().value_first()),
-    new_graph_view.local_vertex_partition_range_size(),
-    labels.mutable_view().value_first(),
-    labels.view().range_size(),
-    false);
+  labels = vertex_property_t<vertex_t, vertex_t>(
+    renumber_ext_vertices(handle, new_graph_view, labels.release_buffer(), numbering_map->view()),
+    graph_view.local_vertex_partition_range_size());
 
   return std::make_tuple(std::move(new_graph), std::move(new_edge_weights), std::move(labels));
 }

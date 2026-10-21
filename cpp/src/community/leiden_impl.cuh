@@ -450,6 +450,10 @@ std::pair<dendrogram_t<vertex_t>, weight_t> leiden(
                refined_leiden_partition.view(),
                level_clusters.mutable_view());
 
+        std::vector<vertex_t> vertex_partition_range_lasts(
+          current_graph_view.vertex_partition_range_lasts().begin(),
+          current_graph_view.vertex_partition_range_lasts().end());
+
         // Create aggregate graph based on refined (leiden) partition
         std::optional<vertex_property_t<vertex_t, vertex_t>> coarse_renumber_map{std::nullopt};
         std::tie(coarse_graph, coarsen_graph_edge_weight, coarse_renumber_map) =
@@ -458,6 +462,12 @@ std::pair<dendrogram_t<vertex_t>, weight_t> leiden(
                         current_edge_weight_view,
                         refined_leiden_partition.view(),
                         true);
+        level_clusters = vertex_property_t<vertex_t, vertex_t>(
+          renumber_ext_vertices(handle,
+                                coarse_graph.view(),
+                                level_clusters.release_buffer(),
+                                coarse_renumber_map->view()),
+          current_graph_view.local_vertex_partition_range_size());
         auto numbering_map = std::make_optional(coarse_renumber_map->release_buffer());
 
         current_graph_view = coarse_graph.view();
@@ -476,27 +486,20 @@ std::pair<dendrogram_t<vertex_t>, weight_t> leiden(
                           numeric_sequence.data() + numeric_sequence.size(),
                           current_graph_view.local_vertex_partition_range_first());
 
-        relabel<vertex_t, multi_gpu>(
-          handle,
-          std::make_tuple(static_cast<vertex_t const*>((*numbering_map).begin()),
-                          static_cast<vertex_t const*>(numeric_sequence.begin())),
-          (*numbering_map).size(),
-          level_clusters.mutable_view().value_first(),
-          level_clusters.view().range_size(),
-          false);
-
         raft::copy(louvain_of_refined_graph.begin(),
                    numbering_map->data(),
                    numbering_map->size(),
                    handle.get_stream());
 
-        relabel<vertex_t, multi_gpu>(
+        louvain_of_refined_graph = relabel<vertex_t, multi_gpu>(
           handle,
-          std::make_tuple(static_cast<vertex_t const*>(leiden_to_louvain_map.first.begin()),
-                          static_cast<vertex_t const*>(leiden_to_louvain_map.second.begin())),
-          leiden_to_louvain_map.first.size(),
-          louvain_of_refined_graph.data(),
-          louvain_of_refined_graph.size(),
+          raft::device_span<vertex_t const>(leiden_to_louvain_map.first.data(),
+                                            leiden_to_louvain_map.first.size()),
+          raft::device_span<vertex_t const>(leiden_to_louvain_map.second.data(),
+                                            leiden_to_louvain_map.second.size()),
+          std::move(louvain_of_refined_graph),
+          std::make_optional(raft::host_span<vertex_t const>(vertex_partition_range_lasts.data(),
+                                                             vertex_partition_range_lasts.size())),
           false);
 
         // Relabel clusters so that each cluster is identified by the lowest vertex id
@@ -546,13 +549,12 @@ std::pair<dendrogram_t<vertex_t>, weight_t> leiden(
           numeric_sequence.resize(new_size, handle.get_stream());
         }
 
-        relabel<vertex_t, multi_gpu>(
+        louvain_of_refined_graph = relabel<vertex_t, multi_gpu>(
           handle,
-          std::make_tuple(static_cast<vertex_t const*>((*numbering_map).begin()),
-                          static_cast<vertex_t const*>(numeric_sequence.begin())),
-          (*numbering_map).size(),
-          louvain_of_refined_graph.data(),
-          louvain_of_refined_graph.size(),
+          raft::device_span<vertex_t const>(numbering_map->data(), numbering_map->size()),
+          raft::device_span<vertex_t const>(numeric_sequence.data(), numeric_sequence.size()),
+          std::move(louvain_of_refined_graph),
+          std::nullopt,
           false);
       }
     } else {

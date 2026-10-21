@@ -14,6 +14,7 @@
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
+#include <raft/core/host_span.hpp>
 #include <raft/random/rng_state.hpp>
 
 #include <rmm/device_uvector.hpp>
@@ -1189,6 +1190,10 @@ coarsen_graph(raft::handle_t const& handle,
  * @ingroup graph_functions_cpp
  * @brief Relabel old labels to new labels.
  *
+ * @deprecated This API is deprecated and replaced by `relabel` taking old and new labels in
+ * `raft::device_span` objects partitioned following the internal or external vertex partitioning
+ * and taking and returning @p labels in an `rmm::device_uvector`.
+ *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
@@ -1216,6 +1221,44 @@ void relabel(raft::handle_t const& handle,
              vertex_t num_labels,
              bool skip_missing_labels,
              bool do_expensive_check = false);
+
+/**
+ * @ingroup graph_functions_cpp
+ * @brief Relabel old labels to new labels.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param old_labels Old labels (each process holds only part of the entire old labels). Should be
+ * unique across all processes. In multi-GPU, if @p vertex_partition_range_lasts.has_value() is
+ * true, each process should hold the old labels belonging to its local vertex partition range
+ * (internal vertex partitioning). Otherwise, each process should hold the old labels mapped to the
+ * process by the external vertex partitioning.
+ * @param new_labels New labels corresponding to the old labels in @p old_labels. Should have the
+ * same size as @p old_labels.
+ * @param labels Labels to be relabeled. This holds old labels.
+ * @param vertex_partition_range_lasts Last (exclusive) vertex IDs of the vertex partition ranges
+ * (ordered by vertex partition ID) to use the internal vertex partitioning for @p old_labels. If
+ * std::nullopt, @p old_labels should follow the external vertex partitioning. Ignored in
+ * single-GPU.
+ * @param skip_missing_labels Flag dictating the behavior on missing labels (@p labels contains old
+ * labels missing in @p old_labels). If set to true, missing elements are skipped (not relabeled).
+ * If set to false, undefined behavior (if @p do_expensive_check is set to true, this function will
+ * throw an exception).
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return rmm::device_uvector<vertex_t> New labels corresponding to the old labels in @p labels.
+ */
+template <typename vertex_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> relabel(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> old_labels,
+  raft::device_span<vertex_t const> new_labels,
+  rmm::device_uvector<vertex_t>&& labels,
+  std::optional<raft::host_span<vertex_t const>> vertex_partition_range_lasts,
+  bool skip_missing_labels,
+  bool do_expensive_check = false);
 
 // FIXME: the first two elements of the returned tuple should be source & destination instead of
 // major & minor. Major & minor shouldn't be used in the non-detail public API.
