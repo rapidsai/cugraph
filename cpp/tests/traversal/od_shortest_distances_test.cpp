@@ -125,9 +125,9 @@ class Tests_ODShortestDistances
 
     raft::random::RngState rng_state(0);
     auto origins = cugraph::select_random_vertices<vertex_t, edge_t, false, false>(
-      handle, graph_view, std::nullopt, rng_state, od_usecase.num_origins, false, true);
+      handle, rng_state, graph_view, std::nullopt, od_usecase.num_origins, false, true);
     auto destinations = cugraph::select_random_vertices<vertex_t, edge_t, false, false>(
-      handle, graph_view, std::nullopt, rng_state, od_usecase.num_destinations, false, true);
+      handle, rng_state, graph_view, std::nullopt, od_usecase.num_destinations, false, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

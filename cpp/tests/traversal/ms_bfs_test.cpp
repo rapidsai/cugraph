@@ -118,10 +118,10 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
     raft::random::RngState rng_state(0);
     auto d_sources =
       cugraph::select_random_vertices(handle,
+                                      rng_state,
                                       graph_view,
                                       std::make_optional(raft::device_span<vertex_t const>{
                                         d_first_components.data(), d_first_components.size()}),
-                                      rng_state,
                                       std::min(MsBfs_usecase.max_seeds, num_unique_labels),
                                       false,
                                       true);

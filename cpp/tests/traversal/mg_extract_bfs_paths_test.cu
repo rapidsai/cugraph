@@ -149,9 +149,9 @@ class Tests_MGExtractBFSPaths
     raft::random::RngState rng_state(0);
     auto d_mg_destinations = cugraph::select_random_vertices(
       *handle_,
+      rng_state,
       mg_graph_view,
       std::make_optional(raft::device_span<vertex_t const>{d_vertices.data(), d_vertices.size()}),
-      rng_state,
       std::min(num_of_paths_in_given_set, extract_bfs_paths_usecase.num_paths_to_check),
       false,
       false);

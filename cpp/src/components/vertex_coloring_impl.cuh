@@ -60,7 +60,7 @@ vertex_property_t<vertex_t, vertex_t> vertex_coloring(
   vertex_t color_id = 0;
   while (true) {
     auto mis = cugraph::maximal_independent_set<vertex_t, edge_t, multi_gpu>(
-      handle, current_graph_view, rng_state);
+      handle, rng_state, current_graph_view);
 
     vertex_property_t<vertex_t, bool> is_vertex_in_mis(handle, current_graph_view);
     fill_v(handle, current_graph_view, is_vertex_in_mis.mutable_view(), false);
@@ -157,8 +157,8 @@ vertex_property_t<vertex_t, vertex_t> vertex_coloring(
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 vertex_property_t<vertex_t, vertex_t> vertex_coloring(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   bool do_expensive_check)
 {
   if (do_expensive_check) {
@@ -174,7 +174,7 @@ rmm::device_uvector<vertex_t> vertex_coloring(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state)
 {
-  return vertex_coloring(handle, graph_view, rng_state, false).release_buffer();
+  return vertex_coloring(handle, rng_state, graph_view).release_buffer();
 }
 
 }  // namespace cugraph

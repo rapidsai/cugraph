@@ -104,10 +104,10 @@ rmm::device_uvector<vertex_t> maximal_independent_moves(
     // FIXME: if(nr_remaining_vertices_to_check < 1024), may avoid calling select_random_vertices
     auto d_sampled_vertices =
       cugraph::select_random_vertices(handle,
+                                      rng_state,
                                       graph_view,
                                       std::make_optional(raft::device_span<vertex_t const>{
                                         remaining_vertices.data(), remaining_vertices.size()}),
-                                      rng_state,
                                       nr_candidates,
                                       false,
                                       true);

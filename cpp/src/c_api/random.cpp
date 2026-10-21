@@ -59,9 +59,9 @@ struct select_random_vertices_functor : public cugraph::c_api::abstract_functor 
 
       local_vertices = cugraph::select_random_vertices(
         handle_,
+        rng_state_->rng_state_,
         graph_view,
         std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-        rng_state_->rng_state_,
         num_vertices_,
         false,
         false);

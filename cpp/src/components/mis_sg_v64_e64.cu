@@ -11,7 +11,12 @@ namespace cugraph {
 template CUGRAPH_EXPORT rmm::device_uvector<int64_t> maximal_independent_set(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+  raft::random::RngState& rng_state);
+
+template CUGRAPH_EXPORT rmm::device_uvector<int64_t> maximal_independent_set(
+  raft::handle_t const& handle,
   raft::random::RngState& rng_state,
+  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
   bool do_expensive_check);
 
 }  // namespace cugraph

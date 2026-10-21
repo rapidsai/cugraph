@@ -105,9 +105,9 @@ class Tests_MGInducedSubgraph
 
       auto vertices = cugraph::select_random_vertices(
         *handle_,
+        rng_state,
         mg_graph_view,
         std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-        rng_state,
         induced_subgraph_usecase.subgraph_sizes[i],
         false,
         false);

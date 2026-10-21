@@ -72,7 +72,7 @@ class Tests_SGMaximalIndependentSet
 
     raft::random::RngState rng_state(0);
     auto d_mis = cugraph::maximal_independent_set<vertex_t, edge_t, multi_gpu>(
-      handle, sg_graph_view, rng_state);
+      handle, rng_state, sg_graph_view);
 
     // Test MIS
     if (mis_usecase.check_correctness) {

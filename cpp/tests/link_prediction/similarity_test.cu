@@ -86,9 +86,9 @@ class Tests_Similarity
     if (similarity_usecase.max_seeds) {
       sources = cugraph::select_random_vertices(
         handle,
+        rng_state,
         graph_view,
         std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-        rng_state,
         std::min(*similarity_usecase.max_seeds,
                  static_cast<size_t>(graph_view.number_of_vertices())),
         false,

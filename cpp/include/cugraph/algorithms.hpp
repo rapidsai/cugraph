@@ -2904,6 +2904,9 @@ std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<vertex_t>> k_hop_nbr
  * @ingroup tree_cpp
  * @brief Find a Maximal Independent Set
  *
+ * @deprecated This API is deprecated and replaced by the overload below that takes @p rng_state
+ * right after @p handle.
+ *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -2911,14 +2914,33 @@ std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<vertex_t>> k_hop_nbr
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
  * @param rng_state The RngState instance holding pseudo-random number generator state.
- * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return A device vector containing vertices in the maximal independent set.
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> maximal_independent_set(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  raft::random::RngState& rng_state);
+
+/**
+ * @ingroup tree_cpp
+ * @brief Find a Maximal Independent Set
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param rng_state The RngState instance holding pseudo-random number generator state.
+ * @param graph_view Graph view object.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return A device vector containing vertices in the maximal independent set.
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> maximal_independent_set(
+  raft::handle_t const& handle,
   raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   bool do_expensive_check = false);
 
 /**
@@ -2970,20 +2992,17 @@ rmm::device_uvector<vertex_t> vertex_coloring(
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Graph view object.
  * @param rng_state The RngState instance holding pseudo-random number generator state.
+ * @param graph_view Graph view object.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Color vertex property values for the vertices assigned to this process.
  */
-// FIXME: do_expensive_check does not have a default value for now as a call without
-// do_expensive_check would be ambiguous with the deprecated overload above. Once the deprecated
-// overload is deleted, set the default value to false like other functions.
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 vertex_property_t<vertex_t, vertex_t> vertex_coloring(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state,
-  bool do_expensive_check);
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  bool do_expensive_check = false);
 
 /**
 .* @ingroup utility_cpp

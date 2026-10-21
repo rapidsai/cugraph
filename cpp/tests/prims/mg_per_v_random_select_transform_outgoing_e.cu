@@ -205,9 +205,9 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                                      static_cast<size_t>(mg_graph_view.number_of_vertices()));
     auto mg_vertex_buffer = cugraph::select_random_vertices(
       *handle_,
+      rng_state,
       mg_graph_view,
       std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-      rng_state,
       select_count,
       prims_usecase.with_replacement,
       false);

@@ -155,9 +155,9 @@ class Tests_MGSimpleCycles
       raft::random::RngState rng_state(handle_->get_comms().get_rank());
       d_mg_seed_vertices = cugraph::select_random_vertices(
         *handle_,
+        rng_state,
         mg_graph_view,
         std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-        rng_state,
         num_seeds,
         false /* with_replacement */,
         true /* sort_vertices */);

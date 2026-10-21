@@ -111,10 +111,10 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
     // FIXME: if(nr_remaining_vertices_to_check < 1024), may avoid calling select_random_vertices
     auto d_sampled_vertices =
       cugraph::select_random_vertices(handle,
+                                      rng_state,
                                       graph_view,
                                       std::make_optional(raft::device_span<vertex_t const>{
                                         remaining_vertices.data(), remaining_vertices.size()}),
-                                      rng_state,
                                       nr_candidates,
                                       false,
                                       true);
@@ -291,14 +291,23 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> maximal_independent_set(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   bool do_expensive_check)
 {
   if (do_expensive_check) { /* currently, nothing to do */
   }
 
   return detail::maximal_independent_set(handle, graph_view, rng_state);
+}
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> maximal_independent_set(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  raft::random::RngState& rng_state)
+{
+  return maximal_independent_set(handle, rng_state, graph_view);
 }
 
 }  // namespace cugraph

@@ -88,9 +88,9 @@ class Tests_MGEdgeBetweennessCentrality
     raft::random::RngState rng_state(handle_->get_comms().get_rank());
     auto d_mg_seeds = cugraph::select_random_vertices(
       *handle_,
+      rng_state,
       mg_graph_view,
       std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-      rng_state,
       betweenness_usecase.num_seeds,
       false,
       true);
