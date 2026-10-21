@@ -1260,11 +1260,13 @@ rmm::device_uvector<vertex_t> relabel(
   bool skip_missing_labels,
   bool do_expensive_check = false);
 
-// FIXME: the first two elements of the returned tuple should be source & destination instead of
-// major & minor. Major & minor shouldn't be used in the non-detail public API.
 /**
  * @ingroup graph_functions_cpp
  * @brief extract induced subgraph(s).
+ *
+ * @deprecated This API is deprecated and replaced by `extract_induced_subgraphs` taking edge
+ * property views in a `std::vector` and returning edge sources, edge destinations, and edge
+ * property values in a `std::vector`.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -1305,6 +1307,48 @@ extract_induced_subgraphs(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  raft::device_span<size_t const> subgraph_offsets,
+  raft::device_span<vertex_t const> subgraph_vertices,
+  bool do_expensive_check = false);
+
+/**
+ * @ingroup graph_functions_cpp
+ * @brief extract induced subgraph(s).
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
+ * true) as major indices in storing edges using a 2D sparse matrix.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object, we extract induced subgraphs from @p graph_view.
+ * @param edge_property_views View objects holding edge property values (e.g. edge weights, IDs, or
+ * types) for @p graph_view.
+ * @param subgraph_offsets Span pointing to subgraph vertex offsets
+ * @param subgraph_vertices Span pointing to subgraph vertices.
+ *        @p subgraph_offsets and @p subgraph_vertices provide vertex sets (or local vertex sets in
+ * multi-GPU) for @p subgraph_offsets.size() - 1 subgraphs to extract.  For the i'th subgraph to
+ * extract, one can extract the (local-)vertex set by accessing a subset of @p subgraph_vertices,
+ * where the range of the subset is [@p subgraph_offsetes[i], @p subgraph_offsets[i + 1]). In
+ * multi-GPU, the vertex set for each subgraph is distributed in multiple-GPUs and each GPU holds
+ *        only the vertices that are local to the GPU.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Quadruplet of edge sources, edge destinations, edge property values (one vector per
+ * element of @p edge_property_views, in the same order), and edge offsets for each induced subgraph
+ * (size == num_subgraphs + 1). The sizes of the edge sources, destinations, and property values are
+ * edge_offsets[num_subgraphs].
+ */
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::vector<arithmetic_device_uvector_t>,
+           rmm::device_uvector<size_t>>
+extract_induced_subgraphs(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::vector<edge_arithmetic_property_view_t<edge_t>> const& edge_property_views,
   raft::device_span<size_t const> subgraph_offsets,
   raft::device_span<vertex_t const> subgraph_vertices,
   bool do_expensive_check = false);
