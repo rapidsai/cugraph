@@ -1800,7 +1800,7 @@ forward_backward_intersect(
 
   constexpr bool multi_gpu = GraphViewType::is_multi_gpu;
 
-  auto in_degrees = inverse_graph_view.compute_out_degrees(handle);
+  auto in_degrees = compute_out_degrees(handle, inverse_graph_view).release_buffer();
   {
     auto tmp_degrees = rmm::device_uvector<edge_t>(graph_view.local_vertex_partition_range_size(),
                                                    handle.get_stream());
@@ -1836,7 +1836,7 @@ forward_backward_intersect(
     }
     in_degrees = std::move(tmp_degrees);
   }
-  auto out_degrees = graph_view.compute_out_degrees(handle);
+  auto out_degrees = compute_out_degrees(handle, graph_view);
 
   rmm::device_uvector<edge_t> unresolved_component_vertex_in_degrees(
     unresolved_component_vertices.size(), handle.get_stream());
@@ -1854,7 +1854,7 @@ forward_backward_intersect(
     cugraph::gather(handle.get_thrust_policy(),
                     map_first,
                     map_first + unresolved_component_vertices.size(),
-                    out_degrees.begin(),
+                    out_degrees.view().value_first(),
                     unresolved_component_vertex_out_degrees.begin());
   }
 
@@ -1867,7 +1867,7 @@ forward_backward_intersect(
     raft::device_span<vertex_t const>(unresolved_component_vertices.data(),
                                       unresolved_component_vertices.size()),
     std::move(in_degrees),
-    std::move(out_degrees));
+    out_degrees.release_buffer());
 
   auto [pivots, pivot_unresolved_component_idxs] =
     find_pivots(handle,

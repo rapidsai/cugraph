@@ -34,7 +34,6 @@
 #include <thrust/for_each.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
-#include <thrust/transform.h>
 
 namespace cugraph {
 namespace detail {
@@ -192,20 +191,18 @@ pagerank(raft::handle_t const& handle,
 
   std::optional<vertex_property_t<vertex_t, weight_t>> tmp_vertex_out_weight_sums{std::nullopt};
   if (!precomputed_vertex_out_weight_sums) {
-    rmm::device_uvector<weight_t> sums(0, handle.get_stream());
     if (edge_weight_view) {
-      sums = compute_out_weight_sums(handle, pull_graph_view, *edge_weight_view);
+      tmp_vertex_out_weight_sums =
+        compute_out_weight_sums(handle, pull_graph_view, *edge_weight_view, false);
     } else {
-      auto tmp_vertex_out_degrees = pull_graph_view.compute_out_degrees(handle);
-      sums = rmm::device_uvector<weight_t>(tmp_vertex_out_degrees.size(), handle.get_stream());
-      thrust::transform(handle.get_thrust_policy(),
-                        tmp_vertex_out_degrees.begin(),
-                        tmp_vertex_out_degrees.end(),
-                        sums.begin(),
-                        detail::typecast_t<edge_t, weight_t>{});
+      auto tmp_vertex_out_degrees = compute_out_degrees(handle, pull_graph_view);
+      tmp_vertex_out_weight_sums  = vertex_property_t<vertex_t, weight_t>(handle, pull_graph_view);
+      transform_v(handle,
+                  pull_graph_view,
+                  tmp_vertex_out_degrees.view(),
+                  detail::typecast_t<edge_t, weight_t>{},
+                  tmp_vertex_out_weight_sums->mutable_view());
     }
-    tmp_vertex_out_weight_sums = vertex_property_t<vertex_t, weight_t>(
-      std::move(sums), pull_graph_view.local_vertex_partition_range_size());
   }
   auto const out_weight_sums = precomputed_vertex_out_weight_sums
                                  ? *precomputed_vertex_out_weight_sums

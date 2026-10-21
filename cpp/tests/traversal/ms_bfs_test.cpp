@@ -191,7 +191,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
 
       vertex_t ms_sum = cugraph::test::reduce(handle, d_distances, static_cast<vertex_t>(0));
 
-      auto d_vertex_degree = graph_view.compute_out_degrees(handle);
+      auto d_vertex_degree = cugraph::compute_out_degrees(handle, graph_view).release_buffer();
 
       d_sources = cugraph::test::sort<vertex_t>(handle, std::move(d_sources));
 

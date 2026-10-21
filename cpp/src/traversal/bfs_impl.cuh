@@ -7,6 +7,7 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/prims/copy_v.cuh>
@@ -358,7 +359,7 @@ bfs(raft::handle_t const& handle,
                         multiplier_t<edge_t>{static_cast<edge_t>(
                           partition_size)});  // local_degrees => approximate global degrees
     } else {
-      approx_out_degrees = graph_view.compute_out_degrees(handle);  // exact
+      approx_out_degrees = compute_out_degrees(handle, graph_view).release_buffer();  // exact
     }
 
     rmm::device_uvector<uint32_t> visited_bitmap(

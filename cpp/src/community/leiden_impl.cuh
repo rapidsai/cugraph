@@ -94,9 +94,8 @@ std::pair<dendrogram_t<vertex_t>, weight_t> leiden(
       handle, hr_timer, "compute_vertex_and_cluster_weights");
 #endif
 
-    vertex_property_t<vertex_t, weight_t> vertex_weights(
-      compute_out_weight_sums(handle, current_graph_view, *current_edge_weight_view),
-      current_graph_view.local_vertex_partition_range_size());
+    auto vertex_weights =
+      compute_out_weight_sums(handle, current_graph_view, *current_edge_weight_view, false);
     rmm::device_uvector<vertex_t> cluster_keys(0, handle.get_stream());
     rmm::device_uvector<weight_t> cluster_weights(0, handle.get_stream());
 

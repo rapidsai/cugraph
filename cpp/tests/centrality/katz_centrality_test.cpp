@@ -137,8 +137,8 @@ class Tests_KatzCentrality
       graph_view.attach_edge_mask((*edge_mask).view());
     }
 
-    auto degrees   = graph_view.compute_in_degrees(handle);
-    auto h_degrees = cugraph::test::to_host(handle, degrees);
+    auto degrees   = cugraph::compute_in_degrees(handle, graph_view);
+    auto h_degrees = cugraph::test::to_host(handle, degrees.view());
     auto max_it    = std::max_element(h_degrees.begin(), h_degrees.end());
 
     result_t const alpha = result_t{1.0} / static_cast<result_t>(*max_it + 1);

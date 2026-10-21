@@ -68,6 +68,30 @@ rmm::device_uvector<weight_t> compute_weight_sums(
 
 }  // namespace
 
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+vertex_property_t<vertex_t, edge_t> compute_in_degrees(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  bool do_expensive_check)
+{
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
+  return vertex_property_t<vertex_t, edge_t>(graph_view.compute_in_degrees(handle),
+                                             graph_view.local_vertex_partition_range_size());
+}
+
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+vertex_property_t<vertex_t, edge_t> compute_out_degrees(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  bool do_expensive_check)
+{
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
+  return vertex_property_t<vertex_t, edge_t>(graph_view.compute_out_degrees(handle),
+                                             graph_view.local_vertex_partition_range_size());
+}
+
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -100,6 +124,42 @@ rmm::device_uvector<weight_t> compute_out_weight_sums(
   } else {
     return compute_weight_sums<true>(handle, graph_view, edge_weight_view);
   }
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+vertex_property_t<vertex_t, weight_t> compute_in_weight_sums(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
+  bool do_expensive_check)
+{
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
+  return vertex_property_t<vertex_t, weight_t>(
+    compute_in_weight_sums(handle, graph_view, edge_weight_view),
+    graph_view.local_vertex_partition_range_size());
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+vertex_property_t<vertex_t, weight_t> compute_out_weight_sums(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
+  bool do_expensive_check)
+{
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
+  return vertex_property_t<vertex_t, weight_t>(
+    compute_out_weight_sums(handle, graph_view, edge_weight_view),
+    graph_view.local_vertex_partition_range_size());
 }
 
 template <typename vertex_t,

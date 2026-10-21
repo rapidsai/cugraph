@@ -1613,7 +1613,56 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> get_two
 
 /**
  * @ingroup graph_functions_cpp
+ * @brief Compute per-vertex incoming edge degrees.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
+ * true) as major indices in storing edges using a 2D sparse matrix.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object of the input graph to compute per-vertex incoming edge
+ * degrees.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Incoming edge degrees for the vertices assigned to this process.
+ */
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+vertex_property_t<vertex_t, edge_t> compute_in_degrees(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  bool do_expensive_check = false);
+
+/**
+ * @ingroup graph_functions_cpp
+ * @brief Compute per-vertex outgoing edge degrees.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
+ * true) as major indices in storing edges using a 2D sparse matrix.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object of the input graph to compute per-vertex outgoing edge
+ * degrees.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Outgoing edge degrees for the vertices assigned to this process.
+ */
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+vertex_property_t<vertex_t, edge_t> compute_out_degrees(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  bool do_expensive_check = false);
+
+/**
+ * @ingroup graph_functions_cpp
  * @brief Compute per-vertex incoming edge weight sums.
+ *
+ * @deprecated This API is deprecated and replaced by `compute_in_weight_sums` returning a
+ * `vertex_property_t`.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -1641,7 +1690,43 @@ rmm::device_uvector<weight_t> compute_in_weight_sums(
 
 /**
  * @ingroup graph_functions_cpp
+ * @brief Compute per-vertex incoming edge weight sums.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
+ * true) as major indices in storing edges using a 2D sparse matrix.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object of the input graph to compute per-vertex incoming edge weight
+ * sums.
+ * @param edge_weight_view View object holding edge weights for @p graph_view.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Incoming edge weight sums for the vertices assigned to this process.
+ */
+// FIXME: do_expensive_check does not have a default value for now as a call without
+// do_expensive_check would conflict with the deprecated overload above. Once the deprecated
+// overload is deleted, set the default value to false like other functions.
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+vertex_property_t<vertex_t, weight_t> compute_in_weight_sums(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
+  bool do_expensive_check);
+
+/**
+ * @ingroup graph_functions_cpp
  * @brief Compute per-vertex outgoing edge weight sums.
+ *
+ * @deprecated This API is deprecated and replaced by `compute_out_weight_sums` returning a
+ * `vertex_property_t`.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -1666,6 +1751,39 @@ rmm::device_uvector<weight_t> compute_out_weight_sums(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
+
+/**
+ * @ingroup graph_functions_cpp
+ * @brief Compute per-vertex outgoing edge weight sums.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
+ * true) as major indices in storing edges using a 2D sparse matrix.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object of the input graph to compute per-vertex outgoing edge weight
+ * sums.
+ * @param edge_weight_view View object holding edge weights for @p graph_view.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Outgoing edge weight sums for the vertices assigned to this process.
+ */
+// FIXME: do_expensive_check does not have a default value for now as a call without
+// do_expensive_check would conflict with the deprecated overload above. Once the deprecated
+// overload is deleted, set the default value to false like other functions.
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+vertex_property_t<vertex_t, weight_t> compute_out_weight_sums(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
+  bool do_expensive_check);
 
 /**
  * @ingroup graph_functions_cpp

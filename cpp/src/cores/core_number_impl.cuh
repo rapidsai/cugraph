@@ -6,6 +6,7 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/copy_v.cuh>
 #include <cugraph/prims/extract_transform_if_v.cuh>
@@ -103,9 +104,7 @@ vertex_property_t<vertex_t, edge_t> core_number(
 
   vertex_property_t<vertex_t, edge_t> core_numbers(handle);
   if (cur_graph_view.is_symmetric()) {  // in-degree == out-degree
-    core_numbers =
-      vertex_property_t<vertex_t, edge_t>(cur_graph_view.compute_out_degrees(handle),
-                                          cur_graph_view.local_vertex_partition_range_size());
+    core_numbers = compute_out_degrees(handle, cur_graph_view);
     if (degree_type == k_core_degree_type_t::INOUT) {
       transform_v(handle,
                   cur_graph_view,
@@ -115,24 +114,16 @@ vertex_property_t<vertex_t, edge_t> core_number(
     }
   } else {
     if (degree_type == k_core_degree_type_t::IN) {
-      core_numbers =
-        vertex_property_t<vertex_t, edge_t>(cur_graph_view.compute_in_degrees(handle),
-                                            cur_graph_view.local_vertex_partition_range_size());
+      core_numbers = compute_in_degrees(handle, cur_graph_view);
     } else if (degree_type == k_core_degree_type_t::OUT) {
-      core_numbers =
-        vertex_property_t<vertex_t, edge_t>(cur_graph_view.compute_out_degrees(handle),
-                                            cur_graph_view.local_vertex_partition_range_size());
+      core_numbers = compute_out_degrees(handle, cur_graph_view);
     } else {
-      core_numbers =
-        vertex_property_t<vertex_t, edge_t>(cur_graph_view.compute_in_degrees(handle),
-                                            cur_graph_view.local_vertex_partition_range_size());
-      auto out_degrees = cur_graph_view.compute_out_degrees(handle);
+      core_numbers     = compute_in_degrees(handle, cur_graph_view);
+      auto out_degrees = compute_out_degrees(handle, cur_graph_view);
       transform_v(
         handle,
         cur_graph_view,
-        view_concat(core_numbers.view(),
-                    vertex_property_view_t{out_degrees.begin(),
-                                           cur_graph_view.local_vertex_partition_range_size()}),
+        view_concat(core_numbers.view(), out_degrees.view()),
         [] __device__(auto p) { return cuda::std::get<0>(p) + cuda::std::get<1>(p); },
         core_numbers.mutable_view());
     }

@@ -191,26 +191,19 @@ void perform_example_graph_operations(
   //
 
   if (edge_weight_view.has_value()) {
-    using result_t      = weight_t;
-    auto vertex_weights = cugraph::compute_out_weight_sums(handle, graph_view, *edge_weight_view);
+    using result_t = weight_t;
+    auto vertex_weights =
+      cugraph::compute_out_weight_sums(handle, graph_view, *edge_weight_view, false);
 
     cugraph::edge_src_property_t<edge_t, result_t> src_vertex_weights_cache(handle, graph_view);
 
     cugraph::edge_dst_property_t<edge_t, result_t> dst_vertex_weights_cache(handle, graph_view);
 
     cugraph::update_edge_src_property(
-      handle,
-      graph_view,
-      cugraph::vertex_property_view_t{vertex_weights.begin(),
-                                      graph_view.local_vertex_partition_range_size()},
-      src_vertex_weights_cache.mutable_view());
+      handle, graph_view, vertex_weights.view(), src_vertex_weights_cache.mutable_view());
 
     cugraph::update_edge_dst_property(
-      handle,
-      graph_view,
-      cugraph::vertex_property_view_t{vertex_weights.begin(),
-                                      graph_view.local_vertex_partition_range_size()},
-      dst_vertex_weights_cache.mutable_view());
+      handle, graph_view, vertex_weights.view(), dst_vertex_weights_cache.mutable_view());
 
     rmm::device_uvector<result_t> weighted_averages(
       size_of_the_vertex_partition_assigned_to_this_process, handle.get_stream());
@@ -244,24 +237,16 @@ void perform_example_graph_operations(
                               std::cout);
   } else {
     using result_t      = edge_t;
-    auto vertex_weights = graph_view.compute_out_degrees(handle);
+    auto vertex_weights = cugraph::compute_out_degrees(handle, graph_view);
 
     cugraph::edge_src_property_t<edge_t, result_t> src_vertex_weights_cache(handle, graph_view);
     cugraph::edge_dst_property_t<edge_t, result_t> dst_vertex_weights_cache(handle, graph_view);
 
     cugraph::update_edge_src_property(
-      handle,
-      graph_view,
-      cugraph::vertex_property_view_t{vertex_weights.begin(),
-                                      graph_view.local_vertex_partition_range_size()},
-      src_vertex_weights_cache.mutable_view());
+      handle, graph_view, vertex_weights.view(), src_vertex_weights_cache.mutable_view());
 
     cugraph::update_edge_dst_property(
-      handle,
-      graph_view,
-      cugraph::vertex_property_view_t{vertex_weights.begin(),
-                                      graph_view.local_vertex_partition_range_size()},
-      dst_vertex_weights_cache.mutable_view());
+      handle, graph_view, vertex_weights.view(), dst_vertex_weights_cache.mutable_view());
 
     rmm::device_uvector<result_t> weighted_averages(
       size_of_the_vertex_partition_assigned_to_this_process, handle.get_stream());

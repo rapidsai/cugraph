@@ -334,8 +334,8 @@ set(CUGRAPH_SG_SOURCES
     src/structure/transpose_graph_storage_sg_v32_e32.cu
     src/structure/coarsen_graph_sg_v64_e64.cu
     src/structure/coarsen_graph_sg_v32_e32.cu
-    src/structure/graph_weight_utils_sg_v64_e64.cu
-    src/structure/graph_weight_utils_sg_v32_e32.cu
+    src/structure/graph_utils_sg_v64_e64.cu
+    src/structure/graph_utils_sg_v32_e32.cu
     src/structure/renumber_edgelist_sg_v64_e64.cu
     src/structure/renumber_edgelist_sg_v32_e32.cu
     src/structure/renumber_utils_sg_v64_e64.cu
@@ -464,12 +464,10 @@ set(CUGRAPH_MG_SOURCES
     src/structure/transpose_graph_storage_mg_v32_e32.cu
     src/structure/coarsen_graph_mg_v64_e64.cu
     src/structure/coarsen_graph_mg_v32_e32.cu
-    src/structure/graph_weight_utils_mg_v64_e64.cu
-    src/structure/graph_weight_utils_mg_v32_e32.cu
+    src/structure/graph_utils_mg_v64_e64.cu
+    src/structure/graph_utils_mg_v32_e32.cu
     src/structure/renumber_edgelist_mg_v64_e64.cu
     src/structure/renumber_edgelist_mg_v32_e32.cu
-    src/structure/graph_weight_utils_mg_v64_e64.cu
-    src/structure/graph_weight_utils_mg_v32_e32.cu
     src/structure/renumber_utils_mg_v64_e64.cu
     src/structure/renumber_utils_mg_v32_e32.cu
     src/structure/relabel_mg_v64_e64.cu

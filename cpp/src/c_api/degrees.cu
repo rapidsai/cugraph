@@ -77,13 +77,20 @@ struct degrees_functor : public cugraph::c_api::abstract_functor {
       std::optional<rmm::device_uvector<edge_t>> out_degrees{std::nullopt};
 
       if (in_degrees_ && out_degrees_ && graph_view.is_symmetric()) {
-        in_degrees = store_transposed ? graph_view.compute_in_degrees(handle_)
-                                      : graph_view.compute_out_degrees(handle_);
+        in_degrees =
+          store_transposed
+            ? cugraph::compute_in_degrees(handle_, graph_view, do_expensive_check_).release_buffer()
+            : cugraph::compute_out_degrees(handle_, graph_view, do_expensive_check_)
+                .release_buffer();
         // out_degrees will be extracted from in_degrees in the result
       } else {
-        if (in_degrees_) in_degrees = graph_view.compute_in_degrees(handle_);
+        if (in_degrees_)
+          in_degrees =
+            cugraph::compute_in_degrees(handle_, graph_view, do_expensive_check_).release_buffer();
 
-        if (out_degrees_) out_degrees = graph_view.compute_out_degrees(handle_);
+        if (out_degrees_)
+          out_degrees =
+            cugraph::compute_out_degrees(handle_, graph_view, do_expensive_check_).release_buffer();
       }
 
       rmm::device_uvector<vertex_t> vertex_ids(0, handle_.get_stream());

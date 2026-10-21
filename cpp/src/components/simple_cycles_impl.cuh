@@ -20,7 +20,9 @@
 #include <cugraph/prims/make_initialized_edge_src_dst_property.cuh>
 #include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <cugraph/prims/reduce_op.cuh>
+#include <cugraph/prims/reduce_v.cuh>
 #include <cugraph/prims/transform_e.cuh>
+#include <cugraph/prims/transform_v.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/shuffle_functions.hpp>
@@ -36,6 +38,7 @@
 #include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 #include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/utilities/thrust_wrappers/unique.hpp>
+#include <cugraph/vertex_property.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -337,31 +340,22 @@ rmm::device_uvector<vertex_t> renumber_seed_vertices(
 
 // Per-vertex in-degree * out-degree (and the global sum of those products).
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<float>, double> compute_in_out_degree_products(
+std::tuple<vertex_property_t<vertex_t, float>, double> compute_in_out_degree_products(
   raft::handle_t const& handle, graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view)
 {
-  auto in_degrees  = graph_view.compute_in_degrees(handle);
-  auto out_degrees = graph_view.compute_out_degrees(handle);
-  rmm::device_uvector<float> in_out_degree_products(in_degrees.size(), handle.get_stream());
-  thrust::transform(
-    handle.get_thrust_policy(),
-    in_degrees.begin(),
-    in_degrees.end(),
-    out_degrees.begin(),
-    in_out_degree_products.begin(),
-    cuda::proclaim_return_type<float>([] __device__(edge_t in_degree, edge_t out_degree) {
-      return static_cast<float>(in_degree) * static_cast<float>(out_degree);
-    }));
+  auto in_degrees  = compute_in_degrees(handle, graph_view);
+  auto out_degrees = compute_out_degrees(handle, graph_view);
+  vertex_property_t<vertex_t, float> in_out_degree_products(handle, graph_view);
+  transform_v(handle,
+              graph_view,
+              view_concat(in_degrees.view(), out_degrees.view()),
+              cuda::proclaim_return_type<float>([] __device__(auto in_out_degree) {
+                return static_cast<float>(cuda::std::get<0>(in_out_degree)) *
+                       static_cast<float>(cuda::std::get<1>(in_out_degree));
+              }),
+              in_out_degree_products.mutable_view());
   auto sum_in_out_degree_products =
-    static_cast<double>(thrust::reduce(handle.get_thrust_policy(),
-                                       in_out_degree_products.begin(),
-                                       in_out_degree_products.end(),
-                                       float{0.0},
-                                       thrust::plus<float>{}));
-  if constexpr (multi_gpu) {
-    sum_in_out_degree_products = host_scalar_allreduce(
-      handle.get_comms(), sum_in_out_degree_products, raft::comms::op_t::SUM, handle.get_stream());
-  }
+    static_cast<double>(reduce_v(handle, graph_view, in_out_degree_products.view(), float{0.0}));
   return std::make_tuple(std::move(in_out_degree_products), sum_in_out_degree_products);
 }
 
@@ -1295,7 +1289,8 @@ simple_cycles_impl(raft::handle_t const& handle,
         auto [unique_components, unique_values] = reduce_by_component<vertex_t, multi_gpu>(
           handle,
           raft::device_span<vertex_t const>(components.data(), components.size()),
-          thrust::make_zip_iterator(root_candidate_first, in_out_degree_products.begin()),
+          thrust::make_zip_iterator(root_candidate_first,
+                                    in_out_degree_products.view().value_first()),
           select_root);
         auto unique_component_roots = std::move(std::get<0>(unique_values));
         auto num_valid_roots        = static_cast<size_t>(thrust::count_if(

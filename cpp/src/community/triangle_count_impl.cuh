@@ -388,22 +388,14 @@ std::variant<vertex_property_t<vertex_t, edge_t>, rmm::device_uvector<edge_t>> t
   std::optional<vertex_property_t<vertex_t, vertex_t>> renumber_map{std::nullopt};
 
   {
-    auto out_degrees = cur_graph_view.compute_out_degrees(handle);
+    auto out_degrees = compute_out_degrees(handle, cur_graph_view);
 
     edge_src_property_t<vertex_t, edge_t> edge_src_out_degrees(handle, cur_graph_view);
     edge_dst_property_t<vertex_t, edge_t> edge_dst_out_degrees(handle, cur_graph_view);
     update_edge_src_property(
-      handle,
-      cur_graph_view,
-      vertex_property_view_t{out_degrees.begin(),
-                             cur_graph_view.local_vertex_partition_range_size()},
-      edge_src_out_degrees.mutable_view());
+      handle, cur_graph_view, out_degrees.view(), edge_src_out_degrees.mutable_view());
     update_edge_dst_property(
-      handle,
-      cur_graph_view,
-      vertex_property_view_t{out_degrees.begin(),
-                             cur_graph_view.local_vertex_partition_range_size()},
-      edge_dst_out_degrees.mutable_view());
+      handle, cur_graph_view, out_degrees.view(), edge_dst_out_degrees.mutable_view());
     auto [srcs, dsts] =
       extract_transform_if_e(handle,
                              cur_graph_view,

@@ -7,6 +7,7 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/prims/copy_v.cuh>
 #include <cugraph/prims/count_if_v.cuh>
 #include <cugraph/prims/detail/prim_functors.cuh>
@@ -542,7 +543,7 @@ template <typename vertex_t, typename edge_t, typename origin_t, bool multi_gpu>
 std::tuple<key_bucket_t<vertex_t, origin_t, multi_gpu, true>, std::vector<size_t>>
 batch_partition_frontier(raft::handle_t const& handle,
                          graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-                         raft::device_span<edge_t const> out_degrees,
+                         vertex_property_view_t<vertex_t, edge_t const*> out_degrees,
                          key_bucket_t<vertex_t, origin_t, multi_gpu, true>&& frontier,
                          size_t num_sources)
 {
@@ -558,10 +559,10 @@ batch_partition_frontier(raft::handle_t const& handle,
       handle.get_thrust_policy(),
       frontier.begin(),
       frontier.end(),
-      [out_degrees,
+      [out_degrees            = detail::vertex_property_device_view_t{out_degrees},
        source_out_edge_counts = raft::device_span<size_t>(
          source_out_edge_counts.data(), source_out_edge_counts.size())] __device__(auto pair) {
-        auto out_degree = out_degrees[cuda::std::get<0>(pair)];
+        auto out_degree = out_degrees.get(cuda::std::get<0>(pair));
         auto source_idx = cuda::std::get<1>(pair);
         cuda::atomic_ref<size_t, cuda::thread_scope_device> counter(
           source_out_edge_counts[source_idx]);
@@ -650,7 +651,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  raft::device_span<edge_t const> out_degrees,
+  vertex_property_view_t<vertex_t, edge_t const*> out_degrees,
   raft::device_span<vertex_t const> sources,
   bool do_expensive_check)
 {
@@ -865,7 +866,7 @@ void multisource_backward_pass(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  raft::device_span<edge_t const> out_degrees,
+  vertex_property_view_t<vertex_t, edge_t const*> out_degrees,
   vertex_property_view_t<vertex_t, weight_t*> centralities,
   rmm::device_uvector<vertex_t>&& distances_2d,
   rmm::device_uvector<edge_t>&& sigmas_2d,
@@ -1357,7 +1358,7 @@ vertex_property_t<vertex_t, weight_t> betweenness_centrality(
                                         do_expensive_check);
     }
   } else {
-    auto out_degrees = graph_view.compute_out_degrees(handle);
+    auto out_degrees = compute_out_degrees(handle, graph_view);
 
     // Single-GPU: Use parallel version
     // Process sources in batches to respect origin_t (uint16_t) limit
@@ -1399,24 +1400,18 @@ vertex_property_t<vertex_t, weight_t> betweenness_centrality(
       }
 
       auto [distances_2d, sigmas_2d] = detail::multisource_bfs(
-        handle,
-        graph_view,
-        edge_weight_view,
-        raft::device_span<edge_t const>(out_degrees.data(), out_degrees.size()),
-        batch_seeds,
-        do_expensive_check);
+        handle, graph_view, edge_weight_view, out_degrees.view(), batch_seeds, do_expensive_check);
 
-      detail::multisource_backward_pass(
-        handle,
-        graph_view,
-        edge_weight_view,
-        raft::device_span<edge_t const>(out_degrees.data(), out_degrees.size()),
-        centralities.mutable_view(),
-        std::move(distances_2d),
-        std::move(sigmas_2d),
-        batch_seeds,
-        include_endpoints,
-        do_expensive_check);
+      detail::multisource_backward_pass(handle,
+                                        graph_view,
+                                        edge_weight_view,
+                                        out_degrees.view(),
+                                        centralities.mutable_view(),
+                                        std::move(distances_2d),
+                                        std::move(sigmas_2d),
+                                        batch_seeds,
+                                        include_endpoints,
+                                        do_expensive_check);
     }
   }
 

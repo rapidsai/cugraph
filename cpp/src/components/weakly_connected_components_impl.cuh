@@ -81,7 +81,8 @@ accumulate_new_roots(raft::handle_t const& handle,
                                                     GraphViewType::is_multi_gpu> vertex_partition,
                      vertex_property_view_t<typename GraphViewType::vertex_type,
                                             typename GraphViewType::vertex_type const*> components,
-                     typename GraphViewType::edge_type const* degrees,
+                     vertex_property_view_t<typename GraphViewType::vertex_type,
+                                            typename GraphViewType::edge_type const*> degrees,
                      typename GraphViewType::vertex_type const* candidate_first,
                      typename GraphViewType::vertex_type const* candidate_last,
                      typename GraphViewType::vertex_type max_new_roots,
@@ -135,8 +136,9 @@ accumulate_new_roots(raft::handle_t const& handle,
         tmp_new_roots.begin(),
         tmp_new_roots.end(),
         tmp_cumulative_degrees.begin(),
-        [vertex_partition, degrees] __device__(auto v) {
-          return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)];
+        [vertex_partition,
+         degrees = detail::vertex_property_device_view_t(degrees)] __device__(auto v) {
+          return degrees.get(vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v));
         });
       cugraph::inclusive_scan(handle.get_thrust_policy(),
                               tmp_cumulative_degrees.begin(),
@@ -353,7 +355,7 @@ weakly_connected_components_impl(raft::handle_t const& handle,
       level_graph_view.local_vertex_partition_range_first());
     auto level_components = level_component_vectors[num_levels].mutable_view();
     ++num_levels;
-    auto degrees = level_graph_view.compute_out_degrees(handle);
+    auto degrees = compute_out_degrees(handle, level_graph_view);
 
     // 2-1. filter out isolated vertices
 
@@ -363,8 +365,7 @@ weakly_connected_components_impl(raft::handle_t const& handle,
       view_concat(vertex_property_view_t{thrust::make_counting_iterator(
                                            level_graph_view.local_vertex_partition_range_first()),
                                          level_graph_view.local_vertex_partition_range_size()},
-                  vertex_property_view_t{degrees.cbegin(),
-                                         level_graph_view.local_vertex_partition_range_size()}),
+                  degrees.view()),
       cuda::proclaim_return_type<vertex_t>([] __device__(cuda::std::tuple<vertex_t, edge_t> pair) {
         auto v      = cuda::std::get<0>(pair);
         auto degree = cuda::std::get<1>(pair);
@@ -380,12 +381,15 @@ weakly_connected_components_impl(raft::handle_t const& handle,
                             // reduce the graph size and accordingly, peak memory usage)
       edge_t max_degree{0};
       vertex_t max_v = std::numeric_limits<vertex_t>::max();
-      if (degrees.size() > 0) {
-        auto max_it =
-          thrust::max_element(handle.get_thrust_policy(), degrees.begin(), degrees.end());
-        auto max_v_offset = static_cast<vertex_t>(cuda::std::distance(degrees.begin(), max_it));
+      if (level_graph_view.local_vertex_partition_range_size() > 0) {
+        auto max_it = thrust::max_element(
+          handle.get_thrust_policy(),
+          degrees.view().value_first(),
+          degrees.view().value_first() + level_graph_view.local_vertex_partition_range_size());
+        auto max_v_offset =
+          static_cast<vertex_t>(cuda::std::distance(degrees.view().value_first(), max_it));
         raft::update_host(std::addressof(max_degree),
-                          degrees.data() + max_v_offset,
+                          degrees.view().value_first() + max_v_offset,
                           size_t{1},
                           handle.get_stream());
         handle.sync_stream();
@@ -548,11 +552,11 @@ weakly_connected_components_impl(raft::handle_t const& handle,
         new_root_candidates.begin(),
         new_root_candidates.end(),
         [vertex_partition,
-         degrees   = degrees.data(),
+         degrees   = detail::vertex_property_device_view_t(degrees.view()),
          threshold = static_cast<edge_t>(
            ceil(sqrt(static_cast<double>(degree_sum_threshold) * 2.0)))] __device__(auto v) {
-          return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)] >=
-                 threshold;
+          return degrees.get(vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(
+                   v)) >= threshold;
         });
       thrust::shuffle(handle.get_thrust_policy(),
                       high_degree_partition_last,
@@ -576,8 +580,10 @@ weakly_connected_components_impl(raft::handle_t const& handle,
           new_root_candidates.begin(),
           new_root_candidates.begin() + (new_root_candidates.size() > 0 ? 1 : 0),
           cuda::proclaim_return_type<edge_t>(
-            [vertex_partition, degrees = degrees.data()] __device__(auto v) {
-              return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)];
+            [vertex_partition,
+             degrees = detail::vertex_property_device_view_t(degrees.view())] __device__(auto v) {
+              return degrees.get(
+                vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v));
             }),
           edge_t{0},
           cuda::std::plus<edge_t>{});
@@ -702,7 +708,7 @@ weakly_connected_components_impl(raft::handle_t const& handle,
             handle,
             vertex_partition,
             level_component_vectors.back().view(),
-            degrees.data(),
+            degrees.view(),
             new_root_candidates.data() + next_candidate_offset,
             new_root_candidates.data() + new_root_candidates.size(),
             iter == 0 ? init_max_new_roots : max_new_roots,
@@ -862,8 +868,10 @@ weakly_connected_components_impl(raft::handle_t const& handle,
           cuda::std::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
           cuda::std::get<0>(vertex_frontier.bucket(bucket_idx_cur).end().get_iterator_tuple()),
           cuda::proclaim_return_type<edge_t>(
-            [vertex_partition, degrees = degrees.data()] __device__(auto v) {
-              return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)];
+            [vertex_partition,
+             degrees = detail::vertex_property_device_view_t(degrees.view())] __device__(auto v) {
+              return degrees.get(
+                vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v));
             }),
           edge_t{0},
           cuda::std::plus<edge_t>());

@@ -8,6 +8,7 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/extract_transform_if_v.cuh>
 #include <cugraph/prims/fill_v.cuh>
@@ -74,8 +75,7 @@ vertex_property_t<vertex_t, vertex_t> topological_sort_level(
     }
   }
 
-  vertex_property_t<vertex_t, edge_t> in_degrees(graph_view.compute_in_degrees(handle),
-                                                 graph_view.local_vertex_partition_range_size());
+  auto in_degrees = compute_in_degrees(handle, graph_view);
 
   auto frontier_vertices = extract_transform_if_v(
     handle,

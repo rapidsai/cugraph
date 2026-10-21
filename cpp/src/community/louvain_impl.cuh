@@ -108,9 +108,8 @@ std::pair<dendrogram_t<vertex_t>, weight_t> louvain(
       handle, hr_timer, "compute_vertex_and_cluster_weights");
 #endif
 
-    vertex_weights_v = vertex_property_t<vertex_t, weight_t>(
-      compute_out_weight_sums(handle, current_graph_view, *current_edge_weight_view),
-      current_graph_view.local_vertex_partition_range_size());
+    vertex_weights_v =
+      compute_out_weight_sums(handle, current_graph_view, *current_edge_weight_view, false);
     cluster_keys_v.resize(current_graph_view.local_vertex_partition_range_size(),
                           handle.get_stream());
     cluster_weights_v.resize(current_graph_view.local_vertex_partition_range_size(),
