@@ -19,6 +19,8 @@
 #include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 #include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/utilities/thrust_wrappers/unique.hpp>
+#include <cugraph/vertex_property.hpp>
+#include <cugraph/vertex_property_device_view.cuh>
 
 #include <raft/core/handle.hpp>
 
@@ -91,7 +93,7 @@ struct indirection_compare_less_t {
 };
 
 template <typename GraphViewType,
-          typename VertexValueInputIterator,
+          typename VertexValueInputWrapper,
           typename EdgeValueInputIterator,
           typename IntersectionOp,
           typename VertexPairIndexIterator,
@@ -103,7 +105,7 @@ struct call_intersection_op_t {
                                GraphViewType::is_multi_gpu>
     edge_partition{};
   cuda::std::optional<raft::device_span<typename GraphViewType::vertex_type const>> unique_vertices;
-  VertexValueInputIterator vertex_property_first;
+  VertexValueInputWrapper vertex_value_input;
   IntersectionOp intersection_op{};
   size_t const* nbr_offsets{nullptr};
   typename GraphViewType::vertex_type const* nbr_indices{nullptr};
@@ -115,7 +117,8 @@ struct call_intersection_op_t {
 
   __device__ void operator()(size_t i) const
   {
-    using property_t = typename thrust::iterator_traits<VertexValueInputIterator>::value_type;
+    using vertex_t   = typename GraphViewType::vertex_type;
+    using property_t = typename VertexValueInputWrapper::value_type;
     using edge_property_value_t =
       typename thrust::iterator_traits<EdgeValueInputIterator>::value_type;
 
@@ -150,23 +153,21 @@ struct call_intersection_op_t {
     property_t src_prop{};
     property_t dst_prop{};
     if (unique_vertices) {
-      src_prop = *(vertex_property_first +
-                   cuda::std::distance(
-                     (*unique_vertices).begin(),
-                     thrust::lower_bound(
-                       thrust::seq, (*unique_vertices).begin(), (*unique_vertices).end(), src)));
-      dst_prop = *(vertex_property_first +
-                   cuda::std::distance(
-                     (*unique_vertices).begin(),
-                     thrust::lower_bound(
-                       thrust::seq, (*unique_vertices).begin(), (*unique_vertices).end(), dst)));
+      src_prop = vertex_value_input.get(static_cast<vertex_t>(cuda::std::distance(
+        (*unique_vertices).begin(),
+        thrust::lower_bound(
+          thrust::seq, (*unique_vertices).begin(), (*unique_vertices).end(), src))));
+      dst_prop = vertex_value_input.get(static_cast<vertex_t>(cuda::std::distance(
+        (*unique_vertices).begin(),
+        thrust::lower_bound(
+          thrust::seq, (*unique_vertices).begin(), (*unique_vertices).end(), dst))));
     } else {
       auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
       auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
       auto src_offset   = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
       auto dst_offset   = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
-      src_prop          = *(vertex_property_first + src_offset);
-      dst_prop          = *(vertex_property_first + dst_offset);
+      src_prop          = vertex_value_input.get(src_offset);
+      dst_prop          = vertex_value_input.get(dst_offset);
     }
 
     *(major_minor_pair_value_output_first + index) = intersection_op(
@@ -176,7 +177,7 @@ struct call_intersection_op_t {
 
 template <typename GraphViewType,
           typename VertexPairIterator,
-          typename VertexValueInputIterator,
+          typename VertexValueInputWrapper,
           typename EdgeValueInputWrapper,
           typename IntersectionOp,
           typename VertexPairValueOutputIterator>
@@ -186,14 +187,14 @@ void per_v_pair_transform_minor_nbr_intersection(
   EdgeValueInputWrapper edge_value_input,
   VertexPairIterator vertex_pair_first,
   VertexPairIterator vertex_pair_last,
-  VertexValueInputIterator vertex_value_input_first,
+  VertexValueInputWrapper vertex_value_input,
   IntersectionOp intersection_op,
   VertexPairValueOutputIterator vertex_pair_value_output_first,
   bool do_expensive_check = false)
 {
-  using vertex_t   = typename GraphViewType::vertex_type;
-  using edge_t     = typename GraphViewType::edge_type;
-  using property_t = typename thrust::iterator_traits<VertexValueInputIterator>::value_type;
+  using vertex_t              = typename GraphViewType::vertex_type;
+  using edge_t                = typename GraphViewType::edge_type;
+  using property_t            = typename VertexValueInputWrapper::value_type;
   using edge_property_value_t = typename EdgeValueInputWrapper::value_type;
   using result_t = typename thrust::iterator_traits<VertexPairValueOutputIterator>::value_type;
 
@@ -244,7 +245,7 @@ void per_v_pair_transform_minor_nbr_intersection(
       handle,
       raft::device_span<vertex_t const>((*sorted_unique_vertices).data(),
                                         (*sorted_unique_vertices).size()),
-      vertex_value_input_first,
+      vertex_value_input.value_first(),
       graph_view.vertex_partition_range_lasts(),
       graph_view.local_vertex_partition_range_first());
   }
@@ -375,14 +376,16 @@ void per_v_pair_transform_minor_nbr_intersection(
       }
 
       if (sorted_unique_vertices) {
-        auto vertex_value_input_for_sorted_unique_vertices_first =
-          get_dataframe_buffer_begin(*property_buffer_for_sorted_unique_vertices);
+        auto vertex_value_input_for_sorted_unique_vertices =
+          detail::vertex_property_device_view_t{vertex_property_view_t{
+            get_dataframe_buffer_cbegin(*property_buffer_for_sorted_unique_vertices),
+            static_cast<vertex_t>((*sorted_unique_vertices).size())}};
         thrust::for_each(handle.get_thrust_policy(),
                          thrust::make_counting_iterator(size_t{0}),
                          thrust::make_counting_iterator(this_chunk_size),
                          detail::call_intersection_op_t<
                            GraphViewType,
-                           decltype(vertex_value_input_for_sorted_unique_vertices_first),
+                           decltype(vertex_value_input_for_sorted_unique_vertices),
                            typename decltype(r_nbr_intersection_property_values0)::const_pointer,
                            IntersectionOp,
                            decltype(chunk_vertex_pair_index_first),
@@ -391,7 +394,7 @@ void per_v_pair_transform_minor_nbr_intersection(
                            edge_partition,
                            cuda::std::make_optional<raft::device_span<vertex_t const>>(
                              (*sorted_unique_vertices).data(), (*sorted_unique_vertices).size()),
-                           vertex_value_input_for_sorted_unique_vertices_first,
+                           vertex_value_input_for_sorted_unique_vertices,
                            intersection_op,
                            intersection_offsets.data(),
                            intersection_indices.data(),
@@ -401,13 +404,15 @@ void per_v_pair_transform_minor_nbr_intersection(
                            vertex_pair_first,
                            vertex_pair_value_output_first});
       } else {
+        auto vertex_value_input_device_view =
+          detail::vertex_property_device_view_t{vertex_value_input};
         thrust::for_each(
           handle.get_thrust_policy(),
           thrust::make_counting_iterator(size_t{0}),
           thrust::make_counting_iterator(this_chunk_size),
           detail::call_intersection_op_t<
             GraphViewType,
-            VertexValueInputIterator,
+            decltype(vertex_value_input_device_view),
             typename decltype(r_nbr_intersection_property_values0)::const_pointer,
             IntersectionOp,
             decltype(chunk_vertex_pair_index_first),
@@ -415,7 +420,7 @@ void per_v_pair_transform_minor_nbr_intersection(
             VertexPairValueOutputIterator>{
             edge_partition,
             cuda::std::optional<raft::device_span<vertex_t const>>{cuda::std::nullopt},
-            vertex_value_input_first,
+            vertex_value_input_device_view,
             intersection_op,
             intersection_offsets.data(),
             intersection_indices.data(),
@@ -442,7 +447,7 @@ void per_v_pair_transform_minor_nbr_intersection(
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexPairIterator Type of the iterator for input vertex pairs.
- * @tparam VertexValueInputIterator Type of the iterator for vertex property values.
+ * @tparam VertexValueInputWrapper Type of the wrapper for vertex property values.
  * @tparam EdgeValueInputIterator Type of the iterator for edge property values.
  * @tparam IntersectionOp Type of the quinary per intersection operator.
  * @tparam VertexPairValueOutputIterator Type of the iterator for vertex pair output property
@@ -456,10 +461,8 @@ void per_v_pair_transform_minor_nbr_intersection(
  * access edge property values).
  * @param vertex_pair_first Iterator pointing to the first (inclusive) input vertex pair.
  * @param vertex_pair_last Iterator pointing to the last (exclusive) input vertex pair.
- * @param vertex_value_input_first Iterator pointing to the vertex property value for the first
- * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
- * `vertex_value_input_last` (exclusive) is deduced as @p vertex_value_input_first + @p
- * graph_view.local_vertex_partition_range_size().
+ * @param vertex_value_input Wrapper used to access vertex input property values (for the vertices
+ * assigned to this process in multi-GPU). Use cugraph::vertex_property_t::view().
  * @param intersection_op quinary operator takes first vertex of the pair, second vertex of the
  * pair, property values for the first vertex, property values for the second vertex, and a list of
  * vertices in the intersection of the first & second vertices' source neighbors and returns an
@@ -471,7 +474,7 @@ void per_v_pair_transform_minor_nbr_intersection(
  */
 template <typename GraphViewType,
           typename VertexPairIterator,
-          typename VertexValueInputIterator,
+          typename VertexValueInputWrapper,
           typename EdgeValueInputWrapper,
           typename IntersectionOp,
           typename VertexPairValueOutputIterator>
@@ -481,7 +484,7 @@ void per_v_pair_transform_src_nbr_intersection(
   EdgeValueInputWrapper edge_value_input,
   VertexPairIterator vertex_pair_first,
   VertexPairIterator vertex_pair_last,
-  VertexValueInputIterator vertex_value_input_first,
+  VertexValueInputWrapper vertex_value_input,
   IntersectionOp intersection_op,
   VertexPairValueOutputIterator vertex_pair_value_output_first,
   bool do_expensive_check = false)
@@ -493,7 +496,7 @@ void per_v_pair_transform_src_nbr_intersection(
                                                       edge_value_input,
                                                       vertex_pair_first,
                                                       vertex_pair_last,
-                                                      vertex_value_input_first,
+                                                      vertex_value_input,
                                                       intersection_op,
                                                       vertex_pair_value_output_first,
                                                       do_expensive_check);
@@ -508,7 +511,7 @@ void per_v_pair_transform_src_nbr_intersection(
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexPairIterator Type of the iterator for input vertex pairs.
- * @tparam VertexValueInputIterator Type of the iterator for vertex property values.
+ * @tparam VertexValueInputWrapper Type of the wrapper for vertex property values.
  * @tparam EdgeValueInputIterator Type of the iterator for edge property values.
  * @tparam IntersectionOp Type of the quinary per intersection operator.
  * @tparam VertexPairValueOutputIterator Type of the iterator for vertex pair output property
@@ -522,10 +525,8 @@ void per_v_pair_transform_src_nbr_intersection(
  * access edge property values).
  * @param vertex_pair_first Iterator pointing to the first (inclusive) input vertex pair.
  * @param vertex_pair_last Iterator pointing to the last (exclusive) input vertex pair.
- * @param vertex_value_input_first Iterator pointing to the vertex property value for the first
- * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
- * `vertex_value_input_last` (exclusive) is deduced as @p vertex_value_input_first + @p
- * graph_view.local_vertex_partition_range_size().
+ * @param vertex_value_input Wrapper used to access vertex input property values (for the vertices
+ * assigned to this process in multi-GPU). Use cugraph::vertex_property_t::view().
  * @param intersection_op quinary operator takes first vertex of the pair, second vertex of the
  * pair, property values for the first vertex, property values for the second vertex, and a list of
  * vertices in the intersection of the first & second vertices' destination neighbors and returns an
@@ -537,7 +538,7 @@ void per_v_pair_transform_src_nbr_intersection(
  */
 template <typename GraphViewType,
           typename VertexPairIterator,
-          typename VertexValueInputIterator,
+          typename VertexValueInputWrapper,
           typename EdgeValueInputWrapper,
           typename IntersectionOp,
           typename VertexPairValueOutputIterator>
@@ -547,7 +548,7 @@ void per_v_pair_transform_dst_nbr_intersection(
   EdgeValueInputWrapper edge_value_input,
   VertexPairIterator vertex_pair_first,
   VertexPairIterator vertex_pair_last,
-  VertexValueInputIterator vertex_value_input_first,
+  VertexValueInputWrapper vertex_value_input,
   IntersectionOp intersection_op,
   VertexPairValueOutputIterator vertex_pair_value_output_first,
   bool do_expensive_check = false)
@@ -559,7 +560,7 @@ void per_v_pair_transform_dst_nbr_intersection(
                                                       edge_value_input,
                                                       vertex_pair_first,
                                                       vertex_pair_last,
-                                                      vertex_value_input_first,
+                                                      vertex_value_input,
                                                       intersection_op,
                                                       vertex_pair_value_output_first,
                                                       do_expensive_check);

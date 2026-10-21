@@ -150,7 +150,7 @@ class Tests_MGPerVPairTransformSrcDstNbrIntersection
 
     auto mg_result_buffer = cugraph::allocate_dataframe_buffer<cuda::std::tuple<edge_t, edge_t>>(
       cugraph::size_dataframe_buffer(mg_vertex_pair_buffer), handle_->get_stream());
-    auto mg_out_degrees = mg_graph_view.compute_out_degrees(*handle_);
+    auto mg_out_degrees = cugraph::compute_out_degrees(*handle_, mg_graph_view);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -165,7 +165,7 @@ class Tests_MGPerVPairTransformSrcDstNbrIntersection
         cugraph::edge_dummy_property_t{}.view(),
         cugraph::get_dataframe_buffer_begin(mg_vertex_pair_buffer),
         cugraph::get_dataframe_buffer_end(mg_vertex_pair_buffer),
-        mg_out_degrees.begin(),
+        mg_out_degrees.view(),
         intersection_op_t<vertex_t, edge_t>{},
         cugraph::get_dataframe_buffer_begin(mg_result_buffer));
     } else {
@@ -175,7 +175,7 @@ class Tests_MGPerVPairTransformSrcDstNbrIntersection
         cugraph::edge_dummy_property_t{}.view(),
         cugraph::get_dataframe_buffer_begin(mg_vertex_pair_buffer),
         cugraph::get_dataframe_buffer_end(mg_vertex_pair_buffer),
-        mg_out_degrees.begin(),
+        mg_out_degrees.view(),
         intersection_op_t<vertex_t, edge_t>{},
         cugraph::get_dataframe_buffer_begin(mg_result_buffer));
     }
@@ -238,7 +238,7 @@ class Tests_MGPerVPairTransformSrcDstNbrIntersection
         auto sg_result_buffer =
           cugraph::allocate_dataframe_buffer<cuda::std::tuple<edge_t, edge_t>>(
             cugraph::size_dataframe_buffer(mg_aggregate_vertex_pair_buffer), handle_->get_stream());
-        auto sg_out_degrees = sg_graph_view.compute_out_degrees(*handle_);
+        auto sg_out_degrees = cugraph::compute_out_degrees(*handle_, sg_graph_view);
 
         if constexpr (store_transposed) {
           cugraph::per_v_pair_transform_src_nbr_intersection(
@@ -249,7 +249,7 @@ class Tests_MGPerVPairTransformSrcDstNbrIntersection
               mg_aggregate_vertex_pair_buffer /* now unrenumbered */),
             cugraph::get_dataframe_buffer_end(
               mg_aggregate_vertex_pair_buffer /* now unrenumbered */),
-            sg_out_degrees.begin(),
+            sg_out_degrees.view(),
             intersection_op_t<vertex_t, edge_t>{},
             cugraph::get_dataframe_buffer_begin(sg_result_buffer));
         } else {
@@ -261,7 +261,7 @@ class Tests_MGPerVPairTransformSrcDstNbrIntersection
               mg_aggregate_vertex_pair_buffer /* now unrenumbered */),
             cugraph::get_dataframe_buffer_end(
               mg_aggregate_vertex_pair_buffer /* now unrenumbered */),
-            sg_out_degrees.begin(),
+            sg_out_degrees.view(),
             intersection_op_t<vertex_t, edge_t>{},
             cugraph::get_dataframe_buffer_begin(sg_result_buffer));
         }

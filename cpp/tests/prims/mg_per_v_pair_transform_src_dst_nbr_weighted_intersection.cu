@@ -14,6 +14,7 @@
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/per_v_pair_transform_src_dst_nbr_intersection.cuh>
 #include <cugraph/shuffle_functions.hpp>
@@ -175,7 +176,8 @@ class Tests_MGPerVPairTransformSrcDstNbrWeightedIntersection
     auto mg_result_buffer =
       cugraph::allocate_dataframe_buffer<cuda::std::tuple<weight_t, weight_t>>(
         cugraph::size_dataframe_buffer(mg_vertex_pair_buffer), handle_->get_stream());
-    auto mg_out_weight_sums = compute_out_weight_sums(*handle_, mg_graph_view, mg_edge_weight_view);
+    auto mg_out_weight_sums =
+      cugraph::compute_out_weight_sums(*handle_, mg_graph_view, mg_edge_weight_view, false);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -190,7 +192,7 @@ class Tests_MGPerVPairTransformSrcDstNbrWeightedIntersection
         mg_edge_weight_view,
         cugraph::get_dataframe_buffer_begin(mg_vertex_pair_buffer),
         cugraph::get_dataframe_buffer_end(mg_vertex_pair_buffer),
-        mg_out_weight_sums.begin(),
+        mg_out_weight_sums.view(),
         intersection_op_t<vertex_t, edge_t, weight_t>{},
         cugraph::get_dataframe_buffer_begin(mg_result_buffer));
     } else {
@@ -200,7 +202,7 @@ class Tests_MGPerVPairTransformSrcDstNbrWeightedIntersection
         mg_edge_weight_view,
         cugraph::get_dataframe_buffer_begin(mg_vertex_pair_buffer),
         cugraph::get_dataframe_buffer_end(mg_vertex_pair_buffer),
-        mg_out_weight_sums.begin(),
+        mg_out_weight_sums.view(),
         intersection_op_t<vertex_t, edge_t, weight_t>{},
         cugraph::get_dataframe_buffer_begin(mg_result_buffer));
     }
@@ -268,8 +270,8 @@ class Tests_MGPerVPairTransformSrcDstNbrWeightedIntersection
           cugraph::allocate_dataframe_buffer<cuda::std::tuple<weight_t, weight_t>>(
             cugraph::size_dataframe_buffer(mg_aggregate_vertex_pair_buffer), handle_->get_stream());
 
-        rmm::device_uvector<weight_t> sg_out_weight_sums =
-          compute_out_weight_sums(*handle_, sg_graph_view, (*sg_edge_weight).view());
+        auto sg_out_weight_sums = cugraph::compute_out_weight_sums(
+          *handle_, sg_graph_view, (*sg_edge_weight).view(), false);
 
         if constexpr (store_transposed) {
           cugraph::per_v_pair_transform_src_nbr_intersection(
@@ -280,7 +282,7 @@ class Tests_MGPerVPairTransformSrcDstNbrWeightedIntersection
               mg_aggregate_vertex_pair_buffer /* now unrenumbered */),
             cugraph::get_dataframe_buffer_end(
               mg_aggregate_vertex_pair_buffer /* now unrenumbered */),
-            sg_out_weight_sums.begin(),
+            sg_out_weight_sums.view(),
             intersection_op_t<vertex_t, edge_t, weight_t>{},
             cugraph::get_dataframe_buffer_begin(sg_result_buffer));
         } else {
@@ -292,7 +294,7 @@ class Tests_MGPerVPairTransformSrcDstNbrWeightedIntersection
               mg_aggregate_vertex_pair_buffer /* now unrenumbered */),
             cugraph::get_dataframe_buffer_end(
               mg_aggregate_vertex_pair_buffer /* now unrenumbered */),
-            sg_out_weight_sums.begin(),
+            sg_out_weight_sums.view(),
             intersection_op_t<vertex_t, edge_t, weight_t>{},
             cugraph::get_dataframe_buffer_begin(sg_result_buffer));
         }
