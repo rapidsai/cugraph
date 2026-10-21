@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -115,6 +115,8 @@ cugraph_bfs(const cugraph_resource_handle_t* handle,
  * This function computes the distances (minimum edge weight sums) from the source
  * vertex. If @p predecessors is not NULL, this function calculates the predecessor of each
  * vertex (parent vertex in the breadth-first search tree) as well.
+ *
+ * The graph must have edge weights; an unweighted graph returns CUGRAPH_INVALID_INPUT.
  *
  * @param [in]  handle       Handle for accessing resources
  * @param [in]  graph        Pointer to graph
