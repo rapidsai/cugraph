@@ -71,61 +71,55 @@ struct negative_sampling_functor : public cugraph::c_api::abstract_functor {
     rmm::device_uvector<vertex_t> const& number_map)
   {
     rmm::device_uvector<vertex_t> vertices(0, handle_.get_stream());
-    rmm::device_uvector<bias_t> src_biases(0, handle_.get_stream());
-    rmm::device_uvector<bias_t> dst_biases(0, handle_.get_stream());
+    std::optional<cugraph::vertex_property_t<vertex_t, bias_t>> src_biases{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, bias_t>> dst_biases{std::nullopt};
 
     if (src_biases_ != nullptr) {
       vertices.resize(vertices_->size_, handle_.get_stream());
-      src_biases.resize(src_biases_->size_, handle_.get_stream());
+      rmm::device_uvector<bias_t> biases(src_biases_->size_, handle_.get_stream());
 
       raft::copy(
         vertices.data(), vertices_->as_type<vertex_t>(), vertices.size(), handle_.get_stream());
       raft::copy(
-        src_biases.data(), src_biases_->as_type<bias_t>(), src_biases.size(), handle_.get_stream());
+        biases.data(), src_biases_->as_type<bias_t>(), biases.size(), handle_.get_stream());
 
       src_biases = cugraph::detail::collect_local_vertex_values_from_ext_vertex_value_pairs(
-                     handle_,
-                     graph_view,
-                     std::move(vertices),
-                     std::move(src_biases),
-                     cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
-                       number_map.data(), static_cast<vertex_t>(number_map.size())),
-                     bias_t{0},
-                     do_expensive_check_)
-                     .release_buffer();
+        handle_,
+        graph_view,
+        std::move(vertices),
+        std::move(biases),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map.data(), static_cast<vertex_t>(number_map.size())),
+        bias_t{0},
+        do_expensive_check_);
     }
 
     if (dst_biases_ != nullptr) {
       vertices.resize(vertices_->size_, handle_.get_stream());
-      dst_biases.resize(dst_biases_->size_, handle_.get_stream());
+      rmm::device_uvector<bias_t> biases(dst_biases_->size_, handle_.get_stream());
 
       raft::copy(
         vertices.data(), vertices_->as_type<vertex_t>(), vertices.size(), handle_.get_stream());
       raft::copy(
-        dst_biases.data(), dst_biases_->as_type<bias_t>(), dst_biases.size(), handle_.get_stream());
+        biases.data(), dst_biases_->as_type<bias_t>(), biases.size(), handle_.get_stream());
 
       dst_biases = cugraph::detail::collect_local_vertex_values_from_ext_vertex_value_pairs(
-                     handle_,
-                     graph_view,
-                     std::move(vertices),
-                     std::move(dst_biases),
-                     cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
-                       number_map.data(), static_cast<vertex_t>(number_map.size())),
-                     bias_t{0},
-                     do_expensive_check_)
-                     .release_buffer();
+        handle_,
+        graph_view,
+        std::move(vertices),
+        std::move(biases),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map.data(), static_cast<vertex_t>(number_map.size())),
+        bias_t{0},
+        do_expensive_check_);
     }
 
     return cugraph::negative_sampling(
       handle_,
       rng_state_->rng_state_,
       graph_view,
-      (src_biases_ != nullptr)
-        ? std::make_optional(raft::device_span<bias_t const>{src_biases.data(), src_biases.size()})
-        : std::nullopt,
-      (dst_biases_ != nullptr)
-        ? std::make_optional(raft::device_span<bias_t const>{dst_biases.data(), dst_biases.size()})
-        : std::nullopt,
+      src_biases ? std::make_optional(src_biases->view()) : std::nullopt,
+      dst_biases ? std::make_optional(dst_biases->view()) : std::nullopt,
       num_samples_,
       remove_duplicates_,
       remove_existing_edges_,
