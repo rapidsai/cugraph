@@ -13,6 +13,7 @@ template CUGRAPH_EXPORT vertex_property_t<int32_t, int32_t> flatten_dendrogram(
   raft::handle_t const&,
   graph_view_t<int32_t, int32_t, false, true> const&,
   dendrogram_t<int32_t> const&,
+  bool,
   bool);
 template CUGRAPH_EXPORT void flatten_dendrogram(raft::handle_t const&,
                                                 graph_view_t<int32_t, int32_t, false, true> const&,

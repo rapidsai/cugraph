@@ -371,8 +371,12 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<vertex_property_t<vertex_t, vertex_t>, weight_t> approx_weighted_matching(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  edge_property_view_t<edge_t, weight_t const*> edge_weight_view)
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
+  bool do_expensive_check)
 {
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
+
   return detail::approximate_weighted_matching(handle, graph_view, edge_weight_view);
 }
 

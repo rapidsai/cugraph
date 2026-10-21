@@ -56,7 +56,8 @@ template CUGRAPH_EXPORT std::pair<dendrogram_t<int32_t>, float> louvain_dendrogr
   std::optional<edge_property_view_t<int32_t, float const*>>,
   size_t,
   float,
-  float);
+  float,
+  bool);
 
 template CUGRAPH_EXPORT std::pair<dendrogram_t<int32_t>, double> louvain_dendrogram(
   raft::handle_t const&,
@@ -65,7 +66,8 @@ template CUGRAPH_EXPORT std::pair<dendrogram_t<int32_t>, double> louvain_dendrog
   std::optional<edge_property_view_t<int32_t, double const*>>,
   size_t,
   double,
-  double);
+  double,
+  bool);
 
 template CUGRAPH_EXPORT std::tuple<vertex_property_t<int32_t, int32_t>, size_t, float> louvain(
   raft::handle_t const&,
@@ -75,7 +77,8 @@ template CUGRAPH_EXPORT std::tuple<vertex_property_t<int32_t, int32_t>, size_t, 
   bool,
   size_t,
   float,
-  float);
+  float,
+  bool);
 
 template CUGRAPH_EXPORT std::tuple<vertex_property_t<int32_t, int32_t>, size_t, double> louvain(
   raft::handle_t const&,
@@ -85,6 +88,7 @@ template CUGRAPH_EXPORT std::tuple<vertex_property_t<int32_t, int32_t>, size_t, 
   bool,
   size_t,
   double,
-  double);
+  double,
+  bool);
 
 }  // namespace cugraph

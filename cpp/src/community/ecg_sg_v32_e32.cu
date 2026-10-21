@@ -42,7 +42,8 @@ template CUGRAPH_EXPORT std::tuple<vertex_property_t<int32_t, int32_t>, size_t, 
   bool compact_cluster_ids,
   size_t max_level,
   float threshold,
-  float resolution);
+  float resolution,
+  bool do_expensive_check);
 
 template CUGRAPH_EXPORT std::tuple<vertex_property_t<int32_t, int32_t>, size_t, double> ecg(
   raft::handle_t const& handle,
@@ -54,6 +55,7 @@ template CUGRAPH_EXPORT std::tuple<vertex_property_t<int32_t, int32_t>, size_t, 
   bool compact_cluster_ids,
   size_t max_level,
   double threshold,
-  double resolution);
+  double resolution,
+  bool do_expensive_check);
 
 }  // namespace cugraph

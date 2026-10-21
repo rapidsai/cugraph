@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -1188,8 +1188,12 @@ symmetrize_edgelist(raft::handle_t const& handle,
                     std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
                     std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_start_times,
                     std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_end_times,
-                    bool reciprocal)
+                    bool reciprocal,
+                    bool do_expensive_check)
 {
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
+
   auto edgelist_majors = std::move(store_transposed ? edgelist_dsts : edgelist_srcs);
   auto edgelist_minors = std::move(store_transposed ? edgelist_srcs : edgelist_dsts);
   std::tie(edgelist_majors,

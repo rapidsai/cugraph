@@ -147,65 +147,77 @@ compute_out_weight_sums<int64_t, int64_t, double, true, true>(
 template CUGRAPH_EXPORT float compute_max_in_weight_sum<int64_t, int64_t, float, false, true>(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, false, true> const& graph_view,
-  edge_property_view_t<int64_t, float const*> edge_weight_view);
+  edge_property_view_t<int64_t, float const*> edge_weight_view,
+  bool do_expensive_check);
 
 template CUGRAPH_EXPORT float compute_max_in_weight_sum<int64_t, int64_t, float, true, true>(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, true, true> const& graph_view,
-  edge_property_view_t<int64_t, float const*> edge_weight_view);
+  edge_property_view_t<int64_t, float const*> edge_weight_view,
+  bool do_expensive_check);
 
 template CUGRAPH_EXPORT double compute_max_in_weight_sum<int64_t, int64_t, double, false, true>(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, false, true> const& graph_view,
-  edge_property_view_t<int64_t, double const*> edge_weight_view);
+  edge_property_view_t<int64_t, double const*> edge_weight_view,
+  bool do_expensive_check);
 
 template CUGRAPH_EXPORT double compute_max_in_weight_sum<int64_t, int64_t, double, true, true>(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, true, true> const& graph_view,
-  edge_property_view_t<int64_t, double const*> edge_weight_view);
+  edge_property_view_t<int64_t, double const*> edge_weight_view,
+  bool do_expensive_check);
 
 // compute_max_out_weight_sum
 
 template CUGRAPH_EXPORT float compute_max_out_weight_sum<int64_t, int64_t, float, false, true>(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, false, true> const& graph_view,
-  edge_property_view_t<int64_t, float const*> edge_weight_view);
+  edge_property_view_t<int64_t, float const*> edge_weight_view,
+  bool do_expensive_check);
 
 template CUGRAPH_EXPORT float compute_max_out_weight_sum<int64_t, int64_t, float, true, true>(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, true, true> const& graph_view,
-  edge_property_view_t<int64_t, float const*> edge_weight_view);
+  edge_property_view_t<int64_t, float const*> edge_weight_view,
+  bool do_expensive_check);
 
 template CUGRAPH_EXPORT double compute_max_out_weight_sum<int64_t, int64_t, double, false, true>(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, false, true> const& graph_view,
-  edge_property_view_t<int64_t, double const*> edge_weight_view);
+  edge_property_view_t<int64_t, double const*> edge_weight_view,
+  bool do_expensive_check);
 
 template CUGRAPH_EXPORT double compute_max_out_weight_sum<int64_t, int64_t, double, true, true>(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, true, true> const& graph_view,
-  edge_property_view_t<int64_t, double const*> edge_weight_view);
+  edge_property_view_t<int64_t, double const*> edge_weight_view,
+  bool do_expensive_check);
 
 // compute_total_edge_weight
 
 template CUGRAPH_EXPORT float compute_total_edge_weight<int64_t, int64_t, float, false, true>(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, false, true> const& graph_view,
-  edge_property_view_t<int64_t, float const*> edge_weight_view);
+  edge_property_view_t<int64_t, float const*> edge_weight_view,
+  bool do_expensive_check);
 
 template CUGRAPH_EXPORT float compute_total_edge_weight<int64_t, int64_t, float, true, true>(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, true, true> const& graph_view,
-  edge_property_view_t<int64_t, float const*> edge_weight_view);
+  edge_property_view_t<int64_t, float const*> edge_weight_view,
+  bool do_expensive_check);
 
 template CUGRAPH_EXPORT double compute_total_edge_weight<int64_t, int64_t, double, false, true>(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, false, true> const& graph_view,
-  edge_property_view_t<int64_t, double const*> edge_weight_view);
+  edge_property_view_t<int64_t, double const*> edge_weight_view,
+  bool do_expensive_check);
 
 template CUGRAPH_EXPORT double compute_total_edge_weight<int64_t, int64_t, double, true, true>(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, true, true> const& graph_view,
-  edge_property_view_t<int64_t, double const*> edge_weight_view);
+  edge_property_view_t<int64_t, double const*> edge_weight_view,
+  bool do_expensive_check);
 
 }  // namespace cugraph

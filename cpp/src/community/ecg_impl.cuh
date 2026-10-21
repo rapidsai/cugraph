@@ -159,8 +159,12 @@ std::tuple<vertex_property_t<vertex_t, vertex_t>, size_t, weight_t> ecg(
   bool compact_cluster_ids,
   size_t max_level,
   weight_t threshold,
-  weight_t resolution)
+  weight_t resolution,
+  bool do_expensive_check)
 {
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
+
   return detail::ecg(handle,
                      rng_state,
                      graph_view,

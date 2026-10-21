@@ -6,6 +6,7 @@
 
 #include "community/detail/common_methods.hpp"
 
+#include <cugraph/algorithms.hpp>
 #include <cugraph/dendrogram.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
@@ -110,9 +111,13 @@ vertex_property_t<vertex_t, vertex_t> flatten_dendrogram(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   dendrogram_t<vertex_t> const& dendrogram,
-  bool compact_cluster_ids)
+  bool compact_cluster_ids,
+  bool do_expensive_check)
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
 
   auto cluster_ids =
     detail::partition_at_level<vertex_t, multi_gpu>(handle, dendrogram, dendrogram.num_levels());

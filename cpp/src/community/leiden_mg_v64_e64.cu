@@ -56,7 +56,8 @@ template CUGRAPH_EXPORT std::pair<dendrogram_t<int64_t>, float> leiden_dendrogra
   std::optional<edge_property_view_t<int64_t, float const*>>,
   size_t,
   float,
-  float);
+  float,
+  bool);
 
 template CUGRAPH_EXPORT std::pair<dendrogram_t<int64_t>, double> leiden_dendrogram(
   raft::handle_t const&,
@@ -65,7 +66,8 @@ template CUGRAPH_EXPORT std::pair<dendrogram_t<int64_t>, double> leiden_dendrogr
   std::optional<edge_property_view_t<int64_t, double const*>>,
   size_t,
   double,
-  double);
+  double,
+  bool);
 
 template CUGRAPH_EXPORT std::tuple<vertex_property_t<int64_t, int64_t>, size_t, float> leiden(
   raft::handle_t const&,
@@ -75,7 +77,8 @@ template CUGRAPH_EXPORT std::tuple<vertex_property_t<int64_t, int64_t>, size_t, 
   bool,
   size_t,
   float,
-  float);
+  float,
+  bool);
 
 template CUGRAPH_EXPORT std::tuple<vertex_property_t<int64_t, int64_t>, size_t, double> leiden(
   raft::handle_t const&,
@@ -85,6 +88,7 @@ template CUGRAPH_EXPORT std::tuple<vertex_property_t<int64_t, int64_t>, size_t, 
   bool,
   size_t,
   double,
-  double);
+  double,
+  bool);
 
 }  // namespace cugraph

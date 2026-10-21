@@ -134,8 +134,12 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   vertex_property_view_t<vertex_t, vertex_t const*> distances,
   vertex_property_view_t<vertex_t, vertex_t const*> predecessors,
-  raft::device_span<vertex_t const> destinations)
+  raft::device_span<vertex_t const> destinations,
+  bool do_expensive_check)
 {
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
+
   vertex_partition_device_view_t<vertex_t, multi_gpu> vertex_partition(
     graph_view.local_vertex_partition_view());
 

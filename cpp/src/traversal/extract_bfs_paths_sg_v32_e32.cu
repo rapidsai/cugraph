@@ -24,6 +24,7 @@ template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>, int32_t> extrac
   graph_view_t<int32_t, int32_t, false, false> const& graph_view,
   vertex_property_view_t<int32_t, int32_t const*> distances,
   vertex_property_view_t<int32_t, int32_t const*> predecessors,
-  raft::device_span<int32_t const> destinations);
+  raft::device_span<int32_t const> destinations,
+  bool do_expensive_check);
 
 }  // namespace cugraph

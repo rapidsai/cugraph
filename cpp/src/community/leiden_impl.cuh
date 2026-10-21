@@ -595,9 +595,13 @@ std::pair<dendrogram_t<vertex_t>, weight_t> leiden_dendrogram(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level,
   weight_t resolution,
-  weight_t theta)
+  weight_t theta,
+  bool do_expensive_check)
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
 
   return detail::leiden(
     handle, rng_state, graph_view, edge_weight_view, max_level, resolution, theta);
@@ -629,12 +633,19 @@ std::tuple<vertex_property_t<vertex_t, vertex_t>, size_t, weight_t> leiden(
   bool compact_cluster_ids,
   size_t max_level,
   weight_t resolution,
-  weight_t theta)
+  weight_t theta,
+  bool do_expensive_check)
 {
-  auto [dendrogram, modularity] = cugraph::leiden_dendrogram(
-    handle, rng_state, graph_view, edge_weight_view, max_level, resolution, theta);
-  auto clustering =
-    cugraph::flatten_dendrogram(handle, graph_view, dendrogram, compact_cluster_ids);
+  auto [dendrogram, modularity] = cugraph::leiden_dendrogram(handle,
+                                                             rng_state,
+                                                             graph_view,
+                                                             edge_weight_view,
+                                                             max_level,
+                                                             resolution,
+                                                             theta,
+                                                             do_expensive_check);
+  auto clustering               = cugraph::flatten_dendrogram(
+    handle, graph_view, dendrogram, compact_cluster_ids, do_expensive_check);
 
   return std::make_tuple(std::move(clustering), dendrogram.num_levels(), modularity);
 }

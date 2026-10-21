@@ -820,6 +820,7 @@ decompress_to_edgelist(
  * @param edgelist_edge_end_times Vector of edge end times
  * @param reciprocal Flag indicating whether to keep (if set to `false`) or discard (if set to
  * `true`) edges that appear only in one direction.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Tuple of symmetrized sources, destinations, optional weights, optional edge ids, optional
  * edge types, optional edge start times and optional edge end times
  */
@@ -845,7 +846,8 @@ symmetrize_edgelist(raft::handle_t const& handle,
                     std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
                     std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_start_times,
                     std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_end_times,
-                    bool reciprocal);
+                    bool reciprocal,
+                    bool do_expensive_check = false);
 
 /**
  * @ingroup graph_functions_cpp
@@ -1603,13 +1605,15 @@ create_graph(raft::handle_t const& handle,
  * handles to various CUDA libraries) to run graph algorithms.
  * @param  graph The input graph object
  * @param  start_vertices Optional list of starting vertices to discover two-hop neighbors of
+ * @param  do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return tuple containing pairs of vertices that are 2-hops apart.
  */
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> get_two_hop_neighbors(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  std::optional<raft::device_span<vertex_t const>> start_vertices);
+  std::optional<raft::device_span<vertex_t const>> start_vertices,
+  bool do_expensive_check = false);
 
 /**
  * @ingroup graph_functions_cpp
@@ -1801,6 +1805,7 @@ vertex_property_t<vertex_t, weight_t> compute_out_weight_sums(
  * @param graph_view Graph view object of the input graph to compute the maximum per-vertex incoming
  * edge weight sums.
  * @param edge_weight_view View object holding edge weights for @p graph_view.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Maximum per-vertex incoming edge weight sums.
  */
 template <typename vertex_t,
@@ -1811,7 +1816,8 @@ template <typename vertex_t,
 weight_t compute_max_in_weight_sum(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
+  bool do_expensive_check = false);
 
 /**
  * @ingroup graph_functions_cpp
@@ -1829,6 +1835,7 @@ weight_t compute_max_in_weight_sum(
  * @param graph_view Graph view object of the input graph to compute the maximum per-vertex outgoing
  * edge weight sums.
  * @param edge_weight_view View object holding edge weights for @p graph_view.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Maximum per-vertex outgoing edge weight sums.
  */
 template <typename vertex_t,
@@ -1839,7 +1846,8 @@ template <typename vertex_t,
 weight_t compute_max_out_weight_sum(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
+  bool do_expensive_check = false);
 
 /**
  * @ingroup graph_functions_cpp
@@ -1856,6 +1864,7 @@ weight_t compute_max_out_weight_sum(
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object of the input graph to sum the edge weights.
  * @param edge_weight_view View object holding edge weights for @p graph_view.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Sum of the weights of the entire set of edges.
  */
 template <typename vertex_t,
@@ -1866,7 +1875,8 @@ template <typename vertex_t,
 weight_t compute_total_edge_weight(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
+  bool do_expensive_check = false);
 
 /**
  * @ingroup graph_functions_cpp
@@ -1924,6 +1934,7 @@ rmm::device_uvector<vertex_t> select_random_vertices(
  * large device-accessible vector object (if the value is std::nullopt, the default RMM per-device
  * memory resource is used). The returned edge list will also be stored in the buffer type dictated
  * by this parameter.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Tuple of vectors storing edge sources, destinations, optional weights, optional edge ids,
  * optional edge types, optional edge start times and optional edge end times.
  */
@@ -1947,7 +1958,8 @@ remove_self_loops(raft::handle_t const& handle,
                   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
                   std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_start_times,
                   std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_end_times,
-                  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
+                  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt,
+                  bool do_expensive_check                              = false);
 
 /**
  * @ingroup graph_functions_cpp
@@ -1992,6 +2004,7 @@ remove_self_loops(raft::handle_t const& handle,
  * large device-accessible vector object (if the value is std::nullopt, the default RMM per-device
  * memory resource is used). The returned edge list will also be stored in the buffer type dictated
  * by this parameter.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Tuple of rmm::device_uvector objects storing edge sources, destinations, optional
  * weights, optional edge ids, optional edge types, optional edge start times and optional edge end
  * times.
@@ -2017,7 +2030,8 @@ remove_multi_edges(raft::handle_t const& handle,
                    std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_start_times,
                    std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_edge_times,
                    bool keep_min_value_edge                             = false,
-                   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
+                   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt,
+                   bool do_expensive_check                              = false);
 
 /**
  * @ingroup graph_functions_cpp
@@ -2065,6 +2079,7 @@ remove_multi_edges(raft::handle_t const& handle,
  * large device-accessible vector object (if the value is std::nullopt, the default RMM per-device
  * memory resource is used). The returned edge list will also be stored in the buffer type dictated
  * by this parameter.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Tuple of std::vector objects holding rmm::device_uvector objects (# device_uvector objets
  * per std::vector = # edge chunks) storing edge sources, destinations, optional weights, optional
  * edge ids, optional edge types, optional edge start times and optional edge end times.
@@ -2091,6 +2106,7 @@ remove_multi_edges(
   std::optional<std::vector<rmm::device_uvector<time_stamp_t>>>&& edgelist_edge_start_times,
   std::optional<std::vector<rmm::device_uvector<time_stamp_t>>>&& edgelist_edge_edge_times,
   bool keep_min_value_edge                             = false,
-  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt,
+  bool do_expensive_check                              = false);
 
 }  // namespace CUGRAPH_EXPORT cugraph

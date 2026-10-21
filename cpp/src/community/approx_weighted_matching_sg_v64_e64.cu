@@ -21,11 +21,13 @@ approximate_weighted_matching(raft::handle_t const& handle,
 template CUGRAPH_EXPORT std::tuple<vertex_property_t<int64_t, int64_t>, float>
 approx_weighted_matching(raft::handle_t const& handle,
                          graph_view_t<int64_t, int64_t, false, false> const& graph_view,
-                         edge_property_view_t<int64_t, float const*> edge_weight_view);
+                         edge_property_view_t<int64_t, float const*> edge_weight_view,
+                         bool do_expensive_check);
 
 template CUGRAPH_EXPORT std::tuple<vertex_property_t<int64_t, int64_t>, double>
 approx_weighted_matching(raft::handle_t const& handle,
                          graph_view_t<int64_t, int64_t, false, false> const& graph_view,
-                         edge_property_view_t<int64_t, double const*> edge_weight_view);
+                         edge_property_view_t<int64_t, double const*> edge_weight_view,
+                         bool do_expensive_check);
 
 }  // namespace cugraph

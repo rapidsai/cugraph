@@ -87,7 +87,8 @@ symmetrize_graph_impl(raft::handle_t const& handle,
       std::nullopt,
       std::nullopt,
       std::nullopt,
-      reciprocal);
+      reciprocal,
+      do_expensive_check);
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> symmetrized_graph(handle);
   std::vector<edge_arithmetic_property_t<edge_t>> symmetrized_edge_properties{};
@@ -174,7 +175,8 @@ symmetrize_graph_impl(raft::handle_t const& handle,
       std::nullopt,
       std::nullopt,
       std::nullopt,
-      reciprocal);
+      reciprocal,
+      do_expensive_check);
 
   auto vertices = renumber ? std::make_optional(renumber_map->release_buffer())
                            : std::make_optional<rmm::device_uvector<vertex_t>>(number_of_vertices,

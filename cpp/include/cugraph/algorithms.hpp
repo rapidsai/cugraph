@@ -500,6 +500,8 @@ std::pair<std::unique_ptr<dendrogram_t<vertex_t>>, weight_t> louvain(
  *                               of the communities.  Higher resolutions lead to more smaller
  *                               communities, lower resolutions lead to fewer larger
  *                               communities. (default 1)
+ * @param[in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
+ *                               `true`).
  * @return                       a pair containing:
  *                                 1) dendrogram
  *                                 2) modularity of the returned clustering
@@ -511,9 +513,10 @@ std::pair<dendrogram_t<vertex_t>, weight_t> louvain_dendrogram(
   std::optional<std::reference_wrapper<raft::random::RngState>> rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  size_t max_level    = 100,
-  weight_t threshold  = weight_t{1e-7},
-  weight_t resolution = weight_t{1});
+  size_t max_level        = 100,
+  weight_t threshold      = weight_t{1e-7},
+  weight_t resolution     = weight_t{1},
+  bool do_expensive_check = false);
 
 /**
  * @ingroup community_cpp
@@ -549,6 +552,8 @@ std::pair<dendrogram_t<vertex_t>, weight_t> louvain_dendrogram(
  *                                  (default 1e-7)
  * @param[in]  resolution           (optional) The value of the resolution parameter to use.
  *                                  (default 1)
+ * @param[in]  do_expensive_check   A flag to run expensive checks for input arguments (if set to
+ *                                  `true`).
  * @return                          a tuple containing:
  *                                    1) vertex_property_t storing the clustering
  *                                    2) number of levels of the returned clustering
@@ -562,9 +567,10 @@ std::tuple<vertex_property_t<vertex_t, vertex_t>, size_t, weight_t> louvain(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   bool compact_cluster_ids,
-  size_t max_level    = 100,
-  weight_t threshold  = weight_t{1e-7},
-  weight_t resolution = weight_t{1});
+  size_t max_level        = 100,
+  weight_t threshold      = weight_t{1e-7},
+  weight_t resolution     = weight_t{1},
+  bool do_expensive_check = false);
 
 /**
  * @ingroup community_cpp
@@ -709,6 +715,8 @@ std::pair<std::unique_ptr<dendrogram_t<vertex_t>>, weight_t> leiden(
  *                                   (default 1)
  * @param[in]  theta                 (optional) The value of the parameter to scale modularity
  *                                    gain in Leiden refinement phase. (default 1)
+ * @param[in]  do_expensive_check    A flag to run expensive checks for input arguments (if set to
+ *                                   `true`).
  *
  * @return                           a pair containing:
  *                                     1) dendrogram
@@ -720,9 +728,10 @@ std::pair<dendrogram_t<vertex_t>, weight_t> leiden_dendrogram(
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  size_t max_level    = 100,
-  weight_t resolution = weight_t{1},
-  weight_t theta      = weight_t{1});
+  size_t max_level        = 100,
+  weight_t resolution     = weight_t{1},
+  weight_t theta          = weight_t{1},
+  bool do_expensive_check = false);
 
 /**
  * @ingroup community_cpp
@@ -757,6 +766,8 @@ std::pair<dendrogram_t<vertex_t>, weight_t> leiden_dendrogram(
  *                                   (default 1)
  * @param[in]  theta                 (optional) The value of the parameter to scale modularity
  *                                    gain in Leiden refinement phase. (default 1)
+ * @param[in]  do_expensive_check    A flag to run expensive checks for input arguments (if set to
+ *                                   `true`).
  *
  * @return                           a tuple containing:
  *                                     1) vertex_property_t storing the clustering
@@ -770,9 +781,10 @@ std::tuple<vertex_property_t<vertex_t, vertex_t>, size_t, weight_t> leiden(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   bool compact_cluster_ids,
-  size_t max_level    = 100,
-  weight_t resolution = weight_t{1},
-  weight_t theta      = weight_t{1});
+  size_t max_level        = 100,
+  weight_t resolution     = weight_t{1},
+  weight_t theta          = weight_t{1},
+  bool do_expensive_check = false);
 
 /**
  * @ingroup community_cpp
@@ -823,6 +835,8 @@ void flatten_dendrogram(raft::handle_t const& handle,
  * @param[in]  dendrogram           Input dendrogram object.
  * @param[in]  compact_cluster_ids  If true, renumber cluster ids to a dense range. Defaults to
  *                                  false.
+ * @param[in]  do_expensive_check   A flag to run expensive checks for input arguments (if set to
+ *                                  `true`).
  *
  * @return                          vertex_property_t storing the clustering for the local vertex
  *                                  range.
@@ -832,7 +846,8 @@ vertex_property_t<vertex_t, vertex_t> flatten_dendrogram(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   dendrogram_t<vertex_t> const& dendrogram,
-  bool compact_cluster_ids = false);
+  bool compact_cluster_ids = false,
+  bool do_expensive_check  = false);
 
 /**
  * @ingroup community_cpp
@@ -926,6 +941,8 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
  * @param[in]  resolution           (optional) The resolution parameter. Higher resolutions lead
  *                                  to smaller communities, while lower resolutions lead to fewer
  *                                  larger communities. (default 1)
+ * @param[in]  do_expensive_check   A flag to run expensive checks for input arguments (if set to
+ *                                  `true`).
  *
  * @return                          a tuple containing:
  *                                    1) vertex property containing the clustering for the local
@@ -942,9 +959,10 @@ std::tuple<vertex_property_t<vertex_t, vertex_t>, size_t, weight_t> ecg(
   weight_t min_weight,
   size_t ensemble_size,
   bool compact_cluster_ids,
-  size_t max_level    = 100,
-  weight_t threshold  = weight_t{1e-7},
-  weight_t resolution = weight_t{1});
+  size_t max_level        = 100,
+  weight_t threshold      = weight_t{1e-7},
+  weight_t resolution     = weight_t{1},
+  bool do_expensive_check = false);
 
 /**
  * @ingroup tree_cpp
@@ -1402,6 +1420,7 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
  * @param destinations Destination vertices, extract path from source to each of these destinations
  * (one source per component at most). In a multi-gpu context the destination vertex should be local
  * to this GPU.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  *
  * @return std::tuple<rmm::device_uvector<vertex_t>, vertex_t> pair containing
  *       the paths as a dense matrix in the vector and the maximum path length.
@@ -1414,7 +1433,8 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   vertex_property_view_t<vertex_t, vertex_t const*> distances,
   vertex_property_view_t<vertex_t, vertex_t const*> predecessors,
-  raft::device_span<vertex_t const> destinations);
+  raft::device_span<vertex_t const> destinations,
+  bool do_expensive_check = false);
 
 /**
  * @ingroup traversal_cpp
@@ -1990,6 +2010,7 @@ extract_ego(raft::handle_t const& handle,
  * @param start_vertices Device span defining the starting vertices
  * @param max_length maximum length of random walk
  * @param seed (optional, defaults to system time), seed for random number generation
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return tuple containing device vectors of vertices and the edge weights (if
  *         @p edge_weight_view.has_value() is true)<br>
  *         For each input selector there will be (max_length+1) elements in the
@@ -2012,7 +2033,8 @@ uniform_random_walks(raft::handle_t const& handle,
                      graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                      std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
                      raft::device_span<vertex_t const> start_vertices,
-                     size_t max_length);
+                     size_t max_length,
+                     bool do_expensive_check = false);
 
 /**
 .* @ingroup sampling_cpp
@@ -2038,6 +2060,7 @@ uniform_random_walks(raft::handle_t const& handle,
  * @param start_vertices Device span defining the starting vertices
  * @param max_length maximum length of random walk
  * @param seed (optional, defaults to system time), seed for random number generation
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return tuple containing device vectors of vertices and the edge weights<br>
  *         For each input selector there will be (max_length+1) elements in the
  *         vertex vector with the starting vertex followed by the subsequent
@@ -2057,7 +2080,8 @@ biased_random_walks(raft::handle_t const& handle,
                     graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                     edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
                     raft::device_span<vertex_t const> start_vertices,
-                    size_t max_length);
+                    size_t max_length,
+                    bool do_expensive_check = false);
 
 /**
 .* @ingroup sampling_cpp
@@ -2086,6 +2110,7 @@ biased_random_walks(raft::handle_t const& handle,
  * @param p node2vec return parameter
  * @param q node2vec in-out parameter
  * @param seed (optional, defaults to system time), seed for random number generation
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return tuple containing device vectors of vertices and the edge weights<br>
  *         For each input selector there will be (max_length+1) elements in the
  *         vertex vector with the starting vertex followed by the subsequent
@@ -2107,7 +2132,8 @@ node2vec_random_walks(raft::handle_t const& handle,
                       raft::device_span<vertex_t const> start_vertices,
                       size_t max_length,
                       weight_t p,
-                      weight_t q);
+                      weight_t q,
+                      bool do_expensive_check = false);
 
 /**
 .* @ingroup components_cpp
@@ -2885,13 +2911,15 @@ std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<vertex_t>> k_hop_nbr
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
  * @param rng_state The RngState instance holding pseudo-random number generator state.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return A device vector containing vertices in the maximal independent set.
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> maximal_independent_set(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  raft::random::RngState& rng_state);
+  raft::random::RngState& rng_state,
+  bool do_expensive_check = false);
 
 /**
  * @ingroup utility_cpp
@@ -3009,6 +3037,8 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
  * and handles to various CUDA libraries) to run graph algorithms.
  * @param[in] graph_view Graph view object.
  * @param[in] edge_weight_view View object holding edge weights for @p graph_view.
+ * @param[in] do_expensive_check A flag to run expensive checks for input arguments (if set to
+ * `true`).
  * @return A tuple containing:
  *           1) a vertex property containing the matched partner ID for every local vertex, with
  *              `invalid_vertex_id<vertex_t>::value` for unmatched vertices
@@ -3018,7 +3048,8 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<vertex_property_t<vertex_t, vertex_t>, weight_t> approx_weighted_matching(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
+  bool do_expensive_check = false);
 
 }  // namespace CUGRAPH_EXPORT cugraph
 

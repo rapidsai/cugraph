@@ -886,9 +886,13 @@ uniform_random_walks(raft::handle_t const& handle,
                      graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                      std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
                      raft::device_span<vertex_t const> start_vertices,
-                     size_t max_length)
+                     size_t max_length,
+                     bool do_expensive_check)
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
 
   return detail::random_walk_impl(handle,
                                   graph_view,
@@ -905,9 +909,13 @@ biased_random_walks(raft::handle_t const& handle,
                     graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                     edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
                     raft::device_span<vertex_t const> start_vertices,
-                    size_t max_length)
+                    size_t max_length,
+                    bool do_expensive_check)
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
 
   return detail::random_walk_impl(
     handle,
@@ -927,9 +935,13 @@ node2vec_random_walks(raft::handle_t const& handle,
                       raft::device_span<vertex_t const> start_vertices,
                       size_t max_length,
                       weight_t p,
-                      weight_t q)
+                      weight_t q,
+                      bool do_expensive_check)
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
 
   return detail::random_walk_impl(handle,
                                   graph_view,

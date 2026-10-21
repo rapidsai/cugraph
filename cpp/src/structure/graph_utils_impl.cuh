@@ -170,8 +170,11 @@ template <typename vertex_t,
 weight_t compute_max_in_weight_sum(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  edge_property_view_t<edge_t, weight_t const*> edge_weight_view)
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
+  bool do_expensive_check)
 {
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
   auto in_weight_sums = compute_in_weight_sums(handle, graph_view, edge_weight_view);
   auto it =
     thrust::max_element(handle.get_thrust_policy(), in_weight_sums.begin(), in_weight_sums.end());
@@ -194,8 +197,11 @@ template <typename vertex_t,
 weight_t compute_max_out_weight_sum(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  edge_property_view_t<edge_t, weight_t const*> edge_weight_view)
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
+  bool do_expensive_check)
 {
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
   auto out_weight_sums = compute_out_weight_sums(handle, graph_view, edge_weight_view);
   auto it =
     thrust::max_element(handle.get_thrust_policy(), out_weight_sums.begin(), out_weight_sums.end());
@@ -218,8 +224,11 @@ template <typename vertex_t,
 weight_t compute_total_edge_weight(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  edge_property_view_t<edge_t, weight_t const*> edge_weight_view)
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
+  bool do_expensive_check)
 {
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
   return transform_reduce_e(
     handle,
     graph_view,
