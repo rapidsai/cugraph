@@ -7,16 +7,20 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/prims/copy_v.cuh>
 #include <cugraph/prims/fill_edge_src_dst_property.cuh>
+#include <cugraph/prims/fill_v.cuh>
 #include <cugraph/prims/per_v_transform_reduce_if_incoming_outgoing_e.cuh>
 #include <cugraph/prims/reduce_op.cuh>
+#include <cugraph/prims/scatter_if_v.cuh>
+#include <cugraph/prims/scatter_v.cuh>
 #include <cugraph/prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/thrust_wrappers/fill.hpp>
-#include <cugraph/utilities/thrust_wrappers/scatter.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/core/handle.hpp>
@@ -32,11 +36,9 @@
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/discard_iterator.h>
-#include <thrust/iterator/permutation_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/set_operations.h>
 #include <thrust/transform.h>
+#include <thrust/unique.h>
 
 #include <limits>
 #include <tuple>
@@ -129,16 +131,18 @@ struct bottomup_pred_op_t {
 
 namespace detail {
 
-template <typename GraphViewType, typename PredecessorIterator>
-void bfs(raft::handle_t const& handle,
-         GraphViewType const& graph_view,
-         typename GraphViewType::vertex_type* distances,
-         PredecessorIterator predecessor_first,
-         typename GraphViewType::vertex_type const* sources,
-         size_t n_sources,
-         bool direction_optimizing,
-         typename GraphViewType::vertex_type depth_limit,
-         bool do_expensive_check)
+template <typename GraphViewType>
+std::tuple<
+  vertex_property_t<typename GraphViewType::vertex_type, typename GraphViewType::vertex_type>,
+  std::optional<
+    vertex_property_t<typename GraphViewType::vertex_type, typename GraphViewType::vertex_type>>>
+bfs(raft::handle_t const& handle,
+    GraphViewType const& graph_view,
+    raft::device_span<typename GraphViewType::vertex_type const> frontier,
+    bool direction_optimizing,
+    typename GraphViewType::vertex_type depth_limit,
+    bool update_predecessors,
+    bool do_expensive_check)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -152,7 +156,13 @@ void bfs(raft::handle_t const& handle,
   // Direction-Optimizing Breadth-First Search, 2012"
 
   auto const num_vertices = graph_view.number_of_vertices();
-  if (num_vertices == 0) { return; }
+  if (num_vertices == 0) {
+    return std::make_tuple(
+      vertex_property_t<vertex_t, vertex_t>(handle, graph_view),
+      update_predecessors
+        ? std::make_optional(vertex_property_t<vertex_t, vertex_t>(handle, graph_view))
+        : std::nullopt);
+  }
 
   // we should consider reducing the life-time of this variable once
   // rmm::rm::pool_memory_resource<rmm::mr::pinned_memory_resource> is updated to honor stream
@@ -161,8 +171,8 @@ void bfs(raft::handle_t const& handle,
   raft::host_span<int64_t> h_staging_buffer_view{};
   {
     size_t staging_buffer_size =
-      std::max(size_t{3}, n_sources);  // should be large enough to cover all update_host &
-                                       // update_device calls in this function
+      std::max(size_t{3}, frontier.size());  // should be large enough to cover all update_host &
+                                             // update_device calls in this function
     if (host_staging_buffer_manager::initialized()) {
       h_staging_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
         staging_buffer_size, handle.get_stream());
@@ -176,12 +186,9 @@ void bfs(raft::handle_t const& handle,
 
   // 1. check input arguments
 
-  CUGRAPH_EXPECTS((n_sources == 0) || (sources != nullptr),
-                  "Invalid input argument: sources cannot be null if n_sources > 0.");
-
   if (GraphViewType::is_multi_gpu) {
     if (do_expensive_check) {
-      auto aggregate_n_sources = n_sources;
+      auto aggregate_n_sources = frontier.size();
 #if 1  // FIXME: we should add host_allreduce to raft
       aggregate_n_sources = host_scalar_allreduce(
         handle.get_comms(), aggregate_n_sources, raft::comms::op_t::SUM, handle.get_stream());
@@ -195,8 +202,8 @@ void bfs(raft::handle_t const& handle,
                       "Invalid input argument: input should have at least one source");
     }
   } else {
-    CUGRAPH_EXPECTS(n_sources > 0,
-                    "Invalid input argument: input should have at least one source.");
+    CUGRAPH_EXPECTS(frontier.size() > 0,
+                    "Invalid input argument: input should have at least one frontier vertex.");
   }
 
   CUGRAPH_EXPECTS(
@@ -207,7 +214,8 @@ void bfs(raft::handle_t const& handle,
     graph_view.local_vertex_partition_view());
 
   if (do_expensive_check) {
-    bool is_sorted = thrust::is_sorted(handle.get_thrust_policy(), sources, sources + n_sources);
+    bool is_sorted =
+      thrust::is_sorted(handle.get_thrust_policy(), frontier.begin(), frontier.end());
     if constexpr (GraphViewType::is_multi_gpu) {
       auto tmp = static_cast<int32_t>(is_sorted);
 #if 1  // FIXME: we should add host_allreduce to raft
@@ -221,13 +229,11 @@ void bfs(raft::handle_t const& handle,
     }
     CUGRAPH_EXPECTS(
       is_sorted,
-      "Invalid input arguments: input sources should be sorted in the non-descending order.");
+      "Invalid input arguments: input frontier should be sorted in the non-descending order.");
 
-    bool no_duplicates = (static_cast<size_t>(thrust::count_if(
-                            handle.get_thrust_policy(),
-                            thrust::make_counting_iterator(size_t{0}),
-                            thrust::make_counting_iterator(n_sources),
-                            is_first_in_run_t<decltype(sources)>{sources})) == n_sources);
+    bool no_duplicates =
+      static_cast<size_t>(thrust::unique_count(
+        handle.get_thrust_policy(), frontier.begin(), frontier.end())) == frontier.size();
     if constexpr (GraphViewType::is_multi_gpu) {
       auto tmp = static_cast<int32_t>(no_duplicates);
 #if 1  // FIXME: we should add host_allreduce to raft
@@ -240,12 +246,12 @@ void bfs(raft::handle_t const& handle,
       no_duplicates = static_cast<bool>(tmp);
     }
     CUGRAPH_EXPECTS(no_duplicates,
-                    "Invalid input arguments: input sources should not have duplicates.");
+                    "Invalid input arguments: input frontier should not have duplicates.");
 
     auto num_invalid_vertices =
       thrust::count_if(handle.get_thrust_policy(),
-                       sources,
-                       sources + n_sources,
+                       frontier.begin(),
+                       frontier.end(),
                        [vertex_partition] __device__(auto val) {
                          return !(vertex_partition.is_valid_vertex(val) &&
                                   vertex_partition.in_local_vertex_partition_range_nocheck(val));
@@ -262,7 +268,7 @@ void bfs(raft::handle_t const& handle,
 #endif
     }
     CUGRAPH_EXPECTS(num_invalid_vertices == 0,
-                    "Invalid input argument: sources have invalid vertex IDs.");
+                    "Invalid input argument: frontier has invalid vertex IDs.");
   }
 
   // 2. initialize distances and predecessors
@@ -270,19 +276,21 @@ void bfs(raft::handle_t const& handle,
   auto constexpr invalid_distance = std::numeric_limits<vertex_t>::max();
   auto constexpr invalid_vertex   = invalid_vertex_id<vertex_t>::value;
 
-  cugraph::fill(handle.get_thrust_policy(),
-                distances,
-                distances + graph_view.local_vertex_partition_range_size(),
-                invalid_distance);
-  cugraph::fill(handle.get_thrust_policy(),
-                predecessor_first,
-                predecessor_first + graph_view.local_vertex_partition_range_size(),
-                invalid_vertex);
-  auto output_first = thrust::make_permutation_iterator(
-    distances,
-    cuda::make_transform_iterator(
-      sources, detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}));
-  cugraph::fill(handle.get_thrust_policy(), output_first, output_first + n_sources, vertex_t{0});
+  vertex_property_t<vertex_t, vertex_t> distances(handle, graph_view);
+  auto predecessors =
+    update_predecessors
+      ? std::make_optional(vertex_property_t<vertex_t, vertex_t>(handle, graph_view))
+      : std::optional<vertex_property_t<vertex_t, vertex_t>>{std::nullopt};
+
+  fill_v(handle, graph_view, distances.mutable_view(), invalid_distance);
+  auto zero_distance_first = cuda::make_constant_iterator(vertex_t{0});
+  scatter_v(handle,
+            graph_view,
+            zero_distance_first,
+            zero_distance_first + frontier.size(),
+            frontier.begin(),
+            distances.mutable_view());
+  if (predecessors) { fill_v(handle, graph_view, predecessors->mutable_view(), invalid_vertex); }
 
   // 3. update meta data for direction optimizing BFS
 
@@ -351,7 +359,7 @@ void bfs(raft::handle_t const& handle,
                         multiplier_t<edge_t>{static_cast<edge_t>(
                           partition_size)});  // local_degrees => approximate global degrees
     } else {
-      approx_out_degrees = graph_view.compute_out_degrees(handle);  // exact
+      approx_out_degrees = compute_out_degrees(handle, graph_view).release_buffer();  // exact
     }
 
     rmm::device_uvector<uint32_t> visited_bitmap(
@@ -362,11 +370,11 @@ void bfs(raft::handle_t const& handle,
                   packed_bool_empty_mask());
     thrust::for_each(
       handle.get_thrust_policy(),
-      sources,
-      sources + n_sources,
-      [bitmap  = raft::device_span<uint32_t>(visited_bitmap.data(), visited_bitmap.size()),
-       v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
-        auto v_offset = v - v_first;
+      frontier.begin(),
+      frontier.end(),
+      [bitmap = raft::device_span<uint32_t>(visited_bitmap.data(), visited_bitmap.size()),
+       vertex_partition] __device__(auto v) {
+        auto v_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
         cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
           bitmap[packed_bool_offset(v_offset)]);
         word.fetch_or(packed_bool_mask(v_offset), cuda::std::memory_order_relaxed);
@@ -379,12 +387,12 @@ void bfs(raft::handle_t const& handle,
       if (graph_view.use_dcs()) {
         num_nzd_unvisited_hypersparse_vertices = (*segment_offsets)[4] - (*segment_offsets)[3];
       }
-      if (n_sources > 0) {
+      if (frontier.size() > 0) {
         auto h_sources = reinterpret_cast<vertex_t*>(h_staging_buffer_view.data());
-        assert(h_staging_buffer_view.size() >= n_sources);
-        raft::update_host(h_sources, sources, n_sources, handle.get_stream());
+        assert(h_staging_buffer_view.size() >= frontier.size());
+        raft::update_host(h_sources, frontier.data(), frontier.size(), handle.get_stream());
         handle.sync_stream();
-        for (size_t i = 0; i < n_sources; ++i) {
+        for (size_t i = 0; i < frontier.size(); ++i) {
           auto v_offset = h_sources[i] - graph_view.local_vertex_partition_range_first();
           if ((v_offset >= (*segment_offsets)[2]) && (v_offset < (*segment_offsets)[3])) {
             --(*num_nzd_unvisited_low_degree_vertices);
@@ -410,8 +418,8 @@ void bfs(raft::handle_t const& handle,
   std::optional<key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>> cur_frontier{
     std::nullopt};
   key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true> next_frontier(handle);
-  key_bucket_view_t<vertex_t, void, GraphViewType::is_multi_gpu, true> cur_frontier_view{
-    handle, raft::device_span<vertex_t const>(sources, n_sources)};
+  key_bucket_view_t<vertex_t, void, GraphViewType::is_multi_gpu, true> cur_frontier_view{handle,
+                                                                                         frontier};
 
   // 5. initialize BFS temporary state data
 
@@ -468,16 +476,21 @@ void bfs(raft::handle_t const& handle,
           pred_op);
 
       {
-        auto input_pair_first = thrust::make_zip_iterator(cuda::make_constant_iterator(depth + 1),
-                                                          predecessor_buffer.begin());
-        cugraph::scatter(
-          handle.get_thrust_policy(),
-          input_pair_first,
-          input_pair_first + new_frontier_vertex_buffer.size(),
-          cuda::make_transform_iterator(
-            new_frontier_vertex_buffer.begin(),
-            detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
-          thrust::make_zip_iterator(distances, predecessor_first));
+        auto distance_first = cuda::make_constant_iterator(depth + 1);
+        scatter_v(handle,
+                  graph_view,
+                  distance_first,
+                  distance_first + new_frontier_vertex_buffer.size(),
+                  new_frontier_vertex_buffer.begin(),
+                  distances.mutable_view());
+        if (predecessors) {
+          scatter_v(handle,
+                    graph_view,
+                    predecessor_buffer.begin(),
+                    predecessor_buffer.end(),
+                    new_frontier_vertex_buffer.begin(),
+                    predecessors->mutable_view());
+        }
       }
 
       next_frontier = key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
@@ -700,20 +713,6 @@ void bfs(raft::handle_t const& handle,
                                              reduce_op::any<vertex_t>(),
                                              pred_op,
                                              predecessor_buffer.begin());
-        auto input_pair_first = thrust::make_zip_iterator(cuda::make_constant_iterator(depth + 1),
-                                                          predecessor_buffer.begin());
-
-        thrust::scatter_if(
-          handle.get_thrust_policy(),
-          input_pair_first,
-          input_pair_first + predecessor_buffer.size(),
-          cuda::make_transform_iterator(
-            cur_frontier_view.cbegin(),
-            detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
-          predecessor_buffer.begin(),
-          thrust::make_zip_iterator(distances, predecessor_first),
-          detail::is_not_equal_to_t<vertex_t>{invalid_vertex});
-
         new_frontier_vertex_buffer.resize(predecessor_buffer.size(), handle.get_stream());
         new_frontier_vertex_buffer.resize(
           cuda::std::distance(new_frontier_vertex_buffer.begin(),
@@ -724,6 +723,27 @@ void bfs(raft::handle_t const& handle,
                                               new_frontier_vertex_buffer.begin(),
                                               detail::is_not_equal_to_t<vertex_t>{invalid_vertex})),
           handle.get_stream());
+
+        if (predecessors) {
+          auto input_first = thrust::make_zip_iterator(cuda::make_constant_iterator(depth + 1),
+                                                       predecessor_buffer.begin());
+          scatter_if_v(handle,
+                       graph_view,
+                       input_first,
+                       input_first + predecessor_buffer.size(),
+                       cur_frontier_view.cbegin(),
+                       predecessor_buffer.begin(),
+                       view_concat(distances.mutable_view(), predecessors->mutable_view()),
+                       detail::is_not_equal_to_t<vertex_t>{invalid_vertex});
+        } else {
+          auto distance_first = cuda::make_constant_iterator(depth + 1);
+          scatter_v(handle,
+                    graph_view,
+                    distance_first,
+                    distance_first + new_frontier_vertex_buffer.size(),
+                    new_frontier_vertex_buffer.begin(),
+                    distances.mutable_view());
+        }
 
         assert(direction_optimizing);
         if ((graph_view.local_vertex_partition_range_size() > 0) &&
@@ -867,9 +887,31 @@ void bfs(raft::handle_t const& handle,
     ++depth;
     if (depth >= depth_limit) { break; }
   }
+
+  return std::make_tuple(std::move(distances), std::move(predecessors));
 }
 
 }  // namespace detail
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::tuple<vertex_property_t<vertex_t, vertex_t>,
+           std::optional<vertex_property_t<vertex_t, vertex_t>>>
+bfs(raft::handle_t const& handle,
+    graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+    raft::device_span<vertex_t const> frontier,
+    bool direction_optimizing,
+    vertex_t depth_limit,
+    bool update_predecessors,
+    bool do_expensive_check)
+{
+  return detail::bfs(handle,
+                     graph_view,
+                     frontier,
+                     direction_optimizing,
+                     depth_limit,
+                     update_predecessors,
+                     do_expensive_check);
+}
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 void bfs(raft::handle_t const& handle,
@@ -882,26 +924,29 @@ void bfs(raft::handle_t const& handle,
          vertex_t depth_limit,
          bool do_expensive_check)
 {
-  if (predecessors != nullptr) {
-    detail::bfs(handle,
-                graph_view,
-                distances,
-                predecessors,
-                sources,
-                n_sources,
-                direction_optimizing,
-                depth_limit,
-                do_expensive_check);
-  } else {
-    detail::bfs(handle,
-                graph_view,
-                distances,
-                thrust::make_discard_iterator(),
-                sources,
-                n_sources,
-                direction_optimizing,
-                depth_limit,
-                do_expensive_check);
+  CUGRAPH_EXPECTS((n_sources == 0) || (sources != nullptr),
+                  "Invalid input argument: sources cannot be null if n_sources > 0.");
+
+  auto [distance_property, predecessor_property] =
+    bfs(handle,
+        graph_view,
+        raft::device_span<vertex_t const>(sources, n_sources),
+        direction_optimizing,
+        depth_limit,
+        predecessors != nullptr,
+        do_expensive_check);
+
+  copy_v(handle,
+         graph_view,
+         distance_property.view(),
+         vertex_property_view_t<vertex_t, vertex_t*, vertex_t>{
+           distances, graph_view.local_vertex_partition_range_size()});
+  if (predecessor_property) {
+    copy_v(handle,
+           graph_view,
+           predecessor_property->view(),
+           vertex_property_view_t<vertex_t, vertex_t*, vertex_t>{
+             predecessors, graph_view.local_vertex_partition_range_size()});
   }
 }
 

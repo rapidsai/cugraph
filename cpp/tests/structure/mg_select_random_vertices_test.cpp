@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -106,10 +106,10 @@ class Tests_MGSelectRandomVertices
 
           auto d_sampled_vertices =
             cugraph::select_random_vertices(*handle_,
+                                            rng_state,
                                             mg_graph_view,
                                             std::make_optional(raft::device_span<vertex_t const>{
                                               d_given_set.data(), d_given_set.size()}),
-                                            rng_state,
                                             select_count,
                                             with_replacement,
                                             sort_vertices);
@@ -154,9 +154,9 @@ class Tests_MGSelectRandomVertices
 
           auto d_sampled_vertices = cugraph::select_random_vertices(
             *handle_,
+            rng_state,
             mg_graph_view,
             std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-            rng_state,
             select_random_vertices_usecase.select_count,
             with_replacement,
             sort_vertices);

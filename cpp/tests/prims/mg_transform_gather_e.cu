@@ -77,7 +77,7 @@ class Tests_MGTransformGatherE
     }
 
     cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> mg_renumber_map{std::nullopt};
     std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, false, true);
@@ -104,11 +104,11 @@ class Tests_MGTransformGatherE
 
     auto mg_vertex_prop =
       cugraph::test::generate<decltype(mg_graph_view), result_t>::vertex_property(
-        *handle_, *mg_renumber_map, hash_bin_count);
+        *handle_, mg_graph_view, mg_renumber_map->view(), hash_bin_count);
     auto mg_src_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::src_property(
-      *handle_, mg_graph_view, mg_vertex_prop);
+      *handle_, mg_graph_view, mg_vertex_prop.view());
     auto mg_dst_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::dst_property(
-      *handle_, mg_graph_view, mg_vertex_prop);
+      *handle_, mg_graph_view, mg_vertex_prop.view());
 
     rmm::device_uvector<vertex_t> srcs(0, handle_->get_stream());
     rmm::device_uvector<vertex_t> dsts(0, handle_->get_stream());

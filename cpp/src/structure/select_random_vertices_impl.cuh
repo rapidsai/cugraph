@@ -36,9 +36,9 @@ namespace cugraph {
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 rmm::device_uvector<vertex_t> select_random_vertices(
   raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   std::optional<raft::device_span<vertex_t const>> given_set,
-  raft::random::RngState& rng_state,
   size_t select_count,
   bool with_replacement,
   bool sort_vertices,
@@ -254,6 +254,27 @@ rmm::device_uvector<vertex_t> select_random_vertices(
   }
 
   return mg_sample_buffer;
+}
+
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+rmm::device_uvector<vertex_t> select_random_vertices(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<raft::device_span<vertex_t const>> given_set,
+  raft::random::RngState& rng_state,
+  size_t select_count,
+  bool with_replacement,
+  bool sort_vertices,
+  bool do_expensive_check)
+{
+  return select_random_vertices(handle,
+                                rng_state,
+                                graph_view,
+                                given_set,
+                                select_count,
+                                with_replacement,
+                                sort_vertices,
+                                do_expensive_check);
 }
 
 }  // namespace cugraph

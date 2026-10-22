@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.  All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "utilities/base_fixture.hpp"
@@ -111,46 +111,43 @@ class Tests_Louvain
     float expected_modularity)
   {
     raft::handle_t handle{};
+    (void)num_vertices;
 
-    rmm::device_uvector<vertex_t> clustering_v(num_vertices, handle.get_stream());
-    size_t level;
+    cugraph::dendrogram_t<vertex_t> dendrogram;
     weight_t modularity;
 
     if (resolution) {
-      std::tie(level, modularity) = cugraph::louvain(
+      std::tie(dendrogram, modularity) = cugraph::louvain_dendrogram(
         handle,
         std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
         graph_view,
         edge_weight_view,
-        clustering_v.data(),
         max_level ? *max_level : size_t{100},
         threshold ? static_cast<weight_t>(*threshold) : weight_t{1e-7},
         static_cast<weight_t>(*resolution));
     } else if (threshold) {
-      std::tie(level, modularity) = cugraph::louvain(
+      std::tie(dendrogram, modularity) = cugraph::louvain_dendrogram(
         handle,
         std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
         graph_view,
         edge_weight_view,
-        clustering_v.data(),
         max_level ? *max_level : size_t{100},
         static_cast<weight_t>(*threshold));
     } else if (max_level) {
-      std::tie(level, modularity) = cugraph::louvain(
+      std::tie(dendrogram, modularity) = cugraph::louvain_dendrogram(
         handle,
         std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
         graph_view,
         edge_weight_view,
-        clustering_v.data(),
         *max_level);
     } else {
-      std::tie(level, modularity) = cugraph::louvain(
+      std::tie(dendrogram, modularity) = cugraph::louvain_dendrogram(
         handle,
         std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
         graph_view,
-        edge_weight_view,
-        clustering_v.data());
+        edge_weight_view);
     }
+    auto level = dendrogram.num_levels();
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 

@@ -1,15 +1,17 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/utilities/thrust_wrappers/fill.hpp>
 #include <cugraph/utilities/thrust_wrappers/scatter.hpp>
+#include <cugraph/vertex_property.hpp>
 
 #include <cuda/functional>
 #include <cuda/iterator>
@@ -17,19 +19,20 @@
 namespace cugraph {
 namespace detail {
 
-template <typename vertex_t, typename value_t, bool multi_gpu>
-rmm::device_uvector<value_t> collect_local_vertex_values_from_ext_vertex_value_pairs(
+template <typename vertex_t,
+          typename edge_t,
+          typename value_t,
+          bool store_transposed,
+          bool multi_gpu>
+vertex_property_t<vertex_t, value_t> collect_local_vertex_values_from_ext_vertex_value_pairs(
   raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   rmm::device_uvector<vertex_t>&& d_vertices,
   rmm::device_uvector<value_t>&& d_values,
-  rmm::device_uvector<vertex_t> const& number_map,
-  vertex_t local_vertex_first,
-  vertex_t local_vertex_last,
+  vertex_property_view_t<vertex_t, vertex_t const*> renumber_map,
   value_t default_value,
   bool do_expensive_check)
 {
-  rmm::device_uvector<value_t> d_local_values(0, handle.get_stream());
-
   if constexpr (multi_gpu) {
     auto& comm                 = handle.get_comms();
     auto const comm_size       = comm.get_size();
@@ -49,20 +52,17 @@ rmm::device_uvector<value_t> collect_local_vertex_values_from_ext_vertex_value_p
   }
 
   // Now I can renumber locally
-  renumber_local_ext_vertices<vertex_t, multi_gpu>(handle,
-                                                   d_vertices.data(),
-                                                   d_vertices.size(),
-                                                   number_map.data(),
-                                                   local_vertex_first,
-                                                   local_vertex_last,
-                                                   do_expensive_check);
+  d_vertices = renumber_local_ext_vertices(
+    handle, graph_view, std::move(d_vertices), renumber_map, do_expensive_check);
 
   auto vertex_iterator = cuda::make_transform_iterator(
     d_vertices.begin(),
     cuda::proclaim_return_type<vertex_t>(
-      [local_vertex_first] __device__(vertex_t v) { return v - local_vertex_first; }));
+      [local_vertex_first = graph_view.local_vertex_partition_range_first()] __device__(
+        vertex_t v) { return v - local_vertex_first; }));
 
-  d_local_values.resize(local_vertex_last - local_vertex_first, handle.get_stream());
+  rmm::device_uvector<value_t> d_local_values(graph_view.local_vertex_partition_range_size(),
+                                              handle.get_stream());
   cugraph::fill(
     handle.get_thrust_policy(), d_local_values.begin(), d_local_values.end(), default_value);
 
@@ -72,7 +72,8 @@ rmm::device_uvector<value_t> collect_local_vertex_values_from_ext_vertex_value_p
                    vertex_iterator,
                    d_local_values.begin());
 
-  return d_local_values;
+  return vertex_property_t<vertex_t, value_t>(std::move(d_local_values),
+                                              graph_view.local_vertex_partition_range_size());
 }
 
 }  // namespace detail

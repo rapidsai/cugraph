@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -73,29 +73,18 @@ class Tests_KCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, in
     auto edge_weight_view =
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
-    rmm::device_uvector<edge_t> d_core_numbers(graph_view.number_of_vertices(),
-                                               handle.get_stream());
-
-    cugraph::core_number(handle,
-                         graph_view,
-                         d_core_numbers.data(),
-                         k_core_usecase.degree_type,
-                         k_core_usecase.k,
-                         k_core_usecase.k);
+    auto core_numbers = cugraph::core_number(
+      handle, graph_view, k_core_usecase.degree_type, k_core_usecase.k, k_core_usecase.k);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.start("K-core");
     }
 
-    raft::device_span<edge_t const> core_number_span{d_core_numbers.data(), d_core_numbers.size()};
+    auto subgraph = cugraph::k_core<vertex_t, edge_t, weight_t, false>(
+      handle, graph_view, edge_weight_view, k_core_usecase.k, core_numbers.view());
 
-    auto subgraph = cugraph::k_core(handle,
-                                    graph_view,
-                                    edge_weight_view,
-                                    k_core_usecase.k,
-                                    std::nullopt,
-                                    std::make_optional(core_number_span));
+    auto d_core_numbers = core_numbers.release_buffer();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

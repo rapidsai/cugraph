@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -112,20 +112,20 @@ struct minimum_spanning_tree_functor : public cugraph::c_api::abstract_functor {
                  result_wgt->size(),
                  handle_.get_stream());
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+      result_src = cugraph::unrenumber_int_vertices(
         handle_,
-        result_src.data(),
-        result_src.size(),
-        number_map->data(),
-        graph_view.vertex_partition_range_lasts(),
+        graph_view,
+        std::move(result_src),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         do_expensive_check_);
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+      result_dst = cugraph::unrenumber_int_vertices(
         handle_,
-        result_dst.data(),
-        result_dst.size(),
-        number_map->data(),
-        graph_view.vertex_partition_range_lasts(),
+        graph_view,
+        std::move(result_dst),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         do_expensive_check_);
 
       rmm::device_uvector<size_t> edge_offsets(2, handle_.get_stream());

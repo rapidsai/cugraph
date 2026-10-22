@@ -59,19 +59,19 @@ struct select_random_vertices_functor : public cugraph::c_api::abstract_functor 
 
       local_vertices = cugraph::select_random_vertices(
         handle_,
+        rng_state_->rng_state_,
         graph_view,
         std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-        rng_state_->rng_state_,
         num_vertices_,
         false,
         false);
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+      local_vertices = cugraph::unrenumber_int_vertices(
         handle_,
-        local_vertices.data(),
-        local_vertices.size(),
-        number_map->data(),
-        graph_view.vertex_partition_range_lasts(),
+        graph_view,
+        std::move(local_vertices),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         false);
 
       result_ = new cugraph::c_api::cugraph_type_erased_device_array_t(local_vertices,

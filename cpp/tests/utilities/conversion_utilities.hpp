@@ -1,11 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/vertex_property.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/core/span.hpp>
@@ -78,6 +79,14 @@ template <typename T>
 std::vector<T> to_host(raft::handle_t const& handle, rmm::device_uvector<T> const& data)
 {
   return to_host(handle, raft::device_span<T const>(data.data(), data.size()));
+}
+
+template <typename vertex_t, typename T>
+std::vector<T> to_host(raft::handle_t const& handle,
+                       cugraph::vertex_property_view_t<vertex_t, T const*> data)
+{
+  return to_host(
+    handle, raft::device_span<T const>(data.value_first(), static_cast<size_t>(data.range_size())));
 }
 
 template <typename T>
@@ -159,7 +168,7 @@ graph_to_host_coo(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<raft::device_span<vertex_t const>> renumber_map);
+  std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>> renumber_map);
 
 // If multi-GPU, only the rank 0 GPU holds the valid data
 template <typename vertex_t,
@@ -174,7 +183,7 @@ graph_to_device_coo(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<raft::device_span<vertex_t const>> renumber_map);
+  std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>> renumber_map);
 
 // If multi-GPU, only the rank 0 GPU holds the valid data
 template <typename vertex_t,
@@ -187,7 +196,7 @@ graph_to_host_csr(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<raft::device_span<vertex_t const>> renumber_map);
+  std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>> renumber_map);
 
 // If multi-GPU, only the rank 0 GPU holds the valid data
 template <typename vertex_t,
@@ -200,7 +209,7 @@ graph_to_host_csc(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<raft::device_span<vertex_t const>> renumber_map);
+  std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>> renumber_map);
 
 // Only the rank 0 GPU holds the valid data
 // if @p renumber is false, mg_graph edge (or unrenumbered mg_graph edge if @p
@@ -217,27 +226,29 @@ std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, false>,
            std::optional<cugraph::edge_property_t<edge_t, weight_t>>,
            std::optional<cugraph::edge_property_t<edge_t, edge_t>>,
            std::optional<cugraph::edge_property_t<edge_t, edge_type_t>>,
-           std::optional<rmm::device_uvector<vertex_t>>>
+           std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>>>
 mg_graph_to_sg_graph(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, true> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
-  std::optional<raft::device_span<vertex_t const>> renumber_map,
+  std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>> renumber_map,
   bool renumber);
 
 // Only the rank 0 GPU holds the valid data
 
-template <typename vertex_t, typename value_t>
+template <typename vertex_t, typename edge_t, typename value_t, bool store_transposed>
 std::tuple<std::optional<rmm::device_uvector<vertex_t>>, rmm::device_uvector<value_t>>
 mg_vertex_property_values_to_sg_vertex_property_values(
   raft::handle_t const& handle,
-  std::optional<raft::device_span<vertex_t const>>
+  cugraph::graph_view_t<vertex_t, edge_t, store_transposed, true> const& mg_graph_view,
+  std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>
     mg_renumber_map,  // std::nullopt if the MG graph is not renumbered
-  std::tuple<vertex_t, vertex_t> mg_vertex_partition_range,
-  std::optional<raft::device_span<vertex_t const>>
-    sg_renumber_map,  // std::nullopt if the SG graph is not renumbered
+  std::optional<std::type_identity_t<
+    std::tuple<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
+               cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>>>
+    sg_graph_view_and_renumber_map,  // std::nullopt if the SG graph is not renumbered
   std::optional<raft::device_span<vertex_t const>>
     mg_vertices,  // std::nullopt if the entire local vertex partition range is assumed
   raft::device_span<value_t const> mg_values);

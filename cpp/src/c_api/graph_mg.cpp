@@ -238,7 +238,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
 
       auto graph = new cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>(handle_);
 
-      std::optional<rmm::device_uvector<vertex_t>> new_number_map;
+      std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> new_number_map;
 
       edgelist_edge_properties.clear();
       if (edgelist_weights) edgelist_edge_properties.push_back(std::move(*edgelist_weights));
@@ -252,7 +252,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       std::vector<cugraph::edge_arithmetic_property_t<edge_t>> new_edge_properties{};
 
       std::tie(*graph, new_edge_properties, new_number_map) =
-        cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+        cugraph::create_graph<vertex_t, edge_t, store_transposed, multi_gpu>(
           handle_,
           std::move(vertex_list),
           std::move(edgelist_srcs),
@@ -265,7 +265,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
           do_expensive_check_);
 
       rmm::device_uvector<vertex_t>* number_map =
-        new rmm::device_uvector<vertex_t>(std::move(new_number_map.value()));
+        new rmm::device_uvector<vertex_t>(new_number_map->release_buffer());
 
       cugraph::edge_property_t<edge_t, weight_t>* edge_weights_property{nullptr};
       cugraph::edge_property_t<edge_t, edge_t>* edge_ids_property{nullptr};

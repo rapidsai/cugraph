@@ -72,7 +72,7 @@ template <typename vertex_t,
 
 std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
            std::optional<cugraph::edge_property_t<edge_t, weight_t>>,
-           std::optional<rmm::device_uvector<vertex_t>>>
+           std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>>>
 create_graph(raft::handle_t const& handle,
              std::vector<vertex_t>&& edge_srcs,
              std::vector<vertex_t>&& edge_dsts,
@@ -122,7 +122,7 @@ create_graph(raft::handle_t const& handle,
   //
 
   if (multi_gpu) {
-    std::tie(d_edge_srcs, d_edge_dsts, edge_property_vectors, std::ignore) =
+    std::tie(d_edge_srcs, d_edge_dsts, edge_property_vectors) =
       cugraph::shuffle_ext_edges(handle,
                                  std::move(d_edge_srcs),
                                  std::move(d_edge_dsts),
@@ -139,10 +139,10 @@ create_graph(raft::handle_t const& handle,
   std::optional<cugraph::edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
   std::vector<cugraph::edge_arithmetic_property_t<edge_t>> edgelist_edge_properties;
 
-  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+  std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> renumber_map{std::nullopt};
 
   std::tie(graph, edgelist_edge_properties, renumber_map) =
-    cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+    cugraph::create_graph<vertex_t, edge_t, store_transposed, multi_gpu>(
       handle,
       std::nullopt,
       std::move(d_edge_srcs),
@@ -191,18 +191,19 @@ void perform_example_graph_operations(
   //
 
   if (edge_weight_view.has_value()) {
-    using result_t      = weight_t;
-    auto vertex_weights = cugraph::compute_out_weight_sums(handle, graph_view, *edge_weight_view);
+    using result_t = weight_t;
+    auto vertex_weights =
+      cugraph::compute_out_weight_sums(handle, graph_view, *edge_weight_view, false);
 
     cugraph::edge_src_property_t<edge_t, result_t> src_vertex_weights_cache(handle, graph_view);
 
     cugraph::edge_dst_property_t<edge_t, result_t> dst_vertex_weights_cache(handle, graph_view);
 
     cugraph::update_edge_src_property(
-      handle, graph_view, vertex_weights.begin(), src_vertex_weights_cache.mutable_view());
+      handle, graph_view, vertex_weights.view(), src_vertex_weights_cache.mutable_view());
 
     cugraph::update_edge_dst_property(
-      handle, graph_view, vertex_weights.begin(), dst_vertex_weights_cache.mutable_view());
+      handle, graph_view, vertex_weights.view(), dst_vertex_weights_cache.mutable_view());
 
     rmm::device_uvector<result_t> weighted_averages(
       size_of_the_vertex_partition_assigned_to_this_process, handle.get_stream());
@@ -224,7 +225,8 @@ void perform_example_graph_operations(
       },
       result_t{0},
       cugraph::reduce_op::plus<result_t>{},
-      weighted_averages.begin());
+      cugraph::vertex_property_view_t{weighted_averages.begin(),
+                                      graph_view.local_vertex_partition_range_size()});
 
     auto weighted_averages_title =
       std::string("weighted_averages_").append(std::to_string(comm_rank));
@@ -235,16 +237,16 @@ void perform_example_graph_operations(
                               std::cout);
   } else {
     using result_t      = edge_t;
-    auto vertex_weights = graph_view.compute_out_degrees(handle);
+    auto vertex_weights = cugraph::compute_out_degrees(handle, graph_view);
 
     cugraph::edge_src_property_t<edge_t, result_t> src_vertex_weights_cache(handle, graph_view);
     cugraph::edge_dst_property_t<edge_t, result_t> dst_vertex_weights_cache(handle, graph_view);
 
     cugraph::update_edge_src_property(
-      handle, graph_view, vertex_weights.begin(), src_vertex_weights_cache.mutable_view());
+      handle, graph_view, vertex_weights.view(), src_vertex_weights_cache.mutable_view());
 
     cugraph::update_edge_dst_property(
-      handle, graph_view, vertex_weights.begin(), dst_vertex_weights_cache.mutable_view());
+      handle, graph_view, vertex_weights.view(), dst_vertex_weights_cache.mutable_view());
 
     rmm::device_uvector<result_t> weighted_averages(
       size_of_the_vertex_partition_assigned_to_this_process, handle.get_stream());
@@ -265,7 +267,8 @@ void perform_example_graph_operations(
       },
       result_t{0},
       cugraph::reduce_op::plus<result_t>{},
-      weighted_averages.begin());
+      cugraph::vertex_property_view_t{weighted_averages.begin(),
+                                      graph_view.local_vertex_partition_range_size()});
 
     auto weighted_averages_title =
       std::string("weighted_averages_").append(std::to_string(comm_rank));

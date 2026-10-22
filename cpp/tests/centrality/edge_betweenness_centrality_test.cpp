@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "centrality/betweenness_centrality_reference.hpp"
@@ -86,9 +86,9 @@ class Tests_EdgeBetweennessCentrality
     raft::random::RngState rng_state(0);
     auto d_seeds = cugraph::select_random_vertices(
       handle,
+      rng_state,
       graph_view,
       std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-      rng_state,
       betweenness_usecase.num_seeds,
       false,
       true);
@@ -119,19 +119,15 @@ class Tests_EdgeBetweennessCentrality
         handle,
         graph_view,
         edge_weight_view,
-        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+        std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
 
       std::vector<vertex_t> h_seeds{};
       if (renumber) {
         rmm::device_uvector<vertex_t> d_unrenumbered_seeds(d_seeds.size(), handle.get_stream());
         raft::copy_async(
           d_unrenumbered_seeds.data(), d_seeds.data(), d_seeds.size(), handle.get_stream());
-        cugraph::unrenumber_local_int_vertices(handle,
-                                               d_unrenumbered_seeds.data(),
-                                               d_unrenumbered_seeds.size(),
-                                               (*d_renumber_map_labels).data(),
-                                               vertex_t{0},
-                                               graph_view.number_of_vertices());
+        d_unrenumbered_seeds = cugraph::unrenumber_local_int_vertices(
+          handle, graph_view, std::move(d_unrenumbered_seeds), d_renumber_map_labels->view());
         h_seeds = cugraph::test::to_host(handle, d_seeds);
         std::sort(h_seeds.begin(), h_seeds.end());
       } else {
@@ -154,7 +150,7 @@ class Tests_EdgeBetweennessCentrality
           handle,
           graph_view,
           edge_weight_view,
-          std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
 
       auto d_reference_centralities = cugraph::test::to_device(handle, h_reference_centralities);
 
@@ -163,7 +159,7 @@ class Tests_EdgeBetweennessCentrality
           handle,
           graph_view,
           std::make_optional(d_centralities.view()),
-          std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
 
       cugraph::test::edge_betweenness_centrality_validate(handle,
                                                           d_cugraph_src_vertex_ids,

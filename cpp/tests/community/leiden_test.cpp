@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.  All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "utilities/base_fixture.hpp"
@@ -107,15 +107,14 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
     float expected_modularity)
   {
     raft::handle_t handle{};
+    (void)num_vertices;
 
-    rmm::device_uvector<vertex_t> clustering_v(num_vertices, handle.get_stream());
-    size_t level;
-    weight_t modularity;
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     raft::random::RngState rng_state(seed);
 
-    std::tie(level, modularity) = cugraph::leiden(
-      handle, rng_state, graph_view, edge_weight_view, clustering_v.data(), max_level, resolution);
+    auto [clustering_prop, level, modularity] =
+      cugraph::leiden(handle, rng_state, graph_view, edge_weight_view, true, max_level, resolution);
+    auto clustering_v = clustering_prop.release_buffer();
 
     float compare_modularity = static_cast<float>(modularity);
 

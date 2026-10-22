@@ -9,6 +9,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/src_dst_lookup_container.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/vertex_property.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -1505,6 +1506,9 @@ lookup_endpoints_from_edge_ids_and_types(
  * @ingroup sampling_functions_cpp
  * @brief Negative Sampling
  *
+ * @deprecated This API is deprecated and replaced by the overload below that takes @p src_biases
+ * and @p dst_biases as `vertex_property_view_t` objects.
+ *
  * This function generates negative samples for graph.
  *
  * Negative sampling is done by generating a random graph according to the specified
@@ -1561,5 +1565,67 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
   bool remove_existing_edges,
   bool exact_number_of_samples,
   bool do_expensive_check);
+
+/**
+ * @ingroup sampling_functions_cpp
+ * @brief Negative Sampling
+ *
+ * This function generates negative samples for graph.
+ *
+ * Negative sampling is done by generating a random graph according to the specified
+ * parameters and optionally removing samples that represent actual edges in the graph
+ *
+ * Sampling occurs by creating a list of source vertex ids from biased samping
+ * of the source vertex space, and destination vertex ids from biased sampling of the
+ * destination vertex space, and using this as the putative list of edges.  We
+ * then can optionally remove duplicates and remove actual edges in the graph to generate
+ * the final list.  If necessary we will repeat the process to end with a resulting
+ * edge list of the appropriate size.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of vertex biases. Needs to be a floating point type.
+ * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
+ * true) are major indices
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param rng_state RNG state
+ * @param graph_view Graph View object to generate NBR Sampling for
+ * @param src_biases Optional view object holding the biases for randomly selecting source vertices
+ * (for the vertices assigned to this process in multi-GPU). If std::nullopt vertices will be
+ * selected uniformly.
+ * @param dst_biases Optional view object holding the biases for randomly selecting destination
+ * vertices (for the vertices assigned to this process in multi-GPU). If std::nullopt vertices will
+ * be selected uniformly.
+ * @param num_samples Number of negative samples to generate.  In SG mode this represents the total
+ * number of samples to generate.  In MG mode, each gpu will provide the number of samples desired
+ * on that GPU.  The total number of samples in MG mode will be the aggregation of these values, the
+ * resulting samples will be randomly distributed across the ranks.
+ * @param remove_duplicates If true, remove duplicate samples
+ * @param remove_existing_edges If true, remove samples that are actually edges in the graph
+ * @param exact_number_of_samples If true, repeat generation until we get the exact number of
+ * negative samples
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ *
+ * @return tuple containing source vertex ids and destination vertex ids for the negative samples
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negative_sampling(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<vertex_property_view_t<vertex_t, weight_t const*>> src_biases,
+  std::optional<vertex_property_view_t<vertex_t, weight_t const*>> dst_biases,
+  size_t num_samples,
+  bool remove_duplicates,
+  bool remove_existing_edges,
+  bool exact_number_of_samples,
+  bool do_expensive_check = false);
 
 }  // namespace CUGRAPH_EXPORT cugraph

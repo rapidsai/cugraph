@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "structure/decompress_to_edgelist_impl.cuh"
@@ -67,6 +67,28 @@ decompress_to_edgelist<int32_t, int32_t, double, int32_t, true, true>(
   std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_id_view,
   std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_type_view,
   std::optional<raft::device_span<int32_t const>> renumber_map,
+  std::optional<large_buffer_type_t> large_buffer_type,
+  bool do_expensive_check);
+
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   std::vector<arithmetic_device_uvector_t>>
+decompress_to_edgelist<int32_t, int32_t, false, true>(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, false, true> const& graph_view,
+  std::vector<edge_arithmetic_property_view_t<int32_t>> const& edge_property_views,
+  std::optional<vertex_property_view_t<int32_t, int32_t const*>> renumber_map,
+  std::optional<large_buffer_type_t> large_buffer_type,
+  bool do_expensive_check);
+
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   std::vector<arithmetic_device_uvector_t>>
+decompress_to_edgelist<int32_t, int32_t, true, true>(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, true, true> const& graph_view,
+  std::vector<edge_arithmetic_property_view_t<int32_t>> const& edge_property_views,
+  std::optional<vertex_property_view_t<int32_t, int32_t const*>> renumber_map,
   std::optional<large_buffer_type_t> large_buffer_type,
   bool do_expensive_check);
 

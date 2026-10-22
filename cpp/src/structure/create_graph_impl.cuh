@@ -23,6 +23,7 @@
 #include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 #include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/utilities/thrust_wrappers/unique.hpp>
+#include <cugraph/vertex_property.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -76,9 +77,9 @@ void expensive_check_edgelist(raft::handle_t const& handle,
                               bool renumber)
 {
   if (vertices) {
-    rmm::device_uvector<vertex_t> sorted_vertices((*vertices).size(), handle.get_stream());
+    rmm::device_uvector<vertex_t> sorted_vertices(vertices->size(), handle.get_stream());
     thrust::copy(
-      handle.get_thrust_policy(), (*vertices).begin(), (*vertices).end(), sorted_vertices.begin());
+      handle.get_thrust_policy(), vertices->begin(), vertices->end(), sorted_vertices.begin());
     cugraph::sort(handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end());
     CUGRAPH_EXPECTS(static_cast<size_t>(cuda::std::distance(
                       sorted_vertices.begin(),
@@ -154,8 +155,8 @@ void expensive_check_edgelist(raft::handle_t const& handle,
 
       CUGRAPH_EXPECTS(
         thrust::count_if(handle.get_thrust_policy(),
-                         (*vertices).begin(),
-                         (*vertices).end(),
+                         vertices->begin(),
+                         vertices->end(),
                          [comm_rank,
                           key_func =
                             detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
@@ -235,11 +236,9 @@ void expensive_check_edgelist(raft::handle_t const& handle,
     }
   } else {
     if (vertices) {
-      rmm::device_uvector<vertex_t> sorted_vertices((*vertices).size(), handle.get_stream());
-      thrust::copy(handle.get_thrust_policy(),
-                   (*vertices).begin(),
-                   (*vertices).end(),
-                   sorted_vertices.begin());
+      rmm::device_uvector<vertex_t> sorted_vertices(vertices->size(), handle.get_stream());
+      thrust::copy(
+        handle.get_thrust_policy(), vertices->begin(), vertices->end(), sorted_vertices.begin());
       cugraph::sort(handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end());
       auto edge_first = thrust::make_zip_iterator(edgelist_majors.begin(), edgelist_minors.begin());
       CUGRAPH_EXPECTS(
@@ -474,7 +473,7 @@ template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_
 std::enable_if_t<multi_gpu,
                  std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
                             std::vector<edge_arithmetic_property_t<edge_t>>,
-                            std::optional<rmm::device_uvector<vertex_t>>>>
+                            std::optional<vertex_property_t<vertex_t, vertex_t>>>>
 create_graph_from_partitioned_edgelist(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
@@ -498,27 +497,18 @@ create_graph_from_partitioned_edgelist(
 
   // 1. renumber
 
-  std::vector<edge_t> edgelist_edge_counts(minor_comm_size, edge_t{0});
-  for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
-    edgelist_edge_counts[i] = static_cast<edge_t>(edge_partition_edgelist_srcs[i].size());
-  }
-
-  std::vector<vertex_t*> src_ptrs(minor_comm_size);
-  std::vector<vertex_t*> dst_ptrs(src_ptrs.size());
-  for (int i = 0; i < minor_comm_size; ++i) {
-    src_ptrs[i] = edge_partition_edgelist_srcs[i].begin();
-    dst_ptrs[i] = edge_partition_edgelist_dsts[i].begin();
-  }
-  auto [renumber_map_labels, meta] = cugraph::renumber_edgelist<vertex_t, edge_t, true>(
-    handle,
-    std::move(local_vertices),
-    src_ptrs,
-    dst_ptrs,
-    edgelist_edge_counts,
-    edgelist_intra_partition_segment_offset_vectors,
-    store_transposed,
-    large_vertex_buffer_type,
-    large_edge_buffer_type);
+  rmm::device_uvector<vertex_t> renumber_map_labels(0, handle.get_stream());
+  renumber_meta_t<vertex_t, edge_t, true> meta{};
+  std::tie(renumber_map_labels, edge_partition_edgelist_srcs, edge_partition_edgelist_dsts, meta) =
+    cugraph::renumber_edgelist<vertex_t, edge_t, true>(
+      handle,
+      std::move(local_vertices),
+      std::move(edge_partition_edgelist_srcs),
+      std::move(edge_partition_edgelist_dsts),
+      edgelist_intra_partition_segment_offset_vectors,
+      store_transposed,
+      large_vertex_buffer_type,
+      large_edge_buffer_type);
 
   auto num_segments_per_vertex_partition =
     static_cast<size_t>(meta.edge_partition_segment_offsets.size() / minor_comm_size);
@@ -564,7 +554,7 @@ create_graph_from_partitioned_edgelist(
 
   if (use_dcs) {
     edge_partition_dcs_nzd_vertices = std::vector<rmm::device_uvector<vertex_t>>{};
-    (*edge_partition_dcs_nzd_vertices).reserve(edge_partition_edgelist_srcs.size());
+    edge_partition_dcs_nzd_vertices->reserve(edge_partition_edgelist_srcs.size());
   }
 
   for (size_t i = 0; i < edge_partition_edgelist_srcs.size(); ++i) {
@@ -758,24 +748,25 @@ create_graph_from_partitioned_edgelist(
         meta.edge_partition_segment_offsets,
         meta.edge_partition_hypersparse_degree_offsets}),
     std::move(edge_properties),
-    std::optional<rmm::device_uvector<vertex_t>>{std::move(renumber_map_labels)});
+    std::make_optional(vertex_property_t<vertex_t, vertex_t>(
+      std::move(renumber_map_labels), meta.partition.local_vertex_partition_range_size())));
 }
 
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 std::enable_if_t<multi_gpu,
                  std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
                             std::vector<edge_arithmetic_property_t<edge_t>>,
-                            std::optional<rmm::device_uvector<vertex_t>>>>
-create_graph_from_edgelist_impl(raft::handle_t const& handle,
-                                std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
-                                rmm::device_uvector<vertex_t>&& edgelist_srcs,
-                                rmm::device_uvector<vertex_t>&& edgelist_dsts,
-                                std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
-                                graph_properties_t graph_properties,
-                                bool renumber,
-                                std::optional<large_buffer_type_t> large_vertex_buffer_type,
-                                std::optional<large_buffer_type_t> large_edge_buffer_type,
-                                bool do_expensive_check)
+                            std::optional<vertex_property_t<vertex_t, vertex_t>>>>
+create_graph_impl(raft::handle_t const& handle,
+                  std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
+                  rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                  rmm::device_uvector<vertex_t>&& edgelist_dsts,
+                  std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
+                  graph_properties_t graph_properties,
+                  bool renumber,
+                  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+                  std::optional<large_buffer_type_t> large_edge_buffer_type,
+                  bool do_expensive_check)
 {
   auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
   auto const major_comm_size = major_comm.get_size();
@@ -958,18 +949,17 @@ template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_
 std::enable_if_t<multi_gpu,
                  std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
                             std::vector<edge_arithmetic_property_t<edge_t>>,
-                            std::optional<rmm::device_uvector<vertex_t>>>>
-create_graph_from_edgelist_impl(
-  raft::handle_t const& handle,
-  std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
-  std::vector<rmm::device_uvector<vertex_t>>&& edgelist_srcs,
-  std::vector<rmm::device_uvector<vertex_t>>&& edgelist_dsts,
-  std::vector<std::vector<arithmetic_device_uvector_t>>&& edgelist_edge_properties,
-  graph_properties_t graph_properties,
-  bool renumber,
-  std::optional<large_buffer_type_t> large_vertex_buffer_type,
-  std::optional<large_buffer_type_t> large_edge_buffer_type,
-  bool do_expensive_check)
+                            std::optional<vertex_property_t<vertex_t, vertex_t>>>>
+create_graph_impl(raft::handle_t const& handle,
+                  std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
+                  std::vector<rmm::device_uvector<vertex_t>>&& edgelist_srcs,
+                  std::vector<rmm::device_uvector<vertex_t>>&& edgelist_dsts,
+                  std::vector<std::vector<arithmetic_device_uvector_t>>&& edgelist_edge_properties,
+                  graph_properties_t graph_properties,
+                  bool renumber,
+                  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+                  std::optional<large_buffer_type_t> large_edge_buffer_type,
+                  bool do_expensive_check)
 {
   auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
   auto const major_comm_size = major_comm.get_size();
@@ -1176,8 +1166,8 @@ create_graph_from_edgelist_impl(
   if (compressed_v_size < sizeof(vertex_t)) {
     edgelist_compressed_srcs = std::vector<rmm::device_uvector<std::byte>>{};
     edgelist_compressed_dsts = std::vector<rmm::device_uvector<std::byte>>{};
-    (*edgelist_compressed_srcs).reserve(num_chunks);
-    (*edgelist_compressed_dsts).reserve(num_chunks);
+    edgelist_compressed_srcs->reserve(num_chunks);
+    edgelist_compressed_dsts->reserve(num_chunks);
     for (size_t i = 0; i < num_chunks; ++i) {  // iterate over input edge chunks
                                                // compress source values
       auto num_bytes = edgelist_srcs[i].size() * compressed_v_size;
@@ -1198,7 +1188,7 @@ create_graph_from_edgelist_impl(
                    tmp_srcs.begin());
       edgelist_srcs[i].resize(0, handle.get_stream());
       edgelist_srcs[i].shrink_to_fit(handle.get_stream());
-      (*edgelist_compressed_srcs).push_back(std::move(tmp_srcs));
+      edgelist_compressed_srcs->push_back(std::move(tmp_srcs));
 
       // compress destination values
 
@@ -1220,7 +1210,7 @@ create_graph_from_edgelist_impl(
                    tmp_dsts.begin());
       edgelist_dsts[i].resize(0, handle.get_stream());
       edgelist_dsts[i].shrink_to_fit(handle.get_stream());
-      (*edgelist_compressed_dsts).push_back(std::move(tmp_dsts));
+      edgelist_compressed_dsts->push_back(std::move(tmp_dsts));
     }
   }
 
@@ -1430,20 +1420,20 @@ template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_
 std::enable_if_t<!multi_gpu,
                  std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
                             std::vector<edge_arithmetic_property_t<edge_t>>,
-                            std::optional<rmm::device_uvector<vertex_t>>>>
-create_graph_from_edgelist_impl(raft::handle_t const& handle,
-                                std::optional<rmm::device_uvector<vertex_t>>&& vertices,
-                                rmm::device_uvector<vertex_t>&& edgelist_srcs,
-                                rmm::device_uvector<vertex_t>&& edgelist_dsts,
-                                std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
-                                graph_properties_t graph_properties,
-                                bool renumber,
-                                std::optional<large_buffer_type_t> large_vertex_buffer_type,
-                                std::optional<large_buffer_type_t> large_edge_buffer_type,
-                                bool do_expensive_check)
+                            std::optional<vertex_property_t<vertex_t, vertex_t>>>>
+create_graph_impl(raft::handle_t const& handle,
+                  std::optional<rmm::device_uvector<vertex_t>>&& vertices,
+                  rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                  rmm::device_uvector<vertex_t>&& edgelist_dsts,
+                  std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
+                  graph_properties_t graph_properties,
+                  bool renumber,
+                  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+                  std::optional<large_buffer_type_t> large_edge_buffer_type,
+                  bool do_expensive_check)
 {
   CUGRAPH_EXPECTS(
-    !vertices || ((*vertices).size() < static_cast<size_t>(std::numeric_limits<vertex_t>::max())),
+    !vertices || (vertices->size() < static_cast<size_t>(std::numeric_limits<vertex_t>::max())),
     "Invalid input arguments: # unique vertex IDs should be smaller than "
     "std::numeric_limits<vertex_t>::Max().");
   CUGRAPH_EXPECTS(edgelist_srcs.size() == edgelist_dsts.size(),
@@ -1498,23 +1488,22 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>> renumber_map_labels{std::nullopt};
   renumber_meta_t<vertex_t, edge_t, multi_gpu> meta{};
   if (renumber) {
-    std::tie(renumber_map_labels, meta) = cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(
-      handle,
-      std::move(vertices),
-      edgelist_srcs.data(),
-      edgelist_dsts.data(),
-      static_cast<edge_t>(edgelist_srcs.size()),
-      store_transposed,
-      large_vertex_buffer_type,
-      large_edge_buffer_type);
+    std::tie(renumber_map_labels, edgelist_srcs, edgelist_dsts, meta) =
+      cugraph::renumber_edgelist<vertex_t, edge_t, multi_gpu>(handle,
+                                                              std::move(vertices),
+                                                              std::move(edgelist_srcs),
+                                                              std::move(edgelist_dsts),
+                                                              store_transposed,
+                                                              large_vertex_buffer_type,
+                                                              large_edge_buffer_type);
   }
 
   vertex_t num_vertices{};
   if (renumber) {
-    num_vertices = static_cast<vertex_t>((*renumber_map_labels).size());
+    num_vertices = static_cast<vertex_t>(renumber_map_labels->size());
   } else {
     if (vertices) {
-      num_vertices = (*vertices).size();
+      num_vertices = vertices->size();
     } else {
       if (edgelist_srcs.size() > 0) {
         num_vertices = 1 + cugraph::detail::compute_maximum_vertex_id(
@@ -1682,25 +1671,26 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
         renumber ? std::optional<std::vector<vertex_t>>{meta.segment_offsets} : std::nullopt,
         meta.hypersparse_degree_offsets}),
     std::move(new_edge_properties),
-    std::move(renumber_map_labels));
+    renumber ? std::make_optional(vertex_property_t<vertex_t, vertex_t>(
+                 std::move(*renumber_map_labels), num_vertices))
+             : std::nullopt);
 }
 
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 std::enable_if_t<!multi_gpu,
                  std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
                             std::vector<edge_arithmetic_property_t<edge_t>>,
-                            std::optional<rmm::device_uvector<vertex_t>>>>
-create_graph_from_edgelist_impl(
-  raft::handle_t const& handle,
-  std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
-  std::vector<rmm::device_uvector<vertex_t>>&& edgelist_srcs,
-  std::vector<rmm::device_uvector<vertex_t>>&& edgelist_dsts,
-  std::vector<std::vector<arithmetic_device_uvector_t>>&& edgelist_edge_properties,
-  graph_properties_t graph_properties,
-  bool renumber,
-  std::optional<large_buffer_type_t> large_vertex_buffer_type,
-  std::optional<large_buffer_type_t> large_edge_buffer_type,
-  bool do_expensive_check)
+                            std::optional<vertex_property_t<vertex_t, vertex_t>>>>
+create_graph_impl(raft::handle_t const& handle,
+                  std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
+                  std::vector<rmm::device_uvector<vertex_t>>&& edgelist_srcs,
+                  std::vector<rmm::device_uvector<vertex_t>>&& edgelist_dsts,
+                  std::vector<std::vector<arithmetic_device_uvector_t>>&& edgelist_edge_properties,
+                  graph_properties_t graph_properties,
+                  bool renumber,
+                  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+                  std::optional<large_buffer_type_t> large_edge_buffer_type,
+                  bool do_expensive_check)
 {
   CUGRAPH_EXPECTS(edgelist_srcs.size() == edgelist_dsts.size(),
                   "Invalid input arguments: edgelist_srcs.size() != edgelist_dsts.size().");
@@ -1847,7 +1837,7 @@ create_graph_from_edgelist_impl(
     }
   }
 
-  return create_graph_from_edgelist_impl<vertex_t, edge_t, store_transposed, multi_gpu>(
+  return create_graph_impl<vertex_t, edge_t, store_transposed, multi_gpu>(
     handle,
     std::move(local_vertices),
     std::move(aggregate_edgelist_srcs),
@@ -1865,6 +1855,62 @@ create_graph_from_edgelist_impl(
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 std::tuple<graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
            std::vector<edge_arithmetic_property_t<edge_t>>,
+           std::optional<vertex_property_t<vertex_t, vertex_t>>>
+create_graph(raft::handle_t const& handle,
+             std::optional<rmm::device_uvector<vertex_t>>&& vertices,
+             rmm::device_uvector<vertex_t>&& edgelist_srcs,
+             rmm::device_uvector<vertex_t>&& edgelist_dsts,
+             std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
+             graph_properties_t graph_properties,
+             bool renumber,
+             std::optional<large_buffer_type_t> large_vertex_buffer_type,
+             std::optional<large_buffer_type_t> large_edge_buffer_type,
+             bool do_expensive_check)
+{
+  return create_graph_impl<vertex_t, edge_t, store_transposed, multi_gpu>(
+    handle,
+    std::move(vertices),
+    std::move(edgelist_srcs),
+    std::move(edgelist_dsts),
+    std::move(edgelist_edge_properties),
+    graph_properties,
+    renumber,
+    large_vertex_buffer_type,
+    large_edge_buffer_type,
+    do_expensive_check);
+}
+
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+           std::vector<edge_arithmetic_property_t<edge_t>>,
+           std::optional<vertex_property_t<vertex_t, vertex_t>>>
+create_graph(raft::handle_t const& handle,
+             std::optional<rmm::device_uvector<vertex_t>>&& vertices,
+             std::vector<rmm::device_uvector<vertex_t>>&& edgelist_srcs,
+             std::vector<rmm::device_uvector<vertex_t>>&& edgelist_dsts,
+             std::vector<std::vector<arithmetic_device_uvector_t>>&& edgelist_edge_properties,
+             graph_properties_t graph_properties,
+             bool renumber,
+             std::optional<large_buffer_type_t> large_vertex_buffer_type,
+             std::optional<large_buffer_type_t> large_edge_buffer_type,
+             bool do_expensive_check)
+{
+  return create_graph_impl<vertex_t, edge_t, store_transposed, multi_gpu>(
+    handle,
+    std::move(vertices),
+    std::move(edgelist_srcs),
+    std::move(edgelist_dsts),
+    std::move(edgelist_edge_properties),
+    graph_properties,
+    renumber,
+    large_vertex_buffer_type,
+    large_edge_buffer_type,
+    do_expensive_check);
+}
+
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+std::tuple<graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+           std::vector<edge_arithmetic_property_t<edge_t>>,
            std::optional<rmm::device_uvector<vertex_t>>>
 create_graph_from_edgelist(raft::handle_t const& handle,
                            std::optional<rmm::device_uvector<vertex_t>>&& vertices,
@@ -1877,17 +1923,21 @@ create_graph_from_edgelist(raft::handle_t const& handle,
                            std::optional<large_buffer_type_t> large_edge_buffer_type,
                            bool do_expensive_check)
 {
-  return create_graph_from_edgelist_impl<vertex_t, edge_t, store_transposed, multi_gpu>(
-    handle,
-    std::move(vertices),
-    std::move(edgelist_srcs),
-    std::move(edgelist_dsts),
-    std::move(edgelist_edge_properties),
-    graph_properties,
-    renumber,
-    large_vertex_buffer_type,
-    large_edge_buffer_type,
-    do_expensive_check);
+  auto [graph, edge_properties, renumber_map] =
+    create_graph<vertex_t, edge_t, store_transposed, multi_gpu>(handle,
+                                                                std::move(vertices),
+                                                                std::move(edgelist_srcs),
+                                                                std::move(edgelist_dsts),
+                                                                std::move(edgelist_edge_properties),
+                                                                graph_properties,
+                                                                renumber,
+                                                                large_vertex_buffer_type,
+                                                                large_edge_buffer_type,
+                                                                do_expensive_check);
+  std::optional<rmm::device_uvector<vertex_t>> renumber_map_buffer{std::nullopt};
+  if (renumber_map) { renumber_map_buffer = renumber_map->release_buffer(); }
+  return std::make_tuple(
+    std::move(graph), std::move(edge_properties), std::move(renumber_map_buffer));
 }
 
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
@@ -1906,17 +1956,21 @@ create_graph_from_edgelist(
   std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check)
 {
-  return create_graph_from_edgelist_impl<vertex_t, edge_t, store_transposed, multi_gpu>(
-    handle,
-    std::move(vertices),
-    std::move(edgelist_srcs),
-    std::move(edgelist_dsts),
-    std::move(edgelist_edge_properties),
-    graph_properties,
-    renumber,
-    large_vertex_buffer_type,
-    large_edge_buffer_type,
-    do_expensive_check);
+  auto [graph, edge_properties, renumber_map] =
+    create_graph<vertex_t, edge_t, store_transposed, multi_gpu>(handle,
+                                                                std::move(vertices),
+                                                                std::move(edgelist_srcs),
+                                                                std::move(edgelist_dsts),
+                                                                std::move(edgelist_edge_properties),
+                                                                graph_properties,
+                                                                renumber,
+                                                                large_vertex_buffer_type,
+                                                                large_edge_buffer_type,
+                                                                do_expensive_check);
+  std::optional<rmm::device_uvector<vertex_t>> renumber_map_buffer{std::nullopt};
+  if (renumber_map) { renumber_map_buffer = renumber_map->release_buffer(); }
+  return std::make_tuple(
+    std::move(graph), std::move(edge_properties), std::move(renumber_map_buffer));
 }
 
 }  // namespace cugraph

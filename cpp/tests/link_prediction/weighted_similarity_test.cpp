@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "link_prediction/similarity_compare.hpp"
@@ -89,7 +89,7 @@ class Tests_Similarity
         handle,
         graph_view,
         edge_weight_view,
-        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+        std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
 
       size_t max_vertices = std::min(static_cast<size_t>(graph_view.number_of_vertices()),
                                      similarity_usecase.max_seeds);
@@ -173,7 +173,7 @@ class Tests_Similarity
         handle,
         graph_view,
         edge_weight_view,
-        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+        std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
 
       size_t check_size = std::min(d_v1.size(), similarity_usecase.max_vertex_pairs_to_check);
 

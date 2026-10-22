@@ -15,6 +15,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/prims/detail/nbr_intersection.cuh>
+#include <cugraph/prims/gather_v.cuh>
 #include <cugraph/prims/per_v_random_select_transform_outgoing_e.cuh>
 #include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
@@ -25,7 +26,6 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/utilities/thrust_wrappers/fill.hpp>
-#include <cugraph/utilities/thrust_wrappers/gather.hpp>
 #include <cugraph/utilities/thrust_wrappers/scan.hpp>
 #include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 #include <cugraph/utilities/thrust_wrappers/sort.hpp>
@@ -36,7 +36,6 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
-#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 
@@ -268,17 +267,15 @@ struct biased_selector {
     vertex_frontier.bucket(0).insert(current_vertices.begin(), current_vertices.end());
 
     // FIXME: we need to compute weight sums only for the vertices in vertex_frontier.bucket(0)
-    auto vertex_weight_sum = compute_out_weight_sums(handle, graph_view, *edge_weight_view);
+    auto vertex_weight_sum = compute_out_weight_sums(handle, graph_view, *edge_weight_view, false);
     rmm::device_uvector<weight_t> gathered_weight_sums(vertex_frontier.bucket(0).size(),
                                                        handle.get_stream());
-    auto map_first = cuda::make_transform_iterator(
-      vertex_frontier.bucket(0).begin(),
-      shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()});
-    cugraph::gather(handle.get_thrust_policy(),
-                    map_first,
-                    map_first + vertex_frontier.bucket(0).size(),
-                    vertex_weight_sum.begin(),
-                    gathered_weight_sums.begin());
+    gather_v(handle,
+             graph_view,
+             vertex_frontier.bucket(0).begin(),
+             vertex_frontier.bucket(0).end(),
+             vertex_weight_sum.view(),
+             gathered_weight_sums.begin());
     edge_src_property_t<vertex_t, weight_t> edge_src_out_weight_sums(handle, graph_view);
     update_edge_src_property(handle,
                              graph_view,
@@ -889,9 +886,13 @@ uniform_random_walks(raft::handle_t const& handle,
                      graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                      std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
                      raft::device_span<vertex_t const> start_vertices,
-                     size_t max_length)
+                     size_t max_length,
+                     bool do_expensive_check)
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
 
   return detail::random_walk_impl(handle,
                                   graph_view,
@@ -908,9 +909,13 @@ biased_random_walks(raft::handle_t const& handle,
                     graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                     edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
                     raft::device_span<vertex_t const> start_vertices,
-                    size_t max_length)
+                    size_t max_length,
+                    bool do_expensive_check)
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
 
   return detail::random_walk_impl(
     handle,
@@ -930,9 +935,13 @@ node2vec_random_walks(raft::handle_t const& handle,
                       raft::device_span<vertex_t const> start_vertices,
                       size_t max_length,
                       weight_t p,
-                      weight_t q)
+                      weight_t q,
+                      bool do_expensive_check)
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
 
   return detail::random_walk_impl(handle,
                                   graph_view,
