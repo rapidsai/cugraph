@@ -102,7 +102,7 @@ def hits(input_graph, tol=1.0e-5, max_iter=100, nstart=None, normalized=True):
     >>> import cugraph.dask as dcg
     >>> import dask_cudf
     >>> # ... Init a DASK Cluster
-    >>> #    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
+    >>> #    see https://docs.nvidia.com/cugraph/latest/dask-cugraph.html
     >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
     >>> chunksize = dcg.get_chunksize(datasets_path / "karate.csv")
     >>> ddf = dask_cudf.read_csv(datasets_path / "karate.csv",
