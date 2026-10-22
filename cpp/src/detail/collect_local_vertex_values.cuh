@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -55,10 +55,11 @@ vertex_property_t<vertex_t, value_t> collect_local_vertex_values_from_ext_vertex
   d_vertices = renumber_local_ext_vertices(
     handle, graph_view, std::move(d_vertices), renumber_map, do_expensive_check);
 
-  auto vertex_iterator    = cuda::make_transform_iterator(
+  auto vertex_iterator = cuda::make_transform_iterator(
     d_vertices.begin(),
     cuda::proclaim_return_type<vertex_t>(
-      [local_vertex_first = graph_view.local_vertex_partition_range_first()] __device__(vertex_t v) { return v - local_vertex_first; }));
+      [local_vertex_first = graph_view.local_vertex_partition_range_first()] __device__(
+        vertex_t v) { return v - local_vertex_first; }));
 
   rmm::device_uvector<value_t> d_local_values(graph_view.local_vertex_partition_range_size(),
                                               handle.get_stream());
