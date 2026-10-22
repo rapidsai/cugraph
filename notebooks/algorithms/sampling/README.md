@@ -16,9 +16,6 @@ These algorithms will solve problems like:
 | --------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
 |Random Walk  | [RandomWalk](RandomWalk.ipynb)   | Generates a Random path that exists in the graph starting from a seed vertex |
 
-[System Requirements](https://docs.rapids.ai/install/#system-req)
-
-
 ## Copyright
 
 Copyright (c) 2021-2025, NVIDIA CORPORATION.  All rights reserved.
