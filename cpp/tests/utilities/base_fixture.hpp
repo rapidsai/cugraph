@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -17,7 +17,6 @@
 #include <rmm/mr/managed_memory_resource.hpp>
 #include <rmm/mr/per_device_resource.hpp>
 #include <rmm/mr/pool_memory_resource.hpp>
-#include <rmm/resource_ref.hpp>
 
 #include <cuda/memory_resource>
 
@@ -43,14 +42,14 @@ namespace test {
  * ```
  **/
 class BaseFixture : public ::testing::Test {
-  rmm::device_async_resource_ref _mr{rmm::mr::get_current_device_resource_ref()};
+  cuda::mr::device_resource_ref _mr{rmm::mr::get_current_device_resource_ref()};
 
  public:
   /**
    * @brief Returns pointer to `device_memory_resource` that should be used for all tests inheriting
    *from this fixture
    **/
-  rmm::device_async_resource_ref mr() { return _mr; }
+  cuda::mr::device_resource_ref mr() { return _mr; }
 };
 
 /// MR factory functions
@@ -96,8 +95,7 @@ inline auto make_binning()
  *        "maxpool" only.
  * @return Memory resource instance
  */
-inline cuda::mr::any_resource<cuda::mr::device_accessible> create_memory_resource(
-  std::string const& allocation_mode)
+inline cuda::mr::any_device_resource create_memory_resource(std::string const& allocation_mode)
 {
   if (allocation_mode == "binning") return make_binning();
   if (allocation_mode == "cuda") return make_cuda();
