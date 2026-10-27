@@ -4,8 +4,6 @@
  */
 #pragma once
 
-#include "components/strongly_connected_components_ecl_impl.cuh"
-
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>

@@ -80,8 +80,6 @@ cugraph_weakly_connected_components(const cugraph_resource_handle_t* handle,
  * The input graph may be asymmetric. Component IDs can be arbitrary integers (they can be
  * non-consecutive and are not ordered by component size or any other criterion).
  *
- * Single-GPU graphs use ECL signature propagation; multi-GPU graphs use FWBW.
- *
  * @param [in]  handle      Handle for accessing resources
  * @param [in]  graph       Pointer to graph
  * @param [in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
