@@ -66,6 +66,7 @@ from cugraph.components import (
     connected_components,
     weakly_connected_components,
     strongly_connected_components,
+    simple_cycles,
 )
 
 from cugraph.cores import core_number, k_core

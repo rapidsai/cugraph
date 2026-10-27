@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 from dask import config
@@ -16,6 +16,7 @@ from .community.induced_subgraph import induced_subgraph
 from .community.ktruss_subgraph import ktruss_subgraph
 from .centrality.katz_centrality import katz_centrality
 from .components.connectivity import weakly_connected_components
+from .components.simple_cycles import simple_cycles
 from .sampling.random_walks import random_walks
 from .sampling.uniform_random_walks import uniform_random_walks
 from .sampling.biased_random_walks import biased_random_walks
