@@ -780,9 +780,6 @@ endif()
 rapids_cmake_install_lib_dir( lib_dir )
 include(CPack)
 
-install(FILES src/components/ECL-SCC-LICENSE
-        DESTINATION share/licenses/cugraph)
-
 install(TARGETS cugraph cugraph_mg cugraph_mtmg cugraph_common
         DESTINATION ${lib_dir}
         EXPORT cugraph-exports)

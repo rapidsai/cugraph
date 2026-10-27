@@ -1750,9 +1750,6 @@ void weakly_connected_components(raft::handle_t const& handle,
 .* @ingroup components_cpp
  * @brief Finds (strongly-connected-)component IDs of each vertices in the input graph.
  *
- * Uses ECL vertex queues with global Manhattan scheduling for single-GPU graphs and
- * forward-backward traversal for multi-GPU graphs. An attached edge mask is honored.
- *
  * Component IDs can be arbitrary integers (they can be non-consecutive and are not ordered by
  * component size or any other criterion).
  *

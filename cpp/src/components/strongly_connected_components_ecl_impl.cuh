@@ -1,23 +1,24 @@
 /*
  * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
- * SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
- * SPDX-FileCopyrightText: Copyright (c) 2023, Martin Burtscher
- *
- * ECL-SCC signature propagation with directional vertex queues.
- * Original ECL-SCC copyright and BSD-3-Clause terms are retained in
- * ECL-SCC-LICENSE. Graph storage and scheduling use cuGraph primitives.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/reduce_op.cuh>
+#include <cugraph/prims/reduce_v.cuh>
+#include <cugraph/prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh>
+#include <cugraph/prims/update_v_frontier.cuh>
+#include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/utilities/thrust_wrappers/fill.hpp>
-#include <cugraph/utilities/thrust_wrappers/scan.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
 #include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/utilities/thrust_wrappers/sort.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -25,427 +26,160 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <cub/device/device_reduce.cuh>
-#include <cub/device/device_scan.cuh>
-#include <cuda/atomic>
-#include <cuda/stream_ref>
+#include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
+#include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/permutation_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/scatter.h>
+#include <thrust/transform.h>
 
 #include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
-#include <memory>
+#include <optional>
+#include <tuple>
 #include <type_traits>
 #include <utility>
-
-/// @cond
-
-namespace cugraph::detail::ecl_scc {
-// The sole ECL implementation uses fixed global Manhattan scheduling.
-constexpr int edge_tile_size = 1024;
-constexpr int block_size     = 256;
-constexpr int warp_size      = 32;
-
-template <typename T>
-__device__ T load(T* ptr)
-{
-  return cuda::atomic_ref<T, cuda::thread_scope_device>(*ptr).load(cuda::memory_order_relaxed);
-}
-
-template <typename T>
-__device__ bool update_max(T* ptr, T value)
-{
-  cuda::atomic_ref<T, cuda::thread_scope_device> ref(*ptr);
-  return ref.load(cuda::memory_order_relaxed) < value &&
-         ref.fetch_max(value, cuda::memory_order_relaxed) < value;
-}
-
-__device__ inline bool edge_enabled(uint32_t const* mask, size_t edge)
-{
-  return mask == nullptr || ((mask[packed_bool_offset(edge)] & packed_bool_mask(edge)) != 0);
-}
-
-// Count raw CSR destinations directly, with counters matching the edge-offset type.
-template <typename vertex_t, typename edge_t>
-__global__ void histogram_in_degrees(vertex_t const* indices, size_t count, edge_t* degrees)
-{
-  for (size_t e = size_t{blockIdx.x} * blockDim.x + threadIdx.x; e < count;
-       e += size_t{gridDim.x} * blockDim.x) {
-    cuda::atomic_ref<edge_t, cuda::thread_scope_device>(degrees[indices[e]])
-      .fetch_add(edge_t{1}, cuda::memory_order_relaxed);
-  }
-}
-
-}  // namespace cugraph::detail::ecl_scc
-
-namespace cugraph::detail::ecl_scheduling {
-constexpr int threads = ecl_scc::block_size;
-
-template <typename vertex_t, typename edge_t>
-struct queued_degree {
-  edge_t const* offsets;
-  vertex_t const* queue;
-  size_t count;
-  __device__ edge_t operator()(size_t i) const
-  {
-    if (i == count) return edge_t{0};
-    auto v = queue ? queue[i] : static_cast<vertex_t>(i);
-    return offsets[v + 1] - offsets[v];
-  }
-};
-
-template <typename edge_t>
-struct global_manhattan_workspace {
-  rmm::device_uvector<edge_t> prefix;
-  rmm::device_uvector<std::byte> scratch;
-  global_manhattan_workspace(size_t capacity, cuda::stream_ref stream)
-    : prefix(capacity ? capacity + 1 : 0, stream), scratch(0, stream)
-  {
-  }
-
-  template <typename vertex_t>
-  void prepare(raft::handle_t const& handle,
-               edge_t const* offsets,
-               vertex_t const* queue,
-               size_t count)
-  {
-    auto stream = handle.get_stream();
-    auto degrees =
-      thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
-                                      queued_degree<vertex_t, edge_t>{offsets, queue, count});
-    // Size scratch once for the largest possible queue; later frontiers reuse it.
-    if (scratch.size() == 0) {
-      size_t bytes{};
-      RAFT_CUDA_TRY(cub::DeviceScan::ExclusiveSum(
-        nullptr, bytes, degrees, prefix.data(), prefix.size(), stream.get()));
-      scratch.resize(bytes, stream);
-    }
-    auto bytes = scratch.size();
-    RAFT_CUDA_TRY(cub::DeviceScan::ExclusiveSum(
-      scratch.data(), bytes, degrees, prefix.data(), count + 1, stream.get()));
-  }
-};
-
-template <typename edge_t>
-__device__ size_t edge_owner(edge_t const* prefix, edge_t edge, size_t low, size_t high)
-{
-  // Highest prefix <= edge handles repeated prefixes from zero-degree rows.
-  while (low + 1 < high) {
-    auto mid = low + (high - low) / 2;
-    if (prefix[mid] <= edge)
-      low = mid;
-    else
-      high = mid;
-  }
-  return low;
-}
-
-// No host edge-count readback and no shared prefix window. Each block's
-// two endpoint searches bound the subsequent per-thread owner searches.
-template <typename vertex_t, typename edge_t, typename Op>
-__global__ void manhattan_global(
-  edge_t const* offsets, vertex_t const* queue, size_t count, edge_t const* prefix, Op op)
-{
-  __shared__ size_t bounds[2];
-  auto total = static_cast<size_t>(prefix[count]);
-  for (size_t begin = size_t{blockIdx.x} * ecl_scc::edge_tile_size; begin < total;
-       begin += size_t{gridDim.x} * ecl_scc::edge_tile_size) {
-    auto end = min(total, begin + ecl_scc::edge_tile_size);
-    if (threadIdx.x < 2) {
-      auto edge           = static_cast<edge_t>(threadIdx.x == 0 ? begin : end - 1);
-      bounds[threadIdx.x] = edge_owner(prefix, edge, 0, count);
-    }
-    __syncthreads();
-    auto first = bounds[0], last = bounds[1];
-    size_t low = first;
-    for (size_t edge = begin + threadIdx.x; edge < end; edge += threads) {
-      low    = edge_owner(prefix, static_cast<edge_t>(edge), low, last + 1);
-      auto v = queue ? queue[low] : static_cast<vertex_t>(low);
-      op(v, static_cast<edge_t>(offsets[v] + edge - prefix[low]));
-    }
-    __syncthreads();
-  }
-}
-
-template <typename vertex_t, typename edge_t, typename Op>
-void apply(raft::handle_t const& handle,
-           edge_t const* offsets,
-           vertex_t const* queue,
-           size_t count,
-           global_manhattan_workspace<edge_t>& workspace,
-           Op op)
-{
-  if (!count) return;
-  workspace.prepare(handle, offsets, queue, count);
-  auto max_blocks = handle.get_device_properties().multiProcessorCount * 8;
-  manhattan_global<<<max_blocks, threads, 0, handle.get_stream().get()>>>(
-    offsets, queue, count, workspace.prefix.data(), op);
-  RAFT_CUDA_TRY(cudaPeekAtLastError());
-}
-}  // namespace cugraph::detail::ecl_scheduling
+#include <vector>
 
 namespace cugraph {
 namespace detail {
 namespace ecl_scc {
 
-// Compare the full product even for graphs with 64-bit edge counts. Ties select
-// the smallest physical vertex ID, independently of the reduction order.
-template <typename vertex_t>
-struct degree_seed {
-  uint64_t high;
-  uint64_t low;
-  vertex_t vertex;
-};
-
-template <typename vertex_t>
-struct maximum_degree_seed {
-  __host__ __device__ degree_seed<vertex_t> operator()(degree_seed<vertex_t> a,
-                                                       degree_seed<vertex_t> b) const
-  {
-    return b.high > a.high ||
-               (b.high == a.high && (b.low > a.low || (b.low == a.low && b.vertex < a.vertex)))
-             ? b
-             : a;
-  }
-};
-
-template <typename vertex_t, typename edge_t>
-struct degree_product {
-  edge_t const* outgoing_offsets;
-  edge_t const* incoming_offsets;
-  edge_t const* masked_out_degrees;
-  __device__ degree_seed<vertex_t> operator()(vertex_t v) const
-  {
-    auto in  = static_cast<uint64_t>(incoming_offsets[v + 1] - incoming_offsets[v]);
-    auto out = static_cast<uint64_t>(
-      masked_out_degrees ? masked_out_degrees[v] : outgoing_offsets[v + 1] - outgoing_offsets[v]);
-    uint64_t high{};
-    if constexpr (sizeof(edge_t) > sizeof(int32_t)) { high = __umul64hi(in, out); }
-    return {high, in * out, v};
-  }
-};
-
-// The per-call degree-product seed stays on the device. Reduction scratch
-// survives until the computation finishes.
-template <typename vertex_t, typename edge_t>
-struct workspace {
-  rmm::device_uvector<degree_seed<vertex_t>> seed;
-  rmm::device_uvector<std::byte> scratch;
-  workspace(cuda::stream_ref stream) : seed(1, stream), scratch(0, stream) {}
-};
-
-// Called only by lanes with an update. Epochs deduplicate without clearing an
-// O(V) flag array each iteration; warp reservations reduce queue contention.
-// Queue consumers run in subsequent kernels on the same stream, so relaxed
-// atomics suffice for reservations and monotonically increasing signatures.
-template <typename vertex_t>
-__device__ void enqueue(
-  vertex_t v, vertex_t* queue, vertex_t* count, uint32_t* epochs, uint32_t epoch)
+// Gather before scattering so pointer jumping observes a consistent signature
+// snapshot. All vertex signatures are local in this SG implementation.
+template <bool remap = false, typename GraphViewType>
+void shortcut_frontier(raft::handle_t const& handle,
+                       GraphViewType const& graph_view,
+                       typename GraphViewType::vertex_type const* active,
+                       size_t count,
+                       typename GraphViewType::vertex_type* signatures,
+                       typename GraphViewType::vertex_type seed,
+                       typename GraphViewType::vertex_type const* vertex_map = nullptr)
 {
-  auto append = cuda::atomic_ref<uint32_t, cuda::thread_scope_device>(epochs[v]).exchange(
-                  epoch, cuda::memory_order_relaxed) != epoch;
-  auto active = __activemask();
-  auto votes  = __ballot_sync(active, append);
-  if (votes == 0) { return; }
-  auto lane   = threadIdx.x % warp_size;
-  auto leader = __ffs(votes) - 1;
-  vertex_t base{};
-  if (lane == leader) {
-    base = cuda::atomic_ref<vertex_t, cuda::thread_scope_device>(*count).fetch_add(
-      static_cast<vertex_t>(__popc(votes)), cuda::memory_order_relaxed);
-  }
-  base = static_cast<vertex_t>(__shfl_sync(active, static_cast<unsigned long long>(base), leader));
-  if (append) { queue[base + __popc(votes & ((uint32_t{1} << lane) - 1))] = v; }
+  using vertex_t   = typename GraphViewType::vertex_type;
+  auto policy      = handle.get_thrust_policy();
+  auto first       = graph_view.local_vertex_partition_range_first();
+  auto n           = graph_view.number_of_vertices();
+  auto query_first = thrust::make_transform_iterator(
+    active, [signatures, first, n, seed, vertex_map] __device__(vertex_t v) -> vertex_t {
+      if constexpr (remap) { v = vertex_map[v - first]; }
+      auto signature = signatures[v - first];
+      auto query     = signature > v ? signature : v;
+      return query;
+    });
+  rmm::device_uvector<vertex_t> shortcuts(count, handle.get_stream());
+  cugraph::gather(policy, query_first, query_first + count, signatures, shortcuts.begin());
+  thrust::transform(policy,
+                    shortcuts.begin(),
+                    shortcuts.end(),
+                    active,
+                    shortcuts.begin(),
+                    [signatures, first, n, vertex_map] __device__(vertex_t value, vertex_t v) {
+                      if constexpr (remap) { v = vertex_map[v - first]; }
+                      return signatures[v - first] == n ? n : value;
+                    });
+  auto offsets =
+    thrust::make_transform_iterator(active, [first, vertex_map] __device__(vertex_t v) -> vertex_t {
+      if constexpr (remap) { v = vertex_map[v - first]; }
+      return v - first;
+    });
+  thrust::scatter(policy, shortcuts.begin(), shortcuts.end(), offsets, signatures);
 }
 
-// A vertex with zero in-degree or out-degree is necessarily a singleton SCC.
-// Compact the remaining vertices before propagation.
-template <typename vertex_t, typename edge_t>
-__global__ void trim_singletons(edge_t const* offsets,
-                                edge_t const* reverse_offsets,
-                                edge_t const* masked_out_degrees,
-                                size_t n,
-                                vertex_t* labels)
+// Graph primitives own edge traversal, mask handling, reduction, and frontier
+// deduplication. The callbacks specify only ECL partition and signature rules.
+template <bool remap = false, typename GraphViewType, typename FrontierType>
+void propagate_frontier(raft::handle_t const& handle,
+                        GraphViewType const& graph_view,
+                        FrontierType& frontier,
+                        typename GraphViewType::vertex_type* signatures,
+                        typename GraphViewType::vertex_type const* labels,
+                        typename GraphViewType::vertex_type const* partition_in,
+                        typename GraphViewType::vertex_type const* partition_out,
+                        typename GraphViewType::vertex_type const* vertex_map = nullptr)
 {
-  for (size_t i = size_t{blockIdx.x} * blockDim.x + threadIdx.x; i < n;
-       i += size_t{gridDim.x} * blockDim.x) {
-    auto out_degree = masked_out_degrees ? masked_out_degrees[i] : offsets[i + 1] - offsets[i];
-    if (reverse_offsets[i] == reverse_offsets[i + 1] || out_degree == 0) {
-      labels[i] = static_cast<vertex_t>(i);
+  using vertex_t      = typename GraphViewType::vertex_type;
+  using property_t    = cuda::std::tuple<vertex_t, vertex_t, vertex_t>;
+  using destination_t = cuda::std::tuple<vertex_t, vertex_t, vertex_t, vertex_t>;
+  auto count          = graph_view.local_vertex_partition_range_size();
+  auto source_values  = thrust::make_zip_iterator(
+    static_cast<vertex_t const*>(signatures), partition_in, partition_out);
+  auto destination_values = thrust::make_zip_iterator(
+    labels, partition_in, partition_out, static_cast<vertex_t const*>(signatures));
+  auto source_view = [&] {
+    if constexpr (remap) {
+      auto values = thrust::make_permutation_iterator(source_values, vertex_map);
+      return detail::edge_endpoint_property_view_t<vertex_t, decltype(values), property_t>(
+        std::vector<decltype(values)>{values}, std::vector<vertex_t>{0});
+    } else {
+      return make_edge_src_property_view<vertex_t, property_t>(graph_view, source_values, count);
     }
-  }
-}
-
-template <typename vertex_t>
-__global__ void initialize_signatures(vertex_t const* active,
-                                      size_t count,
-                                      vertex_t* incoming,
-                                      vertex_t* outgoing,
-                                      vertex_t n,
-                                      degree_seed<vertex_t> const* seed,
-                                      bool first_round)
-{
-  if (first_round && blockIdx.x == 0 && threadIdx.x == 0) {
-    incoming[n] = n;
-    outgoing[n] = n;
-  }
-  for (size_t i = size_t{blockIdx.x} * blockDim.x + threadIdx.x; i < count;
-       i += size_t{gridDim.x} * blockDim.x) {
-    auto v      = active[i];
-    auto color  = first_round && v == seed->vertex ? n : v;
-    incoming[v] = color;
-    outgoing[v] = color;
-  }
-}
-
-template <typename vertex_t>
-__device__ void propagate_edge(vertex_t v,
-                               vertex_t dst,
-                               vertex_t const* labels,
-                               vertex_t const* partition_in,
-                               vertex_t const* partition_out,
-                               vertex_t* signatures,
-                               vertex_t* next_queue,
-                               vertex_t* next_count,
-                               uint32_t* epochs,
-                               uint32_t epoch)
-{
-  if (labels[dst] != invalid_component_id<vertex_t>::value ||
-      partition_in[v] != partition_in[dst] || partition_out[v] != partition_out[dst]) {
-    return;
-  }
-  auto signature = load(signatures + v);
-  auto shortcut  = signature > v ? load(signatures + signature) : signature;
-  if (shortcut > signature && update_max(signatures + v, shortcut)) {
-    enqueue(v, next_queue, next_count, epochs, epoch);
-  }
-  if (update_max(signatures + dst, shortcut)) {
-    enqueue(dst, next_queue, next_count, epochs, epoch);
-  }
-}
-
-template <typename vertex_t>
-__global__ void split_components(vertex_t const* active,
-                                 size_t count,
-                                 vertex_t const* incoming,
-                                 vertex_t const* outgoing,
-                                 vertex_t* partition_in,
-                                 vertex_t* partition_out,
-                                 vertex_t* labels,
-                                 vertex_t* next_active,
-                                 vertex_t* next_count,
-                                 vertex_t n,
-                                 degree_seed<vertex_t> const* seed)
-{
-  for (size_t base = size_t{blockIdx.x} * blockDim.x; base < count;
-       base += size_t{gridDim.x} * blockDim.x) {
-    auto i = base + threadIdx.x;
-    vertex_t v{};
-    bool keep = false;
-    if (i < count) {
-      v = active[i];
-      if (incoming[v] == outgoing[v]) {
-        labels[v] = incoming[v] == n ? seed->vertex : incoming[v];
-      } else {
-        partition_in[v]  = incoming[v];
-        partition_out[v] = outgoing[v];
-        keep             = true;
-      }
+  }();
+  auto destination_view = [&] {
+    if constexpr (remap) {
+      auto values = thrust::make_permutation_iterator(destination_values, vertex_map);
+      return detail::edge_endpoint_property_view_t<vertex_t, decltype(values), destination_t>(
+        values, vertex_t{0});
+    } else {
+      return make_edge_dst_property_view<vertex_t, destination_t>(
+        graph_view, destination_values, count);
     }
-    auto votes  = __ballot_sync(0xffffffffu, keep);
-    auto lane   = threadIdx.x % warp_size;
-    auto leader = __ffs(votes) - 1;
-    vertex_t pos{};
-    if (votes && lane == leader) {
-      pos = cuda::atomic_ref<vertex_t, cuda::thread_scope_device>(*next_count)
-              .fetch_add(static_cast<vertex_t>(__popc(votes)), cuda::memory_order_relaxed);
+  }();
+  auto signature_values = [&] {
+    if constexpr (remap) {
+      return thrust::make_permutation_iterator(signatures, vertex_map);
+    } else {
+      return signatures;
     }
-    if (votes) {
-      pos = static_cast<vertex_t>(
-        __shfl_sync(0xffffffffu, static_cast<unsigned long long>(pos), leader));
-      if (keep) { next_active[pos + __popc(votes & ((uint32_t{1} << lane) - 1))] = v; }
-    }
-  }
+  }();
+  auto [vertices, values] = cugraph::transform_reduce_if_v_frontier_outgoing_e_by_dst(
+    handle,
+    graph_view,
+    frontier.bucket(0),
+    source_view,
+    destination_view,
+    edge_dummy_property_t{}.view(),
+    [] __device__(vertex_t, vertex_t, property_t source, destination_t, cuda::std::nullopt_t)
+      -> vertex_t { return cuda::std::get<0>(source); },
+    reduce_op::maximum<vertex_t>{},
+    [] __device__(
+      vertex_t, vertex_t, property_t source, destination_t destination, cuda::std::nullopt_t)
+      -> bool {
+      return cuda::std::get<0>(destination) == invalid_component_id<vertex_t>::value &&
+             cuda::std::get<1>(source) == cuda::std::get<1>(destination) &&
+             cuda::std::get<2>(source) == cuda::std::get<2>(destination) &&
+             cuda::std::get<0>(source) > cuda::std::get<3>(destination);
+    });
+  std::array<size_t, 1> next_buckets{1};
+  cugraph::update_v_frontier(
+    handle,
+    graph_view,
+    std::move(vertices),
+    std::move(values),
+    frontier,
+    raft::host_span<size_t const>(next_buckets.data(), next_buckets.size()),
+    signature_values,
+    signature_values,
+    [] __device__(vertex_t, vertex_t previous, vertex_t candidate) {
+      using result_t = cuda::std::tuple<cuda::std::optional<size_t>, cuda::std::optional<vertex_t>>;
+      return candidate > previous ? result_t{size_t{1}, candidate}
+                                  : result_t{cuda::std::nullopt, cuda::std::nullopt};
+    });
+  frontier.bucket(0).clear();
+  frontier.swap_buckets(0, 1);
 }
 
 }  // namespace ecl_scc
 }  // namespace detail
 
 namespace {
-
-template <typename GraphViewType>
-std::unique_ptr<
-  graph_t<typename GraphViewType::vertex_type, typename GraphViewType::edge_type, false, false>>
-build_ecl_reverse_graph(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  typename GraphViewType::edge_type number_of_edges,
-  detail::ecl_scheduling::global_manhattan_workspace<typename GraphViewType::edge_type>&
-    global_workspace)
-{
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
-  using namespace detail::ecl_scc;
-  auto stream = handle.get_stream();
-  auto policy = handle.get_thrust_policy();
-  auto n      = graph_view.number_of_vertices();
-  auto edges =
-    edge_partition_device_view_t<vertex_t, edge_t, false>(graph_view.local_edge_partition_view());
-  auto mask = graph_view.has_edge_mask() ? graph_view.edge_mask_view()->value_firsts()[0] : nullptr;
-
-  // Build the reverse CSR without renumbering, using cuGraph degree and scan
-  // primitives. Keeping IDs avoids an inverse renumber map in every queue pass.
-  rmm::device_uvector<edge_t> degrees(0, stream);
-  if (!graph_view.has_edge_mask()) {
-    // Compute the edge histogram directly on CSR indices when there is no mask.
-    degrees.resize(n, stream);
-    RAFT_CUDA_TRY(
-      cudaMemsetAsync(degrees.data(), 0, degrees.size() * sizeof(edge_t), stream.get()));
-    auto raw_edges = graph_view.local_edge_partition_view().indices().size();
-    if (raw_edges > 0) {
-      auto blocks =
-        static_cast<int>(std::min<size_t>(handle.get_device_properties().multiProcessorCount * 8,
-                                          (raw_edges + block_size - 1) / block_size));
-      histogram_in_degrees<<<blocks, block_size, 0, stream.get()>>>(
-        edges.indices(), raw_edges, degrees.data());
-      RAFT_CUDA_TRY(cudaPeekAtLastError());
-    }
-  } else {
-    degrees = graph_view.compute_in_degrees(handle);
-  }
-
-  rmm::device_uvector<edge_t> offsets(static_cast<size_t>(n) + 1, stream);
-  raft::copy(offsets.data(), degrees.data(), n, stream);
-  offsets.set_element_to_zero_async(n, stream);
-  cugraph::exclusive_scan(policy, offsets.begin(), offsets.end(), offsets.begin());
-
-  rmm::device_uvector<vertex_t> indices(number_of_edges, stream);
-  rmm::device_uvector<edge_t> next(n, stream);
-  raft::copy(next.data(), offsets.data(), n, stream);
-  auto scatter = [=, next_data = next.data(), indices_data = indices.data()] __device__(vertex_t v,
-                                                                                        edge_t e) {
-    if (edge_enabled(mask, e)) {
-      auto dst = edges.indices()[e];
-      auto pos = cuda::atomic_ref<edge_t, cuda::thread_scope_device>(next_data[dst])
-                   .fetch_add(edge_t{1}, cuda::memory_order_relaxed);
-      indices_data[pos] = v;
-    }
-  };
-  detail::ecl_scheduling::apply(
-    handle, edges.offsets(), static_cast<vertex_t const*>(nullptr), n, global_workspace, scatter);
-  RAFT_CUDA_TRY(cudaPeekAtLastError());
-  return std::make_unique<graph_t<vertex_t, edge_t, false, false>>(
-    handle,
-    std::move(offsets),
-    std::move(indices),
-    graph_meta_t<vertex_t, edge_t, false>{
-      n, graph_properties_t{graph_view.is_symmetric(), graph_view.is_multigraph()}},
-    false);
-}
 
 template <typename GraphViewType>
 void strongly_connected_components_ecl_impl(
@@ -460,8 +194,13 @@ void strongly_connected_components_ecl_impl(
   // the next partition. An SCC cannot span different signature pairs. The first
   // round gives the maximum-degree-product vertex the extra color N; convert
   // that sentinel back to its physical vertex ID when assigning components.
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
+  using vertex_t                  = typename GraphViewType::vertex_type;
+  using edge_t                    = typename GraphViewType::edge_type;
+  using weight_t                  = float;    // dummy
+  using edge_type_t               = int32_t;  // dummy
+  constexpr bool store_transposed = GraphViewType::is_storage_transposed;
+  constexpr bool multi_gpu        = GraphViewType::is_multi_gpu;
+
   static_assert(std::is_integral<vertex_t>::value,
                 "GraphViewType::vertex_type should be integral.");
   static_assert(!GraphViewType::is_storage_transposed,
@@ -475,7 +214,7 @@ void strongly_connected_components_ecl_impl(
   auto labels = components;
   if (n == 0) { return; }
 
-  // Check input arguments (same contract as strongly_connected_components)
+  // Check input arguments
   CUGRAPH_EXPECTS(
     !graph_view.is_symmetric(),
     "Invalid input argument>: call weakly_connnected_components instead for symmetric graphs.");
@@ -484,25 +223,40 @@ void strongly_connected_components_ecl_impl(
     // nothing to do
   }
 
-  // Graph input graph data
-  auto edges =
-    edge_partition_device_view_t<vertex_t, edge_t, false>(graph_view.local_edge_partition_view());
-  auto mask = graph_view.has_edge_mask() ? graph_view.edge_mask_view()->value_firsts()[0] : nullptr;
-  auto m    = graph_view.compute_number_of_edges(handle);
-  // A bounded grid reuses each block across edge tiles while limiting launch overhead.
-  auto max_blocks = handle.get_device_properties().multiProcessorCount * 8;
-  auto blocks_for = [max_blocks](size_t count) {
-    return static_cast<int>(std::min<size_t>(max_blocks, (count + block_size - 1) / block_size));
-  };
+  // Construct a degree-ordered reverse graph. Its vertex IDs may differ from
+  // the input graph, so keep ECL state in forward IDs and map reverse traversal.
+  graph_t<vertex_t, edge_t, store_transposed, multi_gpu> reverse(handle);
+  std::optional<rmm::device_uvector<vertex_t>> reverse_to_forward{std::nullopt};
+  {
+    rmm::device_uvector<vertex_t> vertices(graph_view.local_vertex_partition_range_size(), stream);
+    cugraph::sequence(
+      policy, vertices.begin(), vertices.end(), graph_view.local_vertex_partition_range_first());
+    rmm::device_uvector<vertex_t> sources(0, stream), destinations(0, stream);
+    std::tie(sources, destinations, std::ignore, std::ignore, std::ignore) =
+      decompress_to_edgelist<vertex_t, edge_t, weight_t, edge_type_t, store_transposed, multi_gpu>(
+        handle, graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
+    std::swap(sources, destinations);
+    std::tie(reverse, std::ignore, reverse_to_forward) =
+      create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+        handle,
+        std::move(vertices),
+        std::move(sources),
+        std::move(destinations),
+        std::vector<cugraph::arithmetic_device_uvector_t>{},
+        graph_properties_t{graph_view.is_symmetric(), graph_view.is_multigraph()},
+        true,  // renumber
+        std::nullopt,
+        std::nullopt,
+        do_expensive_check);
+  }
+  auto reverse_view = reverse.view();
 
-  rmm::device_uvector<vertex_t> counts(2, stream);
-  workspace<vertex_t, edge_t> work(stream);
-  detail::ecl_scheduling::global_manhattan_workspace<edge_t> global_workspace(n, stream);
-
-  // Construct the inverse graph
-  auto reverse_holder = build_ecl_reverse_graph(handle, graph_view, m, global_workspace);
-  auto reverse_edges  = edge_partition_device_view_t<vertex_t, edge_t, false>(
-    reverse_holder->view().local_edge_partition_view());
+  CUGRAPH_EXPECTS(reverse_to_forward && reverse_to_forward->size() == static_cast<size_t>(n),
+                  "Invalid reverse vertex map size.");
+  auto reverse_map = reverse_to_forward->data();
+  rmm::device_uvector<vertex_t> forward_to_reverse(n, stream);
+  auto vertex_first = thrust::make_counting_iterator(vertex_t{0});
+  thrust::scatter(policy, vertex_first, vertex_first + n, reverse_map, forward_to_reverse.begin());
 
   // ECL algorithmic data
   rmm::device_uvector<vertex_t> partition_in(n, stream), partition_out(n, stream);
@@ -510,94 +264,52 @@ void strongly_connected_components_ecl_impl(
   rmm::device_uvector<vertex_t> outgoing(static_cast<size_t>(n) + 1, stream);
   std::array<rmm::device_uvector<vertex_t>, 2> active{rmm::device_uvector<vertex_t>(n, stream),
                                                       rmm::device_uvector<vertex_t>(n, stream)};
-  std::array<rmm::device_uvector<vertex_t>, 2> forward{rmm::device_uvector<vertex_t>(n, stream),
-                                                       rmm::device_uvector<vertex_t>(n, stream)};
-  std::array<rmm::device_uvector<vertex_t>, 2> backward{rmm::device_uvector<vertex_t>(n, stream),
-                                                        rmm::device_uvector<vertex_t>(n, stream)};
-  rmm::device_uvector<uint32_t> forward_epoch(n, stream), backward_epoch(n, stream);
-
-  // Host-side helper for processing propagation queues
-  auto propagate_queue = [&](edge_partition_device_view_t<vertex_t, edge_t, false> partition,
-                             uint32_t const* edge_mask,
-                             vertex_t const* queue,
-                             size_t count,
-                             vertex_t* signatures,
-                             vertex_t* output,
-                             int direction,
-                             uint32_t current_epoch) {
-    auto op = [           =,
-               labels     = labels.data(),
-               pin        = partition_in.data(),
-               pout       = partition_out.data(),
-               next_count = counts.data() + direction,
-               epochs     = direction == 0 ? forward_epoch.data()
-                                           : backward_epoch.data()] __device__(vertex_t v, edge_t e) {
-      if (edge_enabled(edge_mask, e)) {
-        propagate_edge(v,
-                       partition.indices()[e],
-                       labels,
-                       pin,
-                       pout,
-                       signatures,
-                       output,
-                       next_count,
-                       epochs,
-                       current_epoch);
-      }
-    };
-    detail::ecl_scheduling::apply(handle, partition.offsets(), queue, count, global_workspace, op);
-  };
-
   // Initialize vertex states
   cugraph::fill(policy, labels.begin(), labels.end(), invalid_component_id<vertex_t>::value);
   cugraph::fill(policy, partition_in.begin(), partition_in.end(), vertex_t{0});
   cugraph::fill(policy, partition_out.begin(), partition_out.end(), vertex_t{0});
-  cugraph::fill(policy, forward_epoch.begin(), forward_epoch.end(), uint32_t{0});
-  cugraph::fill(policy, backward_epoch.begin(), backward_epoch.end(), uint32_t{0});
 
-  // Initialize our seed heuristic -> vertex with the largest in*out degree gets max label
-  auto masked_out_degrees = graph_view.has_edge_mask() ? graph_view.compute_out_degrees(handle)
-                                                       : rmm::device_uvector<edge_t>(0, stream);
-  {
-    auto candidates = thrust::make_transform_iterator(
-      thrust::make_counting_iterator(vertex_t{0}),
-      degree_product<vertex_t, edge_t>{
-        edges.offsets(),
-        reverse_edges.offsets(),
-        masked_out_degrees.size() ? masked_out_degrees.data() : nullptr});
-    size_t scratch_bytes{};
-    auto initial = degree_seed<vertex_t>{0, 0, std::numeric_limits<vertex_t>::max()};
-    RAFT_CUDA_TRY(cub::DeviceReduce::Reduce(nullptr,
-                                            scratch_bytes,
-                                            candidates,
-                                            work.seed.data(),
-                                            n,
-                                            maximum_degree_seed<vertex_t>{},
-                                            initial,
-                                            stream.get()));
-    work.scratch.resize(scratch_bytes, stream);
-    RAFT_CUDA_TRY(cub::DeviceReduce::Reduce(work.scratch.data(),
-                                            scratch_bytes,
-                                            candidates,
-                                            work.seed.data(),
-                                            n,
-                                            maximum_degree_seed<vertex_t>{},
-                                            initial,
-                                            stream.get()));
-  }
+  // Heuristic: label the degree with largest in*out degree product with a max
+  // label value. This helps resolve the largest SCC on the first iteration.
+  // Approximate degree products are sufficient for this heuristic. Negating the
+  // product lets a lexicographic minimum break ties with the smallest vertex ID.
+  auto out_degrees = graph_view.compute_out_degrees(handle);
+  auto in_degrees  = reverse_view.compute_out_degrees(handle);
+  // Reverse out-degrees are forward in-degrees, reordered into forward IDs.
+  rmm::device_uvector<edge_t> aligned_in_degrees(n, stream);
+  thrust::scatter(
+    policy, in_degrees.begin(), in_degrees.end(), reverse_map, aligned_in_degrees.begin());
+  in_degrees        = std::move(aligned_in_degrees);
+  auto first_vertex = thrust::make_counting_iterator(vertex_t{0});
+  using seed_t      = cuda::std::tuple<double, vertex_t>;
+  auto candidates   = thrust::make_transform_iterator(
+    first_vertex,
+    [out_degrees = out_degrees.data(),
+     in_degrees  = in_degrees.data()] __device__(vertex_t v) -> seed_t {
+      auto in_degree = in_degrees[v];
+      return seed_t{-static_cast<double>(in_degree) * static_cast<double>(out_degrees[v]), v};
+    });
+  auto seed = cuda::std::get<1>(cugraph::reduce_v(
+    handle,
+    graph_view,
+    candidates,
+    seed_t{std::numeric_limits<double>::max(), std::numeric_limits<vertex_t>::max()},
+    reduce_op::minimum<seed_t>{}));
 
-  // A single iteration on trimming to remove trivial SCCs
-  trim_singletons<<<blocks_for(n), block_size, 0, stream.get()>>>(
-    edges.offsets(),
-    reverse_edges.offsets(),
-    masked_out_degrees.size() ? masked_out_degrees.data() : nullptr,
-    n,
-    labels.data());
-  RAFT_CUDA_TRY(cudaPeekAtLastError());
+  // A single iteration on trimming to remove trivial SCCs. Recursive trimming
+  // is generally not worth the extra cost.
+  thrust::transform_if(
+    policy,
+    first_vertex,
+    first_vertex + n,
+    labels.begin(),
+    [] __device__(vertex_t v) { return v; },
+    [in_degrees = in_degrees.data(), out_degrees = out_degrees.data()] __device__(vertex_t v) {
+      return in_degrees[v] == 0 || out_degrees[v] == 0;
+    });
 
   // Compact active vertices to construct our initial active vertex queue
-  auto first_vertex = thrust::make_counting_iterator(vertex_t{0});
-  auto active_end   = thrust::copy_if(
+  auto active_end = thrust::copy_if(
     policy,
     first_vertex,
     first_vertex + n,
@@ -606,91 +318,105 @@ void strongly_connected_components_ecl_impl(
     [] __device__(vertex_t label) { return label == invalid_component_id<vertex_t>::value; });
   auto initial_active_count = static_cast<size_t>(active_end - active[0].begin());
 
-  // Cleanup
-  masked_out_degrees.resize(0, stream);
-  masked_out_degrees.shrink_to_fit(stream);
+  // Cleanup the initialization-only data
+  out_degrees.resize(0, stream);
+  out_degrees.shrink_to_fit(stream);
+  in_degrees.resize(0, stream);
+  in_degrees.shrink_to_fit(stream);
+
+  // Property wrappers may load trimmed vertices before evaluating the edge
+  // predicate. Initialize every entry, including the fixed extra color N.
+  cugraph::sequence(policy, incoming.begin(), incoming.end(), vertex_t{0});
+  cugraph::sequence(policy, outgoing.begin(), outgoing.end(), vertex_t{0});
 
   // Begin ECL's primary loop
-  uint32_t epoch{0};
   size_t active_count = initial_active_count;
   int active_buffer{0};
   bool first_round{true};
   while (active_count > 0) {
     // Initialize this iteration's signatures
-    initialize_signatures<<<blocks_for(active_count), block_size, 0, stream.get()>>>(
-      active[active_buffer].data(),
-      active_count,
-      incoming.data(),
-      outgoing.data(),
-      n,
-      work.seed.data(),
-      first_round);
+    auto active_first = active[active_buffer].begin();
+    auto color_first  = thrust::make_transform_iterator(
+      active_first,
+      [first_round, n, seed] __device__(vertex_t v) -> cuda::std::tuple<vertex_t, vertex_t> {
+        auto color = first_round && v == seed ? n : v;
+        return cuda::std::make_tuple(color, color);
+      });
+    thrust::scatter(policy,
+                    color_first,
+                    color_first + active_count,
+                    active_first,
+                    thrust::make_zip_iterator(incoming.begin(), outgoing.begin()));
 
-    first_round                    = false;
-    vertex_t const* forward_queue  = active[active_buffer].data();
-    vertex_t const* backward_queue = active[active_buffer].data();
-    size_t forward_count = active_count, backward_count = active_count;
-    int queue_buffer{0};
-
-    // Propagate until convergence
-    while (forward_count > 0 || backward_count > 0) {
-      if (++epoch == 0) {
-        cugraph::fill(policy, forward_epoch.begin(), forward_epoch.end(), uint32_t{0});
-        cugraph::fill(policy, backward_epoch.begin(), backward_epoch.end(), uint32_t{0});
-        epoch = 1;
+    first_round = false;
+    vertex_frontier_t<vertex_t, void, false, true> forward_frontier(handle, 2);
+    vertex_frontier_t<vertex_t, void, false, true> backward_frontier(handle, 2);
+    forward_frontier.bucket(0).insert(active_first, active_first + active_count);
+    // Reuse the inactive active-list buffer for the reverse frontier's IDs.
+    auto reverse_first = active[1 - active_buffer].begin();
+    cugraph::gather(
+      policy, active_first, active_first + active_count, forward_to_reverse.begin(), reverse_first);
+    cugraph::sort(policy, reverse_first, reverse_first + active_count);
+    backward_frontier.bucket(0).insert(reverse_first, reverse_first + active_count);
+    while (forward_frontier.bucket(0).size() > 0 || backward_frontier.bucket(0).size() > 0) {
+      if (forward_frontier.bucket(0).size() > 0) {
+        propagate_frontier(handle,
+                           graph_view,
+                           forward_frontier,
+                           incoming.data(),
+                           labels.data(),
+                           partition_in.data(),
+                           partition_out.data());
+        // propagate_frontier swaps the newly generated queue into bucket 0.
+        // Shortcut that queue now, so it is ready for its next expansion.
+        if (forward_frontier.bucket(0).size() > 0) {
+          auto& next = forward_frontier.bucket(0);
+          shortcut_frontier(handle, graph_view, next.begin(), next.size(), incoming.data(), seed);
+        }
       }
-      RAFT_CUDA_TRY(
-        cudaMemsetAsync(counts.data(), 0, counts.size() * sizeof(vertex_t), stream.get()));
-      if (forward_count > 0) {
-        propagate_queue(edges,
-                        mask,
-                        forward_queue,
-                        forward_count,
-                        incoming.data(),
-                        forward[queue_buffer].data(),
-                        0,
-                        epoch);
+      if (backward_frontier.bucket(0).size() > 0) {
+        propagate_frontier<true>(handle,
+                                 reverse_view,
+                                 backward_frontier,
+                                 outgoing.data(),
+                                 labels.data(),
+                                 partition_in.data(),
+                                 partition_out.data(),
+                                 reverse_map);
+        if (backward_frontier.bucket(0).size() > 0) {
+          auto& next = backward_frontier.bucket(0);
+          shortcut_frontier<true>(
+            handle, reverse_view, next.begin(), next.size(), outgoing.data(), seed, reverse_map);
+        }
       }
-      if (backward_count > 0) {
-        propagate_queue(reverse_edges,
-                        static_cast<uint32_t const*>(nullptr),
-                        backward_queue,
-                        backward_count,
-                        outgoing.data(),
-                        backward[queue_buffer].data(),
-                        1,
-                        epoch);
-      }
-      RAFT_CUDA_TRY(cudaPeekAtLastError());
-      std::array<vertex_t, 2> host_counts{};
-      raft::update_host(host_counts.data(), counts.data(), host_counts.size(), stream);
-      handle.sync_stream();
-      forward_count  = host_counts[0];
-      backward_count = host_counts[1];
-      forward_queue  = forward[queue_buffer].data();
-      backward_queue = backward[queue_buffer].data();
-      queue_buffer   = 1 - queue_buffer;
     }
 
-    // Label new SCCs and repartition remaining vertices
-    RAFT_CUDA_TRY(cudaMemsetAsync(counts.data(), 0, sizeof(vertex_t), stream.get()));
-    split_components<<<blocks_for(active_count), block_size, 0, stream.get()>>>(
-      active[active_buffer].data(),
-      active_count,
-      incoming.data(),
-      outgoing.data(),
-      partition_in.data(),
-      partition_out.data(),
-      labels.data(),
-      active[1 - active_buffer].data(),
-      counts.data(),
-      n,
-      work.seed.data());
-    RAFT_CUDA_TRY(cudaPeekAtLastError());
-    vertex_t host_count{};
-    raft::update_host(&host_count, counts.data(), 1, stream);
-    handle.sync_stream();
-    active_count  = host_count;
+    // Resolve equal signatures and retain unresolved vertices in stable order.
+    thrust::for_each(policy,
+                     active_first,
+                     active_first + active_count,
+                     [labels = labels.data(),
+                      pin    = partition_in.data(),
+                      pout   = partition_out.data(),
+                      in     = incoming.data(),
+                      out    = outgoing.data(),
+                      n,
+                      seed] __device__(vertex_t v) {
+                       if (in[v] == out[v]) {
+                         labels[v] = in[v] == n ? seed : in[v];
+                       } else {
+                         pin[v]  = in[v];
+                         pout[v] = out[v];
+                       }
+                     });
+    auto end      = thrust::copy_if(policy,
+                               active_first,
+                               active_first + active_count,
+                               active[1 - active_buffer].begin(),
+                               [labels = labels.data()] __device__(vertex_t v) {
+                                 return labels[v] == invalid_component_id<vertex_t>::value;
+                               });
+    active_count  = static_cast<size_t>(end - active[1 - active_buffer].begin());
     active_buffer = 1 - active_buffer;
   }
   return;
@@ -699,5 +425,3 @@ void strongly_connected_components_ecl_impl(
 }  // namespace
 
 }  // namespace cugraph
-
-/// @endcond
