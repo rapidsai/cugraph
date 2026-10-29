@@ -88,5 +88,6 @@ select = [
     "distro-too-large-compressed",
 ]
 
-# PyPI hard limit is 1GiB, but try to keep this as small as possible
-max_allowed_size_compressed = '15Mi'
+# pylibcugraph wheels are ~1.92 MiB (x86_64) / ~1.85 MiB (aarch64).
+# PyPI hard limit is 1GiB, but try to keep this as small as possible.
+max_allowed_size_compressed = '2.5Mi'

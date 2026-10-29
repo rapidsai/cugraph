@@ -20,12 +20,16 @@ PYDISTCHECK_ARGS=(
 # PyPI hard limit is 1GiB, but try to keep these as small as possible
 if [[ "${package_dir}" == "python/libcugraph" ]]; then
     if [[ "${RAPIDS_CUDA_MAJOR}" == "12" ]]; then
+        # cu12 wheels are ~943 MiB (x86_64) / ~938 MiB (aarch64).
+        # The PyPI hard limit is 1 GiB, so cap at that to fail fast if a wheel
+        # would be rejected by PyPI.
         PYDISTCHECK_ARGS+=(
-            --max-allowed-size-compressed '1.65Gi'
+            --max-allowed-size-compressed '1.0Gi'
         )
     else
+        # cu13 wheels are ~501 MiB (x86_64) / ~495 MiB (aarch64).
         PYDISTCHECK_ARGS+=(
-            --max-allowed-size-compressed '825Mi'
+            --max-allowed-size-compressed '560Mi'
         )
     fi
 elif [[ "${package_dir}" != "python/cugraph" ]] && \
