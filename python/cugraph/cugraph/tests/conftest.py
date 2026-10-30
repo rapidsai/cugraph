@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import tempfile
@@ -34,6 +34,11 @@ def pytest_collection_modifyitems(config, items):
     """Modify pytest items after tests have been collected."""
     installed_nx_version = packaging.version.parse(nx.__version__)
     for item in items:
+        # TODO: remove when updating to a 'pytest-benchmark' with support for 'pytest>=9.2'
+        #  ref: https://github.com/ionelmc/pytest-benchmark/issues/321
+        if not hasattr(item, "_nodeid"):
+            item._nodeid = item.nodeid
+
         # Skip tests marked as requiring a specific version of NetworkX if
         # the installed version is too old
         for marker in item.iter_markers(name="requires_nx"):
