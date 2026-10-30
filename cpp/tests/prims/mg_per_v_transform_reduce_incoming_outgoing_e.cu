@@ -99,7 +99,7 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
     }
 
     cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> mg_renumber_map{std::nullopt};
     std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, prims_usecase.test_weighted, true);
@@ -130,11 +130,11 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
 
     auto mg_vertex_prop =
       cugraph::test::generate<decltype(mg_graph_view), result_t>::vertex_property(
-        *handle_, *mg_renumber_map, hash_bin_count);
+        *handle_, mg_graph_view, mg_renumber_map->view(), hash_bin_count);
     auto mg_src_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::src_property(
-      *handle_, mg_graph_view, mg_vertex_prop);
+      *handle_, mg_graph_view, mg_vertex_prop.view());
     auto mg_dst_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::dst_property(
-      *handle_, mg_graph_view, mg_vertex_prop);
+      *handle_, mg_graph_view, mg_vertex_prop.view());
 
     enum class reduction_type_t { PLUS, ELEMWISE_MIN, ELEMWISE_MAX };
     std::array<reduction_type_t, 3> reduction_types = {
@@ -159,37 +159,43 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
 
       switch (reduction_types[i]) {
         case reduction_type_t::PLUS:
-          per_v_transform_reduce_incoming_e(*handle_,
-                                            mg_graph_view,
-                                            mg_src_prop.view(),
-                                            mg_dst_prop.view(),
-                                            cugraph::edge_dummy_property_t{}.view(),
-                                            e_op_t<vertex_t, result_t>{},
-                                            property_initial_value,
-                                            cugraph::reduce_op::plus<result_t>{},
-                                            cugraph::get_dataframe_buffer_begin(mg_in_results[i]));
+          per_v_transform_reduce_incoming_e(
+            *handle_,
+            mg_graph_view,
+            mg_src_prop.view(),
+            mg_dst_prop.view(),
+            cugraph::edge_dummy_property_t{}.view(),
+            e_op_t<vertex_t, result_t>{},
+            property_initial_value,
+            cugraph::reduce_op::plus<result_t>{},
+            cugraph::vertex_property_view_t{cugraph::get_dataframe_buffer_begin(mg_in_results[i]),
+                                            mg_graph_view.local_vertex_partition_range_size()});
           break;
         case reduction_type_t::ELEMWISE_MIN:
-          per_v_transform_reduce_incoming_e(*handle_,
-                                            mg_graph_view,
-                                            mg_src_prop.view(),
-                                            mg_dst_prop.view(),
-                                            cugraph::edge_dummy_property_t{}.view(),
-                                            e_op_t<vertex_t, result_t>{},
-                                            property_initial_value,
-                                            cugraph::reduce_op::elementwise_minimum<result_t>{},
-                                            cugraph::get_dataframe_buffer_begin(mg_in_results[i]));
+          per_v_transform_reduce_incoming_e(
+            *handle_,
+            mg_graph_view,
+            mg_src_prop.view(),
+            mg_dst_prop.view(),
+            cugraph::edge_dummy_property_t{}.view(),
+            e_op_t<vertex_t, result_t>{},
+            property_initial_value,
+            cugraph::reduce_op::elementwise_minimum<result_t>{},
+            cugraph::vertex_property_view_t{cugraph::get_dataframe_buffer_begin(mg_in_results[i]),
+                                            mg_graph_view.local_vertex_partition_range_size()});
           break;
         case reduction_type_t::ELEMWISE_MAX:
-          per_v_transform_reduce_incoming_e(*handle_,
-                                            mg_graph_view,
-                                            mg_src_prop.view(),
-                                            mg_dst_prop.view(),
-                                            cugraph::edge_dummy_property_t{}.view(),
-                                            e_op_t<vertex_t, result_t>{},
-                                            property_initial_value,
-                                            cugraph::reduce_op::elementwise_maximum<result_t>{},
-                                            cugraph::get_dataframe_buffer_begin(mg_in_results[i]));
+          per_v_transform_reduce_incoming_e(
+            *handle_,
+            mg_graph_view,
+            mg_src_prop.view(),
+            mg_dst_prop.view(),
+            cugraph::edge_dummy_property_t{}.view(),
+            e_op_t<vertex_t, result_t>{},
+            property_initial_value,
+            cugraph::reduce_op::elementwise_maximum<result_t>{},
+            cugraph::vertex_property_view_t{cugraph::get_dataframe_buffer_begin(mg_in_results[i]),
+                                            mg_graph_view.local_vertex_partition_range_size()});
           break;
         default: FAIL() << "should not be reached.";
       }
@@ -212,37 +218,43 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
 
       switch (reduction_types[i]) {
         case reduction_type_t::PLUS:
-          per_v_transform_reduce_outgoing_e(*handle_,
-                                            mg_graph_view,
-                                            mg_src_prop.view(),
-                                            mg_dst_prop.view(),
-                                            cugraph::edge_dummy_property_t{}.view(),
-                                            e_op_t<vertex_t, result_t>{},
-                                            property_initial_value,
-                                            cugraph::reduce_op::plus<result_t>{},
-                                            cugraph::get_dataframe_buffer_begin(mg_out_results[i]));
+          per_v_transform_reduce_outgoing_e(
+            *handle_,
+            mg_graph_view,
+            mg_src_prop.view(),
+            mg_dst_prop.view(),
+            cugraph::edge_dummy_property_t{}.view(),
+            e_op_t<vertex_t, result_t>{},
+            property_initial_value,
+            cugraph::reduce_op::plus<result_t>{},
+            cugraph::vertex_property_view_t{cugraph::get_dataframe_buffer_begin(mg_out_results[i]),
+                                            mg_graph_view.local_vertex_partition_range_size()});
           break;
         case reduction_type_t::ELEMWISE_MIN:
-          per_v_transform_reduce_outgoing_e(*handle_,
-                                            mg_graph_view,
-                                            mg_src_prop.view(),
-                                            mg_dst_prop.view(),
-                                            cugraph::edge_dummy_property_t{}.view(),
-                                            e_op_t<vertex_t, result_t>{},
-                                            property_initial_value,
-                                            cugraph::reduce_op::elementwise_minimum<result_t>{},
-                                            cugraph::get_dataframe_buffer_begin(mg_out_results[i]));
+          per_v_transform_reduce_outgoing_e(
+            *handle_,
+            mg_graph_view,
+            mg_src_prop.view(),
+            mg_dst_prop.view(),
+            cugraph::edge_dummy_property_t{}.view(),
+            e_op_t<vertex_t, result_t>{},
+            property_initial_value,
+            cugraph::reduce_op::elementwise_minimum<result_t>{},
+            cugraph::vertex_property_view_t{cugraph::get_dataframe_buffer_begin(mg_out_results[i]),
+                                            mg_graph_view.local_vertex_partition_range_size()});
           break;
         case reduction_type_t::ELEMWISE_MAX:
-          per_v_transform_reduce_outgoing_e(*handle_,
-                                            mg_graph_view,
-                                            mg_src_prop.view(),
-                                            mg_dst_prop.view(),
-                                            cugraph::edge_dummy_property_t{}.view(),
-                                            e_op_t<vertex_t, result_t>{},
-                                            property_initial_value,
-                                            cugraph::reduce_op::elementwise_maximum<result_t>{},
-                                            cugraph::get_dataframe_buffer_begin(mg_out_results[i]));
+          per_v_transform_reduce_outgoing_e(
+            *handle_,
+            mg_graph_view,
+            mg_src_prop.view(),
+            mg_dst_prop.view(),
+            cugraph::edge_dummy_property_t{}.view(),
+            e_op_t<vertex_t, result_t>{},
+            property_initial_value,
+            cugraph::reduce_op::elementwise_maximum<result_t>{},
+            cugraph::vertex_property_view_t{cugraph::get_dataframe_buffer_begin(mg_out_results[i]),
+                                            mg_graph_view.local_vertex_partition_range_size()});
           break;
         default: FAIL() << "should not be reached.";
       }
@@ -266,8 +278,7 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
 
       for (size_t i = 0; i < reduction_types.size(); ++i) {
@@ -281,20 +292,18 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
           std::tie(std::ignore, mg_aggregate_in_results) =
             cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
               *handle_,
-              std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                    (*mg_renumber_map).size()),
-              mg_graph_view.local_vertex_partition_range(),
-              std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+              mg_graph_view,
+              std::make_optional(mg_renumber_map->view()),
+              std::nullopt,
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
               raft::device_span<result_t const>(mg_in_results[i].data(), mg_in_results[i].size()));
 
           std::tie(std::ignore, mg_aggregate_out_results) =
             cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
               *handle_,
-              std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                    (*mg_renumber_map).size()),
-              mg_graph_view.local_vertex_partition_range(),
-              std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+              mg_graph_view,
+              std::make_optional(mg_renumber_map->view()),
+              std::nullopt,
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
               raft::device_span<result_t const>(mg_out_results[i].data(),
                                                 mg_out_results[i].size()));
@@ -302,10 +311,9 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
           std::tie(std::ignore, std::get<0>(mg_aggregate_in_results)) =
             cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
               *handle_,
-              std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                    (*mg_renumber_map).size()),
-              mg_graph_view.local_vertex_partition_range(),
-              std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+              mg_graph_view,
+              std::make_optional(mg_renumber_map->view()),
+              std::nullopt,
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
               raft::device_span<typename cuda::std::tuple_element<0, result_t>::type const>(
                 std::get<0>(mg_in_results[i]).data(), std::get<0>(mg_in_results[i]).size()));
@@ -313,10 +321,9 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
           std::tie(std::ignore, std::get<1>(mg_aggregate_in_results)) =
             cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
               *handle_,
-              std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                    (*mg_renumber_map).size()),
-              mg_graph_view.local_vertex_partition_range(),
-              std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+              mg_graph_view,
+              std::make_optional(mg_renumber_map->view()),
+              std::nullopt,
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
               raft::device_span<typename cuda::std::tuple_element<1, result_t>::type const>(
                 std::get<1>(mg_in_results[i]).data(), std::get<1>(mg_in_results[i]).size()));
@@ -324,10 +331,9 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
           std::tie(std::ignore, std::get<0>(mg_aggregate_out_results)) =
             cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
               *handle_,
-              std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                    (*mg_renumber_map).size()),
-              mg_graph_view.local_vertex_partition_range(),
-              std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+              mg_graph_view,
+              std::make_optional(mg_renumber_map->view()),
+              std::nullopt,
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
               raft::device_span<typename cuda::std::tuple_element<0, result_t>::type const>(
                 std::get<0>(mg_out_results[i]).data(), std::get<0>(mg_out_results[i]).size()));
@@ -335,10 +341,9 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
           std::tie(std::ignore, std::get<1>(mg_aggregate_out_results)) =
             cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
               *handle_,
-              std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                    (*mg_renumber_map).size()),
-              mg_graph_view.local_vertex_partition_range(),
-              std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+              mg_graph_view,
+              std::make_optional(mg_renumber_map->view()),
+              std::nullopt,
               std::optional<raft::device_span<vertex_t const>>{std::nullopt},
               raft::device_span<typename cuda::std::tuple_element<1, result_t>::type const>(
                 std::get<1>(mg_out_results[i]).data(), std::get<1>(mg_out_results[i]).size()));
@@ -349,16 +354,13 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
 
           auto sg_vertex_prop =
             cugraph::test::generate<decltype(sg_graph_view), result_t>::vertex_property(
-              *handle_,
-              sg_graph_view.local_vertex_partition_range_first(),
-              sg_graph_view.local_vertex_partition_range_last(),
-              hash_bin_count);
+              *handle_, sg_graph_view, hash_bin_count);
           auto sg_src_prop =
             cugraph::test::generate<decltype(sg_graph_view), result_t>::src_property(
-              *handle_, sg_graph_view, sg_vertex_prop);
+              *handle_, sg_graph_view, sg_vertex_prop.view());
           auto sg_dst_prop =
             cugraph::test::generate<decltype(sg_graph_view), result_t>::dst_property(
-              *handle_, sg_graph_view, sg_vertex_prop);
+              *handle_, sg_graph_view, sg_vertex_prop.view());
           cugraph::test::vector_result_compare compare{*handle_};
 
           auto global_in_result = cugraph::allocate_dataframe_buffer<result_t>(
@@ -375,7 +377,9 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
                 e_op_t<vertex_t, result_t>{},
                 property_initial_value,
                 cugraph::reduce_op::plus<result_t>{},
-                cugraph::get_dataframe_buffer_begin(global_in_result));
+                cugraph::vertex_property_view_t{
+                  cugraph::get_dataframe_buffer_begin(global_in_result),
+                  sg_graph_view.local_vertex_partition_range_size()});
               break;
             case reduction_type_t::ELEMWISE_MIN:
               per_v_transform_reduce_incoming_e(
@@ -387,7 +391,9 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
                 e_op_t<vertex_t, result_t>{},
                 property_initial_value,
                 cugraph::reduce_op::elementwise_minimum<result_t>{},
-                cugraph::get_dataframe_buffer_begin(global_in_result));
+                cugraph::vertex_property_view_t{
+                  cugraph::get_dataframe_buffer_begin(global_in_result),
+                  sg_graph_view.local_vertex_partition_range_size()});
               break;
             case reduction_type_t::ELEMWISE_MAX:
               per_v_transform_reduce_incoming_e(
@@ -399,7 +405,9 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
                 e_op_t<vertex_t, result_t>{},
                 property_initial_value,
                 cugraph::reduce_op::elementwise_maximum<result_t>{},
-                cugraph::get_dataframe_buffer_begin(global_in_result));
+                cugraph::vertex_property_view_t{
+                  cugraph::get_dataframe_buffer_begin(global_in_result),
+                  sg_graph_view.local_vertex_partition_range_size()});
               break;
             default: FAIL() << "should not be reached.";
           }
@@ -418,7 +426,9 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
                 e_op_t<vertex_t, result_t>{},
                 property_initial_value,
                 cugraph::reduce_op::plus<result_t>{},
-                cugraph::get_dataframe_buffer_begin(global_out_result));
+                cugraph::vertex_property_view_t{
+                  cugraph::get_dataframe_buffer_begin(global_out_result),
+                  sg_graph_view.local_vertex_partition_range_size()});
               break;
             case reduction_type_t::ELEMWISE_MIN:
               per_v_transform_reduce_outgoing_e(
@@ -430,7 +440,9 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
                 e_op_t<vertex_t, result_t>{},
                 property_initial_value,
                 cugraph::reduce_op::elementwise_minimum<result_t>{},
-                cugraph::get_dataframe_buffer_begin(global_out_result));
+                cugraph::vertex_property_view_t{
+                  cugraph::get_dataframe_buffer_begin(global_out_result),
+                  sg_graph_view.local_vertex_partition_range_size()});
               break;
             case reduction_type_t::ELEMWISE_MAX:
               per_v_transform_reduce_outgoing_e(
@@ -442,7 +454,9 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
                 e_op_t<vertex_t, result_t>{},
                 property_initial_value,
                 cugraph::reduce_op::elementwise_maximum<result_t>{},
-                cugraph::get_dataframe_buffer_begin(global_out_result));
+                cugraph::vertex_property_view_t{
+                  cugraph::get_dataframe_buffer_begin(global_out_result),
+                  sg_graph_view.local_vertex_partition_range_size()});
               break;
             default: FAIL() << "should not be reached.";
           }

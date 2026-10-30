@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -90,20 +90,17 @@ class Tests_MGEigenvectorCentrality
 
     weight_t constexpr epsilon{1e-6};
 
-    rmm::device_uvector<weight_t> d_mg_centralities(
-      mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
       hr_timer.start("MG eigenvector centrality");
     }
 
-    d_mg_centralities = cugraph::eigenvector_centrality(
+    auto [d_mg_centralities, metadata] = cugraph::eigenvector_centrality(
       *handle_,
       mg_graph_view,
       mg_edge_weight_view,
-      std::optional<raft::device_span<weight_t const>>{std::nullopt},
+      std::optional<cugraph::vertex_property_t<vertex_t, weight_t>>{std::nullopt},
       epsilon,
       eigenvector_usecase.max_iterations,
       false);
@@ -120,16 +117,17 @@ class Tests_MGEigenvectorCentrality
     if (eigenvector_usecase.check_correctness) {
       // 3-1. aggregate MG results
 
+      auto d_mg_centrality_values = d_mg_centralities.release_buffer();
       rmm::device_uvector<weight_t> d_mg_aggregate_centralities(0, handle_->get_stream());
       std::tie(std::ignore, d_mg_aggregate_centralities) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
-          mg_graph_view.local_vertex_partition_range(),
+          mg_graph_view,
+          std::make_optional(mg_renumber_map->view()),
+          std::nullopt,
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-          raft::device_span<weight_t const>(d_mg_centralities.data(), d_mg_centralities.size()));
+          raft::device_span<weight_t const>(d_mg_centrality_values.data(),
+                                            d_mg_centrality_values.size()));
 
       cugraph::graph_t<vertex_t, edge_t, true, false> sg_graph(*handle_);
       std::optional<cugraph::edge_property_t<edge_t, weight_t>> sg_edge_weights{std::nullopt};
@@ -140,8 +138,7 @@ class Tests_MGEigenvectorCentrality
           mg_edge_weight_view,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
 
       if (handle_->get_comms().get_rank() == int{0}) {
@@ -153,14 +150,11 @@ class Tests_MGEigenvectorCentrality
 
         ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
 
-        rmm::device_uvector<weight_t> d_sg_centralities(sg_graph_view.number_of_vertices(),
-                                                        handle_->get_stream());
-
-        d_sg_centralities = cugraph::eigenvector_centrality(
+        auto [d_sg_centralities, sg_metadata] = cugraph::eigenvector_centrality(
           *handle_,
           sg_graph_view,
           sg_edge_weight_view,
-          std::optional<raft::device_span<weight_t const>>{std::nullopt},
+          std::optional<cugraph::vertex_property_t<vertex_t, weight_t>>{std::nullopt},
           epsilon,
           eigenvector_usecase.max_iterations,
           false);
@@ -169,7 +163,8 @@ class Tests_MGEigenvectorCentrality
 
         auto h_mg_aggregate_centralities =
           cugraph::test::to_host(*handle_, d_mg_aggregate_centralities);
-        auto h_sg_centralities = cugraph::test::to_host(*handle_, d_sg_centralities);
+        auto d_sg_centrality_values = d_sg_centralities.release_buffer();
+        auto h_sg_centralities      = cugraph::test::to_host(*handle_, d_sg_centrality_values);
 
         auto max_centrality =
           *std::max_element(h_mg_aggregate_centralities.begin(), h_mg_aggregate_centralities.end());

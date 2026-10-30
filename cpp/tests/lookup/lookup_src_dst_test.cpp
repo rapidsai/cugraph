@@ -1,6 +1,6 @@
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -172,14 +172,15 @@ class Tests_SGLookupEdgeSrcDst
       std::optional<rmm::device_uvector<edge_t>> d_mg_edge_ids{std::nullopt};
       std::optional<rmm::device_uvector<int32_t>> d_mg_edge_types{std::nullopt};
 
-      std::tie(d_mg_srcs, d_mg_dsts, std::ignore, d_mg_edge_ids, d_mg_edge_types) =
-        cugraph::decompress_to_edgelist(
-          handle,
-          sg_graph_view,
-          std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
-          std::make_optional((*edge_ids).view()),
-          std::make_optional((*edge_types).view()),
-          std::optional<raft::device_span<vertex_t const>>{std::nullopt});
+      std::vector<cugraph::arithmetic_device_uvector_t> edge_property_values{};
+      std::tie(d_mg_srcs, d_mg_dsts, edge_property_values) = cugraph::decompress_to_edgelist(
+        handle,
+        sg_graph_view,
+        std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{edge_ids->view(),
+                                                                      edge_types->view()},
+        std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
+      d_mg_edge_ids   = std::move(std::get<rmm::device_uvector<edge_t>>(edge_property_values[0]));
+      d_mg_edge_types = std::move(std::get<rmm::device_uvector<int32_t>>(edge_property_values[1]));
 
       auto number_of_edges = sg_graph_view.compute_number_of_edges(handle);
 

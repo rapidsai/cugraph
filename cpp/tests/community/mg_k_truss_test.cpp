@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -109,19 +109,11 @@ class Tests_MGKTruss
     // 3. Compare SG & MG results
 
     if (k_truss_usecase.check_correctness_) {
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        d_cugraph_srcs.data(),
-        d_cugraph_srcs.size(),
-        (*mg_renumber_map).data(),
-        mg_graph_view.vertex_partition_range_lasts());
+      d_cugraph_srcs = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(d_cugraph_srcs), mg_renumber_map->view());
 
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        d_cugraph_dsts.data(),
-        d_cugraph_dsts.size(),
-        (*mg_renumber_map).data(),
-        mg_graph_view.vertex_partition_range_lasts());
+      d_cugraph_dsts = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(d_cugraph_dsts), mg_renumber_map->view());
 
       auto global_d_cugraph_srcs = cugraph::test::device_gatherv(
         *handle_, raft::device_span<vertex_t const>(d_cugraph_srcs.data(), d_cugraph_srcs.size()));
@@ -157,8 +149,7 @@ class Tests_MGKTruss
           mg_edge_weight_view,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
 
       auto sg_edge_weight_view =

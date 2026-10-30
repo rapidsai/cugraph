@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "utilities/base_fixture.hpp"
@@ -264,10 +264,11 @@ class Tests_Multithreaded
 
           if (thread_handle.get_thread_rank() > 0) return;
 
+          auto thread_graph_view = graph_view.get(thread_handle);
           auto [local_pageranks, metadata] =
             cugraph::pagerank<vertex_t, edge_t, weight_t, weight_t, true>(
               thread_handle.raft_handle(),
-              graph_view.get(thread_handle),
+              thread_graph_view,
               edge_properties.size() > 0
                 ? std::make_optional(std::get<cugraph::edge_property_t<edge_t, weight_t>>(
                                        edge_properties[0].get(thread_handle))
@@ -275,13 +276,13 @@ class Tests_Multithreaded
                 : std::nullopt,
               std::nullopt,
               std::nullopt,
-              std::nullopt,
+              std::optional<cugraph::vertex_property_t<vertex_t, weight_t>>{std::nullopt},
               alpha,
               epsilon,
               500,
               true);
 
-          pageranks.set(thread_handle, std::move(local_pageranks));
+          pageranks.set(thread_handle, local_pageranks.release_buffer());
         });
     }
 
@@ -358,12 +359,12 @@ class Tests_Multithreaded
       cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(handle);
       std::vector<cugraph::edge_arithmetic_property_t<edge_t>> sg_edge_properties{};
       std::optional<cugraph::edge_property_t<edge_t, weight_t>> sg_edge_weights{std::nullopt};
-      std::optional<rmm::device_uvector<vertex_t>> sg_renumber_map{std::nullopt};
+      std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> sg_renumber_map{std::nullopt};
       std::vector<cugraph::arithmetic_device_uvector_t> d_edge_properties{};
       if (d_weights_v) d_edge_properties.push_back(std::move(*d_weights_v));
 
       std::tie(sg_graph, sg_edge_properties, sg_renumber_map) =
-        cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, false>(
+        cugraph::create_graph<vertex_t, edge_t, store_transposed, false>(
           handle,
           std::nullopt,
           std::move(d_src_v),
@@ -377,19 +378,21 @@ class Tests_Multithreaded
           std::move(std::get<cugraph::edge_property_t<edge_t, weight_t>>(sg_edge_properties[0]));
       }
 
+      auto sg_graph_view        = sg_graph.view();
       auto [sg_pageranks, meta] = cugraph::pagerank<vertex_t, edge_t, weight_t, weight_t, false>(
         handle,
-        sg_graph.view(),
+        sg_graph_view,
         sg_edge_weights ? std::make_optional(sg_edge_weights->view()) : std::nullopt,
         std::nullopt,
         std::nullopt,
-        std::nullopt,
+        std::optional<cugraph::vertex_property_t<vertex_t, weight_t>>{std::nullopt},
         alpha,
         epsilon);
 
-      auto h_sg_pageranks    = cugraph::test::to_host(handle, sg_pageranks);
-      auto h_sg_renumber_map = cugraph::test::to_host(handle, sg_renumber_map);
-      auto compare_functor   = cugraph::test::nearly_equal<weight_t>{
+      auto h_sg_pageranks = cugraph::test::to_host(handle, sg_pageranks.release_buffer());
+      auto h_sg_renumber_map =
+        cugraph::test::to_host(handle, std::make_optional(sg_renumber_map->release_buffer()));
+      auto compare_functor = cugraph::test::nearly_equal<weight_t>{
         weight_t{1e-3},
         weight_t{(weight_t{1} / static_cast<weight_t>(h_sg_pageranks.size())) * weight_t{1e-3}}};
 

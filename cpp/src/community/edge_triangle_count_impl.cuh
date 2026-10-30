@@ -122,8 +122,6 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   bool do_expensive_check)
 {
-  using weight_t = float;
-
   CUGRAPH_EXPECTS(
     !graph_view.is_multigraph(),
     "Invalid input argument: edge triangle count currently does not support multi-graphs.");
@@ -151,9 +149,9 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
 
   rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
-  std::tie(edgelist_srcs, edgelist_dsts, std::ignore, std::ignore, std::ignore) =
-    decompress_to_edgelist<vertex_t, edge_t, weight_t, int32_t>(
-      handle, cur_graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
+  std::tie(edgelist_srcs, edgelist_dsts, std::ignore) =
+    decompress_to_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+      handle, cur_graph_view, std::vector<edge_arithmetic_property_view_t<edge_t>>{}, std::nullopt);
 
   auto edge_first = thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin());
 

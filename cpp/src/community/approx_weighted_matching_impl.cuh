@@ -9,31 +9,33 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/prims/fill_edge_property.cuh>
+#include <cugraph/prims/fill_v.cuh>
 #include <cugraph/prims/make_initialized_edge_property.cuh>
 #include <cugraph/prims/reduce_op.cuh>
+#include <cugraph/prims/reduce_v.cuh>
 #include <cugraph/prims/transform_e.cuh>
 #include <cugraph/prims/transform_reduce_e_by_src_dst_key.cuh>
+#include <cugraph/prims/transform_v.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/collect_comm.cuh>
-#include <cugraph/utilities/thrust_wrappers/fill.hpp>
-#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/vertex_property_device_view.cuh>
 
 #include <raft/core/handle.hpp>
-
-#include <rmm/exec_policy.hpp>
 
 #include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
-#include <thrust/fill.h>
+#include <thrust/iterator/counting_iterator.h>
+
+#include <type_traits>
 
 namespace cugraph {
 
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matching(
+std::tuple<vertex_property_t<vertex_t, vertex_t>, weight_t> approximate_weighted_matching(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view)
@@ -64,37 +66,41 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
   current_graph_view.attach_edge_mask(edge_masks_even.view());
 
   auto constexpr invalid_partner = invalid_vertex_id<vertex_t>::value;
-  rmm::device_uvector<weight_t> offers_from_partners(
-    current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-
-  rmm::device_uvector<vertex_t> partners(current_graph_view.local_vertex_partition_range_size(),
-                                         handle.get_stream());
-
-  cugraph::fill(handle.get_thrust_policy(), partners.begin(), partners.end(), invalid_partner);
-  cugraph::fill(handle.get_thrust_policy(),
-                offers_from_partners.begin(),
-                offers_from_partners.end(),
-                weight_t{0.0});
-
-  rmm::device_uvector<vertex_t> local_vertices(
-    current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-  cugraph::sequence(rmm::exec_policy(handle.get_stream()),
-                    local_vertices.begin(),
-                    local_vertices.begin() + local_vertices.size(),
-                    current_graph_view.local_vertex_partition_range_first());
+  vertex_property_t<vertex_t, weight_t> offers_from_partners(handle, current_graph_view);
+  vertex_property_t<vertex_t, vertex_t> partners(handle, current_graph_view);
+  fill_v(handle, current_graph_view, partners.mutable_view(), invalid_partner);
+  fill_v(handle, current_graph_view, offers_from_partners.mutable_view(), weight_t{0.0});
 
   cugraph::edge_src_property_t<vertex_t, vertex_t> src_key_cache(handle);
   cugraph::edge_src_property_t<vertex_t, bool> src_match_flags(handle);
   cugraph::edge_dst_property_t<vertex_t, bool> dst_match_flags(handle);
 
+  using src_key_iterator_t =
+    std::conditional_t<multi_gpu, vertex_t const*, thrust::counting_iterator<vertex_t>>;
+
+  detail::edge_endpoint_property_view_t<vertex_t, src_key_iterator_t, vertex_t>
+    src_key_cache_view{};
+
   if constexpr (multi_gpu) {
+    vertex_property_t<vertex_t, vertex_t> local_vertices(handle, current_graph_view);
+    transform_v(handle, current_graph_view, cuda::std::identity{}, local_vertices.mutable_view());
+
     src_key_cache = cugraph::edge_src_property_t<vertex_t, vertex_t>(handle, current_graph_view);
 
     update_edge_src_property(
-      handle, current_graph_view, local_vertices.begin(), src_key_cache.mutable_view());
+      handle, current_graph_view, local_vertices.view(), src_key_cache.mutable_view());
+    src_key_cache_view = src_key_cache.view();
 
     src_match_flags = cugraph::edge_src_property_t<vertex_t, bool>(handle, current_graph_view);
     dst_match_flags = cugraph::edge_dst_property_t<vertex_t, bool>(handle, current_graph_view);
+  } else {
+    src_key_cache_view =
+      detail::make_edge_endpoint_property_view<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
+                                               src_key_iterator_t,
+                                               vertex_t,
+                                               true>(
+        current_graph_view,
+        thrust::make_counting_iterator(current_graph_view.local_vertex_partition_range_first()));
   }
 
   vertex_t loop_counter = 0;
@@ -116,9 +122,7 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
         cugraph::edge_src_dummy_property_t{}.view(),
         cugraph::edge_dst_dummy_property_t{}.view(),
         edge_weight_view,
-        multi_gpu ? src_key_cache.view()
-                  : make_edge_src_property_view<vertex_t, vertex_t>(
-                      current_graph_view, local_vertices.begin(), local_vertices.size()),
+        src_key_cache_view,
         [] __device__(auto, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, auto wt) {
           return cuda::std::make_tuple(wt, dst);
         },
@@ -233,10 +237,8 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
     // Mask out neighborhood of matched vertices
     //
 
-    rmm::device_uvector<bool> is_vertex_matched = rmm::device_uvector<bool>(
-      current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-    cugraph::fill(
-      handle.get_thrust_policy(), is_vertex_matched.begin(), is_vertex_matched.end(), bool{false});
+    vertex_property_t<vertex_t, bool> is_vertex_matched(handle, current_graph_view);
+    fill_v(handle, current_graph_view, is_vertex_matched.mutable_view(), false);
 
     thrust::for_each(
       handle.get_thrust_policy(),
@@ -248,10 +250,10 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
                                 targets.end(),
                                 candidates.end(),
                                 offers_from_candidates.end()),
-      [partners             = partners.begin(),
-       offers_from_partners = offers_from_partners.begin(),
-       is_vertex_matched =
-         raft::device_span<bool>(is_vertex_matched.data(), is_vertex_matched.size()),
+      [partners = detail::vertex_property_device_view_t{partners.mutable_view()},
+       offers_from_partners =
+         detail::vertex_property_device_view_t{offers_from_partners.mutable_view()},
+       is_vertex_matched = detail::vertex_property_device_view_t{is_vertex_matched.mutable_view()},
        v_first =
          current_graph_view.local_vertex_partition_range_first()] __device__(auto msrc_tgt) {
         auto candidate_of_candidate = cuda::std::get<0>(msrc_tgt);
@@ -260,10 +262,10 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
         auto offer_value            = cuda::std::get<3>(msrc_tgt);
 
         if (candidate_of_candidate != invalid_partner && candidate_of_candidate == tgt) {
-          auto tgt_offset                  = tgt - v_first;
-          is_vertex_matched[tgt_offset]    = true;
-          partners[tgt_offset]             = candiate;
-          offers_from_partners[tgt_offset] = offer_value;
+          auto tgt_offset = tgt - v_first;
+          is_vertex_matched.set(tgt_offset, true);
+          partners.set(tgt_offset, candiate);
+          offers_from_partners.set(tgt_offset, offer_value);
         }
       });
 
@@ -271,9 +273,9 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
 
     if constexpr (multi_gpu) {
       cugraph::update_edge_src_property(
-        handle, current_graph_view, is_vertex_matched.begin(), src_match_flags.mutable_view());
+        handle, current_graph_view, is_vertex_matched.view(), src_match_flags.mutable_view());
       cugraph::update_edge_dst_property(
-        handle, current_graph_view, is_vertex_matched.begin(), dst_match_flags.mutable_view());
+        handle, current_graph_view, is_vertex_matched.view(), dst_match_flags.mutable_view());
     }
 
     if (loop_counter % 2 == 0) {
@@ -296,14 +298,15 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
           cugraph::edge_src_dummy_property_t{}.view(),
           cugraph::edge_dst_dummy_property_t{}.view(),
           cugraph::edge_dummy_property_t{}.view(),
-          [is_vertex_matched = raft::device_span<bool const>(
-             is_vertex_matched.data(), is_vertex_matched.size())] __device__(auto src,
-                                                                             auto dst,
-                                                                             cuda::std::nullopt_t,
-                                                                             cuda::std::nullopt_t,
-                                                                             cuda::std::nullopt_t) {
-            auto is_src_matched = is_vertex_matched[src];
-            auto is_dst_matched = is_vertex_matched[dst];
+          [is_vertex_matched =
+             detail::vertex_property_device_view_t{
+               is_vertex_matched.view()}] __device__(auto src,
+                                                     auto dst,
+                                                     cuda::std::nullopt_t,
+                                                     cuda::std::nullopt_t,
+                                                     cuda::std::nullopt_t) {
+            auto is_src_matched = is_vertex_matched.get(src);
+            auto is_dst_matched = is_vertex_matched.get(dst);
             return !((is_src_matched == true) || (is_dst_matched == true));
           },
           edge_masks_odd.mutable_view());
@@ -333,14 +336,15 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
           cugraph::edge_src_dummy_property_t{}.view(),
           cugraph::edge_dst_dummy_property_t{}.view(),
           cugraph::edge_dummy_property_t{}.view(),
-          [is_vertex_matched = raft::device_span<bool const>(
-             is_vertex_matched.data(), is_vertex_matched.size())] __device__(auto src,
-                                                                             auto dst,
-                                                                             cuda::std::nullopt_t,
-                                                                             cuda::std::nullopt_t,
-                                                                             cuda::std::nullopt_t) {
-            auto is_src_matched = is_vertex_matched[src];
-            auto is_dst_matched = is_vertex_matched[dst];
+          [is_vertex_matched =
+             detail::vertex_property_device_view_t{
+               is_vertex_matched.view()}] __device__(auto src,
+                                                     auto dst,
+                                                     cuda::std::nullopt_t,
+                                                     cuda::std::nullopt_t,
+                                                     cuda::std::nullopt_t) {
+            auto is_src_matched = is_vertex_matched.get(src);
+            auto is_dst_matched = is_vertex_matched.get(dst);
             return !((is_src_matched == true) || (is_dst_matched == true));
           },
           edge_masks_even.mutable_view());
@@ -355,13 +359,8 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
     loop_counter++;
   }
 
-  weight_t sum_matched_edge_weights = thrust::reduce(
-    handle.get_thrust_policy(), offers_from_partners.begin(), offers_from_partners.end());
-
-  if constexpr (multi_gpu) {
-    sum_matched_edge_weights = host_scalar_allreduce(
-      handle.get_comms(), sum_matched_edge_weights, raft::comms::op_t::SUM, handle.get_stream());
-  }
+  auto sum_matched_edge_weights =
+    reduce_v(handle, current_graph_view, offers_from_partners.view(), weight_t{0.0});
 
   return std::make_tuple(std::move(partners), sum_matched_edge_weights / 2.0);
 }
@@ -369,12 +368,28 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<vertex_property_t<vertex_t, vertex_t>, weight_t> approx_weighted_matching(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
+  bool do_expensive_check)
+{
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
+
+  return detail::approximate_weighted_matching(handle, graph_view, edge_weight_view);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matching(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view)
 {
-  return detail::approximate_weighted_matching(handle, graph_view, edge_weight_view);
+  auto [partners, sum_matched_edge_weights] =
+    cugraph::approx_weighted_matching(handle, graph_view, edge_weight_view);
+
+  return std::make_tuple(partners.release_buffer(), sum_matched_edge_weights);
 }
 
 }  // namespace cugraph

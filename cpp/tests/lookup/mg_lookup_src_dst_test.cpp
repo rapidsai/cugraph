@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -71,12 +71,7 @@ class Tests_MGLookupEdgeSrcDst
         *handle_, input_usecase, test_weighted, renumber, drop_self_loops, drop_multi_edges);
 
     std::tie(mg_graph, mg_edge_weights, mg_renumber_map) = cugraph::symmetrize_graph(
-      *handle_,
-      std::move(mg_graph),
-      std::move(mg_edge_weights),
-      mg_renumber_map ? std::optional<rmm::device_uvector<vertex_t>>(std::move(*mg_renumber_map))
-                      : std::nullopt,
-      false);
+      *handle_, std::move(mg_graph), std::move(mg_edge_weights), std::move(mg_renumber_map), false);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
@@ -209,14 +204,15 @@ class Tests_MGLookupEdgeSrcDst
       std::optional<rmm::device_uvector<edge_t>> d_mg_edge_ids{std::nullopt};
       std::optional<rmm::device_uvector<int32_t>> d_mg_edge_types{std::nullopt};
 
-      std::tie(d_mg_srcs, d_mg_dsts, std::ignore, d_mg_edge_ids, d_mg_edge_types) =
-        cugraph::decompress_to_edgelist(
-          *handle_,
-          mg_graph_view,
-          std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
-          std::make_optional((*edge_ids).view()),
-          std::make_optional((*edge_types).view()),
-          std::optional<raft::device_span<vertex_t const>>{std::nullopt});
+      std::vector<cugraph::arithmetic_device_uvector_t> edge_property_values{};
+      std::tie(d_mg_srcs, d_mg_dsts, edge_property_values) = cugraph::decompress_to_edgelist(
+        *handle_,
+        mg_graph_view,
+        std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{edge_ids->view(),
+                                                                      edge_types->view()},
+        std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
+      d_mg_edge_ids   = std::move(std::get<rmm::device_uvector<edge_t>>(edge_property_values[0]));
+      d_mg_edge_types = std::move(std::get<rmm::device_uvector<int32_t>>(edge_property_values[1]));
 
       auto number_of_edges = mg_graph_view.compute_number_of_edges(*handle_);
 

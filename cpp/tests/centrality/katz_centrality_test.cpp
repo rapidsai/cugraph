@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -137,33 +137,30 @@ class Tests_KatzCentrality
       graph_view.attach_edge_mask((*edge_mask).view());
     }
 
-    auto degrees   = graph_view.compute_in_degrees(handle);
-    auto h_degrees = cugraph::test::to_host(handle, degrees);
+    auto degrees   = cugraph::compute_in_degrees(handle, graph_view);
+    auto h_degrees = cugraph::test::to_host(handle, degrees.view());
     auto max_it    = std::max_element(h_degrees.begin(), h_degrees.end());
 
     result_t const alpha = result_t{1.0} / static_cast<result_t>(*max_it + 1);
     result_t constexpr beta{1.0};
     result_t constexpr epsilon{1e-6};
 
-    rmm::device_uvector<result_t> d_katz_centralities(graph_view.number_of_vertices(),
-                                                      handle.get_stream());
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.start("Katz centrality");
     }
 
-    cugraph::katz_centrality(handle,
-                             graph_view,
-                             edge_weight_view,
-                             static_cast<result_t*>(nullptr),
-                             d_katz_centralities.data(),
-                             alpha,
-                             beta,
-                             epsilon,
-                             std::numeric_limits<size_t>::max(),
-                             false,
-                             true);
+    auto [d_katz_centralities, metadata] = cugraph::katz_centrality(
+      handle,
+      graph_view,
+      edge_weight_view,
+      std::optional<cugraph::vertex_property_view_t<vertex_t, result_t const*>>{std::nullopt},
+      std::optional<cugraph::vertex_property_t<vertex_t, result_t>>{std::nullopt},
+      alpha,
+      beta,
+      epsilon,
+      std::numeric_limits<size_t>::max(),
+      true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -177,10 +174,7 @@ class Tests_KatzCentrality
           handle,
           graph_view,
           edge_weight_view,
-          d_renumber_map_labels
-            ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
-                                                                    (*d_renumber_map_labels).size())
-            : std::nullopt);
+          d_renumber_map_labels ? std::make_optional(d_renumber_map_labels->view()) : std::nullopt);
 
       std::vector<result_t> h_reference_katz_centralities(graph_view.number_of_vertices());
 
@@ -198,17 +192,18 @@ class Tests_KatzCentrality
         false,
         true);
 
+      auto d_katz_centrality_values = d_katz_centralities.release_buffer();
       std::vector<result_t> h_cugraph_katz_centralities{};
       if (renumber) {
         rmm::device_uvector<result_t> d_unrenumbered_katz_centralities(size_t{0},
                                                                        handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_katz_centralities) =
           cugraph::test::sort_by_key<vertex_t, result_t>(
-            handle, *d_renumber_map_labels, d_katz_centralities);
+            handle, d_renumber_map_labels->release_buffer(), std::move(d_katz_centrality_values));
         h_cugraph_katz_centralities =
           cugraph::test::to_host(handle, d_unrenumbered_katz_centralities);
       } else {
-        h_cugraph_katz_centralities = cugraph::test::to_host(handle, d_katz_centralities);
+        h_cugraph_katz_centralities = cugraph::test::to_host(handle, d_katz_centrality_values);
       }
 
       handle.sync_stream();

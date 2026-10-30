@@ -13,9 +13,11 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/prims/copy_v.cuh>
 #include <cugraph/prims/extract_transform_if_e.cuh>
 #include <cugraph/prims/fill_edge_src_dst_property.cuh>
 #include <cugraph/prims/transform_e.cuh>
+#include <cugraph/prims/transform_v.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/collect_comm.cuh>
@@ -87,14 +89,10 @@ find_trees_from_2cores(
   rmm::device_uvector<bool> in_2cores(mg_graph_view.local_vertex_partition_range_size(),
                                       handle.get_stream());
   {
-    rmm::device_uvector<edge_t> core_numbers(mg_graph_view.local_vertex_partition_range_size(),
-                                             handle.get_stream());
-    cugraph::core_number(handle,
-                         mg_graph_view,
-                         core_numbers.data(),
-                         cugraph::k_core_degree_type_t::OUT,
-                         size_t{2},
-                         size_t{2});
+    auto core_numbers =
+      cugraph::core_number(
+        handle, mg_graph_view, cugraph::k_core_degree_type_t::OUT, size_t{2}, size_t{2})
+        .release_buffer();
     thrust::transform(handle.get_thrust_policy(),
                       core_numbers.begin(),
                       core_numbers.end(),
@@ -127,11 +125,19 @@ find_trees_from_2cores(
   cugraph::edge_src_property_t<vertex_t, bool> edge_src_reachable_from_2cores(handle,
                                                                               mg_graph_view);
   cugraph::update_edge_src_property(
-    handle, mg_graph_view, in_2cores.begin(), edge_src_reachable_from_2cores.mutable_view());
+    handle,
+    mg_graph_view,
+    cugraph::vertex_property_view_t{in_2cores.begin(),
+                                    mg_graph_view.local_vertex_partition_range_size()},
+    edge_src_reachable_from_2cores.mutable_view());
   cugraph::edge_dst_property_t<vertex_t, bool> edge_dst_reachable_from_2cores(handle,
                                                                               mg_graph_view);
   cugraph::update_edge_dst_property(
-    handle, mg_graph_view, in_2cores.begin(), edge_dst_reachable_from_2cores.mutable_view());
+    handle,
+    mg_graph_view,
+    cugraph::vertex_property_view_t{in_2cores.begin(),
+                                    mg_graph_view.local_vertex_partition_range_size()},
+    edge_dst_reachable_from_2cores.mutable_view());
   in_2cores.resize(0, handle.get_stream());
   in_2cores.shrink_to_fit(handle.get_stream());
 
@@ -283,24 +289,24 @@ template <typename vertex_t,
 std::tuple<
   cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,  // mg_pruned_graph
   std::optional<cugraph::edge_property_t<edge_t, weight_t>>,        // mg_pruned_graph_edge_weights
-  rmm::device_uvector<vertex_t>,                                    // mg_pruned_graph_renumber_map
+  cugraph::vertex_property_t<vertex_t, vertex_t>,                   // mg_pruned_graph_renumber_map
   rmm::device_uvector<vertex_t>,  // mg_graph_to_pruned_graph_map (mg_graph v_offset to
                                   // mg_pruned_graph v_offset)
-  rmm::device_uvector<vertex_t>,  // mg_pruned_graph_to_graph_map (mg_pruned_graph
-                                  // v_offset to mg_graph v_offset)
+  cugraph::vertex_property_t<vertex_t, vertex_t>,  // mg_pruned_graph_to_graph_map (mg_pruned_graph
+                                                   // v_offset to mg_graph v_offset)
   cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,  // mg_isolated_trees
   std::optional<cugraph::edge_property_t<edge_t, weight_t>>,  // mg_isolated_trees_edge_weights
-  rmm::device_uvector<vertex_t>,                              // mg_isolated_trees_renumber_map
+  cugraph::vertex_property_t<vertex_t, vertex_t>,             // mg_isolated_trees_renumber_map
   rmm::device_uvector<vertex_t>,  // mg_graph_to_isolated_trees_map (mg_graph v_offset to
                                   // mg_isolated_trees v_offset)
-  rmm::device_uvector<
-    vertex_t>>  // mg_isolated_trees_to_graph_map (mg_isolated_trees v_offset to mg_graph
-                // v_offset)
+  cugraph::vertex_property_t<vertex_t, vertex_t>>  // mg_isolated_trees_to_graph_map
+                                                   // (mg_isolated_trees v_offset to mg_graph
+                                                   // v_offset)
 extract_forest_pruned_graph_and_isolated_trees(
   raft::handle_t const& handle,
   cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>&& mg_graph,
   std::optional<cugraph::edge_property_t<edge_t, weight_t>>&& mg_edge_weights,
-  raft::device_span<vertex_t const> mg_renumber_map,
+  cugraph::vertex_property_view_t<vertex_t, vertex_t const*> mg_renumber_map,
   raft::device_span<vertex_t const> parents /* found in forest pruning */,
   vertex_t invalid_vertex,
   std::optional<cugraph::large_buffer_type_t> large_buffer_type)
@@ -347,9 +353,17 @@ extract_forest_pruned_graph_and_isolated_trees(
                           return cuda::std::get<0>(pair) == cuda::std::get<1>(pair);
                         }));
       cugraph::update_edge_src_property(
-        handle, mg_graph_view, in_2cores.begin(), edge_src_in_2cores.mutable_view());
+        handle,
+        mg_graph_view,
+        cugraph::vertex_property_view_t{in_2cores.begin(),
+                                        mg_graph_view.local_vertex_partition_range_size()},
+        edge_src_in_2cores.mutable_view());
       cugraph::update_edge_dst_property(
-        handle, mg_graph_view, in_2cores.begin(), edge_dst_in_2cores.mutable_view());
+        handle,
+        mg_graph_view,
+        cugraph::vertex_property_view_t{in_2cores.begin(),
+                                        mg_graph_view.local_vertex_partition_range_size()},
+        edge_dst_in_2cores.mutable_view());
     }
     for (size_t i = 0; i < num_chunks; ++i) {
       cugraph::edge_property_t<edge_t, bool> edge_mask(handle, mg_graph_view);
@@ -368,25 +382,19 @@ extract_forest_pruned_graph_and_isolated_trees(
           }),
         edge_mask.mutable_view());
       mg_graph_view.attach_edge_mask(edge_mask.view());
-      auto pruned_graph_edges = cugraph::decompress_to_edgelist<vertex_t,
-                                                                edge_t,
-                                                                weight_t,
-                                                                edge_type_t,
-                                                                store_transposed,
-                                                                multi_gpu>(
+      auto pruned_graph_edges = cugraph::decompress_to_edgelist(
         handle,
         mg_graph_view,
-        mg_edge_weight_view,
-        std::nullopt,
-        std::nullopt,
-        std::make_optional<raft::device_span<vertex_t const>>(mg_renumber_map.data(),
-                                                              mg_renumber_map.size()),
+        mg_edge_weight_view
+          ? std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{*mg_edge_weight_view}
+          : std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{},
+        std::make_optional(mg_renumber_map),
         large_buffer_type);
       mg_graph_view.clear_edge_mask();
       pruned_graph_src_chunks[i] = std::move(std::get<0>(pruned_graph_edges));
       pruned_graph_dst_chunks[i] = std::move(std::get<1>(pruned_graph_edges));
       if (pruned_graph_edge_property_chunks.size() > 0) {
-        pruned_graph_edge_property_chunks[0][i] = std::move(*(std::get<2>(pruned_graph_edges)));
+        pruned_graph_edge_property_chunks[0][i] = std::move(std::get<2>(pruned_graph_edges)[0]);
       }
     }
   }
@@ -409,10 +417,12 @@ extract_forest_pruned_graph_and_isolated_trees(
                       }));
     cugraph::edge_src_property_t<vertex_t, bool> edge_src_reachable_from_2cores(handle,
                                                                                 mg_graph_view);
-    cugraph::update_edge_src_property(handle,
-                                      mg_graph_view,
-                                      reachable_from_2cores.begin(),
-                                      edge_src_reachable_from_2cores.mutable_view());
+    cugraph::update_edge_src_property(
+      handle,
+      mg_graph_view,
+      cugraph::vertex_property_view_t{reachable_from_2cores.begin(),
+                                      mg_graph_view.local_vertex_partition_range_size()},
+      edge_src_reachable_from_2cores.mutable_view());
     cugraph::edge_property_t<edge_t, bool> edge_mask(handle, mg_graph_view);
     cugraph::transform_e(
       handle,
@@ -424,20 +434,18 @@ extract_forest_pruned_graph_and_isolated_trees(
         [] __device__(auto, auto, auto src_reachable, auto, auto) { return !src_reachable; }),
       edge_mask.mutable_view());
     mg_graph_view.attach_edge_mask(edge_mask.view());
-    auto isolated_tree_edges = cugraph::
-      decompress_to_edgelist<vertex_t, edge_t, weight_t, edge_type_t, store_transposed, multi_gpu>(
-        handle,
-        mg_graph_view,
-        mg_edge_weight_view,
-        std::nullopt,
-        std::nullopt,
-        std::make_optional<raft::device_span<vertex_t const>>(mg_renumber_map.data(),
-                                                              mg_renumber_map.size()),
-        large_buffer_type);
+    auto isolated_tree_edges = cugraph::decompress_to_edgelist(
+      handle,
+      mg_graph_view,
+      mg_edge_weight_view
+        ? std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{*mg_edge_weight_view}
+        : std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{},
+      std::make_optional(mg_renumber_map),
+      large_buffer_type);
     isolated_tree_edge_srcs = std::move(std::get<0>(isolated_tree_edges));
     isolated_tree_edge_dsts = std::move(std::get<1>(isolated_tree_edges));
     if (isolated_tree_edge_property_chunks.size() > 0) {
-      isolated_tree_edge_property_chunks[0] = std::move(*(std::get<2>(isolated_tree_edges)));
+      isolated_tree_edge_property_chunks[0] = std::move(std::get<2>(isolated_tree_edges)[0]);
     }
   }
 
@@ -451,12 +459,12 @@ extract_forest_pruned_graph_and_isolated_trees(
   cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> mg_pruned_graph(handle);
   std::optional<cugraph::edge_property_t<edge_t, weight_t>> mg_pruned_graph_edge_weights{
     std::nullopt};
-  rmm::device_uvector<vertex_t> mg_pruned_graph_renumber_map(0, handle.get_stream());
+  cugraph::vertex_property_t<vertex_t, vertex_t> mg_pruned_graph_renumber_map(handle);
   {
     std::vector<cugraph::edge_arithmetic_property_t<edge_t>> pruned_graph_edge_properties_objects{};
-    std::optional<rmm::device_uvector<vertex_t>> tmp_map{};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> tmp_map{};
     std::tie(mg_pruned_graph, pruned_graph_edge_properties_objects, tmp_map) =
-      cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+      cugraph::create_graph<vertex_t, edge_t, store_transposed, multi_gpu>(
         handle,
         std::nullopt,
         std::move(pruned_graph_src_chunks),
@@ -476,13 +484,13 @@ extract_forest_pruned_graph_and_isolated_trees(
   cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> mg_isolated_trees(handle);
   std::optional<cugraph::edge_property_t<edge_t, weight_t>> mg_isolated_trees_edge_weights{
     std::nullopt};
-  rmm::device_uvector<vertex_t> mg_isolated_trees_renumber_map(0, handle.get_stream());
+  cugraph::vertex_property_t<vertex_t, vertex_t> mg_isolated_trees_renumber_map(handle);
   {
     std::vector<cugraph::edge_arithmetic_property_t<edge_t>>
       isolated_tree_edge_properties_objects{};
-    std::optional<rmm::device_uvector<vertex_t>> tmp_map{};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> tmp_map{};
     std::tie(mg_isolated_trees, isolated_tree_edge_properties_objects, tmp_map) =
-      cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+      cugraph::create_graph<vertex_t, edge_t, store_transposed, multi_gpu>(
         handle,
         std::nullopt,
         std::move(isolated_tree_edge_srcs),
@@ -501,24 +509,27 @@ extract_forest_pruned_graph_and_isolated_trees(
   // update v_offset mappings between mg_graph and mg_isolated_trees & mg_pruned_graph
 
   rmm::device_uvector<vertex_t> mg_graph_to_isolated_trees_map(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> mg_isolated_trees_to_graph_map(0, handle.get_stream());
+  cugraph::vertex_property_t<vertex_t, vertex_t> mg_isolated_trees_to_graph_map(handle);
   {
     // mg_graph_to_isolated_trees_map
 
-    rmm::device_uvector<vertex_t> sorted_vertices(mg_isolated_trees_renumber_map.size(),
-                                                  handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(),
-                 mg_isolated_trees_renumber_map.begin(),
-                 mg_isolated_trees_renumber_map.end(),
-                 sorted_vertices.begin());
+    auto mg_isolated_trees_view = mg_isolated_trees.view();
+    rmm::device_uvector<vertex_t> sorted_vertices(
+      mg_isolated_trees_view.local_vertex_partition_range_size(), handle.get_stream());
+    cugraph::copy_v(
+      handle,
+      mg_isolated_trees_view,
+      mg_isolated_trees_renumber_map.view(),
+      cugraph::vertex_property_view_t<vertex_t, vertex_t*>(
+        sorted_vertices.data(), mg_isolated_trees_view.local_vertex_partition_range_size()));
     rmm::device_uvector<vertex_t> indices(sorted_vertices.size(), handle.get_stream());
     cugraph::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
     thrust::sort_by_key(
       handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end(), indices.begin());
-    mg_graph_to_isolated_trees_map.resize(mg_renumber_map.size(), handle.get_stream());
+    mg_graph_to_isolated_trees_map.resize(mg_renumber_map.range_size(), handle.get_stream());
     thrust::transform(handle.get_thrust_policy(),
-                      mg_renumber_map.begin(),
-                      mg_renumber_map.end(),
+                      mg_renumber_map.value_first(),
+                      mg_renumber_map.value_first() + mg_renumber_map.range_size(),
                       mg_graph_to_isolated_trees_map.begin(),
                       [sorted_vertices = raft::device_span<vertex_t const>(sorted_vertices.data(),
                                                                            sorted_vertices.size()),
@@ -535,52 +546,55 @@ extract_forest_pruned_graph_and_isolated_trees(
 
     // mg_isolated_trees_to_graph_map
 
-    sorted_vertices.resize(mg_renumber_map.size(), handle.get_stream());
+    sorted_vertices.resize(mg_renumber_map.range_size(), handle.get_stream());
     thrust::copy(handle.get_thrust_policy(),
-                 mg_renumber_map.begin(),
-                 mg_renumber_map.end(),
+                 mg_renumber_map.value_first(),
+                 mg_renumber_map.value_first() + mg_renumber_map.range_size(),
                  sorted_vertices.begin());
     indices.resize(sorted_vertices.size(), handle.get_stream());
     cugraph::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
     thrust::sort_by_key(
       handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end(), indices.begin());
-    mg_isolated_trees_to_graph_map.resize(mg_isolated_trees_renumber_map.size(),
-                                          handle.get_stream());
-    thrust::transform(
-      handle.get_thrust_policy(),
-      mg_isolated_trees_renumber_map.begin(),
-      mg_isolated_trees_renumber_map.end(),
-      mg_isolated_trees_to_graph_map.begin(),
-      [sorted_vertices =
-         raft::device_span<vertex_t const>(sorted_vertices.data(), sorted_vertices.size()),
-       indices =
-         raft::device_span<vertex_t const>(indices.data(), indices.size())] __device__(auto v) {
+    mg_isolated_trees_to_graph_map =
+      cugraph::vertex_property_t<vertex_t, vertex_t>(handle, mg_isolated_trees_view);
+    cugraph::transform_v(
+      handle,
+      mg_isolated_trees_view,
+      mg_isolated_trees_renumber_map.view(),
+      cuda::proclaim_return_type<vertex_t>([sorted_vertices = raft::device_span<vertex_t const>(
+                                              sorted_vertices.data(), sorted_vertices.size()),
+                                            indices = raft::device_span<vertex_t const>(
+                                              indices.data(), indices.size())] __device__(auto v) {
         auto it =
           thrust::lower_bound(thrust::seq, sorted_vertices.begin(), sorted_vertices.end(), v);
         assert((it != sorted_vertices.end()) && (*it == v));
         return indices[cuda::std::distance(sorted_vertices.begin(), it)];
-      });
+      }),
+      mg_isolated_trees_to_graph_map.mutable_view());
   }
 
   rmm::device_uvector<vertex_t> mg_graph_to_pruned_graph_map(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> mg_pruned_graph_to_graph_map(0, handle.get_stream());
+  cugraph::vertex_property_t<vertex_t, vertex_t> mg_pruned_graph_to_graph_map(handle);
   {
     // mg_graph_to_pruned_graph_map
 
-    rmm::device_uvector<vertex_t> sorted_vertices(mg_pruned_graph_renumber_map.size(),
-                                                  handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(),
-                 mg_pruned_graph_renumber_map.begin(),
-                 mg_pruned_graph_renumber_map.end(),
-                 sorted_vertices.begin());
+    auto mg_pruned_graph_view = mg_pruned_graph.view();
+    rmm::device_uvector<vertex_t> sorted_vertices(
+      mg_pruned_graph_view.local_vertex_partition_range_size(), handle.get_stream());
+    cugraph::copy_v(
+      handle,
+      mg_pruned_graph_view,
+      mg_pruned_graph_renumber_map.view(),
+      cugraph::vertex_property_view_t<vertex_t, vertex_t*>(
+        sorted_vertices.data(), mg_pruned_graph_view.local_vertex_partition_range_size()));
     rmm::device_uvector<vertex_t> indices(sorted_vertices.size(), handle.get_stream());
     cugraph::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
     thrust::sort_by_key(
       handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end(), indices.begin());
-    mg_graph_to_pruned_graph_map.resize(mg_renumber_map.size(), handle.get_stream());
+    mg_graph_to_pruned_graph_map.resize(mg_renumber_map.range_size(), handle.get_stream());
     thrust::transform(handle.get_thrust_policy(),
-                      mg_renumber_map.begin(),
-                      mg_renumber_map.end(),
+                      mg_renumber_map.value_first(),
+                      mg_renumber_map.value_first() + mg_renumber_map.range_size(),
                       mg_graph_to_pruned_graph_map.begin(),
                       [sorted_vertices = raft::device_span<vertex_t const>(sorted_vertices.data(),
                                                                            sorted_vertices.size()),
@@ -597,30 +611,31 @@ extract_forest_pruned_graph_and_isolated_trees(
 
     // mg_pruned_graph_to_graph_map
 
-    sorted_vertices.resize(mg_renumber_map.size(), handle.get_stream());
+    sorted_vertices.resize(mg_renumber_map.range_size(), handle.get_stream());
     thrust::copy(handle.get_thrust_policy(),
-                 mg_renumber_map.begin(),
-                 mg_renumber_map.end(),
+                 mg_renumber_map.value_first(),
+                 mg_renumber_map.value_first() + mg_renumber_map.range_size(),
                  sorted_vertices.begin());
     indices.resize(sorted_vertices.size(), handle.get_stream());
     cugraph::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
     thrust::sort_by_key(
       handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end(), indices.begin());
-    mg_pruned_graph_to_graph_map.resize(mg_pruned_graph_renumber_map.size(), handle.get_stream());
-    thrust::transform(
-      handle.get_thrust_policy(),
-      mg_pruned_graph_renumber_map.begin(),
-      mg_pruned_graph_renumber_map.end(),
-      mg_pruned_graph_to_graph_map.begin(),
-      [sorted_vertices =
-         raft::device_span<vertex_t const>(sorted_vertices.data(), sorted_vertices.size()),
-       indices =
-         raft::device_span<vertex_t const>(indices.data(), indices.size())] __device__(auto v) {
+    mg_pruned_graph_to_graph_map =
+      cugraph::vertex_property_t<vertex_t, vertex_t>(handle, mg_pruned_graph_view);
+    cugraph::transform_v(
+      handle,
+      mg_pruned_graph_view,
+      mg_pruned_graph_renumber_map.view(),
+      cuda::proclaim_return_type<vertex_t>([sorted_vertices = raft::device_span<vertex_t const>(
+                                              sorted_vertices.data(), sorted_vertices.size()),
+                                            indices = raft::device_span<vertex_t const>(
+                                              indices.data(), indices.size())] __device__(auto v) {
         auto it =
           thrust::lower_bound(thrust::seq, sorted_vertices.begin(), sorted_vertices.end(), v);
         assert((it != sorted_vertices.end()) && (*it == v));
         return indices[cuda::std::distance(sorted_vertices.begin(), it)];
-      });
+      }),
+      mg_pruned_graph_to_graph_map.mutable_view());
   }
 
   return std::make_tuple(std::move(mg_pruned_graph),

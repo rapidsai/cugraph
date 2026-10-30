@@ -77,7 +77,7 @@ class Tests_MGExtractBFSPaths
     }
 
     cugraph::graph_t<vertex_t, edge_t, false, true> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> mg_renumber_map{std::nullopt};
     std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, true, renumber);
@@ -99,25 +99,24 @@ class Tests_MGExtractBFSPaths
     ASSERT_TRUE(extract_bfs_paths_usecase.num_paths_to_check < mg_graph_view.number_of_vertices())
       << "Invalid num_paths_to_check, more than number of vertices";
 
-    rmm::device_uvector<vertex_t> d_mg_distances(mg_graph_view.local_vertex_partition_range_size(),
-                                                 handle_->get_stream());
-    rmm::device_uvector<vertex_t> d_mg_predecessors(
-      mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
-
     vertex_t const source{static_cast<vertex_t>(extract_bfs_paths_usecase.source)};
-    auto const d_mg_source =
-      mg_graph_view.in_local_vertex_partition_range_nocheck(source)
-        ? std::make_optional<rmm::device_scalar<vertex_t>>(source, handle_->get_stream())
-        : std::nullopt;
-
-    cugraph::bfs(*handle_,
-                 mg_graph_view,
-                 d_mg_distances.data(),
-                 d_mg_predecessors.data(),
-                 d_mg_source ? d_mg_source->data() : static_cast<vertex_t const*>(nullptr),
-                 d_mg_source ? size_t{1} : size_t{0},
-                 false,
-                 std::numeric_limits<vertex_t>::max());
+    rmm::device_uvector<vertex_t> mg_frontier(
+      mg_graph_view.in_local_vertex_partition_range_nocheck(source) ? size_t{1} : size_t{0},
+      handle_->get_stream());
+    if (mg_frontier.size() > 0) {
+      raft::update_device(mg_frontier.data(), &source, size_t{1}, handle_->get_stream());
+      handle_->sync_stream();  // to guarantee that async H2D copy finishes before source goes
+                               // out-of-scope
+    }
+    auto [distance_property, predecessor_property] =
+      cugraph::bfs(*handle_,
+                   mg_graph_view,
+                   raft::device_span<vertex_t const>(mg_frontier.data(), mg_frontier.size()),
+                   false,
+                   std::numeric_limits<vertex_t>::max(),
+                   true);
+    auto d_mg_distances    = distance_property.release_buffer();
+    auto d_mg_predecessors = predecessor_property->release_buffer();
 
     auto h_mg_distances    = cugraph::test::to_host(*handle_, d_mg_distances);
     auto h_mg_predecessors = cugraph::test::to_host(*handle_, d_mg_predecessors);
@@ -150,9 +149,9 @@ class Tests_MGExtractBFSPaths
     raft::random::RngState rng_state(0);
     auto d_mg_destinations = cugraph::select_random_vertices(
       *handle_,
+      rng_state,
       mg_graph_view,
       std::make_optional(raft::device_span<vertex_t const>{d_vertices.data(), d_vertices.size()}),
-      rng_state,
       std::min(num_of_paths_in_given_set, extract_bfs_paths_usecase.num_paths_to_check),
       false,
       false);
@@ -167,12 +166,14 @@ class Tests_MGExtractBFSPaths
 
     vertex_t mg_max_path_length{0};
 
-    std::tie(d_mg_paths, mg_max_path_length) = extract_bfs_paths(*handle_,
-                                                                 mg_graph_view,
-                                                                 d_mg_distances.data(),
-                                                                 d_mg_predecessors.data(),
-                                                                 d_mg_destinations.data(),
-                                                                 d_mg_destinations.size());
+    std::tie(d_mg_paths, mg_max_path_length) = extract_bfs_paths(
+      *handle_,
+      mg_graph_view,
+      cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+        d_mg_distances.data(), static_cast<vertex_t>(d_mg_distances.size())),
+      cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+        d_mg_predecessors.data(), static_cast<vertex_t>(d_mg_predecessors.size())),
+      raft::device_span<vertex_t const>(d_mg_destinations.data(), d_mg_destinations.size()));
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -185,35 +186,22 @@ class Tests_MGExtractBFSPaths
       // unrenumber & aggregate MG destination vertices to extract paths, & results
       // collect MG BFS results instead of re-running SG BFS as BFS is non-deterministic
 
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        d_mg_predecessors.data(),
-        d_mg_predecessors.size(),
-        (*mg_renumber_map).data(),
-        mg_graph_view.vertex_partition_range_lasts());
+      d_mg_predecessors = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(d_mg_predecessors), mg_renumber_map->view());
 
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        d_mg_destinations.data(),
-        d_mg_destinations.size(),
-        (*mg_renumber_map).data(),
-        mg_graph_view.vertex_partition_range_lasts());
+      d_mg_destinations = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(d_mg_destinations), mg_renumber_map->view());
 
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        d_mg_paths.data(),
-        d_mg_paths.size(),
-        (*mg_renumber_map).data(),
-        mg_graph_view.vertex_partition_range_lasts());
+      d_mg_paths = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(d_mg_paths), mg_renumber_map->view());
 
       rmm::device_uvector<vertex_t> d_mg_aggregate_distances(0, handle_->get_stream());
       std::tie(std::ignore, d_mg_aggregate_distances) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
-          mg_graph_view.local_vertex_partition_range(),
-          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          mg_graph_view,
+          std::make_optional(mg_renumber_map->view()),
+          std::nullopt,
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           raft::device_span<vertex_t const>(d_mg_distances.data(), d_mg_distances.size()));
 
@@ -221,10 +209,9 @@ class Tests_MGExtractBFSPaths
       std::tie(std::ignore, d_mg_aggregate_predecessors) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
-          mg_graph_view.local_vertex_partition_range(),
-          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          mg_graph_view,
+          std::make_optional(mg_renumber_map->view()),
+          std::nullopt,
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           raft::device_span<vertex_t const>(d_mg_predecessors.data(), d_mg_predecessors.size()));
 
@@ -241,8 +228,7 @@ class Tests_MGExtractBFSPaths
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
 
       if (handle_->get_comms().get_rank() == int{0}) {
@@ -253,10 +239,14 @@ class Tests_MGExtractBFSPaths
         auto [d_sg_paths, sg_max_path_length] =
           extract_bfs_paths(*handle_,
                             sg_graph_view,
-                            d_mg_aggregate_distances.data(),
-                            d_mg_aggregate_predecessors.data(),
-                            d_mg_aggregate_destinations.data(),
-                            d_mg_aggregate_destinations.size());
+                            cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+                              d_mg_aggregate_distances.data(),
+                              static_cast<vertex_t>(d_mg_aggregate_distances.size())),
+                            cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+                              d_mg_aggregate_predecessors.data(),
+                              static_cast<vertex_t>(d_mg_aggregate_predecessors.size())),
+                            raft::device_span<vertex_t const>(d_mg_aggregate_destinations.data(),
+                                                              d_mg_aggregate_destinations.size()));
 
         // compare
 

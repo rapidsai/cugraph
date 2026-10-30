@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -7,52 +7,51 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/copy_v.cuh>
 #include <cugraph/prims/count_if_v.cuh>
 #include <cugraph/prims/fill_edge_src_dst_property.cuh>
+#include <cugraph/prims/fill_v.cuh>
 #include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/prims/reduce_v.cuh>
 #include <cugraph/prims/transform_reduce_v.cuh>
+#include <cugraph/prims/transform_v.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
-#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/vertex_property.hpp>
 
-#include <cuda/iterator>
-#include <cuda/std/functional>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
-#include <thrust/fill.h>
-#include <thrust/iterator/zip_iterator.h>
-#include <thrust/transform.h>
 
 namespace cugraph {
 namespace detail {
 template <typename GraphViewType, typename ReduceOp, typename result_t>
 void normalize(raft::handle_t const& handle,
                GraphViewType const& graph_view,
-               result_t* hubs,
+               vertex_property_view_t<typename GraphViewType::vertex_type, result_t*> vertex_values,
                result_t init,
                ReduceOp reduce_op)
 {
-  auto hubs_norm = reduce_v(handle, graph_view, hubs, init, reduce_op);
+  auto hubs_norm = reduce_v(handle, graph_view, vertex_values, init, reduce_op);
   CUGRAPH_EXPECTS(hubs_norm > 0, "Norm is required to be a positive value.");
-  thrust::transform(handle.get_thrust_policy(),
-                    hubs,
-                    hubs + graph_view.local_vertex_partition_range_size(),
-                    cuda::make_constant_iterator(hubs_norm),
-                    hubs,
-                    cuda::std::divides<result_t>());
+  transform_v(
+    handle,
+    graph_view,
+    vertex_values,
+    [hubs_norm] __device__(auto val) { return val / hubs_norm; },
+    vertex_values);
 }
 
 template <typename GraphViewType, typename result_t>
-std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
-                                  GraphViewType const& graph_view,
-                                  result_t* const hubs,
-                                  result_t* const authorities,
-                                  result_t epsilon,
-                                  size_t max_iterations,
-                                  bool has_initial_hubs_guess,
-                                  bool normalize,
-                                  bool do_expensive_check)
+std::tuple<vertex_property_t<typename GraphViewType::vertex_type, result_t>,
+           vertex_property_t<typename GraphViewType::vertex_type, result_t>,
+           iterative_algorithm_metadata_t>
+hits(raft::handle_t const& handle,
+     GraphViewType const& graph_view,
+     std::optional<vertex_property_t<typename GraphViewType::vertex_type, result_t>>&& initial_hubs,
+     result_t epsilon,
+     size_t max_iterations,
+     bool normalize,
+     bool do_expensive_check)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   static_assert(std::is_integral<vertex_t>::value,
@@ -62,11 +61,22 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   static_assert(GraphViewType::is_storage_transposed,
                 "GraphViewType should support the pull model.");
 
+  auto const has_initial_hubs_guess = initial_hubs.has_value();
+  auto local_hubs                   = has_initial_hubs_guess
+                                        ? std::move(*initial_hubs)
+                                        : vertex_property_t<vertex_t, result_t>(handle, graph_view);
+  vertex_property_t<vertex_t, result_t> local_authorities(handle, graph_view);
+
   auto const num_vertices = graph_view.number_of_vertices();
   result_t diff_sum{std::numeric_limits<result_t>::max()};
-  size_t final_iteration_count{max_iterations};
 
-  if (num_vertices == 0) { return std::make_tuple(diff_sum, final_iteration_count); }
+  if (num_vertices == 0) {
+    return std::make_tuple(
+      std::move(local_hubs), std::move(local_authorities), iterative_algorithm_metadata_t{0, true});
+  }
+
+  auto hubs        = local_hubs.mutable_view();
+  auto authorities = local_authorities.mutable_view();
 
   CUGRAPH_EXPECTS(epsilon >= 0.0, "Invalid input argument: epsilon should be non-negative.");
   auto tolerance = static_cast<result_t>(graph_view.number_of_vertices()) * epsilon;
@@ -86,11 +96,10 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   // Property wrappers
   edge_src_property_t<vertex_t, result_t> prev_src_hubs(handle, graph_view);
   edge_dst_property_t<vertex_t, result_t> curr_dst_auth(handle, graph_view);
-  rmm::device_uvector<result_t> temp_hubs(graph_view.local_vertex_partition_range_size(),
-                                          handle.get_stream());
+  vertex_property_t<vertex_t, result_t> temp_hubs(handle, graph_view);
 
-  result_t* prev_hubs = hubs;
-  result_t* curr_hubs = temp_hubs.data();
+  auto prev_hubs = hubs;
+  auto curr_hubs = temp_hubs.mutable_view();
 
   // Initialize hubs from user input if provided
   if (has_initial_hubs_guess) {
@@ -98,10 +107,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   } else {
     fill_edge_src_property(
       handle, graph_view, prev_src_hubs.mutable_view(), result_t{1.0} / num_vertices);
-    cugraph::fill(handle.get_thrust_policy(),
-                  prev_hubs,
-                  prev_hubs + graph_view.local_vertex_partition_range_size(),
-                  result_t{1.0} / num_vertices);
+    fill_v(handle, graph_view, prev_hubs, result_t{1.0} / num_vertices);
   }
 
   size_t iter{0};
@@ -152,7 +158,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
     diff_sum = transform_reduce_v(
       handle,
       graph_view,
-      thrust::make_zip_iterator(curr_hubs, prev_hubs),
+      view_concat(curr_hubs, prev_hubs),
       [] __device__(auto, auto val) {
         return std::abs(cuda::std::get<0>(val) - cuda::std::get<1>(val));
       },
@@ -160,15 +166,14 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
 
     update_edge_src_property(handle, graph_view, curr_hubs, prev_src_hubs.mutable_view());
 
-    // Swap pointers for the next iteration
-    // After this swap call, prev_hubs has the latest value of hubs
+    // After this swap, prev_hubs has the latest hub values
     std::swap(prev_hubs, curr_hubs);
     iter++;
 
     if (diff_sum < tolerance) {
       break;
     } else if (iter >= max_iterations) {
-      CUGRAPH_FAIL("HITS failed to converge.");
+      break;
     }
   }
 
@@ -177,39 +182,75 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
     detail::normalize(handle, graph_view, authorities, result_t{0.0}, reduce_op::plus<result_t>{});
   }
 
-  // Copy calculated hubs to in/out parameter if necessary
-  if (hubs != prev_hubs) {
-    thrust::copy(handle.get_thrust_policy(),
-                 prev_hubs,
-                 prev_hubs + graph_view.local_vertex_partition_range_size(),
-                 hubs);
+  // Copy calculated hubs to the in/out property if the latest values are in the temporary buffer
+  if (prev_hubs.value_first() != hubs.value_first()) {
+    copy_v(handle, graph_view, prev_hubs, hubs);
   }
 
-  return std::make_tuple(diff_sum, iter);
+  return std::make_tuple(std::move(local_hubs),
+                         std::move(local_authorities),
+                         iterative_algorithm_metadata_t{iter, iter < max_iterations});
 }
 
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename result_t, bool multi_gpu>
+std::tuple<vertex_property_t<vertex_t, result_t>,
+           vertex_property_t<vertex_t, result_t>,
+           iterative_algorithm_metadata_t>
+hits(raft::handle_t const& handle,
+     graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
+     std::optional<vertex_property_t<vertex_t, result_t>>&& initial_hubs,
+     result_t epsilon,
+     size_t max_iterations,
+     bool normalize,
+     bool do_expensive_check)
+{
+  return detail::hits(handle,
+                      graph_view,
+                      std::move(initial_hubs),
+                      epsilon,
+                      max_iterations,
+                      normalize,
+                      do_expensive_check);
+}
+
+template <typename vertex_t, typename edge_t, typename result_t, bool multi_gpu>
 std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
                                   graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
-                                  result_t* const hubs,
-                                  result_t* const authorities,
+                                  result_t* hubs,
+                                  result_t* authorities,
                                   result_t epsilon,
                                   size_t max_iterations,
                                   bool has_initial_hubs_guess,
                                   bool normalize,
                                   bool do_expensive_check)
 {
-  return detail::hits(handle,
-                      graph_view,
-                      hubs,
-                      authorities,
-                      epsilon,
-                      max_iterations,
-                      has_initial_hubs_guess,
-                      normalize,
-                      do_expensive_check);
+  auto const range_size = graph_view.local_vertex_partition_range_size();
+
+  std::optional<vertex_property_t<vertex_t, result_t>> initial_hubs{std::nullopt};
+  if (has_initial_hubs_guess) {
+    rmm::device_uvector<result_t> hubs_values(static_cast<size_t>(range_size), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(), hubs, hubs + range_size, hubs_values.begin());
+    initial_hubs = vertex_property_t<vertex_t, result_t>(std::move(hubs_values), range_size);
+  }
+
+  auto [hubs_property, authorities_property, metadata] = cugraph::hits(handle,
+                                                                       graph_view,
+                                                                       std::move(initial_hubs),
+                                                                       epsilon,
+                                                                       max_iterations,
+                                                                       normalize,
+                                                                       do_expensive_check);
+
+  auto hubs_result        = hubs_property.release_buffer();
+  auto authorities_result = authorities_property.release_buffer();
+  thrust::copy(handle.get_thrust_policy(), hubs_result.begin(), hubs_result.end(), hubs);
+  thrust::copy(
+    handle.get_thrust_policy(), authorities_result.begin(), authorities_result.end(), authorities);
+
+  CUGRAPH_EXPECTS(metadata.converged_, "HITS failed to converge.");
+  return std::make_tuple(result_t{0}, metadata.number_of_iterations_);
 }
 
 }  // namespace cugraph

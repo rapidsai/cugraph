@@ -75,13 +75,21 @@ bool validate_sampling_empty_result(
 
   cugraph::edge_src_property_t<vertex_t, bool> edge_src_is_seed(handle, graph_view);
   cugraph::update_edge_src_property(
-    handle, graph_view, is_seed.begin(), edge_src_is_seed.mutable_view());
+    handle,
+    graph_view,
+    cugraph::vertex_property_view_t{is_seed.begin(),
+                                    graph_view.local_vertex_partition_range_size()},
+    edge_src_is_seed.mutable_view());
 
   size_t num_eligible{0};
   if (exclude_seed_destinations) {
     cugraph::edge_dst_property_t<vertex_t, bool> edge_dst_is_seed(handle, graph_view);
     cugraph::update_edge_dst_property(
-      handle, graph_view, is_seed.begin(), edge_dst_is_seed.mutable_view());
+      handle,
+      graph_view,
+      cugraph::vertex_property_view_t{is_seed.begin(),
+                                      graph_view.local_vertex_partition_range_size()},
+      edge_dst_is_seed.mutable_view());
 
     num_eligible = static_cast<size_t>(
       cugraph::count_if_e(handle,
@@ -195,12 +203,18 @@ bool validate_sampling_empty_result(
   cugraph::update_edge_src_property(
     handle,
     graph_view,
-    thrust::make_zip_iterator(window_starts.begin(), window_ends.begin()),
+    cugraph::vertex_property_view_t{
+      thrust::make_zip_iterator(window_starts.begin(), window_ends.begin()),
+      graph_view.local_vertex_partition_range_size()},
     edge_src_window.mutable_view());
 
   cugraph::edge_dst_property_t<vertex_t, bool> edge_dst_is_seed(handle, graph_view);
   cugraph::update_edge_dst_property(
-    handle, graph_view, is_seed.begin(), edge_dst_is_seed.mutable_view());
+    handle,
+    graph_view,
+    cugraph::vertex_property_view_t{is_seed.begin(),
+                                    graph_view.local_vertex_partition_range_size()},
+    edge_dst_is_seed.mutable_view());
 
   auto num_eligible = static_cast<size_t>(cugraph::count_if_e(
     handle,

@@ -36,7 +36,7 @@ template <typename vertex_t,
 
 std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
            std::optional<cugraph::edge_property_t<edge_t, weight_t>>,
-           std::optional<rmm::device_uvector<vertex_t>>>
+           std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>>>
 create_graph(raft::handle_t const& handle,
              std::vector<vertex_t>&& edge_srcs,
              std::vector<vertex_t>&& edge_dsts,
@@ -71,14 +71,14 @@ create_graph(raft::handle_t const& handle,
 
   std::optional<cugraph::edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
 
-  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+  std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> renumber_map{std::nullopt};
 
   std::vector<cugraph::arithmetic_device_uvector_t> edgelist_edge_property_vectors;
   if (d_edge_wgts) edgelist_edge_property_vectors.push_back(std::move(*d_edge_wgts));
   std::vector<cugraph::edge_arithmetic_property_t<edge_t>> edgelist_edge_properties;
 
   std::tie(graph, edgelist_edge_properties, renumber_map) =
-    cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+    cugraph::create_graph<vertex_t, edge_t, store_transposed, multi_gpu>(
       handle,
       std::nullopt,
       std::move(d_edge_srcs),
@@ -116,23 +116,19 @@ void run_graph_algorithms(
   // BFS
   //
 
-  rmm::device_uvector<vertex_t> d_distances(graph_view.local_vertex_partition_range_size(),
-                                            handle.get_stream());
-  rmm::device_uvector<vertex_t> d_predecessors(graph_view.local_vertex_partition_range_size(),
-                                               handle.get_stream());
-
   rmm::device_uvector<vertex_t> d_sources(1, handle.get_stream());
   std::vector<vertex_t> h_sources = {0};
   raft::update_device(d_sources.data(), h_sources.data(), h_sources.size(), handle.get_stream());
 
-  cugraph::bfs(handle,
-               graph_view,
-               d_distances.data(),
-               d_predecessors.data(),
-               d_sources.data(),
-               d_sources.size(),
-               false,
-               std::numeric_limits<vertex_t>::max());
+  auto [distance_property, predecessor_property] =
+    cugraph::bfs(handle,
+                 graph_view,
+                 raft::device_span<vertex_t const>(d_sources.data(), d_sources.size()),
+                 false,
+                 std::numeric_limits<vertex_t>::max(),
+                 true);
+  auto d_distances    = distance_property.release_buffer();
+  auto d_predecessors = predecessor_property->release_buffer();
 
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
@@ -148,23 +144,21 @@ void run_graph_algorithms(
   // Louvain
   //
 
-  rmm::device_uvector<vertex_t> d_cluster_assignments(
-    graph_view.local_vertex_partition_range_size(), handle.get_stream());
-
   weight_t threshold  = 1e-7;
   weight_t resolution = 1.0;
   size_t max_level    = 10;
 
-  weight_t modularity{-1.0};
-  std::tie(std::ignore, modularity) =
+  auto [clustering_prop, num_levels, modularity] =
     cugraph::louvain(handle,
                      std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
                      graph_view,
                      edge_weight_view,
-                     d_cluster_assignments.data(),
+                     false,
                      max_level,
                      threshold,
                      resolution);
+  (void)num_levels;
+  auto d_cluster_assignments = clustering_prop.release_buffer();
 
   std::cout << "modularity : " << modularity << std::endl;
 

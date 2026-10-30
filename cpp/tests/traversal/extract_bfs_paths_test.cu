@@ -71,7 +71,8 @@ class Tests_ExtractBfsPaths
     }
 
     cugraph::graph_t<vertex_t, edge_t, false, false> graph(handle);
-    std::optional<rmm::device_uvector<vertex_t>> d_renumber_map_labels{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> d_renumber_map_labels{
+      std::nullopt};
     std::tie(graph, std::ignore, d_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, true, renumber);
@@ -100,21 +101,20 @@ class Tests_ExtractBfsPaths
     ASSERT_TRUE(extract_bfs_paths_usecase.num_paths_to_check < graph_view.number_of_vertices())
       << "Invalid num_paths_to_check, more than number of vertices";
 
-    rmm::device_uvector<vertex_t> d_distances(graph_view.number_of_vertices(), handle.get_stream());
-    rmm::device_uvector<vertex_t> d_predecessors(graph_view.number_of_vertices(),
-                                                 handle.get_stream());
-
     vertex_t const source{static_cast<vertex_t>(extract_bfs_paths_usecase.source)};
-    rmm::device_scalar<vertex_t> const d_source(source, handle.get_stream());
-
-    cugraph::bfs(handle,
-                 graph_view,
-                 d_distances.data(),
-                 d_predecessors.data(),
-                 d_source.data(),
-                 size_t{1},
-                 false,
-                 std::numeric_limits<vertex_t>::max());
+    rmm::device_uvector<vertex_t> frontier(size_t{1}, handle.get_stream());
+    raft::update_device(frontier.data(), &source, size_t{1}, handle.get_stream());
+    handle
+      .sync_stream();  // to guarantee that async H2D copy finishes before source goes out-of-scope
+    auto [distance_property, predecessor_property] =
+      cugraph::bfs(handle,
+                   graph_view,
+                   raft::device_span<vertex_t const>(frontier.data(), frontier.size()),
+                   false,
+                   std::numeric_limits<vertex_t>::max(),
+                   true);
+    auto d_distances    = distance_property.release_buffer();
+    auto d_predecessors = predecessor_property->release_buffer();
 
     auto h_distances    = cugraph::test::to_host(handle, d_distances);
     auto h_predecessors = cugraph::test::to_host(handle, d_predecessors);
@@ -139,9 +139,9 @@ class Tests_ExtractBfsPaths
     raft::random::RngState rng_state(0);
     auto d_destinations = cugraph::select_random_vertices(
       handle,
+      rng_state,
       graph_view,
       std::make_optional(raft::device_span<vertex_t const>{d_vertices.data(), d_vertices.size()}),
-      rng_state,
       std::min(extract_bfs_paths_usecase.num_paths_to_check, d_vertices.size()),
       false,
       false);
@@ -156,12 +156,14 @@ class Tests_ExtractBfsPaths
 
     int32_t max_path_length{};
 
-    std::tie(d_paths, max_path_length) = extract_bfs_paths(handle,
-                                                           graph_view,
-                                                           d_distances.data(),
-                                                           d_predecessors.data(),
-                                                           d_destinations.data(),
-                                                           d_destinations.size());
+    std::tie(d_paths, max_path_length) = extract_bfs_paths(
+      handle,
+      graph_view,
+      cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+        d_distances.data(), static_cast<vertex_t>(d_distances.size())),
+      cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+        d_predecessors.data(), static_cast<vertex_t>(d_predecessors.size())),
+      raft::device_span<vertex_t const>(d_destinations.data(), d_destinations.size()));
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -41,19 +41,23 @@ graph_to_host_compressed_sparse(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, input_store_transposed, is_multi_gpu> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<raft::device_span<vertex_t const>> renumber_map)
+  std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>> renumber_map)
 {
   rmm::device_uvector<vertex_t> d_src(0, handle.get_stream());
   rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
   std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
 
-  std::tie(d_src, d_dst, d_wgt, std::ignore, std::ignore) = cugraph::decompress_to_edgelist(
+  std::vector<cugraph::arithmetic_device_uvector_t> edge_property_values{};
+  std::tie(d_src, d_dst, edge_property_values) = cugraph::decompress_to_edgelist(
     handle,
     graph_view,
-    edge_weight_view,
-    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-    std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+    edge_weight_view
+      ? std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{*edge_weight_view}
+      : std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{},
     renumber_map);
+  if (edge_weight_view) {
+    d_wgt = std::move(std::get<rmm::device_uvector<weight_t>>(edge_property_values[0]));
+  }
 
   if constexpr (is_multi_gpu) {
     d_src = cugraph::test::device_gatherv(
@@ -132,19 +136,23 @@ graph_to_host_coo(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<raft::device_span<vertex_t const>> renumber_map)
+  std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>> renumber_map)
 {
   rmm::device_uvector<vertex_t> d_src(0, handle.get_stream());
   rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
   std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
 
-  std::tie(d_src, d_dst, d_wgt, std::ignore, std::ignore) = cugraph::decompress_to_edgelist(
+  std::vector<cugraph::arithmetic_device_uvector_t> edge_property_values{};
+  std::tie(d_src, d_dst, edge_property_values) = cugraph::decompress_to_edgelist(
     handle,
     graph_view,
-    edge_weight_view,
-    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-    std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+    edge_weight_view
+      ? std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{*edge_weight_view}
+      : std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{},
     renumber_map);
+  if (edge_weight_view) {
+    d_wgt = std::move(std::get<rmm::device_uvector<weight_t>>(edge_property_values[0]));
+  }
 
   if constexpr (is_multi_gpu) {
     d_src = cugraph::test::device_gatherv(
@@ -193,19 +201,23 @@ graph_to_device_coo(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<raft::device_span<vertex_t const>> renumber_map)
+  std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>> renumber_map)
 {
   rmm::device_uvector<vertex_t> d_src(0, handle.get_stream());
   rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
   std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
 
-  std::tie(d_src, d_dst, d_wgt, std::ignore, std::ignore) = cugraph::decompress_to_edgelist(
+  std::vector<cugraph::arithmetic_device_uvector_t> edge_property_values{};
+  std::tie(d_src, d_dst, edge_property_values) = cugraph::decompress_to_edgelist(
     handle,
     graph_view,
-    edge_weight_view,
-    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-    std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+    edge_weight_view
+      ? std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{*edge_weight_view}
+      : std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{},
     renumber_map);
+  if (edge_weight_view) {
+    d_wgt = std::move(std::get<rmm::device_uvector<weight_t>>(edge_property_values[0]));
+  }
 
   if constexpr (is_multi_gpu) {
     d_src = cugraph::test::device_gatherv(
@@ -240,7 +252,7 @@ graph_to_host_csr(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<raft::device_span<vertex_t const>> renumber_map)
+  std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>> renumber_map)
 {
   return graph_to_host_compressed_sparse<vertex_t,
                                          edge_t,
@@ -260,7 +272,7 @@ graph_to_host_csc(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<raft::device_span<vertex_t const>> renumber_map)
+  std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>> renumber_map)
 {
   return graph_to_host_compressed_sparse<vertex_t,
                                          edge_t,
@@ -279,47 +291,51 @@ std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, false>,
            std::optional<edge_property_t<edge_t, weight_t>>,
            std::optional<edge_property_t<edge_t, edge_t>>,
            std::optional<edge_property_t<edge_t, edge_type_t>>,
-           std::optional<rmm::device_uvector<vertex_t>>>
+           std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>>>
 mg_graph_to_sg_graph(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, true> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
-  std::optional<raft::device_span<vertex_t const>> renumber_map,
+  std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>> renumber_map,
   bool renumber)
 {
+  std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>> edge_property_views{};
+  if (edge_weight_view) { edge_property_views.push_back(*edge_weight_view); }
+  if (edge_id_view) { edge_property_views.push_back(*edge_id_view); }
+  if (edge_type_view) { edge_property_views.push_back(*edge_type_view); }
+
   rmm::device_uvector<vertex_t> d_src(0, handle.get_stream());
   rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
-  std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
-  std::optional<rmm::device_uvector<edge_t>> d_edge_id{std::nullopt};
-  std::optional<rmm::device_uvector<edge_type_t>> d_edge_type{std::nullopt};
-
-  std::tie(d_src, d_dst, d_wgt, d_edge_id, d_edge_type) = cugraph::decompress_to_edgelist(
-    handle, graph_view, edge_weight_view, edge_id_view, edge_type_view, renumber_map);
+  std::vector<cugraph::arithmetic_device_uvector_t> edgelist_edge_properties{};
+  std::tie(d_src, d_dst, edgelist_edge_properties) =
+    cugraph::decompress_to_edgelist(handle, graph_view, edge_property_views, renumber_map);
 
   d_src = cugraph::test::device_gatherv(
     handle, raft::device_span<vertex_t const>{d_src.data(), d_src.size()});
   d_dst = cugraph::test::device_gatherv(
     handle, raft::device_span<vertex_t const>{d_dst.data(), d_dst.size()});
-  if (d_wgt)
-    *d_wgt = cugraph::test::device_gatherv(
-      handle, raft::device_span<weight_t const>{d_wgt->data(), d_wgt->size()});
-  if (d_edge_id)
-    *d_edge_id = cugraph::test::device_gatherv(
-      handle, raft::device_span<edge_t const>{d_edge_id->data(), d_edge_id->size()});
-  if (d_edge_type)
-    *d_edge_type = cugraph::test::device_gatherv(
-      handle, raft::device_span<edge_type_t const>{d_edge_type->data(), d_edge_type->size()});
+  for (auto& property : edgelist_edge_properties) {
+    cugraph::variant_type_dispatch(property, [&handle](auto& values) {
+      using T = typename std::remove_reference_t<decltype(values)>::value_type;
+      values  = cugraph::test::device_gatherv(
+        handle, raft::device_span<T const>{values.data(), values.size()});
+    });
+  }
 
   rmm::device_uvector<vertex_t> vertices(0, handle.get_stream());
-  if (renumber_map) { vertices = cugraph::test::device_gatherv(handle, *renumber_map); }
+  if (renumber_map) {
+    vertices = cugraph::test::device_gatherv(
+      handle,
+      raft::device_span<vertex_t const>(renumber_map->value_first(), renumber_map->range_size()));
+  }
 
   graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(handle);
   std::optional<edge_property_t<edge_t, weight_t>> sg_edge_weights{std::nullopt};
   std::optional<edge_property_t<edge_t, edge_t>> sg_edge_ids{std::nullopt};
   std::optional<edge_property_t<edge_t, edge_type_t>> sg_edge_types{std::nullopt};
-  std::optional<rmm::device_uvector<vertex_t>> sg_number_map;
+  std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> sg_number_map;
   if (handle.get_comms().get_rank() == 0) {
     if (!renumber_map) {
       vertices.resize(graph_view.number_of_vertices(), handle.get_stream());
@@ -330,12 +346,8 @@ mg_graph_to_sg_graph(
     }
 
     std::vector<cugraph::edge_arithmetic_property_t<edge_t>> sg_edge_properties{};
-    std::vector<cugraph::arithmetic_device_uvector_t> edgelist_edge_properties{};
-    if (d_wgt) { edgelist_edge_properties.push_back(std::move(*d_wgt)); }
-    if (d_edge_id) { edgelist_edge_properties.push_back(std::move(*d_edge_id)); }
-    if (d_edge_type) { edgelist_edge_properties.push_back(std::move(*d_edge_type)); }
     std::tie(sg_graph, sg_edge_properties, sg_number_map) =
-      cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, false>(
+      cugraph::create_graph<vertex_t, edge_t, store_transposed, false>(
         handle,
         std::make_optional(std::move(vertices)),
         std::move(d_src),
@@ -345,15 +357,15 @@ mg_graph_to_sg_graph(
         renumber);
 
     size_t pos = 0;
-    if (d_wgt) {
+    if (edge_weight_view) {
       sg_edge_weights = std::make_optional(
         std::move(std::get<cugraph::edge_property_t<edge_t, weight_t>>(sg_edge_properties[pos++])));
     }
-    if (d_edge_id) {
+    if (edge_id_view) {
       sg_edge_ids = std::make_optional(
         std::move(std::get<cugraph::edge_property_t<edge_t, edge_t>>(sg_edge_properties[pos++])));
     }
-    if (d_edge_type) {
+    if (edge_type_view) {
       sg_edge_types = std::make_optional(std::move(
         std::get<cugraph::edge_property_t<edge_t, edge_type_t>>(sg_edge_properties[pos++])));
     }
@@ -362,18 +374,7 @@ mg_graph_to_sg_graph(
     d_src.shrink_to_fit(handle.get_stream());
     d_dst.resize(0, handle.get_stream());
     d_dst.shrink_to_fit(handle.get_stream());
-    if (d_wgt) {
-      (*d_wgt).resize(0, handle.get_stream());
-      (*d_wgt).shrink_to_fit(handle.get_stream());
-    }
-    if (d_edge_id) {
-      (*d_edge_id).resize(0, handle.get_stream());
-      (*d_edge_id).shrink_to_fit(handle.get_stream());
-    }
-    if (d_edge_type) {
-      (*d_edge_type).resize(0, handle.get_stream());
-      (*d_edge_type).shrink_to_fit(handle.get_stream());
-    }
+    edgelist_edge_properties.clear();
   }
 
   return std::make_tuple(std::move(sg_graph),
@@ -383,46 +384,47 @@ mg_graph_to_sg_graph(
                          std::move(sg_number_map));
 }
 
-template <typename vertex_t, typename value_t>
+template <typename vertex_t, typename edge_t, typename value_t, bool store_transposed>
 std::tuple<std::optional<rmm::device_uvector<vertex_t>>, rmm::device_uvector<value_t>>
 mg_vertex_property_values_to_sg_vertex_property_values(
   raft::handle_t const& handle,
-  std::optional<raft::device_span<vertex_t const>> mg_renumber_map,
-  std::tuple<vertex_t, vertex_t> mg_local_vertex_partition_range,
-  std::optional<raft::device_span<vertex_t const>> sg_renumber_map,
+  cugraph::graph_view_t<vertex_t, edge_t, store_transposed, true> const& mg_graph_view,
+  std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>> mg_renumber_map,
+  std::optional<std::type_identity_t<
+    std::tuple<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
+               cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>>>
+    sg_graph_view_and_renumber_map,
   std::optional<raft::device_span<vertex_t const>> mg_vertices,
   raft::device_span<value_t const> mg_values)
 {
   rmm::device_uvector<vertex_t> mg_aggregate_vertices(0, handle.get_stream());
   if (mg_renumber_map) {
     if (mg_vertices) {
-      rmm::device_uvector<vertex_t> local_vertices((*mg_vertices).size(), handle.get_stream());
+      rmm::device_uvector<vertex_t> local_vertices(mg_vertices->size(), handle.get_stream());
       thrust::copy(handle.get_thrust_policy(),
-                   (*mg_vertices).begin(),
-                   (*mg_vertices).end(),
+                   mg_vertices->begin(),
+                   mg_vertices->end(),
                    local_vertices.begin());
-      cugraph::unrenumber_local_int_vertices(handle,
-                                             local_vertices.data(),
-                                             local_vertices.size(),
-                                             (*mg_renumber_map).data(),
-                                             std::get<0>(mg_local_vertex_partition_range),
-                                             std::get<1>(mg_local_vertex_partition_range));
+      local_vertices = cugraph::unrenumber_local_int_vertices(
+        handle, mg_graph_view, std::move(local_vertices), *mg_renumber_map);
       mg_aggregate_vertices = cugraph::test::device_gatherv(
         handle, raft::device_span<vertex_t const>(local_vertices.data(), local_vertices.size()));
     } else {
-      mg_aggregate_vertices = cugraph::test::device_gatherv(handle, *mg_renumber_map);
+      mg_aggregate_vertices = cugraph::test::device_gatherv(
+        handle,
+        raft::device_span<vertex_t const>(mg_renumber_map->value_first(),
+                                          mg_renumber_map->range_size()));
     }
   } else {
     if (mg_vertices) {
       mg_aggregate_vertices = cugraph::test::device_gatherv(handle, *mg_vertices);
     } else {
       rmm::device_uvector<vertex_t> local_vertices(
-        std::get<1>(mg_local_vertex_partition_range) - std::get<0>(mg_local_vertex_partition_range),
-        handle.get_stream());
+        mg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
       cugraph::sequence(handle.get_thrust_policy(),
                         local_vertices.begin(),
                         local_vertices.end(),
-                        std::get<0>(mg_local_vertex_partition_range));
+                        mg_graph_view.local_vertex_partition_range_first());
       mg_aggregate_vertices = cugraph::test::device_gatherv(
         handle, raft::device_span<vertex_t const>(local_vertices.data(), local_vertices.size()));
     }
@@ -432,14 +434,10 @@ mg_vertex_property_values_to_sg_vertex_property_values(
   if (handle.get_comms().get_rank() == 0) {
     auto sg_vertices = std::move(mg_aggregate_vertices);
     auto sg_values   = std::move(mg_aggregate_values);
-    if (sg_renumber_map) {
-      cugraph::renumber_ext_vertices<vertex_t, false>(
-        handle,
-        sg_vertices.data(),
-        sg_vertices.size(),
-        (*sg_renumber_map).data(),
-        vertex_t{0},
-        static_cast<vertex_t>((*sg_renumber_map).size()));
+    if (sg_graph_view_and_renumber_map) {
+      auto [sg_graph_view, sg_renumber_map] = *sg_graph_view_and_renumber_map;
+      sg_vertices                           = cugraph::renumber_ext_vertices(
+        handle, sg_graph_view, std::move(sg_vertices), sg_renumber_map);
     }
 
     std::tie(sg_vertices, sg_values) = cugraph::test::sort_by_key<vertex_t, value_t>(

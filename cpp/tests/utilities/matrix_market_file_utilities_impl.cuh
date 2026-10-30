@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -404,7 +404,7 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
            std::optional<cugraph::edge_property_t<edge_t, weight_t>>,
-           std::optional<rmm::device_uvector<vertex_t>>>
+           std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>>>
 read_graph_from_matrix_market_file(raft::handle_t const& handle,
                                    std::string const& graph_file_full_path,
                                    bool test_weighted,
@@ -427,9 +427,9 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
   std::vector<cugraph::arithmetic_device_uvector_t> edgelist_edge_properties{};
   if (d_edgelist_weights) { edgelist_edge_properties.push_back(std::move(*d_edgelist_weights)); }
   std::optional<cugraph::edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
-  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+  std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> renumber_map{std::nullopt};
   std::tie(graph, edge_properties, renumber_map) =
-    cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+    cugraph::create_graph<vertex_t, edge_t, store_transposed, multi_gpu>(
       handle,
       std::move(d_vertices),
       std::move(d_edgelist_srcs),

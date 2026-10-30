@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -75,7 +75,8 @@ class Tests_SGGraphColoring
 
     raft::random::RngState rng_state(0);
     auto d_colors =
-      cugraph::vertex_coloring<vertex_t, edge_t, multi_gpu>(handle, sg_graph_view, rng_state);
+      cugraph::vertex_coloring<vertex_t, edge_t, multi_gpu>(handle, rng_state, sg_graph_view)
+        .release_buffer();
 
     // Test Graph Coloring
 
@@ -95,8 +96,10 @@ class Tests_SGGraphColoring
       per_v_transform_reduce_outgoing_e(
         handle,
         sg_graph_view,
-        cugraph::make_edge_src_property_view<vertex_t, vertex_t>(sg_graph_view, d_colors.data(), 1),
-        cugraph::make_edge_dst_property_view<vertex_t, vertex_t>(sg_graph_view, d_colors.data(), 1),
+        cugraph::make_edge_src_property_view(
+          sg_graph_view, cugraph::vertex_property_view_t{d_colors.data(), vertex_t{1}}),
+        cugraph::make_edge_dst_property_view(
+          sg_graph_view, cugraph::vertex_property_view_t{d_colors.data(), vertex_t{1}}),
         cugraph::edge_dummy_property_t{}.view(),
         [] __device__(auto src, auto dst, auto src_color, auto dst_color, cuda::std::nullopt_t) {
           if ((src != dst) && (src_color == dst_color)) {
@@ -107,7 +110,8 @@ class Tests_SGGraphColoring
         },
         uint8_t{0},
         cugraph::reduce_op::maximum<uint8_t>{},
-        d_color_conflict_flags.begin());
+        cugraph::vertex_property_view_t{d_color_conflict_flags.begin(),
+                                        sg_graph_view.local_vertex_partition_range_size()});
 
       std::vector<uint8_t> h_color_conflict_flags(d_color_conflict_flags.size());
       raft::update_host(h_color_conflict_flags.data(),
@@ -115,11 +119,11 @@ class Tests_SGGraphColoring
                         d_color_conflict_flags.size(),
                         handle.get_stream());
 
-      std::vector<vertex_t> h_vertices_in_this_proces((*sg_renumber_map).size());
+      std::vector<vertex_t> h_vertices_in_this_proces(sg_renumber_map->view().range_size());
 
       raft::update_host(h_vertices_in_this_proces.data(),
-                        (*sg_renumber_map).data(),
-                        (*sg_renumber_map).size(),
+                        sg_renumber_map->view().value_first(),
+                        sg_renumber_map->view().range_size(),
                         handle.get_stream());
       handle.sync_stream();
 
@@ -128,10 +132,12 @@ class Tests_SGGraphColoring
       edge_t nr_conflicts = cugraph::transform_reduce_e(
         handle,
         sg_graph_view,
-        cugraph::make_edge_src_property_view<vertex_t, vertex_t>(sg_graph_view, d_colors.data(), 1),
-        cugraph::make_edge_dst_property_view<vertex_t, vertex_t>(sg_graph_view, d_colors.data(), 1),
+        cugraph::make_edge_src_property_view(
+          sg_graph_view, cugraph::vertex_property_view_t{d_colors.data(), vertex_t{1}}),
+        cugraph::make_edge_dst_property_view(
+          sg_graph_view, cugraph::vertex_property_view_t{d_colors.data(), vertex_t{1}}),
         cugraph::edge_dummy_property_t{}.view(),
-        [renumber_map = (*sg_renumber_map).data()] __device__(
+        [renumber_map = sg_renumber_map->view().value_first()] __device__(
           auto src, auto dst, auto src_color, auto dst_color, cuda::std::nullopt_t) {
           if ((src != dst) && (src_color == dst_color)) {
             return vertex_t{1};
