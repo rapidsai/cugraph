@@ -3,40 +3,29 @@
     "context": "${localWorkspaceFolder}/.devcontainer",
     "dockerfile": "${localWorkspaceFolder}/.devcontainer/Dockerfile",
     "args": {
-      "CUDA": "13.3",
-      "PYTHON_PACKAGE_MANAGER": "pip",
-      "BASE": "rapidsai/devcontainers:26.12-cpp-cuda13.3-ucx1.21.0-openmpi5.0.10"
+      "CUDA": "13.4",
+      "PYTHON_PACKAGE_MANAGER": "conda",
+      "BASE": "rapidsai/devcontainers:26.12-cpp-mambaforge"
     },
     "cacheFrom": [
-      "ghcr.io/rapidsai/cugraph/devcontainer:26.12-cuda13.3-pip"
+      "ghcr.io/rapidsai/cugraph/devcontainer:26.12-cuda13.4-conda"
     ]
   },
   "runArgs": [
     "--rm",
     "--name",
-    "${localEnv:USER:anon}-rapids-${localWorkspaceFolderBasename}-26.12-cuda13.3-pip",
+    "${localEnv:USER:anon}-rapids-${localWorkspaceFolderBasename}-26.12-cuda13.4-conda",
     "--ulimit",
     "nofile=500000"
   ],
   "hostRequirements": {"gpu": "optional"},
-  "containerEnv": {
-    "PIP_EXTRA_INDEX_URL": "https://pypi.anaconda.org/rapidsai-wheels-nightly/simple"
-  },
   "features": {
-    "ghcr.io/rapidsai/devcontainers/features/cuda:26.12": {
-      "version": "13.3",
-      "installcuBLAS": true,
-      "installcuSOLVER": true,
-      "installcuRAND": true,
-      "installcuSPARSE": true
-    },
     "ghcr.io/rapidsai/devcontainers/features/rapids-build-utils:26.12": {}
   },
   "overrideFeatureInstallOrder": [
-    "ghcr.io/rapidsai/devcontainers/features/cuda",
     "ghcr.io/rapidsai/devcontainers/features/rapids-build-utils"
   ],
-  "initializeCommand": ["/bin/bash", "-c", "mkdir -m 0755 -p ${localWorkspaceFolder}/../.{aws,cache,config/pip,local/share/${localWorkspaceFolderBasename}-cuda13.3-venvs}"],
+  "initializeCommand": ["/bin/bash", "-c", "mkdir -m 0755 -p ${localWorkspaceFolder}/../.{aws,cache,config,conda/pkgs,conda/${localWorkspaceFolderBasename}-cuda13.4-envs}"],
   "postAttachCommand": ["/bin/bash", "-c", "if [ ${CODESPACES:-false} = 'true' ]; then . devcontainer-utils-post-attach-command; . rapids-post-attach-command; fi"],
   "workspaceFolder": "/home/coder",
   "workspaceMount": "source=${localWorkspaceFolder},target=/home/coder/cugraph,type=bind,consistency=consistent",
@@ -44,7 +33,8 @@
     "source=${localWorkspaceFolder}/../.aws,target=/home/coder/.aws,type=bind,consistency=consistent",
     "source=${localWorkspaceFolder}/../.cache,target=/home/coder/.cache,type=bind,consistency=consistent",
     "source=${localWorkspaceFolder}/../.config,target=/home/coder/.config,type=bind,consistency=consistent",
-    "source=${localWorkspaceFolder}/../.local/share/${localWorkspaceFolderBasename}-cuda13.3-venvs,target=/home/coder/.local/share/venvs,type=bind,consistency=consistent"
+    "source=${localWorkspaceFolder}/../.conda/pkgs,target=/home/coder/.conda/pkgs,type=bind,consistency=consistent",
+    "source=${localWorkspaceFolder}/../.conda/${localWorkspaceFolderBasename}-cuda13.4-envs,target=/home/coder/.conda/envs,type=bind,consistency=consistent"
   ],
   "customizations": {
     "vscode": {

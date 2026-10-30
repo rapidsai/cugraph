@@ -251,6 +251,7 @@ jobs:
       build-datetime: ${{ needs.build-details.outputs.build-datetime }}
       node_type: cpu16
       script: ci/build_cpp.sh
+      matrix_type: cuda-13-4-pr
     permissions:
       actions: read
       contents: read
@@ -265,6 +266,7 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_cpp.sh
+      matrix_type: cuda-13-4-pr,pull-request
     permissions:
       actions: read
       contents: read
@@ -294,6 +296,7 @@ jobs:
       script: ci/build_python.sh
       # Build a conda package for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
+      matrix_type: cuda-13-4-pr
     permissions:
       actions: read
       contents: read
@@ -308,6 +311,7 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_python.sh
+      matrix_type: cuda-13-4-pr,pull-request
     permissions:
       actions: read
       contents: read
@@ -338,6 +342,7 @@ jobs:
     with:
       build_type: pull-request
       matrix_name: docs-build
+      matrix_type: cuda-13-4-pr
   docs-build:
     needs: [docs-build-matrix, conda-python-build, changed-files]
     secrets: inherit # zizmor: ignore[secrets-inherit]
@@ -371,6 +376,7 @@ jobs:
       script: ci/build_wheel_libcugraph.sh
       package-name: libcugraph
       package-type: cpp
+      matrix_type: cuda-13-4-pr
     permissions:
       actions: read
       contents: read
@@ -390,6 +396,7 @@ jobs:
       package-type: python
       # Build a wheel for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
+      matrix_type: cuda-13-4-pr
     permissions:
       actions: read
       contents: read
@@ -404,6 +411,7 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_wheel_pylibcugraph.sh
+      matrix_type: cuda-13-4-pr,pull-request
     permissions:
       actions: read
       contents: read
@@ -423,6 +431,7 @@ jobs:
       package-type: python
       # Build a wheel for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
+      matrix_type: cuda-13-4-pr
     permissions:
       actions: read
       contents: read
@@ -437,6 +446,7 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_wheel_cugraph.sh
+      matrix_type: cuda-13-4-pr,pull-request
     permissions:
       actions: read
       contents: read
@@ -448,7 +458,7 @@ jobs:
     uses: rapidsai/shared-workflows/.github/workflows/build-in-devcontainer.yaml@main
     with:
       arch: '["amd64", "arm64"]'
-      cuda: '["13.3"]'
+      cuda: '["13.4"]'
       node_type: "cpu8"
       env: |
         SCCACHE_DIST_MAX_RETRIES=inf
