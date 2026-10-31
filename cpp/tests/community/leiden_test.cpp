@@ -8,6 +8,7 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/core/handle.hpp>
@@ -22,6 +23,7 @@
 #include <iterator>
 #include <limits>
 #include <numeric>
+#include <unordered_map>
 #include <vector>
 
 struct Leiden_Usecase {
@@ -118,6 +120,45 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
       handle, rng_state, graph_view, edge_weight_view, clustering_v.data(), max_level, resolution);
 
     float compare_modularity = static_cast<float>(modularity);
+
+    // The returned modularity must be the modularity of the returned clustering. Recompute it on
+    // the host from the edge list, using the same definition as detail::compute_modularity.
+    if (edge_weight_view) {
+      rmm::device_uvector<vertex_t> d_srcs(0, handle.get_stream());
+      rmm::device_uvector<vertex_t> d_dsts(0, handle.get_stream());
+      std::optional<rmm::device_uvector<weight_t>> d_wgts{std::nullopt};
+      std::tie(d_srcs, d_dsts, d_wgts, std::ignore, std::ignore) = cugraph::decompress_to_edgelist(
+        handle,
+        graph_view,
+        edge_weight_view,
+        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt});
+
+      auto h_srcs       = cugraph::test::to_host(handle, d_srcs);
+      auto h_dsts       = cugraph::test::to_host(handle, d_dsts);
+      auto h_wgts       = cugraph::test::to_host(handle, *d_wgts);
+      auto h_clustering = cugraph::test::to_host(handle, clustering_v);
+
+      double total_weight{0};
+      double internal_weight{0};
+      std::unordered_map<vertex_t, double> cluster_degree{};
+      for (size_t i = 0; i < h_srcs.size(); ++i) {
+        total_weight += h_wgts[i];
+        cluster_degree[h_clustering[h_srcs[i]]] += h_wgts[i];
+        if (h_clustering[h_srcs[i]] == h_clustering[h_dsts[i]]) { internal_weight += h_wgts[i]; }
+      }
+      double sum_degree_squared{0};
+      for (auto const& [cluster, degree] : cluster_degree) {
+        sum_degree_squared += degree * degree;
+      }
+      double recomputed_modularity =
+        internal_weight / total_weight -
+        resolution * sum_degree_squared / (total_weight * total_weight);
+
+      ASSERT_NEAR(static_cast<double>(modularity), recomputed_modularity, 1e-4)
+        << "Returned modularity does not match the modularity of the returned clustering";
+    }
 
     if (check_correctness) {
       ASSERT_FLOAT_EQ(compare_modularity, expected_modularity);
