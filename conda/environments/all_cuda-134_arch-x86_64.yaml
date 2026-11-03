@@ -14,7 +14,7 @@ dependencies:
 - cuda-nvcc
 - cuda-nvtx-dev
 - cuda-profiler-api
-- cuda-version=13.3
+- cuda-version=13.4
 - cudf==26.12.*,>=0.0.0a0
 - cupy>=14.0.1,!=14.1.0
 - cxx-compiler
@@ -24,7 +24,7 @@ dependencies:
 - dlpack
 - doxygen=1.18.0
 - fsspec>=0.6.0
-- gcc_linux-aarch64=14.*
+- gcc_linux-64=14.*
 - graphviz
 - ipython
 - libcublas-dev
@@ -70,4 +70,4 @@ dependencies:
 - sphinxcontrib-websupport
 - ucxx==0.53.*,>=0.0.0a0
 - wheel
-name: all_cuda-133_arch-aarch64
+name: all_cuda-134_arch-x86_64
