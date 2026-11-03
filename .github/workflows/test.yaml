@@ -39,14 +39,14 @@ jobs:
       pull-requests: read
   conda-cpp-tests:
     secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@main
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@wsl-matrices
     with:
       build_type: ${{ inputs.build_type }}
       branch: ${{ inputs.branch }}
       date: ${{ inputs.date }}
       script: ci/test_cpp.sh
       sha: ${{ inputs.sha }}
-      matrix_type: nightly
+      matrix_type: nightly,wsl-nightly
     permissions:
       actions: read
       contents: read
@@ -71,14 +71,14 @@ jobs:
       pull-requests: read
   wheel-tests-pylibcugraph:
     secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@wsl-matrices
     with:
       build_type: ${{ inputs.build_type }}
       branch: ${{ inputs.branch }}
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
       script: ci/test_wheel_pylibcugraph.sh
-      matrix_type: nightly
+      matrix_type: nightly,wsl-nightly
     permissions:
       actions: read
       contents: read
@@ -87,14 +87,14 @@ jobs:
       pull-requests: read
   wheel-tests-cugraph:
     secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@wsl-matrices
     with:
       build_type: ${{ inputs.build_type }}
       branch: ${{ inputs.branch }}
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
       script: ci/test_wheel_cugraph.sh
-      matrix_type: nightly
+      matrix_type: nightly,wsl-nightly
     permissions:
       actions: read
       contents: read
