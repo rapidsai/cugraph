@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -14,16 +14,22 @@ typedef int32_t vertex_t;
 typedef int32_t edge_t;
 typedef float weight_t;
 
+/*
+ * Multi-GPU Leiden gathers the graph and runs the single-GPU algorithm with the seed of rank 0 on
+ * every rank, so the clustering is that of the single-GPU test (leiden_test.c) on this graph, up
+ * to a bijection of the cluster ids, and the modularity is exact.
+ */
 int generic_leiden_test(const cugraph_resource_handle_t* p_handle,
                         vertex_t* h_src,
                         vertex_t* h_dst,
                         weight_t* h_wgt,
                         vertex_t* h_result,
+                        double expected_modularity,
                         size_t num_vertices,
                         size_t num_edges,
-                        size_t max_level,
+                        int32_t n_iterations,
                         double resolution,
-                        double theta,
+                        double beta,
                         bool_t store_transposed)
 {
   int test_ret_value = 0;
@@ -47,7 +53,7 @@ int generic_leiden_test(const cugraph_resource_handle_t* p_handle,
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
   ret_code = cugraph_leiden(
-    p_handle, rng_state, p_graph, max_level, resolution, theta, FALSE, &p_result, &ret_error);
+    p_handle, rng_state, p_graph, n_iterations, resolution, beta, FALSE, &p_result, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "cugraph_leiden failed.");
@@ -73,24 +79,30 @@ int generic_leiden_test(const cugraph_resource_handle_t* p_handle,
 
     size_t num_local_vertices = cugraph_type_erased_device_array_view_size(vertices);
 
-    vertex_t max_component_id = -1;
-    for (vertex_t i = 0; (i < num_local_vertices) && (test_ret_value == 0); ++i) {
-      if (h_clusters[i] > max_component_id) max_component_id = h_clusters[i];
-    }
+    TEST_ASSERT(test_ret_value,
+                nearlyEqualDouble(modularity, expected_modularity, 1e-12),
+                "modularity doesn't match");
 
-    vertex_t component_mapping[max_component_id + 1];
-    for (vertex_t i = 0; (i < num_local_vertices) && (test_ret_value == 0); ++i) {
-      component_mapping[h_clusters[i]] = h_result[h_vertices[i]];
+    // the local clustering equals the expected one up to a bijection of the cluster ids
+    vertex_t to_expected[num_vertices];
+    vertex_t to_result[num_vertices];
+    for (size_t i = 0; i < num_vertices; ++i) {
+      to_expected[i] = -1;
+      to_result[i]   = -1;
     }
-
-#if 0
-    for (vertex_t i = 0; (i < num_local_vertices) && (test_ret_value == 0); ++i) {
+    for (size_t i = 0; (i < num_local_vertices) && (test_ret_value == 0); ++i) {
+      vertex_t v = h_vertices[i];
+      vertex_t c = h_clusters[i];
+      TEST_ASSERT(
+        test_ret_value, (c >= 0) && (c < (vertex_t)num_vertices), "cluster id out of range");
+      if (test_ret_value != 0) break;
+      if (to_expected[c] == -1) to_expected[c] = h_result[v];
+      if (to_result[h_result[v]] == -1) to_result[h_result[v]] = c;
       TEST_ASSERT(test_ret_value,
-                  h_result[h_vertices[i]] == component_mapping[h_clusters[i]],
+                  (to_expected[c] == h_result[v]) && (to_result[h_result[v]] == c),
                   "cluster results don't match");
     }
 
-#endif
     cugraph_hierarchical_clustering_result_free(p_result);
   }
 
@@ -102,29 +114,31 @@ int generic_leiden_test(const cugraph_resource_handle_t* p_handle,
 
 int test_leiden(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 8;
-  size_t num_vertices = 6;
-  size_t max_level    = 10;
-  weight_t resolution = 1.0;
-  weight_t theta      = 1.0;
+  size_t num_edges     = 16;
+  size_t num_vertices  = 6;
+  int32_t n_iterations = 2;
+  double resolution    = 1.0;
+  double beta          = 0.0;
 
   vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t h_result[] = {1, 0, 1, 0, 0, 0};
+  vertex_t h_result[]        = {0, 0, 0, 1, 1, 1};
+  double expected_modularity = 0.21596893567080255;
 
-  // Louvain wants store_transposed = FALSE
+  // Leiden wants store_transposed = FALSE
   return generic_leiden_test(handle,
                              h_src,
                              h_dst,
                              h_wgt,
                              h_result,
+                             expected_modularity,
                              num_vertices,
                              num_edges,
-                             max_level,
+                             n_iterations,
                              resolution,
-                             theta,
+                             beta,
                              FALSE);
 }
 

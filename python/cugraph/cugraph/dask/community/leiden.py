@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+import warnings
+
 from dask.distributed import wait, default_client
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
@@ -15,7 +17,7 @@ from pylibcugraph import ResourceHandle
 from pylibcugraph import leiden as pylibcugraph_leiden
 import numpy
 import cupy as cp
-from typing import Tuple, TYPE_CHECKING
+from typing import Tuple, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from cugraph import Graph
@@ -36,29 +38,37 @@ def convert_to_cudf(result: cp.ndarray) -> Tuple[cudf.DataFrame, float]:
 def _call_plc_leiden(
     sID: bytes,
     mg_graph_x,
-    max_iter: int,
-    resolution: int,
-    random_state: int,
-    theta: int,
+    resolution: float,
+    random_state: Union[int, None],
+    n_iterations: int,
+    beta: float,
     do_expensive_check: bool,
 ) -> Tuple[cp.ndarray, cp.ndarray, float]:
+    # Every rank needs a different seed (cugraph_rng_state_create checks it),
+    # and the algorithm uses the seed of rank 0 on every rank: rank r passes
+    # random_state + r, so the effective seed is random_state.
+    if random_state is not None:
+        random_state = random_state + Comms.get_worker_id(sID)
     return pylibcugraph_leiden(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         random_state=random_state,
         graph=mg_graph_x,
-        max_level=max_iter,
         resolution=resolution,
-        theta=theta,
         do_expensive_check=do_expensive_check,
+        n_iterations=n_iterations,
+        beta=beta,
     )
 
 
 def leiden(
     input_graph: Graph,
-    max_iter: int = 100,
-    resolution: int = 1.0,
-    random_state: int = None,
-    theta: int = 1.0,
+    max_iter: Union[int, None] = None,
+    resolution: float = 1.0,
+    random_state: Union[int, None] = None,
+    theta: Union[float, None] = None,
+    *,
+    n_iterations: int = 2,
+    beta: float = 0.0,
 ) -> Tuple[dask_cudf.DataFrame, float]:
     """
     Compute the modularity optimizing partition of the input graph using the
@@ -68,34 +78,68 @@ def leiden(
     guaranteeing well-connected communities. Scientific reports, 9(1), 5233.
     doi: 10.1038/s41598-019-41695-z
 
+    This runs the same algorithm as `cugraph.leiden`, with the same
+    guarantees: every returned community is connected, the returned
+    modularity is exact, and the result is deterministic. The current
+    multi-GPU implementation gathers the whole graph onto every GPU and runs
+    the single-GPU algorithm on every worker, so the graph must fit on one
+    GPU (about 40 bytes per stored edge for int32 vertex ids and float32
+    weights). Given the internal vertex numbering of the graph, the result
+    does not depend on the number of workers: it is bitwise identical to
+    `cugraph.leiden` on a graph with the same internal numbering and the
+    same `random_state`. A distributed graph is always renumbered internally
+    (also with ``renumber=False``), so `cugraph.dask.leiden` and
+    `cugraph.leiden` on the same input generally return different, equally
+    valid partitions.
+
     Parameters
     ----------
-    G : cugraph.Graph
+    input_graph : cugraph.Graph
         The graph descriptor should contain the connectivity information
         and weights. The adjacency list will be computed if not already
         present.
-        The current implementation only supports undirected graphs.
+        The current implementation only supports undirected graphs. The
+        weights must be finite and non-negative; an unweighted graph uses
+        weight 1 for every edge. Self-loops and edges of weight 0 are
+        ignored, and the parallel edges of a MultiGraph are summed. The
+        number of vertices must be less than 2**30.
 
-    max_iter : integer, optional (default=100)
-        This controls the maximum number of levels/iterations of the Leiden
-        algorithm. When specified the algorithm will terminate after no more
-        than the specified number of iterations. No error occurs when the
-        algorithm terminates early in this manner.
+    max_iter : integer, optional (default=None)
+        Deprecated and ignored: Leiden runs `n_iterations` iterations, each
+        with as many levels as it needs, so this cap on the number of levels
+        is no longer needed. Passing a value emits a FutureWarning. It will
+        be removed in a future release.
 
     resolution: float, optional (default=1.0)
         Called gamma in the modularity formula, this changes the size
         of the communities.  Higher resolutions lead to more smaller
         communities, lower resolutions lead to fewer larger communities.
-        Defaults to 1.
+        Must be finite and in [0, 2**20]. Defaults to 1.
 
     random_state: int, optional(default=None)
-        Random state to use when generating samples.  Optional argument,
-        defaults to a hash of process id, time, and hostname.
+        Seed of the hashes that randomize the order of the local moves. Only
+        its low 32 bits are used, and it is the same for every worker. The
+        partition depends on the seed and on the internal vertex numbering
+        of `input_graph`; repeated calls on the same graph with the same
+        seed return the same partition. Defaults to a hash of process id,
+        time, and hostname.
 
-    theta: float, optional (default=1.0)
-        Called theta in the Leiden algorithm, this is used to scale
-        modularity gain in Leiden refinement phase, to compute
-        the probability of joining a random leiden community.
+    theta: float, optional (default=None)
+        Deprecated and ignored: it was never used by the implementation (see
+        `beta`). Passing a value emits a FutureWarning. It will be removed
+        in a future release.
+
+    n_iterations: int, optional (default=2)
+        Keyword-only. Number of Leiden iterations (every iteration restarts
+        from the partition of the previous one; Traag et al. 2019). Must be
+        >= 1, or -1 to iterate until the partition is stable: until an
+        iteration moves no vertex or improves the modularity by less than
+        1e-6, at most 20 iterations. Two iterations are recommended.
+
+    beta: float, optional (default=0.0)
+        Keyword-only. Randomness of the refinement phase (theta of Traag et
+        al. 2019). Reserved: only 0 (merge along the best edge) is implemented;
+        a value > 0 raises NotImplementedError.
 
     Returns
     -------
@@ -106,11 +150,13 @@ def leiden(
         ddf['vertex'] : cudf.Series
             Contains the vertex identifiers
         ddf['partition'] : cudf.Series
-            Contains the partition assigned to the vertices
+            Contains the partition assigned to the vertices. Partitions are
+            numbered 0, 1, ... in order of decreasing size.
 
     modularity_score : float
-        a floating point number containing the global modularity score of the
-        partitioning.
+        The modularity of the partition, computed exactly (in double
+        precision) for the given resolution, self-loops excluded (see
+        `cugraph.leiden`).
 
     Examples
     --------
@@ -126,32 +172,53 @@ def leiden(
     ...                          dtype=["int32", "int32", "float32"])
     >>> dg = cugraph.Graph()
     >>> dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst')
-    >>> parts, modularity_score = dcg.leiden(dg)
+    >>> parts, modularity_score = dcg.leiden(dg, random_state=42)
 
     """
 
     if input_graph.is_directed():
         raise ValueError("input graph must be undirected")
 
+    # Parameters of the former implementation: still accepted, so that
+    # existing (positional) calls keep working, but ignored.
+    if max_iter is not None:
+        warnings.warn(
+            "max_iter is deprecated and has no effect: Leiden runs "
+            "'n_iterations' iterations (default 2), each with as many levels "
+            "as it needs. It will be removed in a future release.",
+            FutureWarning,
+            stacklevel=2,
+        )
+    if theta is not None:
+        warnings.warn(
+            "theta is deprecated and has no effect (it was never used by the "
+            "implementation; see 'beta'). It will be removed in a future "
+            "release.",
+            FutureWarning,
+            stacklevel=2,
+        )
+
     # Return a client if one has started
     client = default_client()
 
     do_expensive_check = False
 
+    # Every worker gets the same parameters and random_state (see
+    # _call_plc_leiden for the per-rank seed).
     result = [
         client.submit(
             _call_plc_leiden,
             Comms.get_session_id(),
             input_graph._plc_graph[w],
-            max_iter,
             resolution,
-            (random_state + i) if random_state is not None else random_state,
-            theta,
+            random_state,
+            n_iterations,
+            beta,
             do_expensive_check,
             workers=[w],
             allow_other_workers=False,
         )
-        for i, w in enumerate(input_graph._plc_graph)
+        for w in input_graph._plc_graph
     ]
 
     wait(result)

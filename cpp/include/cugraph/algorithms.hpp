@@ -633,110 +633,144 @@ void flatten_dendrogram(raft::handle_t const& handle,
 
 /**
  * @ingroup community_cpp
- * @brief      Leiden implementation
+ * @brief Parameters of cugraph::leiden().
  *
- * Compute a clustering of the graph by maximizing modularity using the Leiden improvements
- * to the Louvain method.
- *
- * Computed using the Leiden method described in:
- *
- *    Traag, V. A., Waltman, L., & van Eck, N. J. (2019). From Louvain to Leiden:
- *    guaranteeing well-connected communities. Scientific reports, 9(1), 5233.
- *    doi: 10.1038/s41598-019-41695-z
- *
- * @throws cugraph::logic_error when an error occurs.
- *
- * @tparam vertex_t                  Type of vertex identifiers.
- *                                   Supported value : int (signed, 32-bit)
- * @tparam edge_t                    Type of edge identifiers.
- *                                   Supported value : int (signed, 32-bit)
- * @tparam weight_t                  Type of edge weights. Supported values : float or double.
- *
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param rng_state The RngState instance holding pseudo-random number generator state.
- * @param graph_view Graph view object.
- * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
- * edge_weight_view.has_value() == false, edge weights are assumed to be 1.0.
- * @param[in]  max_level             (optional) maximum number of levels to run (default 100)
- * @param[in]  resolution            (optional) The value of the resolution parameter to use.
- *                                   Called gamma in the modularity formula, this changes the size
- *                                   of the communities.  Higher resolutions lead to more smaller
- *                                   communities, lower resolutions lead to fewer larger
- * communities. (default 1)
- * @param[in]  theta                 (optional) The value of the parameter to scale modularity
- *                                    gain in Leiden refinement phase. It is used to compute
- *                                    the probability of joining a random leiden community.
- *                                    Called theta in the Leiden algorithm.
- *
- * @return                           a pair containing:
- *                                     1) unique pointer to dendrogram
- *                                     2) modularity of the returned clustering
- *
+ * The defaults are the recommended configuration (two Leiden iterations).
  */
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
-  raft::handle_t const& handle,
-  raft::random::RngState& rng_state,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  size_t max_level    = 100,
-  weight_t resolution = weight_t{1},
-  weight_t theta      = weight_t{1});
+struct leiden_params_t {
+  /// Resolution (gamma) of the modularity objective Q(gamma). Higher resolutions lead to more,
+  /// smaller communities. Must be finite and in [0, 2^20].
+  double resolution{1.0};
+  /// Number of Leiden iterations, >= 1 (< 2^16): every iteration restarts from the partition of
+  /// the previous one (Traag et al. 2019). Or -1 to iterate until the partition is stable: until
+  /// an iteration moves no vertex or improves the modularity by less than 1e-6, at most 20
+  /// iterations.
+  int32_t n_iterations{2};
+  /// Randomness of the refinement phase (theta of Traag et al. 2019). Reserved: only
+  /// beta = 0 (merge along the best edge) is implemented, any other value throws.
+  double beta{0.0};
+  /// Advanced: maximum number of levels (aggregations) per iteration, in [1, 64]; k-NN graphs need
+  /// 5-12. An iteration that reaches the cap continues from the local-moving partition of its
+  /// last level, projected to the input graph.
+  size_t max_level{64};
+};
 
 /**
-.* @ingroup community_cpp
- * @brief      Leiden implementation
+ * @ingroup community_cpp
+ * @brief Result summary of cugraph::leiden().
+ */
+struct leiden_result_t {
+  /// Number of communities of the returned clustering (global, identical on every rank).
+  size_t num_clusters{0};
+  /// Exact modularity Q(resolution) of the returned clustering (fp64; self-loops excluded).
+  double modularity{0.0};
+  /// Leiden iterations that were run.
+  size_t num_iterations{0};
+  /// Levels of the hierarchy in the last iteration.
+  size_t num_levels{0};
+};
+
+/**
+ * @ingroup community_cpp
+ * @brief Leiden community detection (modularity).
  *
- * Compute a clustering of the graph by maximizing modularity using the Leiden improvements
- * to the Louvain method.
+ * Computes a clustering of an undirected graph that maximizes the generalized modularity
  *
- * Computed using the Leiden method described in:
+ *     Q(gamma) = sum_c [ L_c / (2m) - gamma * (K_c / (2m))^2 ]
+ *
+ * (L_c: twice the weight of the edges inside community c, K_c: total degree of c, 2m: total
+ * degree) with the Leiden algorithm:
  *
  *    Traag, V. A., Waltman, L., & van Eck, N. J. (2019). From Louvain to Leiden:
  *    guaranteeing well-connected communities. Scientific reports, 9(1), 5233.
  *    doi: 10.1038/s41598-019-41695-z
  *
- * @throws cugraph::logic_error when an error occurs.
+ * Each iteration runs, at every level of the hierarchy, a synchronous local-moving phase (seeded
+ * hash sub-rounds), a refinement phase (every community is split into well-connected
+ * sub-communities along a spanning forest of its best edges) and an aggregation by the refined
+ * partition. Every iteration but the last ends with a V-cycle, and every iteration ends with a
+ * connected-components split.
  *
- * @tparam vertex_t                  Type of vertex identifiers.
- *                                   Supported value : int (signed, 32-bit)
- * @tparam edge_t                    Type of edge identifiers.
- *                                   Supported value : int (signed, 32-bit)
- * @tparam weight_t                  Type of edge weights. Supported values : float or double.
+ * Guarantees:
+ *  - Every returned community is connected.
+ *  - The returned modularity is the exact (fp64) Q(resolution) of the returned clustering.
+ *  - Deterministic: all decisions are made in exact 64-bit fixed-point arithmetic with total-order
+ *    tie breaks and counter-based hashes instead of a random number generator, every rounded
+ *    floating-point operation is explicit (`_rn` intrinsics, compiled with --fmad=false), and the
+ *    modularity is summed in a fixed order. Identical inputs, parameters and seed therefore give
+ *    the bitwise identical clustering and modularity, independently of thread scheduling and
+ *    launch configuration, vertex_t / edge_t, weight_t (as long as the weight values are equal)
+ *    and, for multi-GPU, the number of GPUs. The arithmetic is designed to give the same result
+ *    across GPU architectures as well. Vertex ids enter the hashes, so a different vertex
+ *    numbering (e.g. renumbering) gives a different, equally valid clustering.
  *
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param rng_state The RngState instance holding pseudo-random number generator state.
- * @param graph_view Graph view object.
- * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
- * edge_weight_view.has_value() == false, edge weights are assumed to be 1.0.
- * @param[in]  max_level             (optional) maximum number of levels to run (default 100)
- * @param[in]  resolution            (optional) The value of the resolution parameter to use.
- *                                   Called gamma in the modularity formula, this changes the size
- *                                   of the communities.  Higher resolutions lead to more smaller
- *                                   communities, lower resolutions lead to fewer larger
- * communities. (default 1)
- * @param[in]  theta                 (optional) The value of the parameter to scale modularity
- *                                    gain in Leiden refinement phase. It is used to compute
- *                                    the probability of joining a random leiden community.
- *                                    Called theta in the Leiden algorithm.
- * communities. (default 1)
+ * Edge semantics: the graph must be symmetric (every undirected edge stored in both directions
+ * with the same weight; the data is checked, not the is_symmetric() flag). Weights must be finite
+ * and non-negative. Self-loops and edges of weight 0 are ignored (they contribute neither to the
+ * degrees nor to the modularity). Parallel edges are summed (in fp64, in a canonical order). If
+ * @p edge_weight_view is std::nullopt, every edge has weight 1.
  *
- * @return                           a pair containing:
- *                                     1) number of levels of the returned clustering
- *                                     2) modularity of the returned clustering
+ * Memory and launches: one workspace allocation per call from the current RMM device memory
+ * resource (about 2.7x the size of the CSR with int32 ids and float weights), plus 4 KB of
+ * control scalars; nothing is allocated inside the iterations. A graph with parallel edges or
+ * unsorted rows is first copied into a canonical CSR. The kernels run on the stream of
+ * @p handle, most of them as CUDA graphs; the stream is synchronized a few times per level to read
+ * back control scalars (through a pinned buffer of cugraph::host_staging_buffer_manager when it is
+ * initialized).
+ *
+ * Multi-GPU: the current implementation all-gathers the edge list of the distributed graph to
+ * every GPU and runs the single-GPU algorithm on every rank (graphs must fit on one GPU: about
+ * 36-40 bytes per stored edge for int32 ids and float weights). The seed is taken from rank 0, so
+ * the result is identical on every rank and bitwise identical to the single-GPU result on the same
+ * (internal) vertex ids, for any number of GPUs.
+ *
+ * @throws cugraph::logic_error when an error occurs (invalid input or parameters).
+ *
+ * @tparam vertex_t   Type of vertex identifiers. Supported: int32_t, int64_t. The number of
+ *                    vertices must be < 2^30.
+ * @tparam edge_t     Type of edge identifiers. Supported: int32_t, int64_t.
+ * @tparam weight_t   Type of edge weights. Supported: float, double.
+ * @tparam multi_gpu  Flag indicating whether template instantiation should target single-GPU
+ *                    (false) or multi-GPU (true).
+ *
+ * @param[in]  handle             RAFT handle object to encapsulate resources (e.g. CUDA stream,
+ *                                communicator, and handles to various CUDA libraries) to run graph
+ *                                algorithms.
+ * @param[in]  rng_state          Source of the 32-bit seed: the seed is the low 32 bits of
+ *                                rng_state.seed XOR a hash of rng_state.base_subsequence (just the
+ *                                low 32 bits of the seed for a fresh RngState). The state is
+ *                                advanced by one subsequence, so successive calls differ. In
+ *                                multi-GPU, the seed of rank 0 is used on every rank.
+ * @param[in]  graph_view         Graph view object (symmetric data, store_transposed = false, no
+ *                                edge mask).
+ * @param[in]  edge_weight_view   Optional view object holding edge weights for @p graph_view. If
+ *                                @p edge_weight_view.has_value() == false, edge weights are
+ *                                assumed to be 1.0.
+ * @param[out] clustering         Device span of size
+ *                                graph_view.local_vertex_partition_range_size(). Receives the
+ *                                community of every (local) vertex, in [0, num_clusters);
+ *                                community 0 is the largest (ties broken by the smallest internal
+ *                                vertex id).
+ * @param[in]  params             Algorithm parameters (see leiden_params_t).
+ * @param[in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
+ *                                `true`). The input checks of the algorithm (CSR structure, finite
+ *                                non-negative weights, symmetry) cost one pass over the edges and
+ *                                always run; in multi-GPU this flag additionally checks the size
+ *                                of @p clustering on every rank (one collective), so a wrong size
+ *                                fails on every rank instead of only on the offending one.
+ *
+ * @return Result summary (number of clusters, exact modularity, iterations, levels); identical on
+ * every rank.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::pair<size_t, weight_t> leiden(
+leiden_result_t leiden(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  vertex_t* clustering,  // FIXME: Use (device_)span instead
-  size_t max_level    = 100,
-  weight_t resolution = weight_t{1},
-  weight_t theta      = weight_t{1});
+  raft::device_span<vertex_t> clustering,
+  leiden_params_t const& params = leiden_params_t{},
+  bool do_expensive_check       = false);
 
 /**
 .* @ingroup community_cpp

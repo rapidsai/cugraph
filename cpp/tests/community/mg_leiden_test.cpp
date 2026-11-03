@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -7,23 +7,37 @@
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
+#include "utilities/test_graphs.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
 
-#include <thrust/execution_policy.h>
-#include <thrust/iterator/counting_iterator.h>
-#include <thrust/sequence.h>
-
 #include <gtest/gtest.h>
 
-#include <chrono>
+#include <cstdint>
+#include <cstring>
+#include <iostream>
+#include <optional>
+#include <tuple>
+#include <vector>
+
+namespace {
+
+uint64_t bits_of(double x)
+{
+  uint64_t b{};
+  std::memcpy(&b, &x, sizeof(b));
+  return b;
+}
+
+}  // namespace
 
 ////////////////////////////////////////////////////////////////////////////////
 // Test param object. This defines the input and expected output for a test, and
@@ -31,10 +45,10 @@
 // INSTANTIATE_TEST_SUITE_P()
 //
 struct Leiden_Usecase {
-  size_t max_level_{100};
-  double resolution_{0.5};
-  double theta_{0.7};
-  bool check_correctness_{false};
+  double resolution_{1.0};
+  int32_t n_iterations_{2};
+  bool test_weighted_{true};
+  bool check_correctness_{true};
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -55,66 +69,17 @@ class Tests_MGLeiden
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  // Compare the results of MNMG Leiden with the results of running
-  // each step of SG Leiden, renumbering the coarsened graphs based
-  // on the MNMG renumbering.
-  template <typename vertex_t, typename edge_t, typename weight_t>
-  void compare_sg_results(
-    raft::handle_t const& handle,
-    raft::random::RngState& rng_state,
-    cugraph::graph_view_t<vertex_t, edge_t, false, true> const& mg_graph_view,
-    std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> mg_edge_weight_view,
-    cugraph::Dendrogram<vertex_t> const& mg_dendrogram,
-    weight_t resolution,
-    weight_t theta,
-    weight_t mg_modularity)
-  {
-    using edge_type_t = int32_t;
-
-    auto& comm           = handle.get_comms();
-    auto const comm_rank = comm.get_rank();
-
-    cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(handle);
-    std::optional<cugraph::edge_property_t<edge_t, weight_t>> sg_edge_weights{std::nullopt};
-    std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore, std::ignore) =
-      cugraph::test::mg_graph_to_sg_graph(
-        *handle_,
-        mg_graph_view,
-        mg_edge_weight_view,
-        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-        std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-        false);  // crate an SG graph with MG graph vertex IDs
-
-    // FIXME: We need to figure out how to test each iteration of
-    // SG vs MG Leiden, possibly by passing results of refinement phase
-
-    weight_t sg_modularity{-1.0};
-
-    auto sg_graph_view = sg_graph.view();
-    auto sg_edge_weight_view =
-      sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
-
-    if (comm_rank == 0) {
-      std::tie(std::ignore, sg_modularity) = cugraph::leiden(
-        handle, rng_state, sg_graph_view, sg_edge_weight_view, 100, resolution, theta);
-    }
-    if (comm_rank == 0) {
-      EXPECT_NEAR(mg_modularity, sg_modularity, std::max(mg_modularity, sg_modularity) * 1e-3);
-    }
-  }
-
-  // Compare the results of running Leiden on multiple GPUs to that of a
-  // single-GPU run for the configuration in param.  Note that MNMG Leiden
-  // and single GPU Leiden are ONLY deterministic through a single
-  // iteration of the outer loop.  Renumbering of the partitions when coarsening
-  // the graph is a function of the number of GPUs in the GPU cluster.
+  // Multi-GPU Leiden runs the single-GPU algorithm on the gathered graph with the seed of rank 0,
+  // so its clustering (in internal vertex ids) and modularity must be bitwise identical to
+  // single-GPU Leiden on the same graph with the same internal vertex ids, for any number of GPUs.
   template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(std::tuple<Leiden_Usecase const&, input_usecase_t const&> const& param)
   {
-    auto [leiden_usecase, input_usecase] = param;
+    auto [usecase, input_usecase] = param;
 
     HighResTimer hr_timer{};
+    auto& comm           = handle_->get_comms();
+    auto const comm_rank = comm.get_rank();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -124,7 +89,7 @@ class Tests_MGLeiden
 
     auto [mg_graph, mg_edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
-        *handle_, input_usecase, true, true);
+        *handle_, input_usecase, usecase.test_weighted_, true, true, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -137,23 +102,35 @@ class Tests_MGLeiden
     auto mg_edge_weight_view =
       mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
+    cugraph::leiden_params_t params{};
+    params.resolution   = usecase.resolution_;
+    params.n_iterations = usecase.n_iterations_;
+
+    // Every rank holds a different state (the C API even requires different seeds per rank); the
+    // seed of rank 0 is used.
+    uint64_t const seed = 42;
+    auto run_mg         = [&]() {
+      raft::random::RngState rng_state(seed + static_cast<uint64_t>(comm_rank));
+      rmm::device_uvector<vertex_t> clustering(mg_graph_view.local_vertex_partition_range_size(),
+                                               handle_->get_stream());
+      auto result = cugraph::leiden<vertex_t, edge_t, weight_t, true>(
+        *handle_,
+        rng_state,
+        mg_graph_view,
+        mg_edge_weight_view,
+        raft::device_span<vertex_t>(clustering.data(), clustering.size()),
+        params,
+        true);
+      return std::make_tuple(std::move(clustering), result);
+    };
+
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
       hr_timer.start("MG Leiden");
     }
 
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    raft::random::RngState rng_state(seed);
-
-    auto [dendrogram, mg_modularity] =
-      cugraph::leiden<vertex_t, edge_t, weight_t, true>(*handle_,
-                                                        rng_state,
-                                                        mg_graph_view,
-                                                        mg_edge_weight_view,
-                                                        leiden_usecase.max_level_,
-                                                        leiden_usecase.resolution_,
-                                                        leiden_usecase.theta_);
+    auto [mg_clustering, mg_result] = run_mg();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -162,54 +139,65 @@ class Tests_MGLeiden
       hr_timer.display_and_clear(std::cout);
     }
 
-    if (leiden_usecase.check_correctness_) {
-      SCOPED_TRACE("compare modularity input");
+    if (!usecase.check_correctness_) return;
 
-      // FIXME: The dendrogram is unused
-      compare_sg_results<vertex_t, edge_t, weight_t>(*handle_,
-                                                     rng_state,
-                                                     mg_graph_view,
-                                                     mg_edge_weight_view,
-                                                     *dendrogram,
-                                                     leiden_usecase.resolution_,
-                                                     leiden_usecase.theta_,
-                                                     mg_modularity);
+    // The result summary is identical on every rank.
+    auto const q_bits_0 = cugraph::host_scalar_bcast(
+      comm, bits_of(mg_result.modularity), int{0}, handle_->get_stream());
+    auto const k_0 =
+      cugraph::host_scalar_bcast(comm, mg_result.num_clusters, int{0}, handle_->get_stream());
+    ASSERT_EQ(bits_of(mg_result.modularity), q_bits_0);
+    ASSERT_EQ(mg_result.num_clusters, k_0);
+
+    // Determinism: a second run gives the identical local clustering.
+    {
+      auto [mg_clustering2, mg_result2] = run_mg();
+      ASSERT_EQ(cugraph::test::to_host(*handle_, mg_clustering),
+                cugraph::test::to_host(*handle_, mg_clustering2));
+      ASSERT_EQ(bits_of(mg_result.modularity), bits_of(mg_result2.modularity));
     }
 
-    // Check numbering
-    vertex_t num_vertices = mg_graph_view.local_vertex_partition_range_size();
-    rmm::device_uvector<vertex_t> clustering_v(num_vertices, handle_->get_stream());
-    cugraph::leiden<vertex_t, edge_t, weight_t, true>(*handle_,
-                                                      rng_state,
-                                                      mg_graph_view,
-                                                      mg_edge_weight_view,
-                                                      clustering_v.data(),
-                                                      leiden_usecase.max_level_,
-                                                      leiden_usecase.resolution_);
+    // Labels of every vertex in internal id order (the vertex partition ranges are consecutive in
+    // rank order), on rank 0.
+    auto mg_aggregate_clustering = cugraph::test::device_gatherv(
+      *handle_, raft::device_span<vertex_t const>(mg_clustering.data(), mg_clustering.size()));
 
-    auto unique_clustering_v = cugraph::test::sort<vertex_t>(*handle_, clustering_v);
+    cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
+    std::optional<cugraph::edge_property_t<edge_t, weight_t>> sg_edge_weights{std::nullopt};
+    std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore, std::ignore) =
+      cugraph::test::mg_graph_to_sg_graph(
+        *handle_,
+        mg_graph_view,
+        mg_edge_weight_view,
+        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+        false);  // create an SG graph with MG graph vertex IDs
 
-    unique_clustering_v = cugraph::test::unique<vertex_t>(*handle_, std::move(unique_clustering_v));
+    if (comm_rank == 0) {
+      auto sg_graph_view = sg_graph.view();
+      auto sg_edge_weight_view =
+        sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
 
-    unique_clustering_v = cugraph::test::device_allgatherv(
-      *handle_, unique_clustering_v.data(), unique_clustering_v.size());
+      raft::random::RngState rng_state(seed);  // the state of rank 0
+      rmm::device_uvector<vertex_t> sg_clustering(sg_graph_view.number_of_vertices(),
+                                                  handle_->get_stream());
+      auto sg_result = cugraph::leiden<vertex_t, edge_t, weight_t, false>(
+        *handle_,
+        rng_state,
+        sg_graph_view,
+        sg_edge_weight_view,
+        raft::device_span<vertex_t>(sg_clustering.data(), sg_clustering.size()),
+        params);
 
-    unique_clustering_v = cugraph::test::sort<vertex_t>(*handle_, unique_clustering_v);
-
-    unique_clustering_v = cugraph::test::unique<vertex_t>(*handle_, std::move(unique_clustering_v));
-
-    auto h_unique_clustering_v = cugraph::test::to_host(*handle_, unique_clustering_v);
-
-    auto expected_unique_clustering_v = cugraph::test::sequence<int32_t>(
-      *handle_, unique_clustering_v.size(), size_t{1}, h_unique_clustering_v[0]);
-
-    auto h_expected_unique_clustering_v =
-      cugraph::test::to_host(*handle_, expected_unique_clustering_v);
-
-    ASSERT_TRUE(std::equal(h_unique_clustering_v.begin(),
-                           h_unique_clustering_v.end(),
-                           h_expected_unique_clustering_v.begin()))
-      << "Returned cluster IDs are not numbered consecutively";
+      ASSERT_EQ(cugraph::test::to_host(*handle_, mg_aggregate_clustering),
+                cugraph::test::to_host(*handle_, sg_clustering))
+        << "MG clustering differs from SG clustering on the same vertex ids";
+      ASSERT_EQ(bits_of(mg_result.modularity), bits_of(sg_result.modularity));
+      ASSERT_EQ(mg_result.num_clusters, sg_result.num_clusters);
+      ASSERT_EQ(mg_result.num_iterations, sg_result.num_iterations);
+      ASSERT_EQ(mg_result.num_levels, sg_result.num_levels);
+    }
   }
 
  private:
@@ -240,9 +228,9 @@ TEST_P(Tests_MGLeiden_Rmat, CheckInt32Int32Float)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_MGLeiden_Rmat, CheckInt64Int64Float)
+TEST_P(Tests_MGLeiden_Rmat, CheckInt64Int64Double)
 {
-  run_current_test<int64_t, int64_t, float>(
+  run_current_test<int64_t, int64_t, double>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
@@ -250,13 +238,13 @@ INSTANTIATE_TEST_SUITE_P(
   file_tests,
   Tests_MGLeiden_File,
   ::testing::Combine(
-    // enable correctness checks for small graphs
-    ::testing::Values(Leiden_Usecase{100, 1, 1, false}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+    ::testing::Values(Leiden_Usecase{1.0, 2, true}, Leiden_Usecase{0.5, -1, false}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_tests,
                          Tests_MGLeiden_Rmat,
-                         ::testing::Combine(::testing::Values(Leiden_Usecase{100, 1, false}),
+                         ::testing::Combine(::testing::Values(Leiden_Usecase{1.0, 2, true}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
                                               10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
@@ -269,7 +257,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLeiden_File,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{100, 1, 1, false}),
+    ::testing::Values(Leiden_Usecase{1.0, 2, true, false}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -281,7 +269,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLeiden_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{100, 1, 1, false}),
+    ::testing::Values(Leiden_Usecase{1.0, 2, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(12, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

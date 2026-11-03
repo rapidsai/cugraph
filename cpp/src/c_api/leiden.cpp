@@ -1,9 +1,10 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "c_api/abstract_functor.hpp"
+#include "c_api/error.hpp"
 #include "c_api/graph.hpp"
 #include "c_api/graph_helper.hpp"
 #include "c_api/hierarchical_clustering_result.hpp"
@@ -19,6 +20,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <limits>
 #include <optional>
 
 namespace {
@@ -27,23 +29,20 @@ struct leiden_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
-  size_t max_level_;
-  double resolution_;
+  cugraph::leiden_params_t params_;
   bool do_expensive_check_;
   cugraph::c_api::cugraph_hierarchical_clustering_result_t* result_{};
 
   leiden_functor(::cugraph_resource_handle_t const* handle,
                  cugraph_rng_state_t* rng_state,
                  ::cugraph_graph_t* graph,
-                 size_t max_level,
-                 double resolution,
+                 cugraph::leiden_params_t const& params,
                  bool do_expensive_check)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       rng_state_(reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(rng_state)),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
-      max_level_(max_level),
-      resolution_(resolution),
+      params_(params),
       do_expensive_check_(do_expensive_check)
   {
   }
@@ -81,30 +80,23 @@ struct leiden_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<vertex_t> clusters(graph_view.local_vertex_partition_range_size(),
                                              handle_.get_stream());
 
-      // FIXME: Revisit the constant edge property idea.  We could consider an alternate
-      // implementation (perhaps involving the cuda::constant_iterator), or we
-      // could add support in Leiden for std::nullopt as the edge weights behaving
-      // as desired and only instantiating a real edge_property_view_t for the
-      // coarsened graphs.
-      auto [level, modularity] =
-        cugraph::leiden(handle_,
-                        rng_state_->rng_state_,
-                        graph_view,
-                        (edge_weights != nullptr)
-                          ? std::make_optional(edge_weights->view())
-                          : std::make_optional(cugraph::c_api::create_constant_edge_property(
-                                                 handle_, graph_view, weight_t{1})
-                                                 .view()),
-                        clusters.data(),
-                        max_level_,
-                        static_cast<weight_t>(resolution_));
+      // An unweighted graph is clustered with unit weights (std::nullopt; no constant edge
+      // property is materialized).
+      auto result = cugraph::leiden<vertex_t, edge_t, weight_t, multi_gpu>(
+        handle_,
+        rng_state_->rng_state_,
+        graph_view,
+        (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
+        raft::device_span<vertex_t>(clusters.data(), clusters.size()),
+        params_,
+        do_expensive_check_);
 
       rmm::device_uvector<vertex_t> vertices(graph_view.local_vertex_partition_range_size(),
                                              handle_.get_stream());
       raft::copy(vertices.data(), number_map->data(), vertices.size(), handle_.get_stream());
 
       result_ = new cugraph::c_api::cugraph_hierarchical_clustering_result_t{
-        modularity,
+        result.modularity,
         new cugraph::c_api::cugraph_type_erased_device_array_t(vertices, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(clusters, graph_->vertex_type_)};
     }
@@ -116,14 +108,39 @@ struct leiden_functor : public cugraph::c_api::abstract_functor {
 extern "C" cugraph_error_code_t cugraph_leiden(const cugraph_resource_handle_t* handle,
                                                cugraph_rng_state_t* rng_state,
                                                cugraph_graph_t* graph,
-                                               size_t max_level,
+                                               int32_t n_iterations,
                                                double resolution,
-                                               double theta,
+                                               double beta,
                                                bool_t do_expensive_check,
                                                cugraph_hierarchical_clustering_result_t** result,
                                                cugraph_error_t** error)
 {
-  leiden_functor functor(handle, rng_state, graph, max_level, resolution, do_expensive_check);
+  *result = nullptr;
+  *error  = nullptr;
+  CAPI_EXPECTS(n_iterations == -1 || (n_iterations >= 1 && n_iterations < (int32_t{1} << 16)),
+               CUGRAPH_INVALID_INPUT,
+               "Invalid input argument: n_iterations must be in [1, 2^16), or -1.",
+               *error);
+  CAPI_EXPECTS(resolution >= 0.0 && resolution <= 1048576.0,
+               CUGRAPH_INVALID_INPUT,
+               "Invalid input argument: resolution must be finite and in [0, 2^20].",
+               *error);
+  CAPI_EXPECTS(beta >= 0.0 && beta < std::numeric_limits<double>::infinity(),
+               CUGRAPH_INVALID_INPUT,
+               "Invalid input argument: beta must be finite and >= 0.",
+               *error);
+  CAPI_EXPECTS(beta == 0.0,
+               CUGRAPH_INVALID_INPUT,
+               "Invalid input argument: beta > 0 (randomized refinement) is not implemented yet; "
+               "use beta = 0.",
+               *error);
+
+  cugraph::leiden_params_t params{};
+  params.resolution   = resolution;
+  params.n_iterations = n_iterations;
+  params.beta         = beta;
+
+  leiden_functor functor(handle, rng_state, graph, params, do_expensive_check);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
