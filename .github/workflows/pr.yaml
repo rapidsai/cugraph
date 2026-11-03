@@ -311,7 +311,7 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_python.sh
-      matrix_type: pull-request
+      matrix_type: python-3-15-pr,pull-request
     permissions:
       actions: read
       contents: read
@@ -342,7 +342,7 @@ jobs:
     with:
       build_type: pull-request
       matrix_name: docs-build
-      matrix_type: pull-request
+      matrix_type: python-3-15-pr
   docs-build:
     needs: [docs-build-matrix, conda-python-build, changed-files]
     secrets: inherit # zizmor: ignore[secrets-inherit]
@@ -411,7 +411,7 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_wheel_pylibcugraph.sh
-      matrix_type: pull-request
+      matrix_type: python-3-15-pr,pull-request
     permissions:
       actions: read
       contents: read
@@ -446,7 +446,7 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_wheel_cugraph.sh
-      matrix_type: pull-request
+      matrix_type: python-3-15-pr,pull-request
     permissions:
       actions: read
       contents: read
