@@ -76,6 +76,16 @@ struct alignas(16) Control {
 };
 static_assert(sizeof(Control) <= 4096, "Control block must fit in 4 KB");
 constexpr std::size_t kControlBytes = 4096;
+// The rest of the control region: small i64 values a partitioned run reads
+// back (partition.cuh).
+constexpr std::size_t kScratchOffset = 2048;
+constexpr int kScratchValues         = (kControlBytes - kScratchOffset) / 8;
+static_assert(sizeof(Control) <= kScratchOffset, "Control overlaps the scratch");
+
+inline i64* ctl_scratch(Control* ctl)
+{
+  return reinterpret_cast<i64*>(reinterpret_cast<char*>(ctl) + kScratchOffset);
+}
 
 // Readbacks go through a pinned host buffer of kPinnedBytes when the caller has one (null:
 // pageable host memory, slightly slower per sync).
@@ -121,10 +131,12 @@ struct LayoutParams {
   bool idx64_input    = false;  // int64 indices: int32 level-0 copy
   int replicas        = 1;
   double arena_factor = 1.9;
+  i64 arena_entries   = -1;  // entries the arena is sized for (-1: nnz_union)
   int subrounds       = kNumSubrounds;
 
   i64 n_union() const { return static_cast<i64>(replicas) * n; }
   i64 nnz_union() const { return static_cast<i64>(replicas) * nnz; }
+  i64 arena_nnz() const { return arena_entries < 0 ? nnz_union() : arena_entries; }
 
   void validate() const
   {
@@ -181,6 +193,9 @@ struct MoveBufs {
   int* bucket_count   = nullptr;  // [S * kNumClasses]
   int* movers         = nullptr;  // [n_U]
   unsigned char* desc = nullptr;  // MoveState
+  // [n_U + 32] exchange buffer of a partitioned run (partition.cuh): move
+  // lists, OR-reduced bitmaps; within the phase region of the Refine group
+  u64* xbuf = nullptr;
 
   void carve(Carver& c, i64 n_u, int S)
   {
@@ -193,6 +208,7 @@ struct MoveBufs {
     bucket_count = c.take<int>(static_cast<std::size_t>(S) * kNumClasses);
     movers       = c.take<int>(n_u);
     desc         = c.take<unsigned char>(kMoveStateBytes);
+    xbuf         = c.take<u64>(n_u + 32);
   }
 };
 
@@ -364,14 +380,14 @@ inline std::size_t arena_vertex_bytes(const LayoutParams& p)
 inline std::size_t arena_bytes(const LayoutParams& p)
 {
   const double rows = std::ceil(p.arena_factor * static_cast<double>(kArenaEntryBytes) *
-                                static_cast<double>(p.nnz_union()));
+                                static_cast<double>(p.arena_nnz()));
   return align_up(static_cast<std::size_t>(rows) + arena_vertex_bytes(p));
 }
 
 // The arena factor under which `needed` arena bytes fit (for the rerun).
 inline double arena_required_factor(const LayoutParams& p, std::size_t needed)
 {
-  const double per = static_cast<double>(kArenaEntryBytes) * static_cast<double>(p.nnz_union());
+  const double per = static_cast<double>(kArenaEntryBytes) * static_cast<double>(p.arena_nnz());
   if (per <= 0.0) return p.arena_factor;
   const double f = (static_cast<double>(needed) - static_cast<double>(arena_vertex_bytes(p))) / per;
   return std::max(f, p.arena_factor);

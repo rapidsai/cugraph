@@ -690,35 +690,27 @@ inline void refine_check_cub(std::size_t need, std::size_t have, const char* wha
                   what);
 }
 
-// PLEIDEN_R of a level with move partition S (ids < C) and volumes KS: cmap
-// and ctl->n_next without a host sync. `pre` (COMPACT) and R1-R8 run as one
-// call list, R9's calls go to `tail` (AGGREGATE stage 1) or launch.
+// The calls of R1 - R8 (thread and warp commit classes) after `pre`, for
+// n > 0; ends[i] is the end of segment i (R1 | R2 | R3 - R7 | R8), the points
+// where a partitioned run exchanges the vertex values of its rows.
 template <WKind K>
-void run_refine(const i64* indptr,
-                const int* indices,
-                EdgeW<K> w,
-                const i64* khat,
-                const int* S,
-                const i64* KS,
-                i64 n,
-                i64 C,
-                const RefineParams& rp,
-                const RefineBufs& rb,
-                int* cmap,
-                void* cub,
-                std::size_t cub_bytes,
-                Control* ctl,
-                cudaStream_t s,
-                const i64* C_dev              = nullptr,
-                GraphChain* graph             = nullptr,
-                std::vector<KernelCall>* tail = nullptr,
-                std::vector<KernelCall> pre   = {})
+std::vector<KernelCall> refine_calls(const i64* indptr,
+                                     const int* indices,
+                                     EdgeW<K> w,
+                                     const i64* khat,
+                                     const int* S,
+                                     const i64* KS,
+                                     i64 n,
+                                     i64 C,
+                                     const RefineParams& rp,
+                                     const RefineBufs& rb,
+                                     void* cub,
+                                     std::size_t cub_bytes,
+                                     Control* ctl,
+                                     const i64* C_dev,
+                                     std::vector<KernelCall> pre,
+                                     std::size_t (&ends)[3])
 {
-  if (n == 0) {
-    launch_chain(pre, nullptr, s);
-    RAFT_CUDA_TRY(cudaMemsetAsync(&ctl->n_next, 0, sizeof(i64), s));
-    return;
-  }
   const unsigned gi         = grid_items(n);
   const TreeClasses& tc     = rp.trees;
   std::vector<KernelCall> c = std::move(pre);
@@ -744,6 +736,7 @@ void run_refine(const i64* indptr,
              rb.U,
              rb.cid,
              ctl);
+  ends[0] = k;
   c[k++].set(true,
              refine_choose_kernel<K>,
              dim3(grid_occ(refine_choose_kernel<K>, n, kWarpsPerBlock)),
@@ -760,6 +753,7 @@ void run_refine(const i64* indptr,
              rp.lam,
              rb.hn,
              rb.root);
+  ends[1] = k;
   c[k++].set(
     true, forest_chase1_kernel, dim3(gi), dim3(kBlock), 0, rb.hn, n, rp.ctx_order, rb.root);
   c[k++].set(true,
@@ -821,6 +815,7 @@ void run_refine(const i64* indptr,
              n,
              rp.ctx_order,
              rb.inner);
+  ends[2] = k;
   // R8 classes over device-resident counts (impossible classes disabled)
   c[k++].set(n >= 2,
              tree_commit_thread_kernel,
@@ -860,60 +855,132 @@ void run_refine(const i64* indptr,
              rb.r,
              ctl);
   c.resize(static_cast<std::size_t>(k));
-  launch_chain(c, graph, s);
-  if (n > tc.warp) {  // trees larger than a warp can exist
-    const int max_large = static_cast<int>(n / (static_cast<i64>(tc.warp) + 1));
-    const int* cnt      = &ctl->tree_list_count[kTreeLarge];
-    auto begin          = thrust::make_transform_iterator(
-      thrust::counting_iterator<int>(0), LargeSegmentBegin{rb.large_list, cnt, rb.tree_offset});
-    auto end         = thrust::make_transform_iterator(thrust::counting_iterator<int>(0),
-                                               LargeSegmentEnd{rb.large_list, cnt, rb.tree_offset});
-    const int items  = cub_items(n, "large-tree sort");
-    std::size_t need = 0;
-    RAFT_CUDA_TRY(cub::DeviceSegmentedSort::SortPairs(nullptr,
-                                                      need,
-                                                      rb.sort_keys_a,
-                                                      rb.sort_keys_b,
-                                                      rb.sort_vals_a,
-                                                      rb.sort_vals_b,
-                                                      items,
-                                                      max_large,
-                                                      begin,
-                                                      end,
-                                                      s));
-    refine_check_cub(need, cub_bytes, "the large-tree sort");
-    std::size_t tb = cub_bytes;
-    RAFT_CUDA_TRY(cub::DeviceSegmentedSort::SortPairs(cub,
-                                                      tb,
-                                                      rb.sort_keys_a,
-                                                      rb.sort_keys_b,
-                                                      rb.sort_vals_a,
-                                                      rb.sort_vals_b,
-                                                      items,
-                                                      max_large,
-                                                      begin,
-                                                      end,
-                                                      s));
-    tree_commit_large_kernel<<<grid_for(max_large, 1, kCommitBlock), kCommitBlock, 0, s>>>(
-      rb.large_list,
-      rb.tree_offset,
-      rb.sort_vals_b,
-      khat,
-      rb.ext,
-      rb.inner,
-      S,
-      KS,
-      rp.lam,
-      rb.r,
-      ctl);
-    RAFT_CHECK_CUDA(s);
-  }
-  // R9 (the host flags reuse tree_count)
+  return c;
+}
+
+// R8 of the trees larger than a warp: segmented sort by ord, block commits.
+inline void refine_large(const i64* khat,
+                         const int* S,
+                         const i64* KS,
+                         i64 n,
+                         const RefineParams& rp,
+                         const RefineBufs& rb,
+                         void* cub,
+                         std::size_t cub_bytes,
+                         Control* ctl,
+                         cudaStream_t s)
+{
+  const TreeClasses& tc = rp.trees;
+  if (n <= tc.warp) return;  // no tree larger than a warp
+  const int max_large = static_cast<int>(n / (static_cast<i64>(tc.warp) + 1));
+  const int* cnt      = &ctl->tree_list_count[kTreeLarge];
+  auto begin          = thrust::make_transform_iterator(
+    thrust::counting_iterator<int>(0), LargeSegmentBegin{rb.large_list, cnt, rb.tree_offset});
+  auto end         = thrust::make_transform_iterator(thrust::counting_iterator<int>(0),
+                                             LargeSegmentEnd{rb.large_list, cnt, rb.tree_offset});
+  const int items  = cub_items(n, "large-tree sort");
+  std::size_t need = 0;
+  RAFT_CUDA_TRY(cub::DeviceSegmentedSort::SortPairs(nullptr,
+                                                    need,
+                                                    rb.sort_keys_a,
+                                                    rb.sort_keys_b,
+                                                    rb.sort_vals_a,
+                                                    rb.sort_vals_b,
+                                                    items,
+                                                    max_large,
+                                                    begin,
+                                                    end,
+                                                    s));
+  refine_check_cub(need, cub_bytes, "the large-tree sort");
+  std::size_t tb = cub_bytes;
+  RAFT_CUDA_TRY(cub::DeviceSegmentedSort::SortPairs(cub,
+                                                    tb,
+                                                    rb.sort_keys_a,
+                                                    rb.sort_keys_b,
+                                                    rb.sort_vals_a,
+                                                    rb.sort_vals_b,
+                                                    items,
+                                                    max_large,
+                                                    begin,
+                                                    end,
+                                                    s));
+  tree_commit_large_kernel<<<grid_for(max_large, 1, kCommitBlock), kCommitBlock, 0, s>>>(
+    rb.large_list,
+    rb.tree_offset,
+    rb.sort_vals_b,
+    khat,
+    rb.ext,
+    rb.inner,
+    S,
+    KS,
+    rp.lam,
+    rb.r,
+    ctl);
+  RAFT_CHECK_CUDA(s);
+}
+
+// R9: cmap and ctl->n_next (the host flags reuse tree_count).
+inline std::vector<KernelCall> refine_r9_calls(
+  i64 n, const RefineBufs& rb, int* cmap, void* cub, std::size_t cub_bytes, Control* ctl)
+{
   std::vector<KernelCall> r9(5);
   r9[0].set(
     true, host_flags_kernel, dim3(grid_items(n + 1)), dim3(kBlock), 0, rb.r, n, rb.tree_count);
   scan_calls(&r9[1], ScanArray<int, int>{rb.tree_count}, rb.cid, n + 1, cub, cub_bytes);
-  r9[4].set(true, cmap_kernel, dim3(gi), dim3(kBlock), 0, rb.r, rb.cid, n, cmap, ctl);
+  r9[4].set(true, cmap_kernel, dim3(grid_items(n)), dim3(kBlock), 0, rb.r, rb.cid, n, cmap, ctl);
+  return r9;
+}
+
+// PLEIDEN_R of a level with move partition S (ids < C) and volumes KS: cmap
+// and ctl->n_next without a host sync. `pre` (COMPACT) and R1-R8 run as one
+// call list, R9's calls go to `tail` (AGGREGATE stage 1) or launch.
+template <WKind K>
+void run_refine(const i64* indptr,
+                const int* indices,
+                EdgeW<K> w,
+                const i64* khat,
+                const int* S,
+                const i64* KS,
+                i64 n,
+                i64 C,
+                const RefineParams& rp,
+                const RefineBufs& rb,
+                int* cmap,
+                void* cub,
+                std::size_t cub_bytes,
+                Control* ctl,
+                cudaStream_t s,
+                const i64* C_dev              = nullptr,
+                GraphChain* graph             = nullptr,
+                std::vector<KernelCall>* tail = nullptr,
+                std::vector<KernelCall> pre   = {})
+{
+  if (n == 0) {
+    launch_chain(pre, nullptr, s);
+    RAFT_CUDA_TRY(cudaMemsetAsync(&ctl->n_next, 0, sizeof(i64), s));
+    return;
+  }
+  std::size_t ends[3];
+  launch_chain(refine_calls(indptr,
+                            indices,
+                            w,
+                            khat,
+                            S,
+                            KS,
+                            n,
+                            C,
+                            rp,
+                            rb,
+                            cub,
+                            cub_bytes,
+                            ctl,
+                            C_dev,
+                            std::move(pre),
+                            ends),
+               graph,
+               s);
+  refine_large(khat, S, KS, n, rp, rb, cub, cub_bytes, ctl, s);
+  std::vector<KernelCall> r9 = refine_r9_calls(n, rb, cmap, cub, cub_bytes, ctl);
   if (tail) {
     tail->insert(tail->end(), r9.begin(), r9.end());
   } else {

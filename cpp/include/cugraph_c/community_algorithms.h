@@ -122,8 +122,11 @@ cugraph_louvain(const cugraph_resource_handle_t* handle,
  * The graph must be symmetric (every edge stored in both directions with the same weight; the
  * data is checked), with finite, non-negative weights. Self-loops and edges of weight 0 are
  * ignored, and parallel edges are summed. Unweighted graphs use weight 1 for every edge. The
- * number of vertices must be less than 2^30. A multi-GPU graph is currently gathered onto every
- * GPU, so it must fit on one GPU.
+ * number of vertices must be less than 2^30 - 1. A multi-GPU graph's first level is split by rows
+ * over the GPUs; the coarser levels run on rank 0, which needs about the workspace of a single-GPU
+ * run. Graphs small enough for replicas (at most 2^18 counted edges, i.e. stored entries without
+ * self-loops and zero weights, and fewer than 2^29 vertices), and every graph on more than 32
+ * GPUs, are gathered onto every GPU instead.
  *
  * Invalid parameters return CUGRAPH_INVALID_INPUT; invalid graph data (asymmetric, negative or
  * non-finite weights) returns an error whose message names the problem.

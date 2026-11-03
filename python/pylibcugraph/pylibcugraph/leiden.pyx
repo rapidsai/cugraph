@@ -82,10 +82,13 @@ def leiden(ResourceHandle resource_handle,
       returned clustering (self-loops excluded);
     * the result is deterministic: the same graph, parameters and
       random_state give the bitwise identical clustering and modularity on
-      every call, for 32- and 64-bit vertex ids, for float and double weights
-      (with equal values) and, for an MGGraph, for any number of GPUs. The
-      arithmetic is designed to give the same result on other GPU
-      architectures as well.
+      every call and, for the same internal vertex numbering, for 32- and
+      64-bit vertex ids, for float and double weights (with equal values)
+      and for any number of GPUs. An MGGraph is always renumbered, and its
+      numbering depends on the number of GPUs and the vertex id type, so a
+      different number of GPUs or vertex id type generally gives a
+      different, equally valid clustering of an MGGraph. The arithmetic is
+      designed to give the same result on other GPU architectures as well.
 
     Parameters
     ----------
@@ -106,8 +109,12 @@ def leiden(ResourceHandle resource_handle,
         weights must be finite and non-negative; an unweighted graph uses
         weight 1 for every edge. Self-loops and edges of weight 0 are
         ignored, and parallel edges are summed. The number of vertices must
-        be less than 2**30. An MGGraph is currently gathered onto every GPU,
-        so it must fit on one GPU.
+        be less than 2**30 - 1. An MGGraph's first level is split by rows
+        over the GPUs; the coarser levels run on rank 0, which needs about
+        the workspace of a single-GPU run. Graphs small enough for replicas
+        (at most 2**18 counted edges, i.e. stored entries without self-loops
+        and zero weights, and fewer than 2**29 vertices), and every graph on
+        more than 32 GPUs, are gathered onto every GPU instead.
 
     max_level : int, optional (default=None)
         Deprecated and ignored: Leiden runs n_iterations iterations, each

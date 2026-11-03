@@ -688,8 +688,8 @@ struct leiden_result_t {
  * Each iteration runs, at every level of the hierarchy, a synchronous local-moving phase (seeded
  * hash sub-rounds), a refinement phase (every community is split into well-connected
  * sub-communities along a spanning forest of its best edges) and an aggregation by the refined
- * partition. Every iteration but the last ends with a V-cycle, and every iteration ends with a
- * connected-components split.
+ * partition. Every iteration but the last ends with a V-cycle (so does a single iteration,
+ * n_iterations = 1), and every iteration ends with a connected-components split.
  *
  * Guarantees:
  *  - Every returned community is connected.
@@ -718,16 +718,19 @@ struct leiden_result_t {
  * back control scalars (through a pinned buffer of cugraph::host_staging_buffer_manager when it is
  * initialized).
  *
- * Multi-GPU: the current implementation all-gathers the edge list of the distributed graph to
- * every GPU and runs the single-GPU algorithm on every rank (graphs must fit on one GPU: about
- * 36-40 bytes per stored edge for int32 ids and float weights). The seed is taken from rank 0, so
- * the result is identical on every rank and bitwise identical to the single-GPU result on the same
- * (internal) vertex ids, for any number of GPUs.
+ * Multi-GPU: the first level is split by rows over the ranks: every rank stores only the edges of
+ * its vertex partition range (plus per-vertex state of the whole graph) and the ranks exchange
+ * moves, per-vertex values and the exact partial rows of the contraction; the coarser levels run on
+ * rank 0, which needs about the workspace of a single-GPU run. Graphs the single-GPU algorithm
+ * runs as replicas (at most 2^18 counted edges and fewer than 2^29 vertices), and runs on one or
+ * more than 32 GPUs, all-gather the edge list instead and run the single-GPU algorithm on every
+ * rank. The seed is taken from rank 0, so the result is identical on every rank and bitwise
+ * identical to the single-GPU result on the same (internal) vertex ids, for any number of GPUs.
  *
  * @throws cugraph::logic_error when an error occurs (invalid input or parameters).
  *
  * @tparam vertex_t   Type of vertex identifiers. Supported: int32_t, int64_t. The number of
- *                    vertices must be < 2^30.
+ *                    vertices must be < 2^30 - 1.
  * @tparam edge_t     Type of edge identifiers. Supported: int32_t, int64_t.
  * @tparam weight_t   Type of edge weights. Supported: float, double.
  * @tparam multi_gpu  Flag indicating whether template instantiation should target single-GPU

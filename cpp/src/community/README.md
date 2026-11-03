@@ -86,8 +86,8 @@ The implementation:
  * **Iterations.** Each Leiden iteration (default 2; -1 iterates until the partition is stable) runs, at
    every level of the hierarchy, a synchronous local-moving phase in hashed sub-rounds, a refinement that splits every
    community into well-connected sub-communities along a spanning forest of its best edges, and an aggregation by the
-   refined partition. Every iteration but the last ends with a V-cycle, and every iteration ends with a
-   connected-components split.
+   refined partition. Every iteration but the last ends with a V-cycle (so does a single iteration,
+   `n_iterations = 1`), and every iteration ends with a connected-components split.
  * **Guarantees.** Every returned community is connected. The returned modularity is the exact (fp64) modularity of the
    returned clustering. Labels are ordered by decreasing community size.
  * **Determinism.** Every decision is made in exact 64-bit fixed point (weights are quantized once), with total-order tie
@@ -103,21 +103,26 @@ The implementation:
    nothing is allocated inside the iterations. Most kernels run as CUDA graphs (built once per call, replayed with
    updated arguments; with CUDA >= 12.4 the local-moving sweeps run in a conditional WHILE node), and the stream is
    synchronized a few times per level.
- * **Multi-GPU.** The current implementation all-gathers the edge list to every GPU and runs the single-GPU algorithm with
-   the seed of rank 0 on every rank, so the result equals the single-GPU result on the same (internal) vertex ids for any
-   number of GPUs. The graph must fit on one GPU.
+ * **Multi-GPU.** Level 0 is split by rows: every GPU stores only the edges of its vertex range (with replicated
+   per-vertex state) and the GPUs exchange each local-moving sub-round's moves, the refinement's per-vertex values and
+   the exact partial rows of the contraction; the levels above the first run on rank 0, which therefore needs about the
+   workspace of a single-GPU run. Graphs the single-GPU algorithm runs as replicas (at most 2^18 counted edges and
+   fewer than 2^29 vertices), and runs on one or more than 32 GPUs, run the single-GPU algorithm on the gathered graph
+   instead. Either way the seed of rank 0 is used and the result equals the single-GPU result on the same (internal)
+   vertex ids, bitwise, for any number of GPUs.
 
 Code layout:
 
  * `leiden_impl.cuh`: `cugraph::leiden` (single-GPU: the graph view's CSR is passed to the core as is; multi-GPU: the
-   all-gathered edge list); `leiden_{sg,mg}_v*_e*.cu` instantiate it.
+   edges are shuffled to the ranks owning their sources); `leiden_{sg,mg}_v*_e*.cu` instantiate it.
  * `detail/leiden/`: the core, compiled once into `libcugraph_common` and shared by the single-GPU and multi-GPU
-   libraries. `leiden_csr.hpp` declares `detail::leiden_csr` (raw CSR) and `detail::leiden_coo` (edge list in any
-   order); `leiden_csr_impl.cuh` holds the input check, the canonicalization of parallel edges (`canonicalize.cuh`), the
-   workspace and the level-0 quantization (`kernels_ingest.cuh`); the type-independent engine (`numerics.cuh` fixed
-   point and hashes, `arena.cuh` workspace layout, `graph.cuh` CUDA graphs, `kernels_scan.cuh` graph-friendly scans,
-   `kernels_{move,refine,aggregate,final}.cuh`, `driver.cuh`) is compiled once in `driver_common.cu` (interface:
-   `driver.hpp`).
+   libraries. `leiden_csr.hpp` declares `detail::leiden_csr` (raw CSR) and `detail::leiden_coo_mg` (the edges of one
+   rank's rows); `leiden_csr_impl.cuh` holds the input check, the canonicalization of parallel edges
+   (`canonicalize.cuh`), the workspace and the level-0 quantization (`kernels_ingest.cuh`); the type-independent engine
+   (`numerics.cuh` fixed point and hashes, `arena.cuh` workspace layout, `graph.cuh` CUDA graphs, `kernels_scan.cuh`
+   graph-friendly scans, `kernels_{move,refine,aggregate,final}.cuh`, `driver.cuh`, and for multi-GPU `partition.cuh`,
+   the partitioned level 0, with its collectives in `driver_mg.cuh`) is compiled once in `driver_common.cu`
+   (interface: `driver.hpp`).
 
 The unit tests are the best place to look for examples: [SG](../../tests/community/leiden_test.cpp),
 [MG](../../tests/community/mg_leiden_test.cpp).

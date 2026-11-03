@@ -53,7 +53,7 @@ def leiden(
         weights must be finite and non-negative; an unweighted graph uses
         weight 1 for every edge. Self-loops and edges of weight 0 are
         ignored, and the parallel edges of a MultiGraph are summed. The
-        number of vertices must be less than 2**30.
+        number of vertices must be less than 2**30 - 1.
 
         The adjacency list will be computed if not already present.
 

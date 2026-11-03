@@ -398,8 +398,12 @@ __device__ __forceinline__ void move_activate_entry(
       if (t.do_low(k) && move_activates(c, cv) && !(*rw & bit)) atomicOr(rw, bit);
     } else if (su > t.r) {
       if (t.do_high(k) && move_activates(c, cv) && !((F.A[u >> 5] | F.Ap[u >> 5]) & bit) &&
-          !(atomicOr(&F.Ap[u >> 5], bit) & bit))
-        key = su * kNumClasses + degree_class(indptr[u + 1] - indptr[u], t.th);
+          !(atomicOr(&F.Ap[u >> 5], bit) & bit)) {
+        // u has the counted entry (u, v), so its row is empty only in
+        // a partition that does not own u (partition.cuh)
+        const i64 deg = indptr[u + 1] - indptr[u];
+        if (deg > 0) key = su * kNumClasses + degree_class(deg, t.th);
+      }
     } else if (t.do_low(k) && !(*rw & bit)) {
       const int old = atomicCAS(&t.slot[u], kDeferIdle, cv);
       if (old != kDeferIdle && old != cv && old != kDeferMulti) atomicExch(&t.slot[u], kDeferMulti);
@@ -408,10 +412,11 @@ __device__ __forceinline__ void move_activate_entry(
   move_bucket_append(t.B, key, u);
 }
 
-// M1: applies the deferred activations, buckets the active vertices (F.A null:
-// all) and clears R and Ap; a no-op after a zero-move sweep of the chunk.
-__global__ void __launch_bounds__(kBlock)
-  move_bucket_kernel(const i64* __restrict__ indptr, i64 n, MoveAct t, const int* __restrict__ P)
+// M1 over vertices [v0, v1) (v0 a multiple of 32): applies the deferred
+// activations, buckets the active vertices (F.A null: all) and clears their
+// words of R and Ap; a no-op after a zero-move sweep of the chunk.
+__global__ void __launch_bounds__(kBlock) move_bucket_kernel(
+  const i64* __restrict__ indptr, i64 v0, i64 v1, MoveAct t, const int* __restrict__ P)
 {
   const int k = t.sweep();
   const int S = t.S;
@@ -429,8 +434,8 @@ __global__ void __launch_bounds__(kBlock)
   int* __restrict__ slot   = t.slot;
   const int lane           = threadIdx.x & (kWarp - 1);
   const i64 stride         = static_cast<i64>(gridDim.x) * blockDim.x;
-  for (i64 base = static_cast<i64>(blockIdx.x) * blockDim.x + (threadIdx.x & ~(kWarp - 1));
-       base < n;
+  for (i64 base = v0 + static_cast<i64>(blockIdx.x) * blockDim.x + (threadIdx.x & ~(kWarp - 1));
+       base < v1;
        base += stride) {
     const i64 v = base + lane;
     if (lane == 0) {
@@ -439,7 +444,7 @@ __global__ void __launch_bounds__(kBlock)
     }
     int key  = -1;
     bool act = false;
-    if (v < n) {
+    if (v < v1) {
       act = !F.A || move_bit(F.A, static_cast<int>(v));
       if (F.A) {
         const int sl = slot[v];
@@ -1178,6 +1183,7 @@ struct MoveLaunch {
   bool loop         = false;      // sweeps of a chunk in one WHILE graph launch
   std::vector<KernelCall> calls;  // the sweep's calls
   GraphDeps deps;                 // their graph dependencies
+  MoveAct act;                    // the phase's arguments (sub-round 0)
 };
 
 // Folds the pending chunk's movers (from a readback) into the statistics.
@@ -1362,21 +1368,23 @@ inline void move_launch_chunks(
   }
 }
 
-// LOCAL_MOVE of a level (launch only), P ids in [0, id_bound) -> [0, 2n).
+// LOCAL_MOVE of a level up to its first sweep: M0, then the sweep's calls in
+// ml (M1 buckets the vertices [v0, v1)); stopped if n == 0.
 template <WKind K>
-MoveRun run_local_move(const i64* indptr,
-                       const int* indices,
-                       EdgeW<K> w,
-                       const i64* khat,
-                       int* P,
-                       i64 n,
-                       const i64 (&class_count)[kNumClasses],
-                       const MoveParams& prm,
-                       const MoveBufs& mb,
-                       Control* ctl,
-                       MoveLaunch& ml,
-                       void* pinned,
-                       cudaStream_t s)
+MoveRun prepare_local_move(const i64* indptr,
+                           const int* indices,
+                           EdgeW<K> w,
+                           const i64* khat,
+                           int* P,
+                           i64 n,
+                           const i64 (&class_count)[kNumClasses],
+                           const MoveParams& prm,
+                           const MoveBufs& mb,
+                           Control* ctl,
+                           MoveLaunch& ml,
+                           cudaStream_t s,
+                           i64 v0,
+                           i64 v1)
 {
   const int S = prm.S;
   MoveRun mr;
@@ -1421,7 +1429,8 @@ MoveRun run_local_move(const i64* indptr,
   ml.calls.resize(static_cast<std::size_t>(ncalls));
   KernelCall* c = ml.calls.data();
   c[0].set(true, move_clear_kernel, dim3(1), dim3(kBlock), 0, ctr.buckets(), S * kNumClasses);
-  c[1].set(true, move_bucket_kernel, dim3(g_items), dim3(kBlock), 0, indptr, n, t, P);
+  c[1].set(
+    true, move_bucket_kernel, dim3(grid_items(v1 - v0)), dim3(kBlock), 0, indptr, v0, v1, t, P);
   for (int r = 0; r < S; ++r) {
     KernelCall* cr = c + kSweepHead + kSweepPerRound * r;
     t.r            = r;
@@ -1455,8 +1464,32 @@ MoveRun run_local_move(const i64* indptr,
 #endif
     c[ncalls - 1].set(true, move_sweep_end_kernel, dim3(1), dim3(kWarp), 0, st);
   if (ml.graph && ml.deps.size() != static_cast<std::size_t>(ncalls)) ml.deps = move_sweep_deps(S);
-  mr.state        = st;
-  mr.next         = 0;
+  t.r      = 0;
+  ml.act   = t;
+  mr.state = st;
+  mr.next  = 0;
+  return mr;
+}
+
+// LOCAL_MOVE of a level (launch only), P ids in [0, id_bound) -> [0, 2n).
+template <WKind K>
+MoveRun run_local_move(const i64* indptr,
+                       const int* indices,
+                       EdgeW<K> w,
+                       const i64* khat,
+                       int* P,
+                       i64 n,
+                       const i64 (&class_count)[kNumClasses],
+                       const MoveParams& prm,
+                       const MoveBufs& mb,
+                       Control* ctl,
+                       MoveLaunch& ml,
+                       void* pinned,
+                       cudaStream_t s)
+{
+  MoveRun mr =
+    prepare_local_move(indptr, indices, w, khat, P, n, class_count, prm, mb, ctl, ml, s, 0, n);
+  if (mr.stopped) return mr;
   const int first = std::max(1, std::min(prm.first_chunk, static_cast<int>(kSweepChunk)));
   move_launch_chunks(mr, ml, first, !prm.defer_rest, ctl, pinned, s);
   return mr;

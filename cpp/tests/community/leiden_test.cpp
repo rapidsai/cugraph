@@ -675,55 +675,6 @@ TEST(Leiden, ParallelEdgesAreSummed)
   }
 }
 
-// The CSR assembly of the multi-GPU path (detail::leiden_coo on the all-gathered edge list) does
-// not depend on how the edges are split over the ranks: every split of the edge list into P
-// chunks, concatenated in rank order, gives the result of the single-GPU path on the same vertex
-// ids, bitwise. Together with the identical seed this is what makes multi-GPU Leiden equal to
-// single-GPU Leiden for any number of GPUs.
-TEST(Leiden, EdgeListSplitInvariance)
-{
-  raft::handle_t handle{};
-  cugraph::leiden_params_t params{};
-  auto el = ring_of_cliques(20, 6);
-  for (int64_t v = 0; v + 2 < el.num_vertices; v += 3)
-    el.add(v, v + 2, 0.1 * static_cast<double>(v % 7));  // parallel and zero-weight edges
-
-  for (uint64_t seed : {0, 5}) {
-    auto [ls, rs] =
-      run_leiden_on_edge_list<int32_t, int32_t, float>(handle, el, true, params, seed, true);
-    for (int P : {1, 2, 3, 4}) {
-      SCOPED_TRACE("P = " + std::to_string(P));
-      // rank r holds the entries i with hash(i) % P == r, in a shuffled order
-      auto const mixed = shuffled(el, static_cast<uint64_t>(P));
-      edge_list_t gathered{};
-      gathered.num_vertices = el.num_vertices;
-      for (int r = 0; r < P; ++r)
-        for (size_t i = 0; i < mixed.srcs.size(); ++i)
-          if (static_cast<int>((i * 2654435761ull) % P) == r)
-            gathered.add_entry(mixed.srcs[i], mixed.dsts[i], mixed.weights[i]);
-
-      std::vector<int32_t> h_srcs(gathered.srcs.begin(), gathered.srcs.end());
-      std::vector<int32_t> h_dsts(gathered.dsts.begin(), gathered.dsts.end());
-      std::vector<float> h_w(gathered.weights.begin(), gathered.weights.end());
-      rmm::device_uvector<int32_t> labels(el.num_vertices, handle.get_stream());
-      auto const r = cugraph::detail::leiden_coo<int32_t, int32_t, float>(
-        handle,
-        static_cast<uint32_t>(seed),
-        static_cast<int32_t>(el.num_vertices),
-        cugraph::test::to_device(handle, h_srcs),
-        cugraph::test::to_device(handle, h_dsts),
-        std::make_optional(cugraph::test::to_device(handle, h_w)),
-        raft::device_span<int32_t>(labels.data(), labels.size()),
-        params);
-      ASSERT_EQ(ls, cugraph::test::to_host(handle, labels));
-      ASSERT_EQ(bits_of(rs.modularity), bits_of(r.modularity));
-      ASSERT_EQ(rs.num_clusters, r.num_clusters);
-      ASSERT_EQ(rs.num_iterations, r.num_iterations);
-      ASSERT_EQ(rs.num_levels, r.num_levels);
-    }
-  }
-}
-
 // The data is checked, not the is_symmetric() flag: a symmetric graph that is not flagged as such
 // is accepted and gives the same result.
 TEST(Leiden, SymmetricDataWithoutSymmetricFlag)

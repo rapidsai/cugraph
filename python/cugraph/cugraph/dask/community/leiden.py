@@ -80,17 +80,19 @@ def leiden(
 
     This runs the same algorithm as `cugraph.leiden`, with the same
     guarantees: every returned community is connected, the returned
-    modularity is exact, and the result is deterministic. The current
-    multi-GPU implementation gathers the whole graph onto every GPU and runs
-    the single-GPU algorithm on every worker, so the graph must fit on one
-    GPU (about 40 bytes per stored edge for int32 vertex ids and float32
-    weights). Given the internal vertex numbering of the graph, the result
+    modularity is exact, and the result is deterministic. The first level is
+    split by rows over the workers; the coarser levels run on the first
+    worker, which needs about the workspace of a single-GPU run. Graphs small
+    enough for replicas (at most 2**18 counted edges, i.e. stored entries
+    without self-loops and zero weights, and fewer than 2**29 vertices), and
+    every graph on more than 32 workers, are gathered onto every worker
+    instead. Given the internal vertex numbering of the graph, the result
     does not depend on the number of workers: it is bitwise identical to
     `cugraph.leiden` on a graph with the same internal numbering and the
-    same `random_state`. A distributed graph is always renumbered internally
-    (also with ``renumber=False``), so `cugraph.dask.leiden` and
-    `cugraph.leiden` on the same input generally return different, equally
-    valid partitions.
+    same `random_state`. A distributed graph is always
+    renumbered internally (also with ``renumber=False``), so
+    `cugraph.dask.leiden` and `cugraph.leiden` on the same input generally
+    return different, equally valid partitions.
 
     Parameters
     ----------
@@ -102,7 +104,7 @@ def leiden(
         weights must be finite and non-negative; an unweighted graph uses
         weight 1 for every edge. Self-loops and edges of weight 0 are
         ignored, and the parallel edges of a MultiGraph are summed. The
-        number of vertices must be less than 2**30.
+        number of vertices must be less than 2**30 - 1.
 
     max_iter : integer, optional (default=None)
         Deprecated and ignored: Leiden runs `n_iterations` iterations, each

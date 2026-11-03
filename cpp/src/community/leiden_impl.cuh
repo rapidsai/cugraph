@@ -4,28 +4,34 @@
  */
 #pragma once
 
-// cugraph::leiden (algorithms.hpp). Both paths end in detail::leiden_csr
-// (community/detail/leiden/), the raw-CSR core that holds the engine:
+// cugraph::leiden (algorithms.hpp). Both paths end in the raw-array core of
+// community/detail/leiden/ (leiden_csr.hpp), which holds the engine:
 //
-//   single-GPU  the graph view's own CSR (offsets, indices, weights) is passed as is (zero copy).
-//   multi-GPU   interim implementation: the distributed edge list (internal vertex ids) is
-//               all-gathered to every rank; every rank assembles the identical CSR with
-//               detail::leiden_coo (sorted by (src, dst), so it does not depend on the number of
-//               ranks or the edge partitioning), runs the engine with the seed of rank 0 and keeps
-//               the labels of its local vertex partition range. No collective follows the engine,
-//               so an error (invalid input, OOM) is raised on every rank without a hang.
+//   single-GPU  the graph view's own CSR (offsets, indices, weights) is passed to
+//               detail::leiden_csr as is (zero copy).
+//   multi-GPU   level 0 is split by rows over the ranks: rank r owns the rows of its vertex
+//               partition range with both ends rounded down to a multiple of 32 (the last end is
+//               n), the local edges (internal vertex ids) are shuffled to the owners of their
+//               sources, and detail::leiden_coo_mg runs the engine partitioned (every rank stores
+//               only its rows; rank 0 also runs the levels above the first, see
+//               detail/leiden/partition.cuh) with the seed of rank 0. Every rank receives the
+//               labels of all vertices and keeps those of its local vertex partition range. The
+//               result equals single-GPU Leiden on the same (internal) vertex ids, bitwise, for any
+//               number of GPUs.
 
 #include "community/detail/leiden/leiden_csr.hpp"
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/device_comm_wrapper.hpp>
+#include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
+#include <raft/core/host_span.hpp>
 #include <raft/random/rng_state.hpp>
 
 #include <rmm/device_uvector.hpp>
@@ -34,8 +40,11 @@
 
 #include <cstdint>
 #include <optional>
+#include <tuple>
 #include <type_traits>
 #include <utility>
+#include <variant>
+#include <vector>
 
 namespace cugraph {
 
@@ -124,8 +133,19 @@ leiden_result_t leiden_mg(
   // Every rank uses the seed of rank 0 (and advances its own state, as in single-GPU).
   auto const seed = host_scalar_bcast(comm, leiden_seed(rng_state), int{0}, stream);
 
-  // The local edges with internal (global) vertex ids, all-gathered: every rank holds the full
-  // edge list afterwards (in rank order; the CSR assembled from it does not depend on the order).
+  // Engine rows of every rank: its vertex partition range with both ends rounded down to a
+  // multiple of 32 (each word of an activity bitmap has one owner), the last end n.
+  auto const comm_size = comm.get_size();
+  auto const n         = graph_view.number_of_vertices();
+  auto const lasts     = graph_view.vertex_partition_range_lasts();
+  std::vector<vertex_t> row_lasts(comm_size);
+  std::vector<int64_t> bounds(comm_size + 1, 0);
+  for (int r = 0; r < comm_size; ++r) {
+    row_lasts[r]  = r + 1 < comm_size ? lasts[r] / 32 * 32 : n;
+    bounds[r + 1] = row_lasts[r];
+  }
+
+  // The local edges with internal (global) vertex ids, shuffled to the ranks owning their sources.
   rmm::device_uvector<vertex_t> srcs(0, stream);
   rmm::device_uvector<vertex_t> dsts(0, stream);
   std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
@@ -138,28 +158,27 @@ leiden_result_t leiden_mg(
         std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
         std::optional<edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
         std::optional<raft::device_span<vertex_t const>>{std::nullopt});
-    srcs = device_allgatherv(
-      handle, comm, raft::device_span<vertex_t const>(local_srcs.data(), local_srcs.size()));
-    local_srcs.resize(0, stream);
-    local_srcs.shrink_to_fit(stream);
-    dsts = device_allgatherv(
-      handle, comm, raft::device_span<vertex_t const>(local_dsts.data(), local_dsts.size()));
-    local_dsts.resize(0, stream);
-    local_dsts.shrink_to_fit(stream);
-    if (local_weights) {
-      weights = device_allgatherv(
-        handle,
-        comm,
-        raft::device_span<weight_t const>(local_weights->data(), local_weights->size()));
+    std::vector<arithmetic_device_uvector_t> properties{};
+    properties.push_back(std::move(local_dsts));
+    if (local_weights) { properties.push_back(std::move(*local_weights)); }
+    std::tie(srcs, properties) =
+      shuffle_int_vertices(handle,
+                           std::move(local_srcs),
+                           std::move(properties),
+                           raft::host_span<vertex_t const>(row_lasts.data(), row_lasts.size()));
+    dsts = std::move(std::get<rmm::device_uvector<vertex_t>>(properties[0]));
+    if (properties.size() > 1) {
+      weights = std::move(std::get<rmm::device_uvector<weight_t>>(properties[1]));
     }
   }
 
-  // The engine on the full graph (identical on every rank), then the local slice.
-  rmm::device_uvector<vertex_t> labels(graph_view.number_of_vertices(), stream);
-  auto const result = leiden_coo<vertex_t, edge_t, weight_t>(
+  // The partitioned engine (labels of all vertices on every rank), then the local slice.
+  rmm::device_uvector<vertex_t> labels(n, stream);
+  auto const result = leiden_coo_mg<vertex_t, edge_t, weight_t>(
     handle,
     seed,
-    graph_view.number_of_vertices(),
+    n,
+    bounds,
     std::move(srcs),
     std::move(dsts),
     std::move(weights),
@@ -191,7 +210,7 @@ leiden_result_t leiden(
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
   CUGRAPH_EXPECTS(
     static_cast<int64_t>(graph_view.number_of_vertices()) < detail::leiden_max_vertices,
-    "Invalid input argument: the number of vertices must be < 2^30.");
+    "Invalid input argument: the number of vertices must be < 2^30 - 1.");
   detail::check_leiden_params(params);
 
   if constexpr (multi_gpu) {

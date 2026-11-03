@@ -146,6 +146,42 @@ __global__ void cc_relabel_kernel(i64 n,
   if (blockIdx.x == 0 && threadIdx.x == 0) ctl->n_components = rank[n];
 }
 
+// The forest of the rows' intra-community edges (fb.parent, flattened; the
+// root flags in fb.flags), n > 0.
+template <WKind K>
+void cc_forest(const i64* indptr,
+               const int* indices,
+               EdgeW<K> w,
+               const int* P,
+               i64 n,
+               const FinalBufs& fb,
+               cudaStream_t s)
+{
+  const unsigned gi = grid_items(n);
+  cc_init_kernel<<<gi, kBlock, 0, s>>>(n, fb.parent);
+  RAFT_CHECK_CUDA(s);
+  cc_hook_kernel<K><<<grid_rows(n), kBlock, 0, s>>>(indptr, indices, w, P, n, fb.parent);
+  RAFT_CHECK_CUDA(s);
+  cc_flatten_kernel<<<gi, kBlock, 0, s>>>(n, fb.parent, fb.flags);
+  RAFT_CHECK_CUDA(s);
+}
+
+// P <- COMPACT(component minimum) of a flattened forest; ctl->n_components.
+inline void cc_relabel(int* P,
+                       i64 n,
+                       const FinalBufs& fb,
+                       void* cub,
+                       std::size_t cub_bytes,
+                       Control* ctl,
+                       cudaStream_t s)
+{
+  std::size_t tb = cub_bytes;
+  RAFT_CUDA_TRY(
+    cub::DeviceScan::ExclusiveSum(cub, tb, fb.flags, fb.rank, cub_items(n + 1, "cc compact"), s));
+  cc_relabel_kernel<<<grid_items(n), kBlock, 0, s>>>(n, fb.parent, fb.rank, P, ctl);
+  RAFT_CHECK_CUDA(s);
+}
+
 // CC_SPLIT: P <- COMPACT(component minimum).
 template <WKind K>
 void run_cc_split(const i64* indptr,
@@ -163,18 +199,8 @@ void run_cc_split(const i64* indptr,
     RAFT_CUDA_TRY(cudaMemsetAsync(&ctl->n_components, 0, sizeof(i64), s));
     return;
   }
-  const unsigned gi = grid_items(n);
-  cc_init_kernel<<<gi, kBlock, 0, s>>>(n, fb.parent);
-  RAFT_CHECK_CUDA(s);
-  cc_hook_kernel<K><<<grid_rows(n), kBlock, 0, s>>>(indptr, indices, w, P, n, fb.parent);
-  RAFT_CHECK_CUDA(s);
-  cc_flatten_kernel<<<gi, kBlock, 0, s>>>(n, fb.parent, fb.flags);
-  RAFT_CHECK_CUDA(s);
-  std::size_t tb = cub_bytes;
-  RAFT_CUDA_TRY(
-    cub::DeviceScan::ExclusiveSum(cub, tb, fb.flags, fb.rank, cub_items(n + 1, "cc compact"), s));
-  cc_relabel_kernel<<<gi, kBlock, 0, s>>>(n, fb.parent, fb.rank, P, ctl);
-  RAFT_CHECK_CUDA(s);
+  cc_forest(indptr, indices, w, P, n, fb, s);
+  cc_relabel(P, n, fb, cub, cub_bytes, ctl, s);
 }
 
 // Community volumes are warp-aggregated into a block-privatised histogram for
@@ -339,21 +365,20 @@ __global__ void __launch_bounds__(kTreeThreads) quality_tree_kernel(const double
 }
 
 // Q of partition P (compact ids < C; R copies of n vertices, the graph and
-// k_hat the single copy) with one copy's 2m_hat: ctl->l_hat / sum_t / q [r].
+// k_hat the single copy) with one copy's 2m_hat in two halves: the rows (L_hat
+// and the community volumes), then the fp64 tree (ctl->sum_t / q [r]).
 template <WKind K>
-void run_quality(const i64* indptr,
-                 const int* indices,
-                 EdgeW<K> w,
-                 const i64* khat,
-                 const int* P,
-                 i64 n,
-                 int R,
-                 i64 C,
-                 i64 two_m,
-                 double gamma,
-                 const FinalBufs& fb,
-                 Control* ctl,
-                 cudaStream_t s)
+void quality_rows(const i64* indptr,
+                  const int* indices,
+                  EdgeW<K> w,
+                  const i64* khat,
+                  const int* P,
+                  i64 n,
+                  int R,
+                  i64 C,
+                  const FinalBufs& fb,
+                  Control* ctl,
+                  cudaStream_t s)
 {
   RAFT_CUDA_TRY(cudaMemsetAsync(ctl->l_hat, 0, sizeof(ctl->l_hat), s));
   if (C > 0) {
@@ -376,12 +401,37 @@ void run_quality(const i64* indptr,
     }
     RAFT_CHECK_CUDA(s);
   }
+}
+
+inline void quality_tree(
+  int R, i64 C, i64 two_m, double gamma, const FinalBufs& fb, Control* ctl, cudaStream_t s)
+{
   if (C > 0 && two_m > 0) {
     volume_terms_kernel<<<grid_items(C), kBlock, 0, s>>>(fb.K, C, two_m, fb.t);
     RAFT_CHECK_CUDA(s);
   }
   quality_tree_kernel<<<R, kTreeThreads, 0, s>>>(fb.t, fb.rep, C, R, two_m, gamma, ctl);
   RAFT_CHECK_CUDA(s);
+}
+
+// Q of partition P: ctl->l_hat / sum_t / q [r].
+template <WKind K>
+void run_quality(const i64* indptr,
+                 const int* indices,
+                 EdgeW<K> w,
+                 const i64* khat,
+                 const int* P,
+                 i64 n,
+                 int R,
+                 i64 C,
+                 i64 two_m,
+                 double gamma,
+                 const FinalBufs& fb,
+                 Control* ctl,
+                 cudaStream_t s)
+{
+  quality_rows(indptr, indices, w, khat, P, n, R, C, fb, ctl, s);
+  quality_tree(R, C, two_m, gamma, fb, ctl, s);
 }
 
 constexpr int kSmemLabelCommunities = 4096;

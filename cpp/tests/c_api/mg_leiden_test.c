@@ -15,9 +15,10 @@ typedef int32_t edge_t;
 typedef float weight_t;
 
 /*
- * Multi-GPU Leiden gathers the graph and runs the single-GPU algorithm with the seed of rank 0 on
- * every rank, so the clustering is that of the single-GPU test (leiden_test.c) on this graph, up
- * to a bijection of the cluster ids, and the modularity is exact.
+ * This graph is small enough for replicas, so multi-GPU Leiden gathers it and runs the single-GPU
+ * algorithm with the seed of rank 0 on every rank: the clustering is that of the single-GPU test
+ * (leiden_test.c) on this graph, up to a bijection of the cluster ids, and the modularity is exact.
+ * (Larger graphs run split by rows over the ranks, with the same result.)
  */
 int generic_leiden_test(const cugraph_resource_handle_t* p_handle,
                         vertex_t* h_src,

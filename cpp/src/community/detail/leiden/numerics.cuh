@@ -344,11 +344,15 @@ struct DeviceInfo {
   int max_threads_per_sm = 2048;
 };
 
+// Cached per device (a partitioned run alternates between devices).
 inline const DeviceInfo& device_info()
 {
-  static thread_local DeviceInfo cached;
+  constexpr int kCachedDevices = 64;
+  static thread_local DeviceInfo cache[kCachedDevices];
+  static thread_local DeviceInfo other;
   int dev = 0;
   RAFT_CUDA_TRY(cudaGetDevice(&dev));
+  DeviceInfo& cached = dev < kCachedDevices ? cache[dev] : other;
   if (dev != cached.device) {
     DeviceInfo d;
     d.device = dev;

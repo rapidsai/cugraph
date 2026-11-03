@@ -50,8 +50,8 @@ constexpr u64 kUnitBits = 0x3F800000ull;  // IEEE bits of 1.0f
 // fingerprint and the quantised value. The diagonal is excluded by callers.
 template <typename WI>
 struct EntryValue {
-  const WI* data;  // null: no data (every entry has the value 1.0f)
-  bool weighted;   // use_weights && data
+  const WI* data;  // null: no data (every entry has the value 1.0f), or no entries on this rank
+  bool weighted;   // the graph has weights (on every rank alike; data may then be null)
   __device__ __forceinline__ bool positive(i64 j) const
   {
     if (weighted) return data[j] > WI(0);

@@ -49,6 +49,7 @@ struct Leiden_Usecase {
   int32_t n_iterations_{2};
   bool test_weighted_{true};
   bool check_correctness_{true};
+  bool drop_multi_edges_{true};
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -69,9 +70,10 @@ class Tests_MGLeiden
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  // Multi-GPU Leiden runs the single-GPU algorithm on the gathered graph with the seed of rank 0,
-  // so its clustering (in internal vertex ids) and modularity must be bitwise identical to
-  // single-GPU Leiden on the same graph with the same internal vertex ids, for any number of GPUs.
+  // Multi-GPU Leiden splits level 0 by rows over the ranks (graphs small enough for replicas run
+  // the single-GPU engine on the gathered graph) and uses the seed of rank 0, so its clustering
+  // (in internal vertex ids) and modularity must be bitwise identical to single-GPU Leiden on the
+  // same graph with the same internal vertex ids, for any number of GPUs.
   template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(std::tuple<Leiden_Usecase const&, input_usecase_t const&> const& param)
   {
@@ -89,7 +91,7 @@ class Tests_MGLeiden
 
     auto [mg_graph, mg_edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
-        *handle_, input_usecase, usecase.test_weighted_, true, true, true);
+        *handle_, input_usecase, usecase.test_weighted_, true, true, usecase.drop_multi_edges_);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -247,6 +249,27 @@ INSTANTIATE_TEST_SUITE_P(rmat_small_tests,
                          ::testing::Combine(::testing::Values(Leiden_Usecase{1.0, 2, true}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
                                               10, 16, 0.57, 0.19, 0.19, 0, true, false))));
+
+// 16 vertices (fewer than 32): on several GPUs every rank but the last owns no rows and receives
+// no edges, and must still treat the graph as weighted exactly when the others do (a weighted
+// graph; an unweighted multigraph, whose parallel edges I1c sums into fp64 multiplicities).
+INSTANTIATE_TEST_SUITE_P(
+  rmat_tiny_tests,
+  Tests_MGLeiden_Rmat,
+  ::testing::Combine(
+    ::testing::Values(Leiden_Usecase{1.0, 2, true}, Leiden_Usecase{1.0, 2, false, true, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(4, 16, 0.57, 0.19, 0.19, 0, true, false))));
+
+// More than 2^18 counted edges (no replicas): level 0 runs split by rows over the ranks (also for
+// an unweighted multigraph, whose canonical copy I1c makes on every rank).
+INSTANTIATE_TEST_SUITE_P(
+  rmat_partitioned_tests,
+  Tests_MGLeiden_Rmat,
+  ::testing::Combine(
+    ::testing::Values(Leiden_Usecase{1.0, 2, true},
+                      Leiden_Usecase{0.5, -1, false},
+                      Leiden_Usecase{1.0, 2, false, true, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(15, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
