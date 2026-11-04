@@ -22,8 +22,9 @@
 // SL1 and SL2 are the host synchronisations of a level: the sweeps of a LOCAL_MOVE run in launch
 // chunks without a readback, and the refinement and AGGREGATE stage 1 are launched before the
 // host knows the number of move communities, so one readback delivers both. Every kernel and
-// CUDA graph runs on the caller's stream; nothing is allocated on the device (every array is
-// carved from the workspace, and the level stack lives in the checked arena).
+// CUDA graph runs on the caller's stream; every array is carved from the workspace, except the
+// levels above the first and the contraction rows, which live in arena blocks of exactly their
+// size (LevelArena).
 
 #include "community/detail/leiden/arena.cuh"
 #include "community/detail/leiden/driver.hpp"
@@ -251,7 +252,8 @@ class LeidenDriver {
     s64_   = seed64(seed);
   }
 
-  // One resolution from the singleton partition; false if the arena overflowed.
+  // One resolution from the singleton partition; false if an arena block was not allocated
+  // (L.arena.failed).
   bool run_resolution(double gamma, u32 seed, int R, int* labels_out, ResolutionResult& out)
   {
     const i64 n     = n_;
@@ -529,7 +531,8 @@ class LeidenDriver {
   }
 
   // One iteration on the level-0 graph g0 with partition P0 (ids < id_bound).
-  // False on arena overflow; C_out: communities before the CC split.
+  // False if an arena block was not allocated; C_out: communities before the
+  // CC split.
   bool leiden_iteration(const LevelGraph& g0,
                         int* P0,
                         i64 id_bound,
@@ -558,7 +561,7 @@ class LeidenDriver {
   // Levels >= 1 of an iteration whose level 0 ran partitioned: the level
   // loop from level 1 (G = {g0, g1}, g0.cmap = its cmap, P_1 in
   // level_partition(1), the arena holding both) and the projection down to
-  // level 1. False on arena overflow.
+  // level 1. False if an arena block was not allocated.
   bool upper_levels(const LevelGraph& g0,
                     const LevelGraph& g1,
                     i64 idb,
@@ -582,7 +585,8 @@ class LeidenDriver {
 
  private:
   // The levels from G[lvl] up (lvl, idb: the last level and its id bound);
-  // false on arena overflow.
+  // false if a block the levels need was not allocated (a speculative block that
+  // fails only skips the speculation, or is dropped with it).
   bool level_loop(
     std::vector<LevelGraph>& G, int& lvl, i64& idb, u32 uit, bool& moved, IterationStat& stat)
   {
@@ -637,7 +641,7 @@ class LeidenDriver {
       if (step == LevelStep::kVerifyTop || step == LevelStep::kCertified) {
         if (cmap) {  // drop the speculative refinement / level
           arena.release_top();
-          arena.bottom = mark;
+          arena.restore(mark);
         }
         if (step == LevelStep::kVerifyTop) {  // all-active verification
           phase = kPhaseTop;
@@ -648,14 +652,14 @@ class LeidenDriver {
       }
       if (step == LevelStep::kRefine) {  // not launched: launch it now
         cmap = arena.push_bottom<int>(static_cast<std::size_t>(g.n));
-        if (!cmap) return false;  // the arena cannot hold this level
+        if (!cmap) return false;
         launch_refine_begin(g, P, lvl, uit, cmap, opt, plan);
         c    = readback();  // SL2
         step = level_step(phase, C, g.n, c.n_next, -1, reentry, lvl, dp_);
       }
       if (step == LevelStep::kReenterTop || step == LevelStep::kPieces) {
         arena.release_top();
-        arena.bottom = mark;  // drop the speculative level
+        arena.restore(mark);  // drop the speculative level
         if (step == LevelStep::kReenterTop) {
           ++reentry;
           phase = kPhaseTop;
@@ -668,8 +672,8 @@ class LeidenDriver {
         step             = level_step(phase, C, g.n, c.n_next, pieces, reentry, lvl, dp_);
         if (step == LevelStep::kOutputPieces) {  // uncertified
           RAFT_CUDA_TRY(cudaMemcpyAsync(P, cmap, g.n * sizeof(int), cudaMemcpyDeviceToDevice, s_));
-          arena.bottom = mark;
-          idb          = g.n;
+          arena.restore(mark);
+          idb = g.n;
           ++stat.levels;
           break;
         }

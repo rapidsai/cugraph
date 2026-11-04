@@ -5,12 +5,11 @@
 #pragma once
 
 // Workspace layout, carved from one device buffer per call (the caller allocates
-// workspace_bytes(p) bytes; nothing else is allocated): control, cub, phase (Move / Refine /
-// Aggregate / Final buffers, aliased: disjoint lifetimes), persist (partitions, K_S), level0
-// (offsets, int32 index copy, W0q, k_hat), union (replicas) and the arena (levels from the
-// bottom, the holey contraction output from the top). A level that does not fit ends the call;
-// the caller repeats it on a larger arena. The layout never reaches a decision, so every layout
-// gives the bitwise identical result.
+// workspace_bytes(p) bytes): control, cub, phase (Move / Refine / Aggregate / Final buffers,
+// aliased: disjoint lifetimes), persist (partitions, K_S), level0 (offsets, int32 index copy, W0q,
+// k_hat), union (replicas) and the arena's region (cmap_0). The arena grows by device blocks of
+// the current RMM memory resource as the levels need them (LevelArena). The layout never reaches
+// a decision, so every layout gives the bitwise identical result.
 
 #include "community/detail/leiden/numerics.cuh"
 
@@ -18,12 +17,17 @@
 
 #include <raft/util/cuda_rt_essentials.hpp>
 
+#include <rmm/device_buffer.hpp>
+
 #include <cub/device/device_radix_sort.cuh>
 #include <cub/device/device_scan.cuh>
 #include <cub/device/device_segmented_sort.cuh>
+#include <cuda/stream>
 
 #include <algorithm>
 #include <cstring>
+#include <exception>
+#include <vector>
 
 namespace cugraph::detail::leiden_engine {
 
@@ -125,18 +129,15 @@ struct Carver {
 };
 
 struct LayoutParams {
-  i64 n               = 0;  // level-0 vertices (one copy)
-  i64 nnz             = 0;  // stored entries of the input
-  WKind wkind         = WKind::F32;
-  bool idx64_input    = false;  // int64 indices: int32 level-0 copy
-  int replicas        = 1;
-  double arena_factor = 1.9;
-  i64 arena_entries   = -1;  // entries the arena is sized for (-1: nnz_union)
-  int subrounds       = kNumSubrounds;
+  i64 n            = 0;  // level-0 vertices (one copy)
+  i64 nnz          = 0;  // stored entries of the input
+  WKind wkind      = WKind::F32;
+  bool idx64_input = false;  // int64 indices: int32 level-0 copy
+  int replicas     = 1;
+  int subrounds    = kNumSubrounds;
 
   i64 n_union() const { return static_cast<i64>(replicas) * n; }
   i64 nnz_union() const { return static_cast<i64>(replicas) * nnz; }
-  i64 arena_nnz() const { return arena_entries < 0 ? nnz_union() : arena_entries; }
 
   void validate() const
   {
@@ -145,7 +146,6 @@ struct LayoutParams {
                     "leiden: replicas must be in [1, 4].");
     CUGRAPH_EXPECTS(n_union() < kMaxVertices,
                     "leiden: graph too large (replicas * n must be < 2^30).");
-    CUGRAPH_EXPECTS(arena_factor > 0.0, "leiden: arena_factor must be > 0.");
     CUGRAPH_EXPECTS(subrounds >= 1 && subrounds <= 64, "leiden: subrounds must be in [1, 64].");
   }
 };
@@ -366,79 +366,104 @@ struct UnionBufs {
   }
 };
 
-// Level stack + edge arena: 8 B per entry (index, weight) times arena_factor *
-// nnz_0, 24 B per vertex (offsets, k_hat, cmaps) and alignment slack.
-constexpr std::size_t kArenaEntryBytes  = 8;
-constexpr std::size_t kArenaVertexBytes = 24;
-constexpr std::size_t kArenaSlack       = kMaxLevels * 8 * kAlign;
-
-inline std::size_t arena_vertex_bytes(const LayoutParams& p)
-{
-  return kArenaVertexBytes * static_cast<std::size_t>(p.n_union()) + kArenaSlack;
-}
-
+// The arena's region in the workspace: cmap_0 (written before any block).
 inline std::size_t arena_bytes(const LayoutParams& p)
 {
-  const double rows = std::ceil(p.arena_factor * static_cast<double>(kArenaEntryBytes) *
-                                static_cast<double>(p.arena_nnz()));
-  return align_up(static_cast<std::size_t>(rows) + arena_vertex_bytes(p));
+  return align_up(sizeof(int) * static_cast<std::size_t>(p.n_union())) + kAlign;
 }
 
-// The arena factor under which `needed` arena bytes fit (for the rerun).
-inline double arena_required_factor(const LayoutParams& p, std::size_t needed)
-{
-  const double per = static_cast<double>(kArenaEntryBytes) * static_cast<double>(p.arena_nnz());
-  if (per <= 0.0) return p.arena_factor;
-  const double f = (static_cast<double>(needed) - static_cast<double>(arena_vertex_bytes(p))) / per;
-  return std::max(f, p.arena_factor);
-}
-
-// Host bookkeeping of the arena: bump pointers from the bottom (levels, reset
-// per iteration) and the top (holey rows); a carve that does not fit returns
-// nullptr and records the demand.
+// The level stack and the holey contraction output, bump-allocated on the host. A bottom carve
+// takes the region while it fits, else a block (at offsets >= cap, so marks stay comparable); the
+// top lives in blocks of its own. restore / release_top / reset free the blocks above; a reserve_*
+// hint sizes the next block for a group of carves (at least kAlign bytes); an empty carve takes no
+// space. Every level gets exactly what it needs, whatever the graph.
+//
+// The blocks come from the current RMM memory resource, stream-ordered on `stream`, the stream of
+// every kernel that uses them (so a freed block is reused only after that work). A carve whose
+// block cannot be allocated (whatever the memory resource throws) returns nullptr and keeps the
+// exception in `failed`. A block the level needs then ends the call, on every partition alike (no
+// rank may be left in a collective), and the drivers rethrow it; a block of a speculative
+// refinement that is dropped does not. reset() (at the start of every iteration) clears `failed`.
 struct LevelArena {
-  char* base           = nullptr;
-  std::size_t cap      = 0;
-  std::size_t bottom   = 0;
-  std::size_t top      = 0;
-  std::size_t required = 0;
+  char* base          = nullptr;
+  std::size_t cap     = 0;
+  std::size_t bottom  = 0;
+  cudaStream_t stream = nullptr;
+  std::exception_ptr failed{};  // the last block allocation that failed in this iteration
 
   void reset()
   {
-    bottom = 0;
-    top    = 0;
+    restore(0);
+    release_top();
+    failed = nullptr;
   }
-  bool fits(std::size_t extra_bottom, std::size_t extra_top) const
+  void restore(std::size_t mark)
   {
-    return align_up(bottom) + extra_bottom + align_up(top) + extra_top <= cap;
+    bottom = mark;
+    while (!bblocks_.empty() && bblocks_.back().at >= mark)
+      bblocks_.pop_back();
   }
+  void reserve_bottom(std::size_t bytes) { bnext_ = bytes; }
+  void reserve_top(std::size_t bytes) { tnext_ = bytes; }
 
   template <typename T>
   T* push_bottom(std::size_t count)
   {
     const std::size_t b = align_up(bottom), nb = count * sizeof(T);
-    if (b + nb + top > cap) {
-      note_overflow(b + nb + top);
-      return nullptr;
+    if (nb == 0) return reinterpret_cast<T*>(base);
+    if (b + nb <= cap) {
+      bottom = b + nb;
+      return reinterpret_cast<T*>(base + b);
     }
-    bottom = b + nb;
-    return reinterpret_cast<T*>(base + b);
+    if (!bblocks_.empty() && b >= bblocks_.back().at && b + nb <= bblocks_.back().end()) {
+      bottom = b + nb;
+      return reinterpret_cast<T*>(bblocks_.back().data() + (b - bblocks_.back().at));
+    }
+    std::size_t at = std::max(b, cap);
+    if (!bblocks_.empty()) at = std::max(at, align_up(bblocks_.back().end()));
+    const std::size_t size = std::max({nb, bnext_, kAlign});
+    bnext_                 = 0;
+    if (!grow(bblocks_, at, size)) return nullptr;
+    bottom = at + nb;
+    return reinterpret_cast<T*>(bblocks_.back().data());
   }
 
   template <typename T>
   T* push_top(std::size_t count)
   {
-    const std::size_t nt = align_up(top + count * sizeof(T));
-    if (align_up(bottom) + nt > cap) {
-      note_overflow(align_up(bottom) + nt);
-      return nullptr;
+    const std::size_t nt = align_up(count * sizeof(T));
+    if (nt == 0) return reinterpret_cast<T*>(base);
+    if (tblocks_.empty() || tblocks_.back().at + nt > tblocks_.back().buf.size()) {
+      const std::size_t size = std::max({nt, tnext_, kAlign});
+      tnext_                 = 0;
+      if (!grow(tblocks_, 0, size)) return nullptr;
     }
-    top = nt;
-    return reinterpret_cast<T*>(base + cap - nt);
+    Block& t = tblocks_.back();
+    t.at += nt;
+    return reinterpret_cast<T*>(t.data() + t.at - nt);
   }
-  void release_top() { top = 0; }
+  void release_top() { tblocks_.clear(); }
 
-  void note_overflow(std::size_t need) { required = std::max(required, need); }
+ private:
+  struct Block {
+    std::size_t at;  // bottom: offset of the block; top: bytes used
+    rmm::device_buffer buf;
+    char* data() { return static_cast<char*>(buf.data()); }
+    std::size_t end() const { return at + buf.size(); }
+  };
+  std::vector<Block> bblocks_, tblocks_;
+  std::size_t bnext_ = 0, tnext_ = 0;
+
+  bool grow(std::vector<Block>& blocks, std::size_t at, std::size_t size)
+  {
+    try {
+      blocks.push_back(Block{at, rmm::device_buffer(size, cuda::stream_ref{stream})});
+    } catch (...) {  // e.g. rmm::out_of_memory; a custom resource may throw anything
+      failed = std::current_exception();
+      return false;
+    }
+    return true;
+  }
 };
 
 struct Layout {

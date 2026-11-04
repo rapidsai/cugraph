@@ -66,15 +66,6 @@ inline int n_replicas(i64 nnz_counted,
 constexpr int kMaxParts = 32;
 static_assert(2 * (kMaxParts + 1) <= kScratchValues, "the A2 ranges must fit the control scratch");
 
-// Entries the arena of partition p (nnz_p of all nnz entries) is sized for,
-// times its arena factor. The root also holds levels >= 1: all of them. Any
-// other partition contracts its rows (A1) and merges the partial rows of its
-// 1/P of the coarse rows (A2 - A4), whatever its own share: at least nnz / P.
-inline i64 part_arena_entries(int p, int P, i64 nnz_p, i64 nnz)
-{
-  return p == 0 ? nnz : std::max(nnz_p, (nnz + P - 1) / P);
-}
-
 // Level 0 after I2 (+ I4), as produced by run_quantize (kernels_ingest.cuh).
 struct QuantizeResult {
   int s                        = 0;  // fixed-point scale exponent s(gamma)
@@ -111,13 +102,11 @@ struct EngineResult {
  * Runs the Leiden iterations and FINALIZE (exact Q, size-ordered labels) for one resolution on
  * the level-0 graph `q` carved in `L` (run_quantize must have run on `L`). Writes the int32 labels
  * of the n level-0 vertices to the device array `labels_out`. Every kernel and CUDA graph runs
- * on `stream`; nothing is allocated on the device.
- *
- * Returns false if a level did not fit into the level arena; L.arena.required then holds the
- * demand (see arena_required_factor) and the call can be repeated on a larger workspace with a
- * bitwise identical result.
+ * on `stream`. The levels above the first live in arena blocks of exactly their size from the
+ * current RMM memory resource, stream-ordered on `stream` (dropped levels free theirs, `L` the
+ * rest); a block that cannot be allocated ends the call with its allocation error.
  */
-bool run_engine(Layout& L,
+void run_engine(Layout& L,
                 QuantizeResult const& q,
                 EngineParams const& params,
                 double gamma,
@@ -134,18 +123,17 @@ using QuantizeFn = std::function<QuantizeResult(Layout&, double)>;
  * are driver_mg.cuh's RaftExchange). Rank r owns the rows [bounds[r], bounds[r + 1]) (bounds:
  * comm.get_size() + 1 entries from 0 to n, non-decreasing, multiples of 32 but the last; at most
  * kMaxParts ranks) and holds them, behind full-length offsets with global column ids, in `L`: its
- * own L.p.nnz entries, LayoutParams::arena_entries = part_arena_entries(r, ...), one replica and a
- * non-null L.pinned. `info` is the input check of the whole graph (with at least one counted
- * entry) and `quantize` runs I2 on L. Rank 0 runs the levels >= 1. Every rank receives the labels
- * of all n vertices in `labels_out` and the same `out`, the result of run_engine on the whole graph
- * (with one replica), bitwise.
+ * own L.p.nnz entries, one replica and a non-null L.pinned. `info` is the input check of the whole
+ * graph (with at least one counted entry) and `quantize` runs I2 on L. Rank 0 runs the levels
+ * >= 1. Every rank receives the labels of all n vertices in `labels_out` and the same `out`, the
+ * result of run_engine on the whole graph (with one replica), bitwise.
  *
- * Every rank returns the same value: false if a level did not fit into a level arena;
- * L.arena.required then holds this rank's demand (0 if its own arena fitted) for a rerun on larger
- * arenas.
+ * The arena blocks are allocated as in run_engine. A block that cannot be allocated ends the call
+ * on every rank (none is left in a collective): that rank throws its allocation error, the others
+ * a cugraph::logic_error.
  */
-bool run_engine_mg(raft::comms::comms_t const& comm,
-                   Layout& L,
+void run_engine_mg(raft::comms::comms_t const& comm,
+                   Layout L,
                    std::vector<i64> const& bounds,
                    IngestInfo const& info,
                    QuantizeFn const& quantize,

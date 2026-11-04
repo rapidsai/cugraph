@@ -7,6 +7,7 @@ import cupy as cp
 import numpy as np
 import pandas as pd
 import pytest
+import rmm
 
 from pylibcugraph import (
     SGGraph,
@@ -65,6 +66,17 @@ def create_graph(srcs, dsts, weights=None, vertex_dtype=np.int32):
     return resource_handle, G
 
 
+def karate_graph():
+    pdf = pd.read_csv(
+        utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv",
+        delimiter=" ",
+        header=None,
+        names=["src", "dst", "weight"],
+        dtype={"src": "int32", "dst": "int32", "weight": "float32"},
+    )
+    return create_graph(pdf["src"], pdf["dst"], pdf["weight"])
+
+
 def check_result(result, expected_clusters, expected_modularity):
     vertices, clusters, modularity = result
     assert vertices.get().tolist() == list(range(len(expected_clusters)))
@@ -104,14 +116,7 @@ def test_sg_leiden_unweighted():
 
 @pytest.mark.parametrize("n_iterations", [1, 2, -1])
 def test_sg_leiden_karate(n_iterations):
-    pdf = pd.read_csv(
-        utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv",
-        delimiter=" ",
-        header=None,
-        names=["src", "dst", "weight"],
-        dtype={"src": "int32", "dst": "int32", "weight": "float32"},
-    )
-    resource_handle, G = create_graph(pdf["src"], pdf["dst"], pdf["weight"])
+    resource_handle, G = karate_graph()
     vertices, clusters, modularity = leiden(
         resource_handle, 0, G, n_iterations=n_iterations
     )
@@ -119,6 +124,45 @@ def test_sg_leiden_karate(n_iterations):
     if n_iterations == 2:
         assert clusters.get().tolist() == _karate_partition
         assert float(modularity).hex() == _karate_modularity_hex
+
+
+def test_sg_leiden_out_of_memory():
+    # The engine allocates the levels above the first as it builds them, with
+    # its workspace allocated, so one of them reaches the peak of the call: one
+    # byte below the smallest memory limit the call fits in, that allocation
+    # fails. The call raises the memory resource's error and frees everything
+    # it allocated; the next call is unaffected.
+    resource_handle, G = karate_graph()
+    upstream = rmm.mr.get_current_device_resource()
+
+    def run(limit):
+        # host copies of the result: its device arrays (CuPy may allocate them
+        # through RMM) are freed before the caller counts what `mr` still holds
+        mr = rmm.mr.LimitingResourceAdaptor(upstream, allocation_limit=limit)
+        rmm.mr.set_current_device_resource(mr)
+        try:
+            _, clusters, modularity = leiden(resource_handle, 0, G)
+            return (clusters.get().tolist(), float(modularity).hex()), mr
+        except (RuntimeError, MemoryError) as error:
+            return error, mr
+        finally:
+            rmm.mr.set_current_device_resource(upstream)
+
+    lo, hi = 0, 1 << 30  # the call fails under a limit of lo bytes, fits in hi
+    while hi - lo > 1:
+        mid = (lo + hi) // 2
+        result, _ = run(mid)
+        lo, hi = (mid, hi) if isinstance(result, Exception) else (lo, mid)
+    result, mr = run(hi)
+    assert result == (_karate_partition, _karate_modularity_hex)
+    assert mr.get_allocated_bytes() == 0
+    error, mr = run(hi - 1)
+    assert isinstance(error, RuntimeError)
+    assert "Exceeded memory limit" in str(error)
+    assert mr.get_allocated_bytes() == 0
+    _, clusters, modularity = leiden(resource_handle, 0, G)
+    assert clusters.get().tolist() == _karate_partition
+    assert float(modularity).hex() == _karate_modularity_hex
 
 
 def test_sg_leiden_deterministic():

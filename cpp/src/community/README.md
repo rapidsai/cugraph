@@ -99,10 +99,14 @@ The implementation:
    bitwise results and checks it on every architecture CI runs on.
  * **Edge semantics.** The graph must be symmetric (the data is checked). Weights must be finite and non-negative.
    Self-loops and zero-weight edges are ignored; parallel edges are summed (fp64, in ascending order of their weights).
- * **Memory and launches.** One workspace allocation per call (about 2.7x the CSR with int32 ids and float weights);
-   nothing is allocated inside the iterations. Most kernels run as CUDA graphs (built once per call, replayed with
-   updated arguments; with CUDA >= 12.4 the local-moving sweeps run in a conditional WHILE node), and the stream is
-   synchronized a few times per level.
+ * **Memory and launches.** Level 0 lives in one workspace allocation per call. The coarser levels and the contraction
+   rows take blocks of exactly their size from the current RMM memory resource as the levels are built (about 30 per
+   call on k-NN graphs) and free them as levels are dropped, so the peak is what the graph needs (about 2.5x the CSR
+   with int32 ids and float weights on k-NN graphs). Use a pooling or stream-ordered memory resource (an RMM pool,
+   `cuda_async_memory_resource`): with plain `cudaMalloc` every freed block synchronizes the device, and a call on a
+   k-NN graph takes about 1.7x as long as with a pool. Most kernels run as CUDA graphs (built once per call, replayed
+   with updated arguments; with CUDA >= 12.4 the local-moving sweeps run in a conditional WHILE node), and the stream
+   is synchronized a few times per level.
  * **Multi-GPU.** Level 0 is split by rows: every GPU stores only the edges of its vertex range (with replicated
    per-vertex state) and the GPUs exchange each local-moving sub-round's moves, the refinement's per-vertex values and
    the exact partial rows of the contraction; the levels above the first run on rank 0, which therefore needs about the

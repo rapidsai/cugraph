@@ -18,6 +18,8 @@
 
 #include <raft/util/cuda_rt_essentials.hpp>
 
+#include <exception>
+#include <utility>
 #include <vector>
 
 namespace cugraph::detail::leiden_engine {
@@ -43,7 +45,7 @@ DriverParams driver_params(EngineParams const& params, Layout const& L)
 
 }  // namespace
 
-bool run_engine(Layout& L,
+void run_engine(Layout& L,
                 QuantizeResult const& q,
                 EngineParams const& params,
                 double gamma,
@@ -53,22 +55,25 @@ bool run_engine(Layout& L,
                 EngineResult& out)
 {
   DriverParams const dp = driver_params(params, L);
+  L.arena.stream        = stream;
 
-  return run_synced(stream, [&] {
+  run_synced(stream, [&] {
     LeidenDriver drv(L, dp, stream);
     drv.set_level0(q, L.p.n, L.p.nnz);
     ResolutionResult r;
-    if (!drv.run_resolution(gamma, seed, L.p.replicas, labels_out, r)) return false;
+    if (!drv.run_resolution(gamma, seed, L.p.replicas, labels_out, r)) {
+      CUGRAPH_EXPECTS(L.arena.failed != nullptr, "leiden: internal error: the engine stopped.");
+      std::rethrow_exception(L.arena.failed);  // an arena block was not allocated
+    }
     out.modularity     = r.modularity;
     out.n_clusters     = r.n_clusters;
     out.num_iterations = static_cast<i64>(r.iters.size());
     out.num_levels     = r.iters.empty() ? 0 : static_cast<i64>(r.iters.back().levels);
-    return true;
   });
 }
 
-bool run_engine_mg(raft::comms::comms_t const& comm,
-                   Layout& L,
+void run_engine_mg(raft::comms::comms_t const& comm,
+                   Layout L,
                    std::vector<i64> const& bounds,
                    IngestInfo const& info,
                    QuantizeFn const& quantize,
@@ -82,21 +87,23 @@ bool run_engine_mg(raft::comms::comms_t const& comm,
   DriverParams const dp = driver_params(params, L);
   int const P           = comm.get_size();
   int const rank        = comm.get_rank();
+  i64 const n           = L.p.n;
   CUGRAPH_EXPECTS(P <= kMaxParts && bounds.size() == static_cast<std::size_t>(P) + 1 &&
-                    bounds[0] == 0 && bounds[P] == L.p.n && L.p.replicas == 1 &&
-                    L.pinned != nullptr && info.n_counted > 0,
+                    bounds[0] == 0 && bounds[P] == n && L.p.replicas == 1 && L.pinned != nullptr &&
+                    info.n_counted > 0,
                   "leiden: internal error: invalid partitioned run.");
 
   std::vector<Part> parts(1);  // this rank's partition
   Part& part  = parts[0];
   part.global = rank;
   RAFT_CUDA_TRY(cudaGetDevice(&part.device));
-  part.s      = stream;
-  part.pinned = L.pinned;
-  part.L      = L;
-  part.v0     = bounds[rank];
-  part.v1     = bounds[rank + 1];
-  part.nnz    = L.p.nnz;
+  part.s              = stream;
+  part.pinned         = L.pinned;
+  part.v0             = bounds[rank];
+  part.v1             = bounds[rank + 1];
+  part.nnz            = L.p.nnz;
+  part.L              = std::move(L);
+  part.L.arena.stream = stream;
   RaftExchange ex(comm, stream);
   DriverInput in;
   in.info       = info;
@@ -104,18 +111,18 @@ bool run_engine_mg(raft::comms::comms_t const& comm,
   in.seeds      = {seed};
   in.labels_out = labels_out;
   DriverResult res;
-  bool const ok = run_synced(stream, [&] {
-    PartitionedDriver drv(parts, ex, dp, L.p.n, bounds);
-    return drv.run(in, [&](Part& p, double g) { return quantize(p.L, g); }, res);
+  run_synced(stream, [&] {
+    PartitionedDriver drv(parts, ex, dp, n, bounds);
+    if (drv.run(in, [&](Part& p, double g) { return quantize(p.L, g); }, res)) return;
+    // an arena block was not allocated, on this rank or another (every rank stops here)
+    if (part.L.arena.failed) std::rethrow_exception(part.L.arena.failed);
+    CUGRAPH_FAIL("leiden: an arena block could not be allocated on another rank.");
   });
-  // the demand of an arena that overflowed, for the caller's rerun
-  L.arena = part.L.arena;
-  if (!ok) return false;
 
   // The labels (written on the root) and the levels of the last iteration (the root ran those
   // above level 0) to every rank.
   void* labels[] = {labels_out};
-  ex.bcast(0, labels, L.p.n * static_cast<i64>(sizeof(int)));
+  ex.bcast(0, labels, n * static_cast<i64>(sizeof(int)));
   ResolutionResult const& r = res.res.back();
   i64 const levels          = r.iters.empty() ? 0 : static_cast<i64>(r.iters.back().levels);
   std::vector<i64> all_levels(static_cast<std::size_t>(P));
@@ -124,7 +131,6 @@ bool run_engine_mg(raft::comms::comms_t const& comm,
   out.n_clusters     = r.n_clusters;
   out.num_iterations = static_cast<i64>(r.iters.size());
   out.num_levels     = all_levels[0];
-  return true;
 }
 
 }  // namespace cugraph::detail::leiden_engine

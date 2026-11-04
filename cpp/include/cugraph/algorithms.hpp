@@ -710,13 +710,17 @@ struct leiden_result_t {
  * degrees nor to the modularity). Parallel edges are summed (in fp64, in a canonical order). If
  * @p edge_weight_view is std::nullopt, every edge has weight 1.
  *
- * Memory and launches: one workspace allocation per call from the current RMM device memory
- * resource (about 2.7x the size of the CSR with int32 ids and float weights), plus 4 KB of
- * control scalars; nothing is allocated inside the iterations. A graph with parallel edges or
- * unsorted rows is first copied into a canonical CSR. The kernels run on the stream of
- * @p handle, most of them as CUDA graphs; the stream is synchronized a few times per level to read
- * back control scalars (through a pinned buffer of cugraph::host_staging_buffer_manager when it is
- * initialized).
+ * Memory and launches: all memory comes from the current RMM device memory resource,
+ * stream-ordered on the stream of @p handle. Level 0 lives in one workspace allocation per call,
+ * plus 4 KB of control scalars; the coarser levels and the contraction rows take blocks of exactly
+ * their size as the levels are built (about 30 per call on k-NN graphs) and free them as levels
+ * are dropped, so the peak is what the graph needs (about 2.5x the size of the CSR with int32 ids
+ * and float weights on k-NN graphs). Use a pooling or stream-ordered memory resource (an RMM pool,
+ * cuda_async_memory_resource): with plain cudaMalloc every freed block synchronizes the device and
+ * a call takes about 1.7x as long. A graph with parallel edges or unsorted rows is first copied
+ * into a canonical CSR. The kernels run on the stream of @p handle, most of them as CUDA graphs;
+ * the stream is synchronized a few times per level to read back control scalars (through a pinned
+ * buffer of cugraph::host_staging_buffer_manager when it is initialized).
  *
  * Multi-GPU: the first level is split by rows over the ranks: every rank stores only the edges of
  * its vertex partition range (plus per-vertex state of the whole graph) and the ranks exchange
@@ -727,7 +731,9 @@ struct leiden_result_t {
  * rank. The seed is taken from rank 0, so the result is identical on every rank and bitwise
  * identical to the single-GPU result on the same (internal) vertex ids, for any number of GPUs.
  *
- * @throws cugraph::logic_error when an error occurs (invalid input or parameters).
+ * @throws cugraph::logic_error when an error occurs (invalid input or parameters). An allocation
+ * that fails raises the memory resource's error (e.g. rmm::out_of_memory); in a multi-GPU run with
+ * the first level split by rows, the other ranks then raise cugraph::logic_error.
  *
  * @tparam vertex_t   Type of vertex identifiers. Supported: int32_t, int64_t. The number of
  *                    vertices must be < 2^30 - 1.

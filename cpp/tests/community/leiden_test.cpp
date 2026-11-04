@@ -365,8 +365,7 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
     // Determinism: the same seed gives the identical clustering and the bitwise identical
     // modularity, also with every layout of the engine: each kernel launch mode (0: plain stream
     // launches, 1: CUDA graph replays, the path of CUDA < 12.4; the default 2 runs the
-    // local-moving sweeps in a conditional WHILE node where supported), and a level arena too small
-    // for the first level (the engine reruns on a larger one).
+    // local-moving sweeps in a conditional WHILE node where supported).
     {
       auto [labels2, result2] = run_leiden<vertex_t, edge_t, weight_t>(
         handle, graph_view, edge_weight_view, params, uint64_t{42});
@@ -381,11 +380,10 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
         weights = raft::device_span<weight_t const>(edge_weight_view->value_firsts()[0],
                                                     partition.indices().size());
       }
-      for (auto const& options : {cugraph::detail::leiden_layout_options_t{0, 1.9},
-                                  cugraph::detail::leiden_layout_options_t{1, 1.9},
-                                  cugraph::detail::leiden_layout_options_t{2, 0.01}}) {
-        SCOPED_TRACE("graph_mode " + std::to_string(options.graph_mode) + ", arena_factor " +
-                     std::to_string(options.arena_factor));
+      for (auto const& options : {cugraph::detail::leiden_layout_options_t{0},
+                                  cugraph::detail::leiden_layout_options_t{1},
+                                  cugraph::detail::leiden_layout_options_t{2}}) {
+        SCOPED_TRACE("graph_mode " + std::to_string(options.graph_mode));
         rmm::device_uvector<vertex_t> d_labels3(graph_view.number_of_vertices(),
                                                 handle.get_stream());
         auto const result3 = cugraph::detail::leiden_csr<vertex_t, edge_t, weight_t>(

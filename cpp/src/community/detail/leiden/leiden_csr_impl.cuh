@@ -44,23 +44,16 @@
 #include <numeric>
 #include <optional>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace cugraph {
 namespace detail {
 
-// Workspace sizing: the level arena holds arena_factor * 8 B per input entry
-// (leiden_layout_options_t::arena_factor, 1.9 by default, which fits every level of the k-NN
-// graphs we measured). A level that does not fit ends the engine call, which is then repeated on a
-// larger workspace (at most leiden_max_reruns times; the layout never reaches a decision, so every
-// rerun gives the bitwise identical result).
-constexpr double leiden_workspace_growth = 2.0;
-constexpr double leiden_required_slack   = 1.25;
-constexpr int leiden_max_reruns          = 6;
-
-// Layout, workspace (with the regrow retries), I2 (+ I4) and the engine on a CSR that passed I1
-// (`info`) as canonical and symmetric. <IP, IX, WI> are the types of the arrays the engine reads
-// at level 0 (the input CSR, or its canonicalized copy).
+// Layout, workspace, I2 (+ I4) and the engine on a CSR that passed I1 (`info`) as canonical and
+// symmetric. <IP, IX, WI> are the types of the arrays the engine reads at level 0 (the input CSR,
+// or its canonicalized copy). The levels above the first take arena blocks of exactly their size
+// from the current RMM memory resource while the engine runs (run_engine).
 template <typename IP, typename IX, typename WI, typename vertex_t>
 leiden_result_t leiden_level0(raft::handle_t const& handle,
                               uint32_t seed,
@@ -80,14 +73,13 @@ leiden_result_t leiden_level0(raft::handle_t const& handle,
   cudaStream_t const stream = handle.get_stream().get();
 
   le::LayoutParams p{};
-  p.n            = n;
-  p.nnz          = nnz;
-  int const s    = le::scale_for_gamma(le::scale_s0(info.n_counted, info.wmax), params.resolution);
-  p.wkind        = le::level0_kind(info.flags, weighted, std::is_same_v<WI, float>, s);
-  p.idx64_input  = !std::is_same_v<IX, int>;
-  p.replicas     = le::n_replicas(info.n_counted, n);
-  p.arena_factor = options.arena_factor;
-  p.subrounds    = le::kNumSubrounds;
+  p.n           = n;
+  p.nnz         = nnz;
+  int const s   = le::scale_for_gamma(le::scale_s0(info.n_counted, info.wmax), params.resolution);
+  p.wkind       = le::level0_kind(info.flags, weighted, std::is_same_v<WI, float>, s);
+  p.idx64_input = !std::is_same_v<IX, int>;
+  p.replicas    = le::n_replicas(info.n_counted, n);
+  p.subrounds   = le::kNumSubrounds;
 
   le::EngineParams ep{};
   ep.n_iterations = params.n_iterations;
@@ -96,56 +88,43 @@ leiden_result_t leiden_level0(raft::handle_t const& handle,
 
   // int32 labels of the engine: the output itself for int32 vertex ids, else a separate buffer.
   std::optional<rmm::device_uvector<int>> labels32_buffer{std::nullopt};
-  if constexpr (!std::is_same_v<vertex_t, int32_t>) {
+  int* labels32{nullptr};
+  if constexpr (std::is_same_v<vertex_t, int32_t>) {
+    labels32 = labels.data();
+  } else {
     labels32_buffer.emplace(n, handle.get_stream());
+    labels32 = labels32_buffer->data();
   }
 
-  for (int run = 0;; ++run) {
-    rmm::device_buffer workspace(le::workspace_bytes(p), handle.get_stream());
-    le::Layout L = le::make_layout(p, workspace.data());
-    L.pinned     = pinned;
+  rmm::device_buffer workspace(le::workspace_bytes(p), handle.get_stream());
+  le::Layout L = le::make_layout(p, workspace.data());
+  L.pinned     = pinned;
 
-    // I2 (+ I4): level 0 in the engine's internal form, quantised for this resolution.
-    auto const q = le::run_synced(stream, [&] {
-      return le::run_quantize<IP, IX, WI>(indptr,
-                                          indices,
-                                          data,
-                                          weighted,
-                                          n,
-                                          nnz,
-                                          true,
-                                          params.resolution,
-                                          info,
-                                          L,
-                                          le::ClassThresholds{},
-                                          stream);
-    });
+  // I2 (+ I4): level 0 in the engine's internal form, quantised for this resolution.
+  auto const q = le::run_synced(stream, [&] {
+    return le::run_quantize<IP, IX, WI>(indptr,
+                                        indices,
+                                        data,
+                                        weighted,
+                                        n,
+                                        nnz,
+                                        true,
+                                        params.resolution,
+                                        info,
+                                        L,
+                                        le::ClassThresholds{},
+                                        stream);
+  });
 
-    int* labels32{nullptr};
-    if constexpr (std::is_same_v<vertex_t, int32_t>) {
-      labels32 = labels.data();
-    } else {
-      labels32 = labels32_buffer->data();
-    }
-    le::EngineResult r{};
-    if (le::run_engine(L, q, ep, params.resolution, seed, labels32, stream, r)) {
-      if constexpr (!std::is_same_v<vertex_t, int32_t>) {
-        thrust::copy(handle.get_thrust_policy(), labels32, labels32 + n, labels.begin());
-      }
-      return leiden_result_t{static_cast<size_t>(r.n_clusters),
-                             r.modularity,
-                             static_cast<size_t>(r.num_iterations),
-                             static_cast<size_t>(r.num_levels)};
-    }
-    // A level did not fit into the level arena (rare): grow the arena (the workspace is released
-    // at the end of this iteration, before the next one allocates).
-    CUGRAPH_EXPECTS(run < leiden_max_reruns,
-                    "leiden: the level arena overflowed %d times in a row.",
-                    leiden_max_reruns + 1);
-    double const required = le::arena_required_factor(p, L.arena.required);
-    p.arena_factor =
-      std::max(leiden_workspace_growth * p.arena_factor, leiden_required_slack * required);
+  le::EngineResult r{};
+  le::run_engine(L, q, ep, params.resolution, seed, labels32, stream, r);
+  if constexpr (!std::is_same_v<vertex_t, int32_t>) {
+    thrust::copy(handle.get_thrust_policy(), labels32, labels32 + n, labels.begin());
   }
+  return leiden_result_t{static_cast<size_t>(r.n_clusters),
+                         r.modularity,
+                         static_cast<size_t>(r.num_iterations),
+                         static_cast<size_t>(r.num_levels)};
 }
 
 // Steps shared by the single-GPU and the multi-GPU paths: I1 (`ingest`), I1c (a canonical copy if
@@ -257,8 +236,6 @@ leiden_result_t leiden_csr(raft::handle_t const& handle,
                   "Invalid input argument: the edge weights do not match the edges.");
   CUGRAPH_EXPECTS(options.graph_mode >= 0 && options.graph_mode <= 2,
                   "Invalid input argument: graph_mode must be 0, 1 or 2.");
-  CUGRAPH_EXPECTS(options.arena_factor > 0.0 && std::isfinite(options.arena_factor),
-                  "Invalid input argument: arena_factor must be finite and > 0.");
   if (n == 0) return leiden_result_t{};
 
   cudaStream_t const stream = handle.get_stream().get();
@@ -311,12 +288,6 @@ leiden_result_t leiden_csr(raft::handle_t const& handle,
 // ---------------------------------------------------------------------------
 // Multi-GPU: level 0 split by rows over the ranks (leiden_coo_mg)
 // ---------------------------------------------------------------------------
-
-// Arena factor of the ranks other than 0 (rank 0 also runs the levels >= 1 and keeps
-// leiden_layout_options_t::arena_factor): each contracts its rows into exact int64 partial rows and
-// merges the partials of its share of the coarse rows, which needed 2.1 - 2.3 on the k-NN graphs
-// we measured.
-constexpr double leiden_part_arena_factor = 2.7;
 
 // I1 of this rank's rows, combined over the ranks into the I1 of the whole graph (flags or-ed,
 // w_max the maximum, counted entries and symmetry fingerprints summed; the fingerprints of one rank
@@ -390,7 +361,6 @@ leiden_result_t leiden_level0_mg(raft::handle_t const& handle,
   namespace le              = leiden_engine;
   auto& comm                = handle.get_comms();
   int const P               = comm.get_size();
-  int const rank            = comm.get_rank();
   cudaStream_t const stream = handle.get_stream().get();
   auto const counts         = host_scalar_allgather(comm, static_cast<size_t>(nnz), stream);
   std::vector<size_t> displs(P, 0);
@@ -426,15 +396,13 @@ leiden_result_t leiden_level0_mg(raft::handle_t const& handle,
   }
 
   le::LayoutParams p{};
-  p.n             = n;
-  p.nnz           = nnz;
-  int const s     = le::scale_for_gamma(le::scale_s0(info.n_counted, info.wmax), params.resolution);
-  p.wkind         = le::level0_kind(info.flags, weighted, std::is_same_v<WI, float>, s);
-  p.idx64_input   = !std::is_same_v<IX, int>;
-  p.replicas      = 1;
-  p.arena_factor  = rank == 0 ? options.arena_factor : leiden_part_arena_factor;
-  p.arena_entries = le::part_arena_entries(rank, P, nnz, nnz_all);
-  p.subrounds     = le::kNumSubrounds;
+  p.n           = n;
+  p.nnz         = nnz;
+  int const s   = le::scale_for_gamma(le::scale_s0(info.n_counted, info.wmax), params.resolution);
+  p.wkind       = le::level0_kind(info.flags, weighted, std::is_same_v<WI, float>, s);
+  p.idx64_input = !std::is_same_v<IX, int>;
+  p.replicas    = 1;
+  p.subrounds   = le::kNumSubrounds;
 
   le::EngineParams ep{};
   ep.n_iterations = params.n_iterations;
@@ -459,44 +427,41 @@ leiden_result_t leiden_level0_mg(raft::handle_t const& handle,
     labels32 = labels32_buffer->data();
   }
 
-  for (int run = 0;; ++run) {
-    // A workspace allocation that fails fails on every rank (none may be left in a collective).
-    std::optional<rmm::device_buffer> workspace{std::nullopt};
-    std::exception_ptr failed{nullptr};
-    try {
-      workspace.emplace(le::workspace_bytes(p), handle.get_stream());
-    } catch (...) {
-      failed = std::current_exception();
-    }
-    auto const failures =
-      host_scalar_allreduce(comm, failed ? int{1} : int{0}, raft::comms::op_t::SUM, stream);
-    if (failed) std::rethrow_exception(failed);
-    CUGRAPH_EXPECTS(failures == 0, "leiden: the workspace allocation failed on another rank.");
-    le::Layout L = le::make_layout(p, workspace->data());
-    L.pinned     = pinned;
-
-    le::EngineResult r{};
-    if (le::run_engine_mg(
-          comm, L, part_bounds, info, quantize, ep, params.resolution, seed, labels32, stream, r)) {
-      if constexpr (!std::is_same_v<vertex_t, int32_t>) {
-        thrust::copy(handle.get_thrust_policy(), labels32, labels32 + n, labels.begin());
-      }
-      return leiden_result_t{static_cast<size_t>(r.n_clusters),
-                             r.modularity,
-                             static_cast<size_t>(r.num_iterations),
-                             static_cast<size_t>(r.num_levels)};
-    }
-    // A level did not fit into a level arena (rare; every rank reruns): grow the arenas that
-    // overflowed.
-    CUGRAPH_EXPECTS(run < leiden_max_reruns,
-                    "leiden: the level arena overflowed %d times in a row.",
-                    leiden_max_reruns + 1);
-    if (L.arena.required > 0) {
-      double const required = le::arena_required_factor(p, L.arena.required);
-      p.arena_factor =
-        std::max(leiden_workspace_growth * p.arena_factor, leiden_required_slack * required);
-    }
+  // A workspace allocation that fails fails on every rank (none may be left in a collective; the
+  // arena blocks fail alike inside run_engine_mg).
+  std::optional<rmm::device_buffer> workspace{std::nullopt};
+  std::exception_ptr failed{nullptr};
+  try {
+    workspace.emplace(le::workspace_bytes(p), handle.get_stream());
+  } catch (...) {
+    failed = std::current_exception();
   }
+  auto const failures =
+    host_scalar_allreduce(comm, failed ? int{1} : int{0}, raft::comms::op_t::SUM, stream);
+  if (failed) std::rethrow_exception(failed);
+  CUGRAPH_EXPECTS(failures == 0, "leiden: the workspace allocation failed on another rank.");
+  le::Layout L = le::make_layout(p, workspace->data());
+  L.pinned     = pinned;
+
+  le::EngineResult r{};
+  le::run_engine_mg(comm,
+                    std::move(L),
+                    part_bounds,
+                    info,
+                    quantize,
+                    ep,
+                    params.resolution,
+                    seed,
+                    labels32,
+                    stream,
+                    r);
+  if constexpr (!std::is_same_v<vertex_t, int32_t>) {
+    thrust::copy(handle.get_thrust_policy(), labels32, labels32 + n, labels.begin());
+  }
+  return leiden_result_t{static_cast<size_t>(r.n_clusters),
+                         r.modularity,
+                         static_cast<size_t>(r.num_iterations),
+                         static_cast<size_t>(r.num_levels)};
 }
 
 // leiden_coo_mg packs an edge (src, dst) into one 64-bit sort key; n < 2^30.
@@ -564,8 +529,6 @@ leiden_result_t leiden_coo_mg(raft::handle_t const& handle,
                     "the last).");
   CUGRAPH_EXPECTS(options.graph_mode >= 0 && options.graph_mode <= 2,
                   "Invalid input argument: graph_mode must be 0, 1 or 2.");
-  CUGRAPH_EXPECTS(options.arena_factor > 0.0 && std::isfinite(options.arena_factor),
-                  "Invalid input argument: arena_factor must be finite and > 0.");
   if (n == 0) return leiden_result_t{};
 
   auto const nnz = srcs.size();

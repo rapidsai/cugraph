@@ -37,17 +37,13 @@ constexpr int32_t leiden_max_iterations = int32_t{1} << 16;  // exclusive
 
 /**
  * @brief Layout options of the engine. They never change the result (the kernels, their
- * arguments and every decision are the same); tests use them to cover every launch and memory
- * path.
+ * arguments and every decision are the same); tests use them to cover every launch path.
  */
 struct leiden_layout_options_t {
   /// How the engine launches its kernels: 0 plain stream launches, 1 CUDA graph replays, 2 CUDA
   /// graph replays with the local-moving sweeps in a conditional WHILE node (CUDA >= 12.4; falls
   /// back to 1 where unsupported).
   int graph_mode{2};
-  /// Initial size of the level arena, in units of 8 bytes per stored entry. A level that does not
-  /// fit makes the engine rerun on a larger arena.
-  double arena_factor{1.9};
 };
 
 /**
@@ -124,7 +120,7 @@ leiden_result_t leiden_csr(raft::handle_t const& handle,
  * @param weights       Weights of this rank's edges (std::nullopt on every rank: unit weights).
  * @param labels        Output, n entries on every rank (see leiden_csr()).
  * @param params        Algorithm parameters.
- * @param options       Layout options (see leiden_csr()); rank 0 sizes its arena by arena_factor.
+ * @param options       Layout options (see leiden_csr()).
  * @return Result summary (the same on every rank).
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
