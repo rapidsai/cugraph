@@ -102,7 +102,7 @@ struct EdgeW<WKind::UNIT> {
   __device__ __forceinline__ i64 cs(i64) const { return q; }
 };
 
-constexpr int kScaleBudgetLog2   = 58;  // 2m_hat <= 2^58 (1 + 2^-27)
+constexpr int kScaleBudgetLog2   = 58;  // 2m_hat <= 2^58 (1 + 2^-53) + nnz_c (max(1, rint))
 constexpr int kF32ScaleMin       = -126;
 constexpr int kF32ScaleMax       = 127;
 constexpr double kGammaHeadroom  = 16.0;

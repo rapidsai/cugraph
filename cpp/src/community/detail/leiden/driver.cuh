@@ -163,11 +163,11 @@ __global__ void drv_slice_flags_kernel(
   }
 }
 
-__global__ void drv_slice_relabel_kernel(const int* __restrict__ P_in,
+__global__ void drv_slice_relabel_kernel(const int* P_in,
                                          i64 n,
                                          i64 C,
                                          const int* __restrict__ rank,
-                                         int* __restrict__ P_out,
+                                         int* P_out,  // may be P_in
                                          Control* ctl)
 {
   const i64 stride = static_cast<i64>(gridDim.x) * blockDim.x;

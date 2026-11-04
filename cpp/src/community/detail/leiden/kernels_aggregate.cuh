@@ -588,18 +588,13 @@ struct CoarseLevel {
   bool ok        = true;  // false: a block was not allocated (LevelArena::failed)
 };
 
+// at every use: a device reset drops the opt-in (CUDA 12)
 template <WKind K, typename OW>
 inline void agg_block_smem_optin()
 {
-  static thread_local u64 done = 0;  // bit d: set on device d (< 64)
-  const int dev                = device_info().device;
-  const u64 bit                = dev < 64 ? 1ull << dev : 0;
-  if (!(done & bit)) {
-    RAFT_CUDA_TRY(cudaFuncSetAttribute(agg_gather_block_kernel<K, OW>,
-                                       cudaFuncAttributeMaxDynamicSharedMemorySize,
-                                       static_cast<int>(kAggBlockSmem)));
-    done |= bit;
-  }
+  RAFT_CUDA_TRY(cudaFuncSetAttribute(agg_gather_block_kernel<K, OW>,
+                                     cudaFuncAttributeMaxDynamicSharedMemorySize,
+                                     static_cast<int>(kAggBlockSmem)));
 }
 
 // The gather classes over device-resident counts; the block class runs on 1024
