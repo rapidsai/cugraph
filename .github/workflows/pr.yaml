@@ -447,6 +447,8 @@ jobs:
       build_type: pull-request
       script: ci/test_wheel_cugraph.sh
       matrix_type: pull-request,wsl-pr
+      # NCCL allocates a ~68 MB proxy ops pool in /dev/shm; Docker defaults to 64 MB.
+      container-options: "--shm-size=1g"
     permissions:
       actions: read
       contents: read
