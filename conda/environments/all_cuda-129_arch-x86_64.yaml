@@ -5,7 +5,6 @@ channels:
 - rapidsai
 - conda-forge
 dependencies:
-- aiohttp
 - breathe>=4.35.0
 - c-compiler
 - certifi

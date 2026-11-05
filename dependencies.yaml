@@ -501,7 +501,6 @@ dependencies:
           - &numpy numpy>=2.0,<3.0
       - output_types: conda
         packages:
-          - aiohttp
           - fsspec>=0.6.0
           - requests
           - nccl>=2.19
