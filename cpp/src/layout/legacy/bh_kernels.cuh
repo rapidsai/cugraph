@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -259,7 +259,7 @@ __global__ static __launch_bounds__(THREADS2,
 
             ch = childd[n * 4 + j];
 
-            if (r <= 1e-10) break;
+            if (r <= 1e-10f) break;
           }
 
           // Add new body
@@ -628,10 +628,10 @@ __global__ static __launch_bounds__(THREADS6, FACTOR6) void apply_forces_bh(
 
     // Update positions
     float mobility_factor = vertex_mobility ? vertex_mobility[i] : 1.0f;
-    float factor          = speed / (1.0 + sqrt(speed * swinging[i]));
+    float factor          = speed / (1.0f + sqrtf(speed * swinging[i]));
 
     if (prevent_overlapping) {
-      factor   = 0.1 * factor;
+      factor   = 0.1f * factor;
       float df = sqrt(dx * dx + dy * dy + FLT_EPSILON);
       factor   = min(factor * df, 10.0f) / df;
     }

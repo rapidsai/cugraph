@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -48,12 +48,13 @@ __global__ static void attraction_kernel(const vertex_t* restrict row,
       float radius_src  = vertex_radius[src];
       float radius_dst  = vertex_radius[dst];
       float distance_sq = x_dist * x_dist + y_dist * y_dist;
-      if (distance_sq <= pow(radius_src + radius_dst, 2)) {
+      float radius_sum  = radius_src + radius_dst;
+      if (distance_sq <= radius_sum * radius_sum) {
         // Overlapping, force is 0
         continue;
       } else {
         // Not overlapping, force is based on d' instead of d
-        float distance = pow(x_dist, 2) + pow(y_dist, 2);
+        float distance = x_dist * x_dist + y_dist * y_dist;
         distance += FLT_EPSILON;
         distance             = sqrt(distance);
         float distance_inter = distance - radius_src - radius_dst;
@@ -65,7 +66,7 @@ __global__ static void attraction_kernel(const vertex_t* restrict row,
       }
     } else {
       if (lin_log_mode) {
-        float distance = pow(x_dist, 2) + pow(y_dist, 2);
+        float distance = x_dist * x_dist + y_dist * y_dist;
         distance += FLT_EPSILON;
         distance = sqrt(distance);
         factor *= log(1 + distance) / distance;
@@ -221,8 +222,12 @@ __global__ static void local_speed_kernel(const float* restrict repel_x,
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
     const float dx      = repel_x[i] + attract_x[i];
     const float dy      = repel_y[i] + attract_y[i];
-    float node_swinging = mass[i] * sqrt(pow(old_dx[i] - dx, 2) + pow(old_dy[i] - dy, 2));
-    float node_traction = 0.5 * mass[i] * sqrt(pow(old_dx[i] + dx, 2) + pow(old_dy[i] + dy, 2));
+    const float sx      = old_dx[i] - dx;
+    const float sy      = old_dy[i] - dy;
+    const float tx      = old_dx[i] + dx;
+    const float ty      = old_dy[i] + dy;
+    float node_swinging = mass[i] * sqrtf(sx * sx + sy * sy);
+    float node_traction = 0.5f * mass[i] * sqrtf(tx * tx + ty * ty);
     swinging[i]         = node_swinging;
     traction[i]         = node_traction;
   }
@@ -313,10 +318,10 @@ __global__ static void update_positions_kernel(float* restrict x_pos,
     const float dx              = (repel_x[i] + attract_x[i]);
     const float dy              = (repel_y[i] + attract_y[i]);
 
-    float factor = speed / (1.0 + sqrt(speed * swinging[i]));
+    float factor = speed / (1.0f + sqrtf(speed * swinging[i]));
 
     if (prevent_overlapping) {
-      factor   = 0.1 * factor;
+      factor   = 0.1f * factor;
       float df = sqrt(dx * dx + dy * dy + FLT_EPSILON);
       factor   = min(factor * df, 10.0f) / df;
     }
