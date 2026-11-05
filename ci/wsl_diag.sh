@@ -26,11 +26,14 @@ echo "=== 2. MG fixture with NCCL_DEBUG=INFO"
 NCCL_DEBUG=INFO timeout 900 "${PYTEST[@]}" -x --tb=long -s "$T/link_analysis/test_pagerank_mg.py::test_pagerank_non_convergence"
 nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv
 
+df -h /dev/shm
 echo "=== 3. MG fixture with NCCL_CUMEM_ENABLE=0"
 NCCL_CUMEM_ENABLE=0 NCCL_DEBUG=INFO timeout 900 "${PYTEST[@]}" -x --tb=long -s "$T/link_analysis/test_pagerank_mg.py::test_pagerank_non_convergence"
 
 echo "=== 4. MG fixture then SG connectivity in one session"
 timeout 1800 "${PYTEST[@]}" --tb=line "$T/link_analysis/test_pagerank_mg.py::test_pagerank_non_convergence" "$T/components/test_connectivity.py"
+echo "=== 5. MG fixture (NCCL_CUMEM_ENABLE=0) then SG connectivity in one session"
+NCCL_CUMEM_ENABLE=0 timeout 1800 "${PYTEST[@]}" --tb=line "$T/link_analysis/test_pagerank_mg.py" "$T/components/test_connectivity.py"
 ps aux | grep -iE "dask|python" | grep -v grep | head -20
 nvidia-smi
 exit 0
