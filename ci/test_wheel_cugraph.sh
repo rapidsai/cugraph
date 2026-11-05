@@ -28,4 +28,4 @@ rapids-pip-retry install \
     "${LIBCUGRAPH_WHEELHOUSE}"/libcugraph*.whl \
     "${PIP_INSTALL_ARGS[@]}"
 
-./ci/wsl_diag.sh
+./ci/test_wheel.sh cugraph
