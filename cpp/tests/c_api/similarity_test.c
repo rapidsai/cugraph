@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -433,16 +433,16 @@ int test_weighted_cosine()
 {
   size_t num_edges    = 16;
   size_t num_vertices = 7;
-  size_t num_pairs    = 2;
+  size_t num_pairs    = 3;
 
   vertex_t h_src[] = {0, 1, 2, 0, 1, 2, 3, 3, 3, 4, 4, 4, 0, 5, 2, 6};
   vertex_t h_dst[] = {3, 3, 3, 4, 4, 4, 0, 1, 2, 0, 1, 2, 5, 0, 6, 2};
   weight_t h_wgt[] = {
     0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.5, 4.0, 4.0};
 
-  vertex_t h_first[]  = {0, 0};
-  vertex_t h_second[] = {1, 2};
-  weight_t h_result[] = {0.990830, 0.976187};
+  vertex_t h_first[]  = {0, 0, 5};
+  vertex_t h_second[] = {1, 2, 6};
+  weight_t h_result[] = {0.990830, 0.976187, 0.0};
 
   return generic_similarity_test(h_src,
                                  h_dst,
