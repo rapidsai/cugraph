@@ -501,17 +501,8 @@ dependencies:
           - &numpy numpy>=2.0,<3.0
       - output_types: conda
         packages:
-          - fsspec>=0.6.0
           - requests
           - nccl>=2.19
-      - output_types: [pyproject, requirements]
-        packages:
-          # cudf uses fsspec but is protocol independent. cugraph
-          # dataset APIs require [http] extras for use with cudf.
-          - fsspec[http]>=0.6.0
-      - output_types: constraints
-        packages:
-          - fsspec>=0.6.0
     specific:
       - output_types: [conda, requirements, pyproject, constraints]
         matrices:
