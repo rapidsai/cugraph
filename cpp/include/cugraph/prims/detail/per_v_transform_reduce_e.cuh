@@ -3079,13 +3079,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             auto const& output_buffer = edge_partition_major_output_buffers[j];
             max_size                  = std::max(max_size, size_dataframe_buffer(output_buffer));
           }
-#if 1  // FIXME: we should add host_allreduce to raft
-          max_size = host_scalar_allreduce(
-            minor_comm, max_size, raft::comms::op_t::MAX, handle.get_stream());
-#else
-          minor_comm.host_allreduce(
-            std::addressof(max_size), std::addressof(max_size), size_t{1}, raft::comms::op_t::MAX);
-#endif
           tx_buf_size_per_rank = raft::round_up_safe(max_size, alignment);
         }
 

@@ -356,7 +356,7 @@ void update_edge_major_property(
               if constexpr (contains_packed_bool_element) {
                 auto rx_value = static_cast<bool>(*(rx_value_first + packed_bool_offset(i)) &
                                                   packed_bool_mask(i));
-                packe_bool_atomic_set(edge_partition_value_first, edge_partition_offset, rx_value);
+                packed_bool_atomic_set(edge_partition_value_first, edge_partition_offset, rx_value);
               } else {
                 auto rx_value                                         = *(rx_value_first + i);
                 *(edge_partition_value_first + edge_partition_offset) = rx_value;

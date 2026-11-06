@@ -699,7 +699,7 @@ class kv_cuco_store_t {
       // now perform assigns (for k,v pairs that failed to insert)
 
       rmm::device_uvector<size_t> kv_indices(num_keys, stream);
-      cugraph::sequence(rmm::exec_policy(), kv_indices.begin(), kv_indices.end(), size_t{0});
+      cugraph::sequence(rmm::exec_policy(stream), kv_indices.begin(), kv_indices.end(), size_t{0});
       auto pair_first = thrust::make_zip_iterator(store_value_offsets.begin(), kv_indices.begin());
       kv_indices.resize(
         cuda::std::distance(
