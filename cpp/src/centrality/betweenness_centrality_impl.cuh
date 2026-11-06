@@ -596,6 +596,8 @@ batch_partition_frontier(raft::handle_t const& handle,
                           count_first,
                           count_first + num_batches,
                           source_lasts->begin());
+      // lower_bound stops short of num_sources when max_pushes is a multiple of num_batches.
+      source_lasts->set_element_async(num_batches - 1, num_sources, handle.get_stream());
     }
   }
 
@@ -669,7 +671,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
 
   // Use 2D arrays to track per-source distances and sigmas
   // Layout: [source_idx * local_vertex_partition_range_size + v_offset]
-  auto local_vertex_partition_range_size = graph_view.local_vertex_partition_range_size();
+  auto local_vertex_partition_range_size =
+    static_cast<size_t>(graph_view.local_vertex_partition_range_size());
   auto num_sources = static_cast<size_t>(cuda::std::distance(sources_first, sources_last));
 
   CUGRAPH_EXPECTS(
@@ -898,8 +901,6 @@ void multisource_backward_pass(
   CUGRAPH_EXPECTS(
     num_sources <= std::numeric_limits<origin_t>::max(),
     "Number of sources exceeds maximum value for origin_t (uint16_t), would cause overflow");
-
-  cugraph::fill(handle.get_thrust_policy(), centralities.begin(), centralities.end(), weight_t{0});
 
   rmm::device_uvector<weight_t> delta_buffer(num_sources * local_vertex_partition_range_size,
                                              handle.get_stream());
