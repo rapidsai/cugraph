@@ -10,6 +10,7 @@
 #include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/vertex_property_device_view.cuh>
 
 #include <raft/core/handle.hpp>
 
@@ -18,7 +19,6 @@
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
-#include <thrust/iterator/iterator_traits.h>
 #include <thrust/reduce.h>
 
 namespace CUGRAPH_EXPORT cugraph {
@@ -30,15 +30,14 @@ namespace CUGRAPH_EXPORT cugraph {
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam ReduceOp Type of the binary reduction operator.
- * @tparam VertexValueInputIterator Type of the iterator for vertex property values.
+ * @tparam VertexValueInputWrapper Type of the wrapper for vertex property values.
  * @tparam T Type of the initial value. T should be an arithmetic type or cuda::std::tuple of
  * arithmetic types.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param vertex_value_input_first Iterator pointing to the vertex property values for the first
- * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
- * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().
+ * @param vertex_value_input Wrapper used to access vertex property values (for the vertices
+ * assigned to this process in multi-GPU).
  * @param init Initial value to be reduced with the reduced input vertex property values.
  * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
  * There are pre-defined reduction operators in include/cugraph/prims/reduce_op.cuh. It is
@@ -49,24 +48,25 @@ namespace CUGRAPH_EXPORT cugraph {
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return T Reduced input vertex property values.
  */
-template <typename GraphViewType, typename ReduceOp, typename VertexValueInputIterator, typename T>
+template <typename GraphViewType, typename ReduceOp, typename VertexValueInputWrapper, typename T>
 T reduce_v(raft::handle_t const& handle,
            GraphViewType const& graph_view,
-           VertexValueInputIterator vertex_value_input_first,
+           VertexValueInputWrapper vertex_value_input,
            T init,
            ReduceOp reduce_op,
            bool do_expensive_check = false)
 {
   using vertex_t = typename GraphViewType::vertex_type;
 
-  static_assert(
-    std::is_same_v<
-      std::remove_cv_t<typename thrust::iterator_traits<VertexValueInputIterator>::value_type>,
-      std::remove_cv_t<T>>);
+  static_assert(std::is_same_v<std::remove_cv_t<typename VertexValueInputWrapper::value_type>,
+                               std::remove_cv_t<T>>);
 
   if (do_expensive_check) {
     // currently, nothing to do
   }
+
+  auto vertex_value_input_device_view = detail::vertex_property_device_view_t{vertex_value_input};
+  auto value_first                    = vertex_value_input_device_view.value_first();
 
   if (graph_view.number_of_vertices() == vertex_t{0}) { return init; }
 
@@ -74,10 +74,7 @@ T reduce_v(raft::handle_t const& handle,
   if constexpr (std::is_same_v<ReduceOp, reduce_op::any<T>>) {  // return the first element
     if (graph_view.local_vertex_partition_range_size() > vertex_t{0}) {
       rmm::device_scalar<T> tmp(handle.get_stream());
-      thrust::copy(handle.get_thrust_policy(),
-                   vertex_value_input_first,
-                   vertex_value_input_first + size_t{1},
-                   tmp.data());
+      thrust::copy(handle.get_thrust_policy(), value_first, value_first + size_t{1}, tmp.data());
       ret = tmp.value(handle.get_stream());
     }
     if constexpr (GraphViewType::is_multi_gpu) {
@@ -103,9 +100,8 @@ T reduce_v(raft::handle_t const& handle,
         } else if (local_reduction_size > vertex_t{0}) {  // use the last element as local_init
           rmm::device_scalar<T> tmp(handle.get_stream());
           thrust::copy(handle.get_thrust_policy(),
-                       vertex_value_input_first +
-                         (graph_view.local_vertex_partition_range_size() - vertex_t{1}),
-                       vertex_value_input_first + graph_view.local_vertex_partition_range_size(),
+                       value_first + (graph_view.local_vertex_partition_range_size() - vertex_t{1}),
+                       value_first + graph_view.local_vertex_partition_range_size(),
                        tmp.data());
           local_init = tmp.value(handle.get_stream());
           --local_reduction_size;
@@ -119,8 +115,8 @@ T reduce_v(raft::handle_t const& handle,
 
     if (local_init) {
       local_result = thrust::reduce(handle.get_thrust_policy(),
-                                    vertex_value_input_first,
-                                    vertex_value_input_first + local_reduction_size,
+                                    value_first,
+                                    value_first + local_reduction_size,
                                     *local_init,
                                     reduce_op);
     }
@@ -173,23 +169,22 @@ T reduce_v(raft::handle_t const& handle,
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam ReduceOp Type of the binary reduction operator.
- * @tparam VertexValueInputIterator Type of the iterator for vertex property values.
+ * @tparam VertexValueInputWrapper Type of the wrapper for vertex property values.
  * @tparam T Type of the initial value. T should be an arithmetic type or cuda::std::tuple of
  * arithmetic types.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param vertex_value_input_first Iterator pointing to the vertex property values for the first
- * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
- * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().
+ * @param vertex_value_input Wrapper used to access vertex property values (for the vertices
+ * assigned to this process in multi-GPU).
  * @param init Initial value to be added to the reduced input vertex property values.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return T Reduced input vertex property values.
  */
-template <typename GraphViewType, typename VertexValueInputIterator, typename T>
+template <typename GraphViewType, typename VertexValueInputWrapper, typename T>
 T reduce_v(raft::handle_t const& handle,
            GraphViewType const& graph_view,
-           VertexValueInputIterator vertex_value_input_first,
+           VertexValueInputWrapper vertex_value_input,
            T init,
            bool do_expensive_check = false)
 {
@@ -197,7 +192,7 @@ T reduce_v(raft::handle_t const& handle,
     // currently, nothing to do
   }
 
-  return reduce_v(handle, graph_view, vertex_value_input_first, init, reduce_op::plus<T>{});
+  return reduce_v(handle, graph_view, vertex_value_input, init, reduce_op::plus<T>{});
 }
 
 /**
@@ -206,32 +201,30 @@ T reduce_v(raft::handle_t const& handle,
  * This function is inspired by thrust::reduce().
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam VertexValueInputIterator Type of the iterator for vertex property values.
+ * @tparam VertexValueInputWrapper Type of the wrapper for vertex property values.
  * @tparam T Type of the initial value. T should be an arithmetic type or cuda::std::tuple of
  * arithmetic types.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param vertex_value_input_first Iterator pointing to the vertex property values for the first
- * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
- * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().
+ * @param vertex_value_input Wrapper used to access vertex property values (for the vertices
+ * assigned to this process in multi-GPU).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Reduced input vertex property values.
  */
-template <typename GraphViewType, typename VertexValueInputIterator>
+template <typename GraphViewType, typename VertexValueInputWrapper>
 auto reduce_v(raft::handle_t const& handle,
               GraphViewType const& graph_view,
-              VertexValueInputIterator vertex_value_input_first,
+              VertexValueInputWrapper vertex_value_input,
               bool do_expensive_check = false)
 {
-  using T =
-    std::remove_cv_t<typename thrust::iterator_traits<VertexValueInputIterator>::value_type>;
+  using T = std::remove_cv_t<typename VertexValueInputWrapper::value_type>;
 
   if (do_expensive_check) {
     // currently, nothing to do
   }
 
-  return reduce_v(handle, graph_view, vertex_value_input_first, T{}, reduce_op::plus<T>{});
+  return reduce_v(handle, graph_view, vertex_value_input, T{}, reduce_op::plus<T>{});
 }
 
 }  // namespace CUGRAPH_EXPORT cugraph

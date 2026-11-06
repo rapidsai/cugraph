@@ -13,6 +13,7 @@
 #include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 #include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/utilities/thrust_wrappers/unique.hpp>
+#include <cugraph/vertex_property.hpp>
 
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
@@ -265,6 +266,27 @@ class kv_binary_search_store_view_t {
                         store_key_first_, store_key_last_, store_value_first_, invalid_value_});
   }
 
+  template <typename GraphViewType,
+            typename QueryKeyIterator,
+            typename query_key_t,
+            typename ResultValueIterator,
+            typename result_value_t>
+  void find(
+    GraphViewType const& graph_view,
+    vertex_property_view_t<typename GraphViewType::vertex_type, QueryKeyIterator, query_key_t> keys,
+    vertex_property_view_t<typename GraphViewType::vertex_type, ResultValueIterator, result_value_t>
+      values,
+    cuda::stream_ref stream) const
+  {
+    CUGRAPH_EXPECTS(
+      keys.range_size() == graph_view.local_vertex_partition_range_size(),
+      "Invalid input arguments: keys.range_size() != local_vertex_partition_range_size().");
+    CUGRAPH_EXPECTS(
+      values.range_size() == graph_view.local_vertex_partition_range_size(),
+      "Invalid input arguments: values.range_size() != local_vertex_partition_range_size().");
+    find(keys.value_first(), keys.value_first() + keys.range_size(), values.value_first(), stream);
+  }
+
   template <typename QueryKeyIterator, typename ResultValueIterator>
   void contains(QueryKeyIterator key_first,
                 QueryKeyIterator key_last,
@@ -350,6 +372,27 @@ class kv_cuco_store_view_t {
                         indirection_if_idx_valid_t<size_t, decltype(store_value_first_)>{
                           store_value_first_, invalid_idx, invalid_value_});
     }
+  }
+
+  template <typename GraphViewType,
+            typename QueryKeyIterator,
+            typename query_key_t,
+            typename ResultValueIterator,
+            typename result_value_t>
+  void find(
+    GraphViewType const& graph_view,
+    vertex_property_view_t<typename GraphViewType::vertex_type, QueryKeyIterator, query_key_t> keys,
+    vertex_property_view_t<typename GraphViewType::vertex_type, ResultValueIterator, result_value_t>
+      values,
+    cuda::stream_ref stream) const
+  {
+    CUGRAPH_EXPECTS(
+      keys.range_size() == graph_view.local_vertex_partition_range_size(),
+      "Invalid input arguments: keys.range_size() != local_vertex_partition_range_size().");
+    CUGRAPH_EXPECTS(
+      values.range_size() == graph_view.local_vertex_partition_range_size(),
+      "Invalid input arguments: values.range_size() != local_vertex_partition_range_size().");
+    find(keys.value_first(), keys.value_first() + keys.range_size(), values.value_first(), stream);
   }
 
   template <typename QueryKeyIterator, typename ResultValueIterator>

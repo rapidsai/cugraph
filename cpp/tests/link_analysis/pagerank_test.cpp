@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -182,9 +182,9 @@ class Tests_PageRank
 
       d_personalization_vertices = cugraph::select_random_vertices(
         handle,
+        rng_state,
         graph_view,
         std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-        rng_state,
         std::max(
           static_cast<size_t>(graph_view.number_of_vertices() *
                               pagerank_usecase.personalization_ratio),
@@ -225,7 +225,7 @@ class Tests_PageRank
                             raft::device_span<result_t const>{d_personalization_values->data(),
                                                               d_personalization_values->size()}))
         : std::nullopt,
-      std::optional<raft::device_span<result_t const>>{std::nullopt},
+      std::optional<cugraph::vertex_property_t<vertex_t, result_t>>{std::nullopt},
       alpha,
       epsilon,
       std::numeric_limits<size_t>::max(),
@@ -243,10 +243,7 @@ class Tests_PageRank
           handle,
           graph_view,
           edge_weight_view,
-          d_renumber_map_labels
-            ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
-                                                                    (*d_renumber_map_labels).size())
-            : std::nullopt);
+          d_renumber_map_labels ? std::make_optional(d_renumber_map_labels->view()) : std::nullopt);
 
       std::optional<std::vector<vertex_t>> h_unrenumbered_personalization_vertices{std::nullopt};
       std::optional<std::vector<result_t>> h_unrenumbered_personalization_values{std::nullopt};
@@ -264,12 +261,11 @@ class Tests_PageRank
                            (*d_personalization_values).data(),
                            (*d_personalization_values).size(),
                            handle.get_stream());
-          cugraph::unrenumber_local_int_vertices(handle,
-                                                 d_unrenumbered_personalization_vertices.data(),
-                                                 d_unrenumbered_personalization_vertices.size(),
-                                                 (*d_renumber_map_labels).data(),
-                                                 vertex_t{0},
-                                                 graph_view.number_of_vertices());
+          d_unrenumbered_personalization_vertices = cugraph::unrenumber_local_int_vertices(
+            handle,
+            graph_view,
+            std::move(d_unrenumbered_personalization_vertices),
+            d_renumber_map_labels->view());
           std::tie(d_unrenumbered_personalization_vertices, d_unrenumbered_personalization_values) =
             cugraph::test::sort_by_key<vertex_t, result_t>(handle,
                                                            d_unrenumbered_personalization_vertices,
@@ -313,14 +309,15 @@ class Tests_PageRank
         false);
 
       std::vector<result_t> h_cugraph_pageranks{};
+      auto d_pagerank_values = d_pageranks.release_buffer();
       if (renumber) {
         rmm::device_uvector<result_t> d_unrenumbered_pageranks(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_pageranks) =
           cugraph::test::sort_by_key<vertex_t, result_t>(
-            handle, *d_renumber_map_labels, d_pageranks);
+            handle, d_renumber_map_labels->release_buffer(), d_pagerank_values);
         h_cugraph_pageranks = cugraph::test::to_host(handle, d_unrenumbered_pageranks);
       } else {
-        h_cugraph_pageranks = cugraph::test::to_host(handle, d_pageranks);
+        h_cugraph_pageranks = cugraph::test::to_host(handle, d_pagerank_values);
       }
 
       handle.sync_stream();

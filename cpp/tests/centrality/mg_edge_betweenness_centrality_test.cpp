@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "centrality/betweenness_centrality_validate.hpp"
@@ -88,9 +88,9 @@ class Tests_MGEdgeBetweennessCentrality
     raft::random::RngState rng_state(handle_->get_comms().get_rank());
     auto d_mg_seeds = cugraph::select_random_vertices(
       *handle_,
+      rng_state,
       mg_graph_view,
       std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-      rng_state,
       betweenness_usecase.num_seeds,
       false,
       true);
@@ -126,7 +126,7 @@ class Tests_MGEdgeBetweennessCentrality
           *handle_,
           mg_graph_view,
           std::make_optional(d_centralities.view()),
-          std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
 
       // Create SG graph so we can generate SG results
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
@@ -138,7 +138,7 @@ class Tests_MGEdgeBetweennessCentrality
           mg_edge_weight_view,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
           false);
 
       if (handle_->get_comms().get_rank() == 0) {
@@ -160,7 +160,8 @@ class Tests_MGEdgeBetweennessCentrality
             *handle_,
             sg_graph.view(),
             std::make_optional(d_sg_centralities.view()),
-            std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+            std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{
+              std::nullopt});
 
         cugraph::test::edge_betweenness_centrality_validate(*handle_,
                                                             d_cugraph_src_vertex_ids,

@@ -91,24 +91,29 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
 
     // 2. run MG SSSP
 
-    rmm::device_uvector<weight_t> d_mg_distances(mg_graph_view.local_vertex_partition_range_size(),
-                                                 handle_->get_stream());
-    rmm::device_uvector<vertex_t> d_mg_predecessors(
-      mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
       hr_timer.start("MG SSSP.");
     }
 
-    cugraph::sssp(*handle_,
-                  mg_graph_view,
-                  *mg_edge_weight_view,
-                  d_mg_distances.data(),
-                  d_mg_predecessors.data(),
-                  static_cast<vertex_t>(sssp_usecase.source),
-                  std::numeric_limits<weight_t>::max());
+    auto mg_source_vertex = static_cast<vertex_t>(sssp_usecase.source);
+    rmm::device_uvector<vertex_t> mg_frontier(
+      mg_graph_view.in_local_vertex_partition_range_nocheck(mg_source_vertex) ? size_t{1}
+                                                                              : size_t{0},
+      handle_->get_stream());
+    if (mg_frontier.size() > 0) {
+      raft::update_device(mg_frontier.data(), &mg_source_vertex, size_t{1}, handle_->get_stream());
+    }
+    auto [mg_distance_property, mg_predecessor_property] = cugraph::shortest_path(
+      *handle_,
+      mg_graph_view,
+      *mg_edge_weight_view,
+      raft::device_span<vertex_t const>(mg_frontier.data(), mg_frontier.size()),
+      std::numeric_limits<weight_t>::max(),
+      true);
+    auto d_mg_distances    = mg_distance_property.release_buffer();
+    auto d_mg_predecessors = mg_predecessor_property->release_buffer();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -122,24 +127,15 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
     if (sssp_usecase.check_correctness) {
       // 3-1. unrenumber & aggregate MG source & results
 
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        d_mg_predecessors.data(),
-        d_mg_predecessors.size(),
-        (*mg_renumber_map).data(),
-        mg_graph_view.vertex_partition_range_lasts());
+      d_mg_predecessors = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(d_mg_predecessors), mg_renumber_map->view());
 
       vertex_t sg_source{static_cast<vertex_t>(sssp_usecase.source)};
-      rmm::device_scalar<vertex_t> d_sg_source(sg_source, handle_->get_stream());
-      handle_->sync_stream();  // before sg_source goes out-of-scope (async H2D copy from
-                               // device_scalar ctor)
+      rmm::device_uvector<vertex_t> d_sg_source(size_t{1}, handle_->get_stream());
+      d_sg_source.set_element(0, sg_source, handle_->get_stream());
 
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        d_sg_source.data(),
-        size_t{1},
-        (*mg_renumber_map).data(),
-        mg_graph_view.vertex_partition_range_lasts());
+      d_sg_source = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(d_sg_source), mg_renumber_map->view());
 
       // 3-2. aggregate MG results
 
@@ -147,10 +143,9 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
       std::tie(std::ignore, d_mg_aggregate_distances) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
-          mg_graph_view.local_vertex_partition_range(),
-          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          mg_graph_view,
+          std::make_optional(mg_renumber_map->view()),
+          std::nullopt,
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           raft::device_span<weight_t const>(d_mg_distances.data(), d_mg_distances.size()));
 
@@ -158,10 +153,9 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
       std::tie(std::ignore, d_mg_aggregate_predecessors) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
-          mg_graph_view.local_vertex_partition_range(),
-          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          mg_graph_view,
+          std::make_optional(mg_renumber_map->view()),
+          std::nullopt,
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           raft::device_span<vertex_t const>(d_mg_predecessors.data(), d_mg_predecessors.size()));
 
@@ -174,8 +168,7 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
           mg_edge_weight_view,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
 
       if (handle_->get_comms().get_rank() == int{0}) {
@@ -187,18 +180,19 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
 
         ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
 
-        rmm::device_uvector<weight_t> d_sg_distances(
-          sg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
-        rmm::device_uvector<vertex_t> d_sg_predecessors(
-          sg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
-
-        cugraph::sssp(*handle_,
-                      sg_graph_view,
-                      *sg_edge_weight_view,
-                      d_sg_distances.data(),
-                      d_sg_predecessors.data(),
-                      d_sg_source.value(handle_->get_stream()),
-                      std::numeric_limits<weight_t>::max());
+        auto sg_source_vertex = d_sg_source.element(0, handle_->get_stream());
+        rmm::device_uvector<vertex_t> sg_frontier(size_t{1}, handle_->get_stream());
+        raft::update_device(
+          sg_frontier.data(), &sg_source_vertex, size_t{1}, handle_->get_stream());
+        auto [sg_distance_property, sg_predecessor_property] = cugraph::shortest_path(
+          *handle_,
+          sg_graph_view,
+          *sg_edge_weight_view,
+          raft::device_span<vertex_t const>(sg_frontier.data(), sg_frontier.size()),
+          std::numeric_limits<weight_t>::max(),
+          true);
+        auto d_sg_distances    = sg_distance_property.release_buffer();
+        auto d_sg_predecessors = sg_predecessor_property->release_buffer();
 
         // 3-5. compare
 

@@ -83,7 +83,7 @@ class Tests_MGTransformReduceV
     }
 
     cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> mg_renumber_map{std::nullopt};
     std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, true, true);
@@ -122,7 +122,7 @@ class Tests_MGTransformReduceV
         case reduction_type_t::PLUS:
           results[reduction_type] = transform_reduce_v(*handle_,
                                                        mg_graph_view,
-                                                       (*mg_renumber_map).begin(),
+                                                       mg_renumber_map->view(),
                                                        v_op,
                                                        property_initial_value,
                                                        cugraph::reduce_op::plus<result_t>{});
@@ -130,7 +130,7 @@ class Tests_MGTransformReduceV
         case reduction_type_t::MINIMUM:
           results[reduction_type] = transform_reduce_v(*handle_,
                                                        mg_graph_view,
-                                                       (*mg_renumber_map).begin(),
+                                                       mg_renumber_map->view(),
                                                        v_op,
                                                        property_initial_value,
                                                        cugraph::reduce_op::minimum<result_t>{});
@@ -138,7 +138,7 @@ class Tests_MGTransformReduceV
         case reduction_type_t::MAXIMUM:
           results[reduction_type] = transform_reduce_v(*handle_,
                                                        mg_graph_view,
-                                                       (*mg_renumber_map).begin(),
+                                                       mg_renumber_map->view(),
                                                        v_op,
                                                        property_initial_value,
                                                        cugraph::reduce_op::maximum<result_t>{});
@@ -165,8 +165,7 @@ class Tests_MGTransformReduceV
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
 
       if (handle_->get_comms().get_rank() == 0) {
@@ -176,31 +175,40 @@ class Tests_MGTransformReduceV
           result_t expected_result{};
           switch (reduction_type) {
             case reduction_type_t::PLUS:
-              expected_result = transform_reduce_v(
-                *handle_,
-                sg_graph_view,
-                thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-                v_op,
-                property_initial_value,
-                cugraph::reduce_op::plus<result_t>{});
+              expected_result =
+                transform_reduce_v(*handle_,
+                                   sg_graph_view,
+                                   cugraph::vertex_property_view_t{
+                                     thrust::make_counting_iterator(
+                                       sg_graph_view.local_vertex_partition_range_first()),
+                                     sg_graph_view.local_vertex_partition_range_size()},
+                                   v_op,
+                                   property_initial_value,
+                                   cugraph::reduce_op::plus<result_t>{});
               break;
             case reduction_type_t::MINIMUM:
-              expected_result = transform_reduce_v(
-                *handle_,
-                sg_graph_view,
-                thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-                v_op,
-                property_initial_value,
-                cugraph::reduce_op::minimum<result_t>{});
+              expected_result =
+                transform_reduce_v(*handle_,
+                                   sg_graph_view,
+                                   cugraph::vertex_property_view_t{
+                                     thrust::make_counting_iterator(
+                                       sg_graph_view.local_vertex_partition_range_first()),
+                                     sg_graph_view.local_vertex_partition_range_size()},
+                                   v_op,
+                                   property_initial_value,
+                                   cugraph::reduce_op::minimum<result_t>{});
               break;
             case reduction_type_t::MAXIMUM:
-              expected_result = transform_reduce_v(
-                *handle_,
-                sg_graph_view,
-                thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-                v_op,
-                property_initial_value,
-                cugraph::reduce_op::maximum<result_t>{});
+              expected_result =
+                transform_reduce_v(*handle_,
+                                   sg_graph_view,
+                                   cugraph::vertex_property_view_t{
+                                     thrust::make_counting_iterator(
+                                       sg_graph_view.local_vertex_partition_range_first()),
+                                     sg_graph_view.local_vertex_partition_range_size()},
+                                   v_op,
+                                   property_initial_value,
+                                   cugraph::reduce_op::maximum<result_t>{});
               break;
             default: FAIL() << "should not be reached.";
           }

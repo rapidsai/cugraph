@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -98,9 +98,9 @@ class Tests_SamplingHeterogeneousPostProcessing
         vertex_type_offsets.size() - 1, num_vertices, handle.get_stream());
       auto tmp = cugraph::select_random_vertices<vertex_t, edge_t, store_transposed, false>(
         handle,
+        rng_state,
         graph_view,
         std::nullopt,
-        rng_state,
         sampling_heterogeneous_post_processing_usecase.num_vertex_types - 1,
         false /* with_replacement */,
         true /* sort_vertices */);

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "structure/induced_subgraph_validate.hpp"
@@ -152,9 +152,9 @@ class Tests_InducedSubgraph
 
       auto vertices = cugraph::select_random_vertices(
         handle,
+        rng_state,
         graph_view,
         std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-        rng_state,
         (last - start),
         false,
         false);
@@ -194,7 +194,7 @@ class Tests_InducedSubgraph
         handle,
         graph_view,
         edge_weight_view,
-        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+        std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
 
       auto [h_reference_subgraph_edgelist_majors,
             h_reference_subgraph_edgelist_minors,

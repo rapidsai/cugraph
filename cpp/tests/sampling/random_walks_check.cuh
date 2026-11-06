@@ -32,13 +32,17 @@ void random_walks_validate(
   rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
   std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
 
-  std::tie(d_src, d_dst, d_wgt, std::ignore, std::ignore) = cugraph::decompress_to_edgelist(
+  std::vector<cugraph::arithmetic_device_uvector_t> edge_property_values{};
+  std::tie(d_src, d_dst, edge_property_values) = cugraph::decompress_to_edgelist(
     handle,
     graph_view,
-    edge_weight_view,
-    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-    std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-    std::optional<raft::device_span<vertex_t const>>{std::nullopt});
+    edge_weight_view
+      ? std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{*edge_weight_view}
+      : std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{},
+    std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
+  if (edge_weight_view) {
+    d_wgt = std::move(std::get<rmm::device_uvector<weight_t>>(edge_property_values[0]));
+  }
 
   if constexpr (multi_gpu) {
     d_src = cugraph::test::device_gatherv(

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "structure/induced_subgraph_impl.cuh"
@@ -30,6 +30,18 @@ extract_induced_subgraphs(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, false, true> const& graph_view,
   std::optional<edge_property_view_t<int32_t, double const*>> edge_weight_view,
+  raft::device_span<size_t const> subgraph_offsets,
+  raft::device_span<int32_t const> subgraph_vertices,
+  bool do_expensive_check);
+
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   std::vector<arithmetic_device_uvector_t>,
+                                   rmm::device_uvector<size_t>>
+extract_induced_subgraphs(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, false, true> const& graph_view,
+  std::vector<edge_arithmetic_property_view_t<int32_t>> const& edge_property_views,
   raft::device_span<size_t const> subgraph_offsets,
   raft::device_span<int32_t const> subgraph_vertices,
   bool do_expensive_check);

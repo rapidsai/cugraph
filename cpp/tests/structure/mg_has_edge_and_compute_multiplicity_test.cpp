@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -71,7 +71,7 @@ class Tests_MGHasEdgeAndComputeMultiplicity
     }
 
     cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> mg_renumber_map{std::nullopt};
     std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, false, true);
@@ -160,18 +160,10 @@ class Tests_MGHasEdgeAndComputeMultiplicity
     if (has_edge_and_compute_multiplicity_usecase.check_correctness) {
       // 4-1. aggregate MG results
 
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        d_mg_edge_srcs.data(),
-        d_mg_edge_srcs.size(),
-        (*mg_renumber_map).data(),
-        mg_graph_view.vertex_partition_range_lasts());
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        d_mg_edge_dsts.data(),
-        d_mg_edge_dsts.size(),
-        (*mg_renumber_map).data(),
-        mg_graph_view.vertex_partition_range_lasts());
+      d_mg_edge_srcs = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(d_mg_edge_srcs), mg_renumber_map->view());
+      d_mg_edge_dsts = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(d_mg_edge_dsts), mg_renumber_map->view());
 
       auto d_mg_aggregate_edge_srcs = cugraph::test::device_gatherv(
         *handle_, raft::device_span<vertex_t const>(d_mg_edge_srcs.data(), d_mg_edge_srcs.size()));
@@ -192,8 +184,7 @@ class Tests_MGHasEdgeAndComputeMultiplicity
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
 
       if (handle_->get_comms().get_rank() == 0) {

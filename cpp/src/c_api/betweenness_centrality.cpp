@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -95,35 +95,38 @@ struct betweenness_centrality_functor : public cugraph::c_api::abstract_functor 
                                           std::vector<cugraph::arithmetic_device_uvector_t>{});
         }
 
-        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+        local_vertices = cugraph::renumber_ext_vertices(
           handle_,
-          local_vertices.data(),
-          local_vertices.size(),
-          number_map->data(),
-          graph_view.local_vertex_partition_range_first(),
-          graph_view.local_vertex_partition_range_last(),
+          graph_view,
+          std::move(local_vertices),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
           do_expensive_check_);
 
         vertex_span =
           raft::device_span<vertex_t const>{local_vertices.data(), local_vertices.size()};
       }
 
-      auto centralities = cugraph::betweenness_centrality<vertex_t, edge_t, weight_t, multi_gpu>(
-        handle_,
-        graph_view,
-        (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
-        vertex_span,
-        normalized_,
-        include_endpoints_,
-        do_expensive_check_);
+      auto centralities =
+        cugraph::vertex_betweenness_centrality<vertex_t, edge_t, weight_t, multi_gpu>(
+          handle_,
+          graph_view,
+          (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
+          vertex_span,
+          normalized_,
+          include_endpoints_,
+          do_expensive_check_);
 
       rmm::device_uvector<vertex_t> vertex_ids(graph_view.local_vertex_partition_range_size(),
                                                handle_.get_stream());
       raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
 
+      auto centrality_values = centralities.release_buffer();
+
       result_ = new cugraph::c_api::cugraph_centrality_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(vertex_ids, graph_->vertex_type_),
-        new cugraph::c_api::cugraph_type_erased_device_array_t(centralities, graph_->weight_type_)};
+        new cugraph::c_api::cugraph_type_erased_device_array_t(centrality_values,
+                                                               graph_->weight_type_)};
     }
   }
 };
@@ -202,13 +205,12 @@ struct edge_betweenness_centrality_functor : public cugraph::c_api::abstract_fun
                                           std::vector<cugraph::arithmetic_device_uvector_t>{});
         }
 
-        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+        local_vertices = cugraph::renumber_ext_vertices(
           handle_,
-          local_vertices.data(),
-          local_vertices.size(),
-          number_map->data(),
-          graph_view.local_vertex_partition_range_first(),
-          graph_view.local_vertex_partition_range_last(),
+          graph_view,
+          std::move(local_vertices),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
           do_expensive_check_);
 
         vertex_span =
@@ -224,25 +226,29 @@ struct edge_betweenness_centrality_functor : public cugraph::c_api::abstract_fun
           normalized_,
           do_expensive_check_);
 
-      auto [src_ids, dst_ids, output_centralities, output_edge_ids, output_edge_types] =
-        cugraph::decompress_to_edgelist<vertex_t, edge_t, weight_t, int32_t, false, multi_gpu>(
+      std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>> edge_property_views{
+        centralities.view()};
+      if (edge_ids != nullptr) { edge_property_views.push_back(edge_ids->view()); }
+
+      auto [src_ids, dst_ids, edge_property_values] =
+        cugraph::decompress_to_edgelist<vertex_t, edge_t, false, multi_gpu>(
           handle_,
           graph_view,
-          std::make_optional(centralities.view()),
-          (edge_ids != nullptr) ? std::make_optional(edge_ids->view()) : std::nullopt,
-          std::nullopt,
-          (number_map != nullptr) ? std::make_optional(raft::device_span<vertex_t const>{
-                                      number_map->data(), number_map->size()})
-                                  : std::nullopt);
+          edge_property_views,
+          (number_map != nullptr)
+            ? std::make_optional(cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+                number_map->data(), static_cast<vertex_t>(number_map->size())))
+            : std::nullopt);
 
       result_ = new cugraph::c_api::cugraph_edge_centrality_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(src_ids, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(dst_ids, graph_->vertex_type_),
-        output_edge_ids ? new cugraph::c_api::cugraph_type_erased_device_array_t(*output_edge_ids,
-                                                                                 graph_->edge_type_)
-                        : nullptr,
-        new cugraph::c_api::cugraph_type_erased_device_array_t(*output_centralities,
-                                                               graph_->weight_type_)};
+        (edge_ids != nullptr)
+          ? new cugraph::c_api::cugraph_type_erased_device_array_t(
+              std::get<rmm::device_uvector<edge_t>>(edge_property_values[1]), graph_->edge_type_)
+          : nullptr,
+        new cugraph::c_api::cugraph_type_erased_device_array_t(
+          std::get<rmm::device_uvector<weight_t>>(edge_property_values[0]), graph_->weight_type_)};
     }
   }
 };

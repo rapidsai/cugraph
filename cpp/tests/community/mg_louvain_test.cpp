@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -62,7 +62,7 @@ class Tests_MGLouvain
     raft::handle_t const& handle,
     cugraph::graph_view_t<vertex_t, edge_t, false, true> const& mg_graph_view,
     std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> mg_edge_weight_view,
-    cugraph::Dendrogram<vertex_t> const& mg_dendrogram,
+    cugraph::dendrogram_t<vertex_t> const& mg_dendrogram,
     weight_t threshold,
     weight_t resolution,
     weight_t mg_modularity)
@@ -81,7 +81,7 @@ class Tests_MGLouvain
         mg_edge_weight_view,
         std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
         std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+        std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
         false);  // crate an SG graph with MG graph vertex IDs
 
     weight_t sg_modularity{-1.0};
@@ -98,36 +98,27 @@ class Tests_MGLouvain
        threshold,
        resolution,
        comm_rank](size_t i) {
-        rmm::device_uvector<vertex_t> d_mg_aggregate_cluster_v(0, handle.get_stream());
-        std::tie(std::ignore, d_mg_aggregate_cluster_v) =
-          cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
-            handle,
-            std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-            std::make_tuple(mg_dendrogram.get_level_first_index_nocheck(i),
-                            static_cast<vertex_t>(mg_dendrogram.get_level_first_index_nocheck(i) +
-                                                  mg_dendrogram.get_level_size_nocheck(i))),
-            std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-            std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-            raft::device_span<vertex_t const>(mg_dendrogram.get_level_ptr_nocheck(i),
-                                              mg_dendrogram.get_level_size_nocheck(i)));
+        auto d_mg_aggregate_cluster_v = cugraph::test::device_gatherv(
+          handle,
+          raft::device_span<vertex_t const>(mg_dendrogram.level_data(i).data(),
+                                            mg_dendrogram.level_size(i)));
 
         if (comm_rank == 0) {
           auto sg_graph_view = sg_graph.view();
           auto sg_edge_weight_view =
             sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
 
-          rmm::device_uvector<vertex_t> d_sg_cluster_v(sg_graph_view.number_of_vertices(),
-                                                       handle_->get_stream());
-
-          std::tie(std::ignore, sg_modularity) = cugraph::louvain(
+          auto [dendrogram, this_modularity] = cugraph::louvain_dendrogram(
             handle,
             std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
             sg_graph_view,
             sg_edge_weight_view,
-            d_sg_cluster_v.data(),
             size_t{1},
             threshold,
             resolution);
+          sg_modularity = this_modularity;
+          auto d_sg_cluster_v =
+            cugraph::flatten_dendrogram(handle, sg_graph_view, dendrogram, false).release_buffer();
 
           EXPECT_TRUE(cugraph::test::check_invertible(
             handle,
@@ -137,7 +128,12 @@ class Tests_MGLouvain
             << "(i = " << i << "), sg_modularity = " << sg_modularity;
 
           std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::coarsen_graph(
-            handle, sg_graph_view, sg_edge_weight_view, d_mg_aggregate_cluster_v.data(), false);
+            handle,
+            sg_graph_view,
+            sg_edge_weight_view,
+            cugraph::vertex_property_view_t<vertex_t, vertex_t const*>{
+              d_mg_aggregate_cluster_v.data(), sg_graph_view.local_vertex_partition_range_size()},
+            false);
         }
       });
 
@@ -184,14 +180,15 @@ class Tests_MGLouvain
       hr_timer.start("MG Louvain");
     }
 
-    auto [dendrogram, mg_modularity] = cugraph::louvain<vertex_t, edge_t, weight_t, true>(
-      *handle_,
-      std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
-      mg_graph_view,
-      mg_edge_weight_view,
-      louvain_usecase.max_level_,
-      static_cast<weight_t>(louvain_usecase.threshold_),
-      static_cast<weight_t>(louvain_usecase.resolution_));
+    auto [dendrogram, mg_modularity] =
+      cugraph::louvain_dendrogram<vertex_t, edge_t, weight_t, true>(
+        *handle_,
+        std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
+        mg_graph_view,
+        mg_edge_weight_view,
+        louvain_usecase.max_level_,
+        static_cast<weight_t>(louvain_usecase.threshold_),
+        static_cast<weight_t>(louvain_usecase.resolution_));
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -206,7 +203,7 @@ class Tests_MGLouvain
       compare_sg_results<vertex_t, edge_t, weight_t>(*handle_,
                                                      mg_graph_view,
                                                      mg_edge_weight_view,
-                                                     *dendrogram,
+                                                     dendrogram,
                                                      louvain_usecase.threshold_,
                                                      louvain_usecase.resolution_,
                                                      mg_modularity);

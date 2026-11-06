@@ -1,11 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
 #include <cugraph/edge_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/vertex_property.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/core/span.hpp>
@@ -24,7 +25,7 @@ void print_edges(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<raft::device_span<vertex_t const>> renumber_map);
+  std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>> renumber_map);
 
 }  // namespace test
 }  // namespace cugraph

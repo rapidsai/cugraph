@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -8,6 +8,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/vertex_property_device_view.cuh>
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
@@ -34,16 +35,16 @@ namespace CUGRAPH_EXPORT cugraph {
 namespace detail {
 
 template <typename vertex_t,
-          typename VertexValueInputIterator,
-          typename VertexValueOutputIterator,
+          typename VertexValueInputWrapper,
+          typename VertexValueOutputWrapper,
           typename VertexOp,
           typename key_t,
           typename payload_t>
 struct update_v_frontier_call_v_op_t {
-  VertexValueInputIterator vertex_value_input_first;
-  VertexValueOutputIterator vertex_value_output_first;
-  VertexOp v_op;
-  vertex_t local_vertex_partition_range_first;
+  VertexValueInputWrapper vertex_value_input{};
+  VertexValueOutputWrapper vertex_value_output{};
+  VertexOp v_op{};
+  vertex_t local_vertex_partition_range_first{};
 
   __device__ uint8_t operator()(cuda::std::tuple<key_t, payload_t> pair) const
   {
@@ -51,10 +52,13 @@ struct update_v_frontier_call_v_op_t {
     auto payload = cuda::std::get<1>(pair);
     auto v_offset =
       thrust_tuple_get_or_identity<key_t, 0>(key) - local_vertex_partition_range_first;
-    auto v_val       = *(vertex_value_input_first + v_offset);
+    auto v_val       = vertex_value_input.get(v_offset);
     auto v_op_result = v_op(key, v_val, payload);
-    if (cuda::std::get<1>(v_op_result)) {
-      *(vertex_value_output_first + v_offset) = *(cuda::std::get<1>(v_op_result));
+    if constexpr (!std::is_same_v<typename VertexValueOutputWrapper::value_type,
+                                  cuda::std::nullopt_t>) {
+      if (cuda::std::get<1>(v_op_result)) {
+        vertex_value_output.set(v_offset, *(cuda::std::get<1>(v_op_result)));
+      }
     }
     if (cuda::std::get<0>(v_op_result)) {
       assert(*(cuda::std::get<0>(v_op_result)) < std::numeric_limits<uint8_t>::max());
@@ -66,29 +70,32 @@ struct update_v_frontier_call_v_op_t {
 };
 
 template <typename vertex_t,
-          typename VertexValueInputIterator,
-          typename VertexValueOutputIterator,
+          typename VertexValueInputWrapper,
+          typename VertexValueOutputWrapper,
           typename VertexOp,
           typename key_t>
 struct update_v_frontier_call_v_op_t<vertex_t,
-                                     VertexValueInputIterator,
-                                     VertexValueOutputIterator,
+                                     VertexValueInputWrapper,
+                                     VertexValueOutputWrapper,
                                      VertexOp,
                                      key_t,
                                      void> {
-  VertexValueInputIterator vertex_value_input_first;
-  VertexValueOutputIterator vertex_value_output_first;
-  VertexOp v_op;
-  vertex_t local_vertex_partition_range_first;
+  VertexValueInputWrapper vertex_value_input{};
+  VertexValueOutputWrapper vertex_value_output{};
+  VertexOp v_op{};
+  vertex_t local_vertex_partition_range_first{};
 
   __device__ uint8_t operator()(key_t key) const
   {
     auto v_offset =
       thrust_tuple_get_or_identity<key_t, 0>(key) - local_vertex_partition_range_first;
-    auto v_val       = *(vertex_value_input_first + v_offset);
+    auto v_val       = vertex_value_input.get(v_offset);
     auto v_op_result = v_op(key, v_val);
-    if (cuda::std::get<1>(v_op_result)) {
-      *(vertex_value_output_first + v_offset) = *(cuda::std::get<1>(v_op_result));
+    if constexpr (!std::is_same_v<typename VertexValueOutputWrapper::value_type,
+                                  cuda::std::nullopt_t>) {
+      if (cuda::std::get<1>(v_op_result)) {
+        vertex_value_output.set(v_offset, *(cuda::std::get<1>(v_op_result)));
+      }
     }
     if (cuda::std::get<0>(v_op_result)) {
       assert(*(cuda::std::get<0>(v_op_result)) < std::numeric_limits<uint8_t>::max());
@@ -124,8 +131,8 @@ struct check_invalid_bucket_idx_t {
  * @tparam PayloadBuffer Type of the buffer storing payload values.
  * @tparam VertexFrontierType Type of the vertex frontier class which abstracts vertex frontier
  * managements.
- * @tparam VertexValueInputIterator Type of the iterator for input vertex property values.
- * @tparam VertexValueOutputIterator Type of the iterator for output vertex property variables.
+ * @tparam VertexValueInputWrapper Type of the wrapper for input vertex property values.
+ * @tparam VertexValueOutputWrapper Type of the wrapper for output vertex property values.
  * @tparam VertexOp Type of the ternary vertex operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -137,29 +144,30 @@ struct check_invalid_bucket_idx_t {
  * includes multiple bucket objects.
  * @param next_frontier_bucket_indices Indices of the vertex frontier buckets to store new frontier
  * (tagged-)vertices.
- * @param vertex_value_input_first Iterator pointing to the vertex property values for the first
- * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
- * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().
- * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
- * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
- * (exclusive) is deduced as @p vertex_value_output_first + @p
- * graph_view.local_vertex_partition_range_size().
- * @param v_op Ternary operator that takes (tagged-)vertex ID, *(@p vertex_value_input_first + i)
- * (where i is [0, @p graph_view.local_vertex_partition_range_size())) and the payload value for the
- * (tagged-)vertex ID and returns a tuple of 1) a cuda::std::optional object optionally storing a
- * bucket index and 2) a cuda::std::optional object optionally storing a new vertex property value.
- * If the first element of the returned tuple is cuda::std::nullopt, this (tagged-)vertex won't be
- * inserted to the vertex frontier. If the second element is cuda::std::nullopt, the vertex property
- * value for this vertex won't be updated. Note that it is currently undefined behavior if there are
- * multiple tagged-vertices with the same vertex ID (but with different tags) AND @p v_op results on
- * the tagged-vertices with the same vertex ID have more than one valid new vertex property values.
+ * @param vertex_value_input Wrapper used to access input vertex property values (for the vertices
+ * assigned to this process in multi-GPU). Use `vertex_property_t::view()` or
+ * `vertex_dummy_property_t::view()` (if @p v_op does not access input vertex property values).
+ * @param vertex_value_output Wrapper used to store output vertex property values (for the vertices
+ * assigned to this process in multi-GPU). Use `vertex_property_t::mutable_view()` or
+ * `vertex_dummy_property_t::view()` (if vertex property values are not updated).
+ * @param v_op Ternary operator that takes (tagged-)vertex ID, the input vertex property value for
+ * the vertex (or `cuda::std::nullopt` if @p vertex_value_input is
+ * `vertex_dummy_property_t::view()`), and the payload value for the (tagged-)vertex ID and returns
+ * a tuple of 1) a cuda::std::optional object optionally storing a bucket index and 2) a
+ * cuda::std::optional object optionally storing a new vertex property value. If the first element
+ * of the returned tuple is cuda::std::nullopt, this (tagged-)vertex won't be inserted to the vertex
+ * frontier. If the second element is cuda::std::nullopt, or @p vertex_value_output is
+ * `vertex_dummy_property_t::view()`, the vertex property value for this vertex won't be updated.
+ * Note that it is currently undefined behavior if there are multiple tagged-vertices with the same
+ * vertex ID (but with different tags) AND @p v_op results on the tagged-vertices with the same
+ * vertex ID have more than one valid new vertex property values.
  */
 template <typename GraphViewType,
           typename KeyBuffer,
           typename PayloadBuffer,
           typename VertexFrontierType,
-          typename VertexValueInputIterator,
-          typename VertexValueOutputIterator,
+          typename VertexValueInputWrapper,
+          typename VertexValueOutputWrapper,
           typename VertexOp>
 void update_v_frontier(raft::handle_t const& handle,
                        GraphViewType const& graph_view,
@@ -167,11 +175,11 @@ void update_v_frontier(raft::handle_t const& handle,
                        PayloadBuffer&& payload_buffer,
                        VertexFrontierType& frontier,
                        raft::host_span<size_t const> next_frontier_bucket_indices,
-                       VertexValueInputIterator vertex_value_input_first,
+                       VertexValueInputWrapper vertex_value_input,
                        // FIXME: currently, it is undefined behavior if there are more than one @p
                        // key_buffer elements with the same vertex ID and the same vertex property
                        // value is updated by multiple @p v_op invocations with the same vertex ID.
-                       VertexValueOutputIterator vertex_value_output_first,
+                       VertexValueOutputWrapper vertex_value_output,
                        VertexOp v_op,
                        bool do_expensive_check = false)
 {
@@ -180,6 +188,18 @@ void update_v_frontier(raft::handle_t const& handle,
     typename thrust::iterator_traits<decltype(get_dataframe_buffer_begin(key_buffer))>::value_type;
   using payload_t = typename thrust::iterator_traits<decltype(get_dataframe_buffer_begin(
     payload_buffer))>::value_type;
+  using vertex_value_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename VertexValueInputWrapper::value_type, cuda::std::nullopt_t>,
+    detail::vertex_dummy_property_device_view_t<vertex_t>,
+    detail::vertex_property_device_view_t<vertex_t,
+                                          typename VertexValueInputWrapper::value_iterator,
+                                          typename VertexValueInputWrapper::value_type>>;
+  using vertex_value_output_device_view_t = std::conditional_t<
+    std::is_same_v<typename VertexValueOutputWrapper::value_type, cuda::std::nullopt_t>,
+    detail::vertex_dummy_property_device_view_t<vertex_t>,
+    detail::vertex_property_device_view_t<vertex_t,
+                                          typename VertexValueOutputWrapper::value_iterator,
+                                          typename VertexValueOutputWrapper::value_type>>;
 
   static_assert(std::is_rvalue_reference_v<decltype(key_buffer)>);
   static_assert(std::is_rvalue_reference_v<decltype(payload_buffer)>);
@@ -200,22 +220,26 @@ void update_v_frontier(raft::handle_t const& handle,
     rmm::device_uvector<uint8_t> bucket_indices(size_dataframe_buffer(key_buffer),
                                                 handle.get_stream());
 
+    auto vertex_value_input_device_view  = vertex_value_input_device_view_t{vertex_value_input};
+    auto vertex_value_output_device_view = vertex_value_output_device_view_t{vertex_value_output};
+
     auto key_payload_pair_first = thrust::make_zip_iterator(
       get_dataframe_buffer_begin(key_buffer), get_dataframe_buffer_begin(payload_buffer));
-    thrust::transform(handle.get_thrust_policy(),
-                      key_payload_pair_first,
-                      key_payload_pair_first + size_dataframe_buffer(key_buffer),
-                      bucket_indices.begin(),
-                      detail::update_v_frontier_call_v_op_t<vertex_t,
-                                                            VertexValueInputIterator,
-                                                            VertexValueOutputIterator,
-                                                            VertexOp,
-                                                            key_t,
-                                                            payload_t>{
-                        vertex_value_input_first,
-                        vertex_value_output_first,
-                        v_op,
-                        graph_view.local_vertex_partition_range_first()});
+    thrust::transform(
+      handle.get_thrust_policy(),
+      key_payload_pair_first,
+      key_payload_pair_first + size_dataframe_buffer(key_buffer),
+      bucket_indices.begin(),
+      detail::update_v_frontier_call_v_op_t<vertex_t,
+                                            decltype(vertex_value_input_device_view),
+                                            decltype(vertex_value_output_device_view),
+                                            VertexOp,
+                                            key_t,
+                                            payload_t>{
+        vertex_value_input_device_view,
+        vertex_value_output_device_view,
+        v_op,
+        graph_view.local_vertex_partition_range_first()});
 
     resize_dataframe_buffer(payload_buffer, size_t{0}, handle.get_stream());
     shrink_to_fit_dataframe_buffer(payload_buffer, handle.get_stream());
@@ -255,8 +279,8 @@ void update_v_frontier(raft::handle_t const& handle,
  * @tparam KeyBuffer Type of the buffer storing (tagged-)vertices.
  * @tparam VertexFrontierType Type of the vertex frontier class which abstracts vertex frontier
  * managements.
- * @tparam VertexValueInputIterator Type of the iterator for input vertex property values.
- * @tparam VertexValueOutputIterator Type of the iterator for output vertex property variables.
+ * @tparam VertexValueInputWrapper Type of the wrapper for input vertex property values.
+ * @tparam VertexValueOutputWrapper Type of the wrapper for output vertex property values.
  * @tparam VertexOp Type of the binary vertex operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -266,45 +290,58 @@ void update_v_frontier(raft::handle_t const& handle,
  * includes multiple bucket objects.
  * @param next_frontier_bucket_indices Indices of the vertex frontier buckets to store new frontier
  * (tagged-)vertices.
- * @param vertex_value_input_first Iterator pointing to the vertex property values for the first
- * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
- * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().
- * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
- * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
- * (exclusive) is deduced as @p vertex_value_output_first + @p
- * graph_view.local_vertex_partition_range_size().
- * @param v_op Binary operator that takes (tagged-)vertex ID, and *(@p vertex_value_input_first + i)
- * (where i is [0, @p graph_view.local_vertex_partition_range_size())) and returns a tuple of 1) a
- * cuda::std::optional object optionally storing a bucket index and 2) a cuda::std::optional object
- * optionally storing a new vertex property value. If the first element of the returned tuple is
- * cuda::std::nullopt, this (tagged-)vertex won't be inserted to the vertex frontier. If the second
- * element is cuda::std::nullopt, the vertex property value for this vertex won't be updated. Note
- * that it is currently undefined behavior if there are multiple tagged-vertices with the same
- * vertex ID (but with different tags) AND @p v_op results on the tagged-vertices with the same
- * vertex ID have more than one valid new vertex property values.
+ * @param vertex_value_input Wrapper used to access input vertex property values (for the vertices
+ * assigned to this process in multi-GPU). Use `vertex_property_t::view()` or
+ * `vertex_dummy_property_t::view()` (if @p v_op does not access input vertex property values).
+ * @param vertex_value_output Wrapper used to store output vertex property values (for the vertices
+ * assigned to this process in multi-GPU). Use `vertex_property_t::mutable_view()` or
+ * `vertex_dummy_property_t::view()` (if vertex property values are not updated).
+ * @param v_op Binary operator that takes (tagged-)vertex ID and the input vertex property value for
+ * the vertex (or `cuda::std::nullopt` if @p vertex_value_input is
+ * `vertex_dummy_property_t::view()`) and returns a tuple of 1) a cuda::std::optional object
+ * optionally storing a bucket index and 2) a cuda::std::optional object optionally storing a new
+ * vertex property value. If the first element of the returned tuple is cuda::std::nullopt, this
+ * (tagged-)vertex won't be inserted to the vertex frontier. If the second element is
+ * cuda::std::nullopt, or @p vertex_value_output is `vertex_dummy_property_t::view()`, the verte
+ * property value for this vertex won't be updated. Note that it is currently undefined behavior if
+ * there are multiple tagged-vertices with the same vertex ID (but with different tags) AND @p v_op
+ * results on the tagged-vertices with the same vertex ID have more than one valid new vertex
+ * property values.
  */
 template <typename GraphViewType,
           typename KeyBuffer,
           typename VertexFrontierType,
-          typename VertexValueInputIterator,
-          typename VertexValueOutputIterator,
+          typename VertexValueInputWrapper,
+          typename VertexValueOutputWrapper,
           typename VertexOp>
 void update_v_frontier(raft::handle_t const& handle,
                        GraphViewType const& graph_view,
                        KeyBuffer&& key_buffer,
                        VertexFrontierType& frontier,
                        raft::host_span<size_t const> next_frontier_bucket_indices,
-                       VertexValueInputIterator vertex_value_input_first,
+                       VertexValueInputWrapper vertex_value_input,
                        // FIXME: currently, it is undefined behavior if there are more than one @p
                        // key_buffer elements with the same vertex ID and the same vertex property
                        // value is updated by multiple @p v_op invocations with the same vertex ID.
-                       VertexValueOutputIterator vertex_value_output_first,
+                       VertexValueOutputWrapper vertex_value_output,
                        VertexOp v_op,
                        bool do_expensive_check = false)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using key_t =
     typename thrust::iterator_traits<decltype(get_dataframe_buffer_begin(key_buffer))>::value_type;
+  using vertex_value_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename VertexValueInputWrapper::value_type, cuda::std::nullopt_t>,
+    detail::vertex_dummy_property_device_view_t<vertex_t>,
+    detail::vertex_property_device_view_t<vertex_t,
+                                          typename VertexValueInputWrapper::value_iterator,
+                                          typename VertexValueInputWrapper::value_type>>;
+  using vertex_value_output_device_view_t = std::conditional_t<
+    std::is_same_v<typename VertexValueOutputWrapper::value_type, cuda::std::nullopt_t>,
+    detail::vertex_dummy_property_device_view_t<vertex_t>,
+    detail::vertex_property_device_view_t<vertex_t,
+                                          typename VertexValueOutputWrapper::value_iterator,
+                                          typename VertexValueOutputWrapper::value_type>>;
 
   static_assert(std::is_rvalue_reference_v<decltype(key_buffer)>);
 
@@ -324,18 +361,21 @@ void update_v_frontier(raft::handle_t const& handle,
     rmm::device_uvector<uint8_t> bucket_indices(size_dataframe_buffer(key_buffer),
                                                 handle.get_stream());
 
+    auto vertex_value_input_device_view  = vertex_value_input_device_view_t{vertex_value_input};
+    auto vertex_value_output_device_view = vertex_value_output_device_view_t{vertex_value_output};
+
     thrust::transform(
       handle.get_thrust_policy(),
       get_dataframe_buffer_begin(key_buffer),
       get_dataframe_buffer_begin(key_buffer) + size_dataframe_buffer(key_buffer),
       bucket_indices.begin(),
       detail::update_v_frontier_call_v_op_t<vertex_t,
-                                            VertexValueInputIterator,
-                                            VertexValueOutputIterator,
+                                            decltype(vertex_value_input_device_view),
+                                            decltype(vertex_value_output_device_view),
                                             VertexOp,
                                             key_t,
-                                            void>{vertex_value_input_first,
-                                                  vertex_value_output_first,
+                                            void>{vertex_value_input_device_view,
+                                                  vertex_value_output_device_view,
                                                   v_op,
                                                   graph_view.local_vertex_partition_range_first()});
 

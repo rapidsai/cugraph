@@ -441,7 +441,7 @@ ConfigureTest(MSBFS_TEST traversal/ms_bfs_test.cpp)
 
 ###################################################################################################
 # - SSSP tests ------------------------------------------------------------------------------------
-ConfigureTest(SSSP_TEST traversal/sssp_test.cpp)
+ConfigureTest(SHORTEST_PATH_TEST traversal/shortest_path_test.cpp)
 
 ###################################################################################################
 # - OD_SHORTEST_DISTANCES tests -------------------------------------------------------------------
@@ -669,13 +669,17 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_GRAPH500_BFS_TEST traversal/mg_graph500_bfs_test.cu)
 
     ###############################################################################################
+    # - MG GRAPH500 SSSP tests --------------------------------------------------------------------
+    ConfigureTestMG(MG_GRAPH500_SSSP_TEST traversal/mg_graph500_sssp_test.cu)
+
+    ###############################################################################################
     # - Extract BFS Paths tests -------------------------------------------------------------------
     ConfigureTestMG(MG_EXTRACT_BFS_PATHS_TEST
                     traversal/mg_extract_bfs_paths_test.cu)
 
     ###############################################################################################
     # - MG SSSP tests -----------------------------------------------------------------------------
-    ConfigureTestMG(MG_SSSP_TEST traversal/mg_sssp_test.cpp)
+    ConfigureTestMG(MG_SHORTEST_PATH_TEST traversal/mg_shortest_path_test.cpp)
 
     ###############################################################################################
     # - MG LOUVAIN tests --------------------------------------------------------------------------

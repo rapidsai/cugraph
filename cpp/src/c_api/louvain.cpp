@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -75,15 +75,12 @@ struct louvain_functor : public cugraph::c_api::abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<vertex_t> clusters(graph_view.local_vertex_partition_range_size(),
-                                             handle_.get_stream());
-
       // FIXME: Revisit the constant edge property idea.  We could consider an alternate
       // implementation (perhaps involving the cuda::constant_iterator), or we
       // could add support in Louvain for std::nullopt as the edge weights behaving
       // as desired and only instantiating a real edge_property_view_t for the
       // coarsened graphs.
-      auto [level, modularity] = cugraph::louvain(
+      auto [clustering_prop, num_levels, modularity] = cugraph::louvain(
         handle_,
         std::optional<std::reference_wrapper<raft::random::RngState>>{std::nullopt},
         graph_view,
@@ -92,10 +89,12 @@ struct louvain_functor : public cugraph::c_api::abstract_functor {
           : std::make_optional(
               cugraph::c_api::create_constant_edge_property(handle_, graph_view, weight_t{1})
                 .view()),
-        clusters.data(),
+        false,
         max_level_,
         static_cast<weight_t>(threshold_),
         static_cast<weight_t>(resolution_));
+      (void)num_levels;
+      auto clusters = clustering_prop.release_buffer();
 
       rmm::device_uvector<vertex_t> vertices(graph_view.local_vertex_partition_range_size(),
                                              handle_.get_stream());

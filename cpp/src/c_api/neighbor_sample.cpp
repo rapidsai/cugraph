@@ -299,13 +299,12 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
       //
       // Need to renumber start_vertices
       //
-      cugraph::renumber_local_ext_vertices<vertex_t, multi_gpu>(
+      start_vertices = cugraph::renumber_local_ext_vertices(
         handle_,
-        start_vertices.data(),
-        start_vertices.size(),
-        number_map->data(),
-        graph_view.local_vertex_partition_range_first(),
-        graph_view.local_vertex_partition_range_last(),
+        graph_view,
+        std::move(start_vertices),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         do_expensive_check_);
 
       rmm::device_uvector<vertex_t> sampled_edge_srcs(0, handle_.get_stream());
@@ -407,20 +406,20 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                                       options_.fixed_window_ == TRUE},
           do_expensive_check_);
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+      sampled_edge_srcs = cugraph::unrenumber_int_vertices(
         handle_,
-        sampled_edge_srcs.data(),
-        sampled_edge_srcs.size(),
-        number_map->data(),
-        graph_view.vertex_partition_range_lasts(),
+        graph_view,
+        std::move(sampled_edge_srcs),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         do_expensive_check_);
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+      sampled_edge_dsts = cugraph::unrenumber_int_vertices(
         handle_,
-        sampled_edge_dsts.data(),
-        sampled_edge_dsts.size(),
-        number_map->data(),
-        graph_view.vertex_partition_range_lasts(),
+        graph_view,
+        std::move(sampled_edge_dsts),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         do_expensive_check_);
 
       std::optional<rmm::device_uvector<vertex_t>> majors{std::nullopt};

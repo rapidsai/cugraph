@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -14,6 +14,7 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
 
 struct Similarity_Usecase {
   bool use_weights{false};
@@ -84,9 +85,9 @@ class Tests_MGSimilarity
     if (similarity_usecase.max_seeds) {
       sources = cugraph::select_random_vertices(
         *handle_,
+        rng_state,
         mg_graph_view,
         std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-        rng_state,
         std::min(*similarity_usecase.max_seeds,
                  static_cast<size_t>(mg_graph_view.number_of_vertices())),
         false,
@@ -119,21 +120,19 @@ class Tests_MGSimilarity
 
       std::tie(offsets, v2) = cugraph::k_hop_nbrs(*handle_, mg_graph_view, *sources_span, 2);
 
-      v1.resize(v2.size(), handle_->get_stream());
+      rmm::device_uvector<vertex_t> v1_seed_indices(v2.size(), handle_->get_stream());
       cugraph::test::expand_sparse_offsets(
         *handle_,
         raft::device_span<size_t const>{offsets.data(), offsets.size()},
-        raft::device_span<vertex_t>{v1.data(), v1.size()},
+        raft::device_span<vertex_t>{v1_seed_indices.data(), v1_seed_indices.size()},
         size_t{0},
         vertex_t{0});
-
-      cugraph::unrenumber_local_int_vertices(*handle_,
-                                             v1.data(),
-                                             v1.size(),
-                                             sources.data(),
-                                             vertex_t{0},
-                                             static_cast<vertex_t>(sources.size()),
-                                             true);
+      v1.resize(v1_seed_indices.size(), handle_->get_stream());
+      cugraph::gather(handle_->get_thrust_policy(),
+                      v1_seed_indices.begin(),
+                      v1_seed_indices.end(),
+                      sources_span->begin(),
+                      v1.begin());
 
       std::tie(v1, v2) = cugraph::test::remove_self_loops(*handle_, std::move(v1), std::move(v2));
       std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
@@ -172,7 +171,7 @@ class Tests_MGSimilarity
         *handle_,
         mg_graph_view,
         mg_edge_weight_view,
-        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+        std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
 
       v1 = cugraph::test::device_gatherv(*handle_, v1.data(), v1.size());
       v2 = cugraph::test::device_gatherv(*handle_, v2.data(), v2.size());

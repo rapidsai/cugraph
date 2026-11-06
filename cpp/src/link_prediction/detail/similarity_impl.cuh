@@ -77,8 +77,8 @@ rmm::device_uvector<weight_t> similarity(
 
   if (edge_weight_view) {
     rmm::device_uvector<weight_t> similarity_score(num_vertex_pairs, handle.get_stream());
-    rmm::device_uvector<weight_t> weighted_out_degrees =
-      compute_out_weight_sums(handle, graph_view, *edge_weight_view);
+    auto weighted_out_degrees =
+      compute_out_weight_sums(handle, graph_view, *edge_weight_view, false);
 
     per_v_pair_transform_dst_nbr_intersection(
       handle,
@@ -86,7 +86,7 @@ rmm::device_uvector<weight_t> similarity(
       *edge_weight_view,
       vertex_pairs_begin,
       vertex_pairs_begin + num_vertex_pairs,
-      weighted_out_degrees.begin(),
+      weighted_out_degrees.view(),
       [coeff,
        j = jaccard_functor_t<weight_t>{},
        s = sorensen_functor_t<weight_t>{},
@@ -184,7 +184,7 @@ rmm::device_uvector<weight_t> similarity(
     return similarity_score;
   } else {
     rmm::device_uvector<weight_t> similarity_score(num_vertex_pairs, handle.get_stream());
-    auto out_degrees = graph_view.compute_out_degrees(handle);
+    auto out_degrees = compute_out_degrees(handle, graph_view);
 
     per_v_pair_transform_dst_nbr_intersection(
       handle,
@@ -192,7 +192,7 @@ rmm::device_uvector<weight_t> similarity(
       cugraph::edge_dummy_property_t{}.view(),
       vertex_pairs_begin,
       vertex_pairs_begin + num_vertex_pairs,
-      out_degrees.begin(),
+      out_degrees.view(),
       [coeff,
        j = jaccard_functor_t<weight_t>{},
        s = sorensen_functor_t<weight_t>{},
@@ -326,14 +326,15 @@ all_pairs_similarity(raft::handle_t const& handle,
     size_t const MAX_PAIRS_PER_BATCH{
       static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 15)};
 
-    rmm::device_uvector<edge_t> degrees = graph_view.compute_out_degrees(handle);
-    rmm::device_uvector<size_t> two_hop_degrees(degrees.size() + 1, handle.get_stream());
+    auto degrees = compute_out_degrees(handle, graph_view);
+    rmm::device_uvector<size_t> two_hop_degrees(graph_view.local_vertex_partition_range_size() + 1,
+                                                handle.get_stream());
 
     // Let's compute the maximum size of the 2-hop neighborhood of each vertex
     // FIXME: If vertices is specified, this could be done on a subset of the vertices
     //
     edge_dst_property_t<vertex_t, edge_t> edge_dst_degrees(handle, graph_view);
-    update_edge_dst_property(handle, graph_view, degrees.begin(), edge_dst_degrees.mutable_view());
+    update_edge_dst_property(handle, graph_view, degrees.view(), edge_dst_degrees.mutable_view());
 
     per_v_transform_reduce_incoming_e(
       handle,
@@ -346,7 +347,8 @@ all_pairs_similarity(raft::handle_t const& handle,
       },
       size_t{0},
       reduce_op::plus<size_t>{},
-      two_hop_degrees.begin());
+      vertex_property_view_t{two_hop_degrees.begin(),
+                             graph_view.local_vertex_partition_range_size()});
 
     if (vertices) {
       rmm::device_uvector<size_t> gathered_two_hop_degrees(tmp_vertices.size() + 1,
@@ -428,19 +430,16 @@ all_pairs_similarity(raft::handle_t const& handle,
 
       auto [offsets, v2] = k_hop_nbrs(handle, graph_view, batch_seeds, 2, do_expensive_check);
 
-      auto v1 = cugraph::detail::expand_sparse_offsets(
+      auto v1_seed_indices = cugraph::detail::expand_sparse_offsets(
         raft::device_span<size_t const>{offsets.data(), offsets.size()},
         vertex_t{0},
         handle.get_stream());
-
-      cugraph::unrenumber_local_int_vertices(
-        handle,
-        v1.data(),
-        v1.size(),
-        tmp_vertices.data() + batch_offsets[batch_number],
-        vertex_t{0},
-        static_cast<vertex_t>(batch_offsets[batch_number + 1] - batch_offsets[batch_number]),
-        do_expensive_check);
+      rmm::device_uvector<vertex_t> v1(v1_seed_indices.size(), handle.get_stream());
+      cugraph::gather(handle.get_thrust_policy(),
+                      v1_seed_indices.begin(),
+                      v1_seed_indices.end(),
+                      batch_seeds.begin(),
+                      v1.begin());
 
       auto new_size = cuda::std::distance(
         thrust::make_zip_iterator(v1.begin(), v2.begin()),
@@ -610,18 +609,16 @@ all_pairs_similarity(raft::handle_t const& handle,
 
     auto [offsets, v2] = k_hop_nbrs(handle, graph_view, vertices_span, 2, do_expensive_check);
 
-    auto v1 = cugraph::detail::expand_sparse_offsets(
+    auto v1_seed_indices = cugraph::detail::expand_sparse_offsets(
       raft::device_span<size_t const>{offsets.data(), offsets.size()},
       vertex_t{0},
       handle.get_stream());
-
-    cugraph::unrenumber_local_int_vertices(handle,
-                                           v1.data(),
-                                           v1.size(),
-                                           vertices_span.data(),
-                                           vertex_t{0},
-                                           static_cast<vertex_t>(vertices_span.size()),
-                                           do_expensive_check);
+    rmm::device_uvector<vertex_t> v1(v1_seed_indices.size(), handle.get_stream());
+    cugraph::gather(handle.get_thrust_policy(),
+                    v1_seed_indices.begin(),
+                    v1_seed_indices.end(),
+                    vertices_span.begin(),
+                    v1.begin());
 
     auto new_size = cuda::std::distance(
       thrust::make_zip_iterator(v1.begin(), v2.begin()),

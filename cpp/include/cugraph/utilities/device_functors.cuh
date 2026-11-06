@@ -140,7 +140,7 @@ struct invert_t {
 };
 
 template <typename T>
-struct is_less_than_to_t {
+struct is_less_than_t {
   T threshold{};
 
   __device__ bool operator()(T val) const { return val < threshold; }
@@ -162,7 +162,7 @@ struct indirection_and_is_less_than_t {
 };
 
 template <typename T>
-struct indirection_and_is_greater_than_or_equal_t {
+struct indirection_and_is_greater_than_or_equal_to_t {
   raft::device_span<T const> values{};
   T threshold{};
 

@@ -1368,8 +1368,12 @@ remove_multi_edges(raft::handle_t const& handle,
                    std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_start_times,
                    std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_end_times,
                    bool keep_min_value_edge,
-                   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
+                   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt,
+                   bool do_expensive_check                              = false)
 {
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
+
   CUGRAPH_EXPECTS(
     edgelist_dsts.size() == edgelist_srcs.size(),
     "Invalid input argument: edgelist_srcs and edgelist_dsts must have the same size.");
@@ -1488,8 +1492,12 @@ remove_multi_edges(
   std::optional<std::vector<rmm::device_uvector<time_stamp_t>>>&& edgelist_edge_start_times,
   std::optional<std::vector<rmm::device_uvector<time_stamp_t>>>&& edgelist_edge_end_times,
   bool keep_min_value_edge,
-  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt,
+  bool do_expensive_check                              = false)
 {
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
+
   CUGRAPH_EXPECTS(
     edgelist_dsts.size() == edgelist_srcs.size(),
     "Invalid input argument: edgelist_dsts and edgelist_srcs must have the same size.");

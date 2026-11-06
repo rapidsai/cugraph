@@ -212,36 +212,28 @@ bool validate_sampling_depth(raft::handle_t const& handle,
                              int max_depth)
 {
   graph_t<vertex_t, vertex_t, false, false> graph(handle);
-  std::optional<rmm::device_uvector<vertex_t>> number_map{std::nullopt};
+  std::optional<vertex_property_t<vertex_t, vertex_t>> number_map{std::nullopt};
   std::tie(graph, std::ignore, number_map) =
-    create_graph_from_edgelist<vertex_t, vertex_t, false, false>(
-      handle,
-      std::nullopt,
-      std::move(d_src),
-      std::move(d_dst),
-      std::vector<arithmetic_device_uvector_t>{},
-      graph_properties_t{false, true},
-      true,
-      std::nullopt,
-      std::nullopt,
-      true);
+    create_graph<vertex_t, vertex_t, false, false>(handle,
+                                                   std::nullopt,
+                                                   std::move(d_src),
+                                                   std::move(d_dst),
+                                                   std::vector<arithmetic_device_uvector_t>{},
+                                                   graph_properties_t{false, true},
+                                                   true,
+                                                   std::nullopt,
+                                                   std::nullopt,
+                                                   true);
 
   auto graph_view = graph.view();
 
   //  Renumber sources
-  renumber_ext_vertices<vertex_t, false>(handle,
-                                         d_source_vertices.data(),
-                                         d_source_vertices.size(),
-                                         number_map->data(),
-                                         graph_view.local_vertex_partition_range_first(),
-                                         graph_view.local_vertex_partition_range_last());
+  d_source_vertices = cugraph::renumber_ext_vertices(
+    handle, graph_view, std::move(d_source_vertices), number_map->view());
 
   rmm::device_uvector<vertex_t> d_distances(graph_view.number_of_vertices(), handle.get_stream());
   cugraph::fill(
     handle.get_thrust_policy(), d_distances.begin(), d_distances.end(), vertex_t{max_depth + 1});
-
-  rmm::device_uvector<vertex_t> d_local_distances(graph_view.number_of_vertices(),
-                                                  handle.get_stream());
 
   std::vector<vertex_t> h_source_vertices(d_source_vertices.size());
   raft::update_host(h_source_vertices.data(),
@@ -252,14 +244,14 @@ bool validate_sampling_depth(raft::handle_t const& handle,
   for (size_t i = 0; i < d_source_vertices.size(); ++i) {
     if (h_source_vertices[i] != cugraph::invalid_vertex_id<vertex_t>::value) {
       // Do BFS
-      cugraph::bfs<vertex_t, vertex_t, false>(handle,
-                                              graph_view,
-                                              d_local_distances.data(),
-                                              nullptr,
-                                              d_source_vertices.data() + i,
-                                              size_t{1},
-                                              bool{false},
-                                              vertex_t{max_depth});
+      auto [distance_property, predecessor_property] = cugraph::bfs<vertex_t, vertex_t, false>(
+        handle,
+        graph_view,
+        raft::device_span<vertex_t const>(d_source_vertices.data() + i, size_t{1}),
+        false,
+        vertex_t{max_depth},
+        false);
+      auto d_local_distances = distance_property.release_buffer();
 
       auto tuple_iter = thrust::make_zip_iterator(d_distances.begin(), d_local_distances.begin());
 

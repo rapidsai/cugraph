@@ -77,9 +77,9 @@ class Tests_Heterogeneous_Uniform_Neighbor_Sampling
 
     auto random_sources = cugraph::select_random_vertices(
       handle,
+      rng_state,
       graph_view,
       std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-      rng_state,
       std::max(static_cast<size_t>(graph_view.number_of_vertices() * select_probability),
                std::min(static_cast<size_t>(graph_view.number_of_vertices()), size_t{1})),
       false,

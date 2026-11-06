@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -63,18 +63,16 @@ struct core_number_functor : public cugraph::c_api::abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<edge_t> core_numbers(graph_view.local_vertex_partition_range_size(),
-                                               handle_.get_stream());
-
       auto degree_type = reinterpret_cast<cugraph::k_core_degree_type_t>(degree_type_);
 
-      cugraph::core_number<vertex_t, edge_t, multi_gpu>(handle_,
-                                                        graph_view,
-                                                        core_numbers.data(),
-                                                        degree_type,
-                                                        size_t{0},
-                                                        std::numeric_limits<size_t>::max(),
-                                                        do_expensive_check_);
+      auto core_numbers =
+        cugraph::core_number<vertex_t, edge_t, multi_gpu>(handle_,
+                                                          graph_view,
+                                                          degree_type,
+                                                          size_t{0},
+                                                          std::numeric_limits<size_t>::max(),
+                                                          do_expensive_check_)
+          .release_buffer();
 
       rmm::device_uvector<vertex_t> vertex_ids(graph_view.local_vertex_partition_range_size(),
                                                handle_.get_stream());

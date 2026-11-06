@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -31,6 +31,28 @@ k_core(raft::handle_t const& handle,
        size_t k,
        std::optional<k_core_degree_type_t> degree_type,
        std::optional<raft::device_span<int32_t const>> core_numbers,
+       bool do_expensive_check);
+
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   std::optional<rmm::device_uvector<float>>>
+k_core(raft::handle_t const& handle,
+       graph_view_t<int32_t, int32_t, false, false> const& graph_view,
+       std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
+       size_t k,
+       std::variant<vertex_property_view_t<int32_t, int32_t const*>, k_core_degree_type_t>
+         core_numbers_or_degree_type,
+       bool do_expensive_check);
+
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   std::optional<rmm::device_uvector<double>>>
+k_core(raft::handle_t const& handle,
+       graph_view_t<int32_t, int32_t, false, false> const& graph_view,
+       std::optional<edge_property_view_t<int32_t, double const*>> edge_weight_view,
+       size_t k,
+       std::variant<vertex_property_view_t<int32_t, int32_t const*>, k_core_degree_type_t>
+         core_numbers_or_degree_type,
        bool do_expensive_check);
 
 }  // namespace cugraph
