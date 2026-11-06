@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -8,6 +8,7 @@ from pylibcugraph import (
     SGGraph,
     ResourceHandle,
     GraphProperties,
+    decompress_to_edgelist,
 )
 
 
@@ -84,3 +85,39 @@ def test_type_combinations():
             renumber=True,
             vertices_array=device_vertices,
         )
+
+
+@pytest.mark.parametrize(
+    "input_array_format,vertex_dtype",
+    [("COO", np.int32), ("COO", np.int64), ("CSR", np.int32)],
+)
+@pytest.mark.parametrize("renumber", [False, True])
+@pytest.mark.parametrize("store_transposed", [False, True])
+def test_decompress_preserves_edge_direction(
+    input_array_format, renumber, store_transposed, vertex_dtype
+):
+    handle = ResourceHandle()
+    sources = cp.asarray([0, 0, 1, 1, 2, 3], dtype=vertex_dtype)
+    destinations = cp.asarray([1, 2, 2, 3, 3, 0], dtype=vertex_dtype)
+    weights = cp.asarray([1, 4, 2, 7, 1, 8], dtype=np.float64)
+    offsets = cp.asarray([0, 2, 4, 5, 6], dtype=np.int32)
+    graph = SGGraph(
+        resource_handle=handle,
+        graph_properties=GraphProperties(is_symmetric=False, is_multigraph=False),
+        src_or_offset_array=offsets if input_array_format == "CSR" else sources,
+        dst_or_index_array=destinations,
+        weight_array=weights,
+        input_array_format=input_array_format,
+        store_transposed=store_transposed,
+        renumber=renumber,
+        do_expensive_check=True,
+    )
+    # Repeated extraction must preserve the logical edges for either storage layout.
+    for _ in range(2):
+        src, dst, weight, _, _ = decompress_to_edgelist(handle, graph, True)
+        order = cp.lexsort(cp.stack((dst, src)))
+        cp.testing.assert_array_equal(src[order], sources)
+        cp.testing.assert_array_equal(dst[order], destinations)
+        cp.testing.assert_array_equal(weight[order], weights)
+        assert src.dtype == sources.dtype
+        assert weight.dtype == weights.dtype

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -289,6 +289,8 @@ class Graph:
             offset_col=offset_col,
             index_col=index_col,
             value_col=value_col,
+            renumber=renumber,
+            store_transposed=store_transposed,
             symmetrize=symmetrize,
         )
 
