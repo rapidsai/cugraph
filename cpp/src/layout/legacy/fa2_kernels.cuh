@@ -13,6 +13,44 @@
 namespace cugraph {
 namespace detail {
 
+/**
+ * sqrt(a * a + b * b) without the overflow (|a| or |b| above ~1.8e19) or underflow (below ~1e-19)
+ * of the float squares. Large and tiny inputs are scaled by a power of two, which is exact, so
+ * the result matches the double-precision expression the kernels used before up to float
+ * rounding, without double-precision instructions.
+ */
+__device__ __forceinline__ float overflow_safe_norm(float a, float b)
+{
+  const float m = fmaxf(fabsf(a), fabsf(b));
+  if (m > 0x1p62f) {
+    a *= 0x1p-66f;
+    b *= 0x1p-66f;
+    return sqrtf(a * a + b * b) * 0x1p66f;
+  }
+  if (m < 0x1p-62f) {
+    a *= 0x1p100f;
+    b *= 0x1p100f;
+    return sqrtf(a * a + b * b) * 0x1p-100f;
+  }
+  return sqrtf(a * a + b * b);
+}
+
+/**
+ * d <= r * r with the square evaluated exactly, as the double-precision comparison the kernels
+ * used before did. fmaf yields the rounding error of the float square, which decides ties.
+ */
+__device__ __forceinline__ bool leq_exact_square(float d, float r)
+{
+  while (r != 0.0f && fabsf(r) < 0x1p-50f) {
+    // Keep the square normal so that its rounding error is exact; the scaling is exact too.
+    if (d >= 0x1p-98f) return false;
+    d = d * 0x1p64f * 0x1p64f;
+    r *= 0x1p64f;
+  }
+  const float p = __fmul_rn(r, r);
+  return d < p || (d == p && fmaf(r, r, -p) >= 0.0f);
+}
+
 template <typename vertex_t, typename edge_t, typename weight_t>
 __global__ static void attraction_kernel(const vertex_t* restrict row,
                                          const vertex_t* restrict col,
@@ -49,7 +87,7 @@ __global__ static void attraction_kernel(const vertex_t* restrict row,
       float radius_dst  = vertex_radius[dst];
       float distance_sq = x_dist * x_dist + y_dist * y_dist;
       float radius_sum  = radius_src + radius_dst;
-      if (distance_sq <= radius_sum * radius_sum) {
+      if (leq_exact_square(distance_sq, radius_sum)) {
         // Overlapping, force is 0
         continue;
       } else {
@@ -226,8 +264,8 @@ __global__ static void local_speed_kernel(const float* restrict repel_x,
     const float sy      = old_dy[i] - dy;
     const float tx      = old_dx[i] + dx;
     const float ty      = old_dy[i] + dy;
-    float node_swinging = mass[i] * sqrtf(sx * sx + sy * sy);
-    float node_traction = 0.5f * mass[i] * sqrtf(tx * tx + ty * ty);
+    float node_swinging = mass[i] * overflow_safe_norm(sx, sy);
+    float node_traction = 0.5f * mass[i] * overflow_safe_norm(tx, ty);
     swinging[i]         = node_swinging;
     traction[i]         = node_traction;
   }
