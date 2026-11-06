@@ -219,12 +219,28 @@ set(CUGRAPH_COMMON_STRUCTURE_SOURCES
     src/structure/graph_view_mg_v32_e32.cu
 )
 
+# The Leiden engine (detail::leiden_csr and its type-independent driver) is compiled once, here,
+# and shared by the single-GPU (libcugraph) and the multi-GPU (libcugraph_mg) cugraph::leiden.
+set(CUGRAPH_COMMON_COMMUNITY_SOURCES
+    src/community/detail/leiden/driver_common.cu
+    src/community/detail/leiden/leiden_csr_common_v64_e64.cu
+    src/community/detail/leiden/leiden_csr_common_v32_e32.cu
+)
+
 set(CUGRAPH_COMMON_SOURCES
     ${CUGRAPH_COMMON_UTILITY_SOURCES}
     ${CUGRAPH_COMMON_DISTRIBUTED_SOURCES}
     ${CUGRAPH_COMMON_SAMPLING_SOURCES}
     ${CUGRAPH_COMMON_STRUCTURE_SOURCES}
+    ${CUGRAPH_COMMON_COMMUNITY_SOURCES}
 )
+
+# The Leiden engine writes every rounded operation that feeds a decision with an explicit `_rn`
+# intrinsic; disabling FMA contraction additionally pins the remaining fp64 expressions, so the
+# results do not depend on the compiler's contraction choices (bitwise reproducibility). The
+# cugraph::leiden front ends (leiden_{sg,mg}_v*_e*.cu) make no floating-point decisions.
+set_source_files_properties(${CUGRAPH_COMMON_COMMUNITY_SOURCES}
+                            PROPERTIES COMPILE_OPTIONS "$<$<COMPILE_LANGUAGE:CUDA>:--fmad=false>")
 
 set(CUGRAPH_MTMG_SOURCES
     src/mtmg/vertex_result_sg_v32_e32.cu
@@ -247,14 +263,8 @@ set(CUGRAPH_SG_SOURCES
     src/sampling/detail/conversion_utilities_sg.cu
     src/community/detail/common_methods_sg_v64_e64.cu
     src/community/detail/common_methods_sg_v32_e32.cu
-    src/community/detail/refine_sg_v64_e64.cu
-    src/community/detail/refine_sg_v32_e32.cu
-    src/community/detail/decision_graph_mis_sg_v64_e64.cu
-    src/community/detail/decision_graph_mis_sg_v32_e32.cu
     src/community/edge_triangle_count_sg_v64_e64.cu
     src/community/edge_triangle_count_sg_v32_e32.cu
-    src/community/detail/maximal_independent_moves_sg_v64_e64.cu
-    src/community/detail/maximal_independent_moves_sg_v32_e32.cu
     src/structure/remove_self_loops_sg_v32_e32.cu
     src/structure/remove_self_loops_sg_v64_e64.cu
     src/structure/remove_multi_edges_sg_v32_e32.cu
@@ -402,14 +412,8 @@ set(CUGRAPH_MG_SOURCES
     src/sampling/random_walks_mg_v32_e32.cu
     src/community/detail/common_methods_mg_v64_e64.cu
     src/community/detail/common_methods_mg_v32_e32.cu
-    src/community/detail/refine_mg_v64_e64.cu
-    src/community/detail/refine_mg_v32_e32.cu
-    src/community/detail/decision_graph_mis_mg_v64_e64.cu
-    src/community/detail/decision_graph_mis_mg_v32_e32.cu
     src/community/edge_triangle_count_mg_v64_e64.cu
     src/community/edge_triangle_count_mg_v32_e32.cu
-    src/community/detail/maximal_independent_moves_mg_v64_e64.cu
-    src/community/detail/maximal_independent_moves_mg_v32_e32.cu
     src/link_prediction/detail/similarity_mg_v32_e32.cu
     src/link_prediction/detail/similarity_mg_v64_e64.cu
     src/structure/edge_partition_device_view_mg_v64_e64.cu

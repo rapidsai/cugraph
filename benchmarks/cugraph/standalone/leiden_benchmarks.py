@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 from pathlib import Path
@@ -126,10 +126,9 @@ if __name__ == "__main__":
             resource_handle,
             random_state=None,
             graph=Gplc,
-            max_level=100,
             resolution=1.0,
-            theta=1.0,
             do_expensive_check=False,
+            n_iterations=2,
         )
     del resource_handle, Gplc
     print(f"Number of communities: {cp.unique(clusters).shape[0]}")
@@ -216,6 +215,7 @@ if __name__ == "__main__":
 """
 Output from session used for NVIDIA Tech Blog
 "How to Accelerate Community Detection in Python Using GPU-Powered Leiden"
+(recorded with the previous cuGraph Leiden implementation)
 
 bash$> NX_CUGRAPH_AUTOCONFIG=True python leiden_benchmarks.py
 downloading https://snap.stanford.edu/data/cit-Patents.txt.gz...done
