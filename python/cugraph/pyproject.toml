@@ -29,7 +29,6 @@ dependencies = [
     "cupy-cuda13x[ctk]>=14.0.1,!=14.1.0",
     "dask-cuda==26.12.*,>=0.0.0a0",
     "dask-cudf==26.12.*,>=0.0.0a0",
-    "fsspec[http]>=0.6.0",
     "libcugraph==26.12.*,>=0.0.0a0",
     "numba>=0.60.0,<0.65.0",
     "numpy>=2.0,<3.0",
@@ -67,7 +66,7 @@ cugraph_smoke_check = "cugraph._doctor_check:cugraph_smoke_check"
 
 [project.urls]
 Homepage = "https://github.com/rapidsai/cugraph"
-Documentation = "https://docs.rapids.ai/api/cugraph/stable/"
+Documentation = "https://docs.nvidia.com/cugraph/latest/"
 
 [tool.scikit-build]
 build-dir = "build/{wheel_tag}"

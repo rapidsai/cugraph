@@ -53,8 +53,6 @@ Running the example in these notebooks requires:
 * The latest version of RAPIDS with cuGraph.
   * Download via Docker, Conda (See [__Getting Started__](https://rapids.ai/start.html))
 
-[System Requirements](https://docs.rapids.ai/install/#system-req)
-
 ### QuickStart
 
 The easiest way to run the notebooks is to get the latest [rapidsai/notebooks](https://hub.docker.com/r/rapidsai/notebooks) docker image with matching CUDA version and run a container based on the image.
