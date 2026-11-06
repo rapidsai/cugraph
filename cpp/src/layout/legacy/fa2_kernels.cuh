@@ -14,25 +14,26 @@ namespace cugraph {
 namespace detail {
 
 /**
- * sqrt(a * a + b * b) without the overflow (|a| or |b| above ~1.8e19) or underflow (below ~1e-19)
- * of the float squares. Large and tiny inputs are scaled by a power of two, which is exact, so
- * the result matches the double-precision expression the kernels used before up to float
- * rounding, without double-precision instructions.
+ * s * sqrt(a * a + b * b) without the overflow (|a| or |b| above ~1.8e19) or underflow (below
+ * ~1e-19) of the float squares. Large and tiny inputs are scaled by a power of two, which is
+ * exact, and `s` is applied before scaling back, as the double-precision expression the kernels
+ * used before applied it before rounding to float. Matches that expression up to float rounding,
+ * without double-precision instructions.
  */
-__device__ __forceinline__ float overflow_safe_norm(float a, float b)
+__device__ __forceinline__ float overflow_safe_scaled_norm(float a, float b, const float s)
 {
   const float m = fmaxf(fabsf(a), fabsf(b));
   if (m > 0x1p62f) {
     a *= 0x1p-66f;
     b *= 0x1p-66f;
-    return sqrtf(a * a + b * b) * 0x1p66f;
+    return (sqrtf(a * a + b * b) * s) * 0x1p66f;
   }
   if (m < 0x1p-62f) {
     a *= 0x1p100f;
     b *= 0x1p100f;
-    return sqrtf(a * a + b * b) * 0x1p-100f;
+    return (sqrtf(a * a + b * b) * s) * 0x1p-100f;
   }
-  return sqrtf(a * a + b * b);
+  return sqrtf(a * a + b * b) * s;
 }
 
 /**
@@ -48,7 +49,8 @@ __device__ __forceinline__ bool leq_exact_square(float d, float r)
     r *= 0x1p64f;
   }
   const float p = __fmul_rn(r, r);
-  return d < p || (d == p && fmaf(r, r, -p) >= 0.0f);
+  // An infinite r ties with d = Inf; fmaf(Inf, Inf, -Inf) would be NaN.
+  return d < p || (d == p && (isinf(r) || fmaf(r, r, -p) >= 0.0f));
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -264,8 +266,8 @@ __global__ static void local_speed_kernel(const float* restrict repel_x,
     const float sy      = old_dy[i] - dy;
     const float tx      = old_dx[i] + dx;
     const float ty      = old_dy[i] + dy;
-    float node_swinging = mass[i] * overflow_safe_norm(sx, sy);
-    float node_traction = 0.5f * mass[i] * overflow_safe_norm(tx, ty);
+    float node_swinging = overflow_safe_scaled_norm(sx, sy, mass[i]);
+    float node_traction = overflow_safe_scaled_norm(tx, ty, 0.5f * mass[i]);
     swinging[i]         = node_swinging;
     traction[i]         = node_traction;
   }
