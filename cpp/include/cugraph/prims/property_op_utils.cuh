@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -11,7 +11,6 @@
 #include <raft/core/comms.hpp>
 #include <raft/core/device_span.hpp>
 
-#include <cub/cub.cuh>
 #include <cuda/std/tuple>
 #include <thrust/functional.h>
 #include <thrust/iterator/detail/any_assign.h>

@@ -14,8 +14,6 @@ Manipulation of the data before or after the graph analytic is not covered here.
 |Weakly Connected Components   | [ConnectedComponents](ConnectedComponents.ipynb)   |Find the largest connected components in a graph. Considering directed paths or non-directed paths |
 |Strongly Connected Components | [ConnectedComponents](ConnectedComponents.ipynb)               |Find the connected components in a graph considering directed paths only|
 
-[System Requirements](https://docs.rapids.ai/install/#system-req)
-
 ## Copyright
 
 Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.

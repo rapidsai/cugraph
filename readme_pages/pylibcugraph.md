@@ -1,8 +1,8 @@
-<h1 align="center";>/
+<h1 align="center">
   <br>
   <img src="../img/cugraph_logo_2.png" alt="cuGraph" width="300">
 </h1>
-<h1 align="left";>
+<h1 align="left">
   <br>
 cuGraph pylibcugraph
 </h1>
@@ -11,7 +11,7 @@ Part of [RAPIDS](https://rapids.ai) cuGraph, pylibcugraph is a wrapper around th
 
 Here is an example of calling the Louvain algorithm using pylibcugraph directly.
 
-```
+```python
 import pylibcugraph, cupy, numpy
 srcs = cupy.asarray([0, 1, 2], dtype=numpy.int32)
 dsts = cupy.asarray([1, 2, 0], dtype=numpy.int32)

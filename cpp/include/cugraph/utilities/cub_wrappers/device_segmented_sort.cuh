@@ -11,7 +11,7 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <cub/cub.cuh>
+#include <cub/device/device_segmented_sort.cuh>
 
 #include <cassert>
 #include <cstddef>

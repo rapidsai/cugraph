@@ -13,84 +13,87 @@ context:
 recipe:
   name: libcugraph-split
 
-cache:
-  source:
-    path: ../../..
-
-  build:
-    script:
-      content: |
-        # Remove `-fdebug-prefix-map` line from CFLAGS and CXXFLAGS so the
-        # incrementing version number in the compile line doesn't break the
-        # cache
-        set -x
-        export CFLAGS=$(echo $CFLAGS | sed -E 's@\-fdebug\-prefix\-map[^ ]*@@g')
-        export CXXFLAGS=$(echo $CXXFLAGS | sed -E 's@\-fdebug\-prefix\-map[^ ]*@@g')
-        set +x
-
-        ./build.sh libcugraph libcugraph_etl cpp-mgtests cpp-mtmgtests -n -v --allgpuarch
-      secrets:
-        - AWS_ACCESS_KEY_ID
-        - AWS_SECRET_ACCESS_KEY
-        - AWS_SESSION_TOKEN
-        - SCCACHE_DIST_AUTH_TOKEN
-      env:
-        CMAKE_C_COMPILER_LAUNCHER: ${{ env.get("CMAKE_C_COMPILER_LAUNCHER") }}
-        CMAKE_CUDA_COMPILER_LAUNCHER: ${{ env.get("CMAKE_CUDA_COMPILER_LAUNCHER") }}
-        CMAKE_CXX_COMPILER_LAUNCHER: ${{ env.get("CMAKE_CXX_COMPILER_LAUNCHER") }}
-        CMAKE_GENERATOR: ${{ env.get("CMAKE_GENERATOR") }}
-        NVCC_APPEND_FLAGS: ${{ env.get("NVCC_APPEND_FLAGS", default="") }}
-        PARALLEL_LEVEL: ${{ env.get("PARALLEL_LEVEL", default="8") }}
-        RAPIDS_ARTIFACTS_DIR: ${{ env.get("RAPIDS_ARTIFACTS_DIR", default="") }}
-        SCCACHE_BUCKET: ${{ env.get("SCCACHE_BUCKET", default="") }}
-        SCCACHE_DIST_AUTH_TYPE: ${{ env.get("SCCACHE_DIST_AUTH_TYPE", default="token") }}
-        SCCACHE_DIST_FALLBACK_TO_LOCAL_COMPILE: ${{ env.get("SCCACHE_DIST_FALLBACK_TO_LOCAL_COMPILE", default="false") }}
-        SCCACHE_DIST_MAX_RETRIES: ${{ env.get("SCCACHE_DIST_MAX_RETRIES", default="inf") }}
-        SCCACHE_DIST_REQUEST_TIMEOUT: ${{ env.get("SCCACHE_DIST_REQUEST_TIMEOUT", default="7140") }}
-        SCCACHE_DIST_SCHEDULER_URL: ${{ env.get("SCCACHE_DIST_SCHEDULER_URL", default="") }}
-        SCCACHE_ERROR_LOG: ${{ env.get("SCCACHE_ERROR_LOG", default="/tmp/sccache.log") }}
-        SCCACHE_IDLE_TIMEOUT: ${{ env.get("SCCACHE_IDLE_TIMEOUT", default="0") }}
-        SCCACHE_NO_CACHE: ${{ env.get("SCCACHE_NO_CACHE", default="") }}
-        SCCACHE_RECACHE: ${{ env.get("SCCACHE_RECACHE", default="") }}
-        SCCACHE_REGION: ${{ env.get("SCCACHE_REGION", default="") }}
-        SCCACHE_S3_KEY_PREFIX: libcugraph/${{ env.get("RAPIDS_CONDA_ARCH") }}/cuda${{ cuda_major }}
-        SCCACHE_S3_NO_CREDENTIALS: ${{ env.get("SCCACHE_S3_NO_CREDENTIALS", default="false") }}
-        SCCACHE_S3_PREPROCESSOR_CACHE_KEY_PREFIX: libcugraph/${{ env.get("RAPIDS_CONDA_ARCH") }}/cuda${{ cuda_major }}/conda/preprocessor-cache
-        SCCACHE_S3_USE_PREPROCESSOR_CACHE_MODE: ${{ env.get("SCCACHE_S3_USE_PREPROCESSOR_CACHE_MODE", default="true") }}
-        SCCACHE_S3_USE_SSL: ${{ env.get("SCCACHE_S3_USE_SSL", default="true") }}
-        SCCACHE_SERVER_LOG: ${{ env.get("SCCACHE_SERVER_LOG", default="sccache=debug") }}
-
-  requirements:
-    build:
-      - ${{ compiler("c") }}
-      - ${{ compiler("cxx") }}
-      - ${{ compiler("cuda") }} =${{ cuda_version }}
-      - cuda-version =${{ cuda_version }}
-      - cmake ${{ cmake_version }}
-      - ninja
-      - ${{ stdlib("c") }}
-    host:
-      - cuda-version =${{ cuda_version }}
-      - libcudf =${{ minor_version }}
-      - libcuvs =${{ minor_version }}
-      - libraft =${{ minor_version }}
-      - librmm =${{ minor_version }}
-      - libucxx ${{ libucxx_version }}
-      - nccl ${{ nccl_version }}
-      - openmpi <5.0.3 # Required for building cpp-mgtests (multi-GPU tests)
-      - rapids-build-backend >=0.4.0,<0.5.0
-      - cuda-cudart-dev
-      - cuda-nvtx-dev
-      - cuda-profiler-api
-      - libcublas-dev
-      - libcurand-dev
-      - libcusolver-dev
-      - libcusparse-dev
+source:
+  path: ../../..
 
 outputs:
+  - staging:
+      name: libcugraph-build
+    build:
+      script:
+        content: |
+          # Remove `-fdebug-prefix-map` line from CFLAGS and CXXFLAGS so the
+          # incrementing version number in the compile line doesn't break the
+          # cache
+          set -x
+          export CFLAGS=$(echo $CFLAGS | sed -E 's@\-fdebug\-prefix\-map[^ ]*@@g')
+          export CXXFLAGS=$(echo $CXXFLAGS | sed -E 's@\-fdebug\-prefix\-map[^ ]*@@g')
+          set +x
+
+          ./build.sh libcugraph libcugraph_etl cpp-mgtests cpp-mtmgtests -n -v --allgpuarch
+        secrets:
+          - AWS_ACCESS_KEY_ID
+          - AWS_SECRET_ACCESS_KEY
+          - AWS_SESSION_TOKEN
+          - SCCACHE_DIST_AUTH_TOKEN
+        env:
+          CMAKE_C_COMPILER_LAUNCHER: ${{ env.get("CMAKE_C_COMPILER_LAUNCHER") }}
+          CMAKE_CUDA_COMPILER_LAUNCHER: ${{ env.get("CMAKE_CUDA_COMPILER_LAUNCHER") }}
+          CMAKE_CXX_COMPILER_LAUNCHER: ${{ env.get("CMAKE_CXX_COMPILER_LAUNCHER") }}
+          CMAKE_GENERATOR: ${{ env.get("CMAKE_GENERATOR") }}
+          NVCC_APPEND_FLAGS: ${{ env.get("NVCC_APPEND_FLAGS", default="") }}
+          PARALLEL_LEVEL: ${{ env.get("PARALLEL_LEVEL", default="8") }}
+          RAPIDS_ARTIFACTS_DIR: ${{ env.get("RAPIDS_ARTIFACTS_DIR", default="") }}
+          SCCACHE_BUCKET: ${{ env.get("SCCACHE_BUCKET", default="") }}
+          SCCACHE_CONF: ${{ env.get("SCCACHE_CONF", default="") }}
+          SCCACHE_DIST_AUTH_TYPE: ${{ env.get("SCCACHE_DIST_AUTH_TYPE", default="token") }}
+          SCCACHE_DIST_FALLBACK_TO_LOCAL_COMPILE: ${{ env.get("SCCACHE_DIST_FALLBACK_TO_LOCAL_COMPILE", default="false") }}
+          SCCACHE_DIST_MAX_RETRIES: ${{ env.get("SCCACHE_DIST_MAX_RETRIES", default="inf") }}
+          SCCACHE_DIST_REQUEST_TIMEOUT: ${{ env.get("SCCACHE_DIST_REQUEST_TIMEOUT", default="7140") }}
+          SCCACHE_DIST_SCHEDULER_URL: ${{ env.get("SCCACHE_DIST_SCHEDULER_URL", default="") }}
+          SCCACHE_ERROR_LOG: ${{ env.get("SCCACHE_ERROR_LOG", default="/tmp/sccache.log") }}
+          SCCACHE_IDLE_TIMEOUT: ${{ env.get("SCCACHE_IDLE_TIMEOUT", default="0") }}
+          SCCACHE_NO_CACHE: ${{ env.get("SCCACHE_NO_CACHE", default="") }}
+          SCCACHE_RECACHE: ${{ env.get("SCCACHE_RECACHE", default="") }}
+          SCCACHE_REGION: ${{ env.get("SCCACHE_REGION", default="") }}
+          SCCACHE_S3_KEY_PREFIX: libcugraph/${{ env.get("RAPIDS_CONDA_ARCH") }}/cuda${{ cuda_major }}
+          SCCACHE_S3_NO_CREDENTIALS: ${{ env.get("SCCACHE_S3_NO_CREDENTIALS", default="false") }}
+          SCCACHE_S3_PREPROCESSOR_CACHE_KEY_PREFIX: libcugraph/${{ env.get("RAPIDS_CONDA_ARCH") }}/cuda${{ cuda_major }}/conda/preprocessor-cache
+          SCCACHE_S3_USE_PREPROCESSOR_CACHE_MODE: ${{ env.get("SCCACHE_S3_USE_PREPROCESSOR_CACHE_MODE", default="true") }}
+          SCCACHE_S3_USE_SSL: ${{ env.get("SCCACHE_S3_USE_SSL", default="true") }}
+          SCCACHE_SERVER_LOG: ${{ env.get("SCCACHE_SERVER_LOG", default="sccache=debug") }}
+
+    requirements:
+      build:
+        - ${{ compiler("c") }}
+        - ${{ compiler("cxx") }}
+        - ${{ compiler("cuda") }} =${{ cuda_version }}
+        - cuda-version =${{ cuda_version }}
+        - cmake ${{ cmake_version }}
+        - ninja
+        - ${{ stdlib("c") }}
+      host:
+        - cuda-version =${{ cuda_version }}
+        - libcudf =${{ minor_version }}
+        - libcuvs =${{ minor_version }}
+        - libraft =${{ minor_version }}
+        - librmm =${{ minor_version }}
+        - libucxx ${{ libucxx_version }}
+        - nccl ${{ nccl_version }}
+        - openmpi <5.0.3 # Required for building cpp-mgtests (multi-GPU tests)
+        - rapids-build-backend >=0.4.0,<0.5.0
+        - cuda-cudart-dev
+        - cuda-nvtx-dev
+        - cuda-profiler-api
+        - libcublas-dev
+        - libcurand-dev
+        - libcusolver-dev
+        - libcusparse-dev
+
   - package:
       name: libcugraph
       version: ${{ version }}
+    inherit: libcugraph-build
     build:
       script:
         content: |
@@ -121,6 +124,7 @@ outputs:
         - libcusolver-dev
         - libcusparse-dev
       run:
+        - rapids-logger =0.3
         - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
         - libraft =${{ minor_version }}
         - librmm =${{ minor_version }}
@@ -154,6 +158,7 @@ outputs:
   - package:
       name: libcugraph_etl
       version: ${{ version }}
+    inherit: libcugraph-build
     build:
       script:
         content: |
@@ -203,6 +208,7 @@ outputs:
   - package:
       name: libcugraph-tests
       version: ${{ version }}
+    inherit: libcugraph-build
     build:
       script:
         content: |
@@ -219,12 +225,17 @@ outputs:
         - ${{ stdlib("c") }}
       host:
         - ${{ pin_subpackage("libcugraph", exact=True) }}
+        - ${{ pin_subpackage("libcugraph_etl", exact=True) }}
         - cuda-version =${{ cuda_version }}
         - cuda-cudart-dev
         - nccl ${{ nccl_version }}
         - openmpi <5.0.3 # Required for building cpp-mgtests (multi-GPU tests)
         - rapids-logger =0.3
       run:
+        - libcudf =${{ minor_version }}
+        - openmpi <5.0.3
+        - librmm =${{ minor_version }}
+        - nccl ${{ nccl_version }}
         - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
         - ${{ pin_subpackage("libcugraph", exact=True) }}
         - ${{ pin_subpackage("libcugraph_etl", exact=True) }}

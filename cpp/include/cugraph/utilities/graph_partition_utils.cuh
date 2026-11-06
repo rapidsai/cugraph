@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -9,6 +9,7 @@
 
 #include <raft/core/device_span.hpp>
 
+#include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
@@ -16,8 +17,6 @@
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
-
-#include <cuco/hash_functions.cuh>
 
 #include <algorithm>
 #include <numeric>
@@ -34,7 +33,7 @@ struct compute_gpu_id_from_ext_vertex_t {
 
   __host__ __device__ int operator()(vertex_t v) const
   {
-    cuco::murmurhash3_32<vertex_t> hash_func{};
+    cuda::hash<vertex_t, cuda::hash_algorithm::murmurhash3_32> hash_func{};
     auto vertex_partition_id = static_cast<int>(hash_func(v) % comm_size);
     return partition_manager::compute_global_comm_rank_from_vertex_partition_id(
       major_comm_size, minor_comm_size, vertex_partition_id);
@@ -49,7 +48,7 @@ struct compute_gpu_id_from_ext_edge_id_t {
 
   __host__ __device__ int operator()(edge_t e) const
   {
-    cuco::murmurhash3_32<edge_t> hash_func{};
+    cuda::hash<edge_t, cuda::hash_algorithm::murmurhash3_32> hash_func{};
     auto vertex_partition_id = static_cast<int>(hash_func(e) % comm_size);
     return partition_manager::compute_global_comm_rank_from_vertex_partition_id(
       major_comm_size, minor_comm_size, vertex_partition_id);
@@ -79,7 +78,7 @@ struct compute_vertex_partition_id_from_ext_vertex_t {
 
   __host__ __device__ int operator()(vertex_t v) const
   {
-    cuco::murmurhash3_32<vertex_t> hash_func{};
+    cuda::hash<vertex_t, cuda::hash_algorithm::murmurhash3_32> hash_func{};
     return hash_func(v) % comm_size;
   }
 };
@@ -105,7 +104,7 @@ struct compute_gpu_id_from_ext_edge_endpoints_t {
 
   __host__ __device__ int operator()(vertex_t major, vertex_t minor) const
   {
-    cuco::murmurhash3_32<vertex_t> hash_func{};
+    cuda::hash<vertex_t, cuda::hash_algorithm::murmurhash3_32> hash_func{};
     auto major_vertex_partition_id = static_cast<int>(hash_func(major) % comm_size);
     auto minor_vertex_partition_id = static_cast<int>(hash_func(minor) % comm_size);
     auto major_comm_rank           = major_vertex_partition_id % major_comm_size;
@@ -117,7 +116,7 @@ struct compute_gpu_id_from_ext_edge_endpoints_t {
   __host__ __device__ int operator()(
     cuda::std::tuple<vertex_t, vertex_t> pair /* major, minor */) const
   {
-    cuco::murmurhash3_32<vertex_t> hash_func{};
+    cuda::hash<vertex_t, cuda::hash_algorithm::murmurhash3_32> hash_func{};
     auto major_vertex_partition_id =
       static_cast<int>(hash_func(cuda::std::get<0>(pair)) % comm_size);
     auto minor_vertex_partition_id =
@@ -185,7 +184,7 @@ struct compute_edge_partition_id_from_ext_edge_endpoints_t {
 
   __host__ __device__ int operator()(vertex_t major, vertex_t minor) const
   {
-    cuco::murmurhash3_32<vertex_t> hash_func{};
+    cuda::hash<vertex_t, cuda::hash_algorithm::murmurhash3_32> hash_func{};
     return (hash_func(major) % comm_size) * minor_comm_size +
            (hash_func(minor) % comm_size) / major_comm_size;
   }
@@ -193,7 +192,7 @@ struct compute_edge_partition_id_from_ext_edge_endpoints_t {
   __host__ __device__ int operator()(
     cuda::std::tuple<vertex_t, vertex_t> pair /* major, minor */) const
   {
-    cuco::murmurhash3_32<vertex_t> hash_func{};
+    cuda::hash<vertex_t, cuda::hash_algorithm::murmurhash3_32> hash_func{};
     return (hash_func(cuda::std::get<0>(pair)) % comm_size) * minor_comm_size +
            (hash_func(cuda::std::get<1>(pair)) % comm_size) / major_comm_size;
   }

@@ -42,8 +42,6 @@
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
 
-#include <cuco/hash_functions.cuh>
-
 #include <gtest/gtest.h>
 
 #include <random>

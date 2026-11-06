@@ -1,11 +1,11 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "c_api/labeling_result.hpp"
 
-#include <cugraph_c/labeling_algorithms.h>
+#include <cugraph_c/components_algorithms.h>
 
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_labeling_result_get_vertices(
   cugraph_labeling_result_t* result)

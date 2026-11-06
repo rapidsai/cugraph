@@ -6,7 +6,8 @@ parent directory and depend on the `libcugraph_c` and `libcugraph` libraries and
 headers.
 
 ## components
-The `weakly_connected_components` and `strongly_connected_components` APIs.
+The `weakly_connected_components`, `strongly_connected_components`, and
+`simple_cycles` APIs.
 
 ## structure
 Internal utilities and types for use with the libcugraph C++ library.

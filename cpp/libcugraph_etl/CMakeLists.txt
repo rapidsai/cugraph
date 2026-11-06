@@ -1,6 +1,6 @@
 #=============================================================================
 # cmake-format: off
-# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 # cmake-format: on
 #=============================================================================
@@ -184,3 +184,11 @@ rapids_export(BUILD cugraph_etl
     NAMESPACE cugraph::
     DOCUMENTATION doc_string
     )
+
+################################################################################
+# - tests ----------------------------------------------------------------------
+if(BUILD_TESTS)
+  include(${rapids-cmake-dir}/cpm/gtest.cmake)
+  rapids_cpm_gtest(BUILD_STATIC)
+  add_subdirectory(tests)
+endif()

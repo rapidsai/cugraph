@@ -42,8 +42,6 @@
 #include <thrust/sort.h>
 #include <thrust/unique.h>
 
-#include <cuco/hash_functions.cuh>
-
 #include <algorithm>
 #include <iterator>
 #include <numeric>

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -9,10 +9,9 @@
 #include <cugraph/prims/transform_e.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 
+#include <cuda/functional>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
-
-#include <cuco/hash_functions.cuh>
 
 #include <type_traits>
 #include <utility>
@@ -50,7 +49,7 @@ struct vertex_property_transform {
   {
     static_assert(cugraph::is_thrust_tuple_of_arithmetic<property_t>::value ||
                   std::is_arithmetic_v<property_t>);
-    cuco::murmurhash3_32<vertex_t> hash_func{};
+    cuda::hash<vertex_t, cuda::hash_algorithm::murmurhash3_32> hash_func{};
     return make_property_value<property_t>(hash_func(v) % mod);
   }
 };
@@ -67,7 +66,7 @@ struct edge_property_transform {
   {
     static_assert(cugraph::is_thrust_tuple_of_arithmetic<property_t>::value ||
                   std::is_arithmetic_v<property_t>);
-    cuco::murmurhash3_32<vertex_t> hash_func{};
+    cuda::hash<vertex_t, cuda::hash_algorithm::murmurhash3_32> hash_func{};
     return make_property_value<property_t>(hash_func(src + dst) % mod);
   }
 };

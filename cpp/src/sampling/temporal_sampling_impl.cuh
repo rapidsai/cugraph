@@ -17,6 +17,8 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/sampling_functions.hpp>
+#include <cugraph/utilities/atomic_ops.cuh>
+#include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
@@ -35,6 +37,8 @@
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/fill.h>
+#include <thrust/find.h>
+#include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
@@ -424,6 +428,139 @@ rmm::device_uvector<time_stamp_t> lookup_src_time_from_frontier(
   return edge_times;
 }
 
+// An edge start time of numeric_limits<time_stamp_t>::lowest() means the edge has no time.
+// passes_temporal_filter accepts it, but propagating that sentinel would reset the frontier
+// bound. Replace only those entries with the source's current frontier time; real edge times
+// still advance the bound. Returns nullopt when every sampled time is a real timestamp (or when
+// the implicit unbounded start is already lowest(), so the edge times are already correct), and
+// the caller keeps the edge-start-time span.
+template <typename vertex_t, typename time_stamp_t, typename label_t>
+std::optional<rmm::device_uvector<time_stamp_t>> frontier_times_keeping_bound_for_missing_edges(
+  raft::handle_t const& handle,
+  temporal_sampling_comparison_t temporal_sampling_comparison,
+  raft::device_span<vertex_t const> frontier_vertices,
+  std::optional<raft::device_span<label_t const>> frontier_labels,
+  std::optional<raft::device_span<time_stamp_t const>> frontier_times,
+  raft::device_span<time_stamp_t const> edge_start_times,
+  raft::device_span<vertex_t const> srcs,
+  std::optional<raft::device_span<label_t const>> src_labels)
+{
+  // Increasing walks with no explicit frontier time already use lowest() as the unbounded start,
+  // which is the same value as a missing edge time.
+  if (!frontier_times && !is_temporal_decreasing(temporal_sampling_comparison)) {
+    return std::nullopt;
+  }
+  if (edge_start_times.empty()) { return std::nullopt; }
+
+  auto const missing_time = std::numeric_limits<time_stamp_t>::lowest();
+  auto const missing_it   = thrust::find(
+    handle.get_thrust_policy(), edge_start_times.begin(), edge_start_times.end(), missing_time);
+  if (missing_it == edge_start_times.end()) { return std::nullopt; }
+
+  rmm::device_uvector<time_stamp_t> next_times(edge_start_times.size(), handle.get_stream());
+  if (frontier_times) {
+    auto src_frontier_times = lookup_src_time_from_frontier<vertex_t, time_stamp_t, label_t>(
+      handle, frontier_vertices, frontier_labels, *frontier_times, srcs, src_labels);
+    thrust::transform(
+      handle.get_thrust_policy(),
+      edge_start_times.begin(),
+      edge_start_times.end(),
+      src_frontier_times.begin(),
+      next_times.begin(),
+      [missing_time] __device__(time_stamp_t edge_time, time_stamp_t frontier_time) {
+        return edge_time == missing_time ? frontier_time : edge_time;
+      });
+  } else {
+    auto const preserved_time =
+      unbounded_temporal_window_start<time_stamp_t>(temporal_sampling_comparison);
+    thrust::transform(handle.get_thrust_policy(),
+                      edge_start_times.begin(),
+                      edge_start_times.end(),
+                      next_times.begin(),
+                      [missing_time, preserved_time] __device__(time_stamp_t edge_time) {
+                        return edge_time == missing_time ? preserved_time : edge_time;
+                      });
+  }
+  return std::optional<rmm::device_uvector<time_stamp_t>>{std::move(next_times)};
+}
+
+// LAST heterogeneous sampling treats numeric_limits<time_stamp_t>::lowest() as "this edge type
+// has no times" and ranks those edges by a uniform key. A type that mixes the sentinel with real
+// timestamps would let the real timestamps outrank every uniform key. Each type must be entirely
+// one or the other: if its minimum time is the sentinel, its maximum must be the sentinel too.
+template <typename edge_t, typename time_stamp_t, typename edge_type_t, bool multi_gpu>
+void validate_last_n_heterogeneous_edge_times(
+  raft::handle_t const& handle,
+  edge_property_view_t<edge_t, time_stamp_t const*> edge_start_time_view,
+  edge_property_view_t<edge_t, edge_type_t const*> edge_type_view,
+  edge_type_t num_edge_types)
+{
+  auto const num_types    = static_cast<size_t>(num_edge_types);
+  auto const missing_time = std::numeric_limits<time_stamp_t>::lowest();
+  // Identities for a later MIN/MAX allreduce. A type with no edges keeps these, and
+  // missing_time != max(), so an empty type does not look mixed.
+  rmm::device_uvector<time_stamp_t> min_time(num_types, handle.get_stream());
+  rmm::device_uvector<time_stamp_t> max_time(num_types, handle.get_stream());
+  cugraph::fill(handle.get_thrust_policy(),
+                min_time.begin(),
+                min_time.end(),
+                std::numeric_limits<time_stamp_t>::max());
+  cugraph::fill(handle.get_thrust_policy(), max_time.begin(), max_time.end(), missing_time);
+
+  auto const& time_firsts = edge_start_time_view.value_firsts();
+  auto const& type_firsts = edge_type_view.value_firsts();
+  auto const& edge_counts = edge_start_time_view.edge_counts();
+  for (size_t partition = 0; partition < edge_counts.size(); ++partition) {
+    auto const count = static_cast<size_t>(edge_counts[partition]);
+    if (count == 0) { continue; }
+    thrust::for_each(handle.get_thrust_policy(),
+                     thrust::make_counting_iterator(size_t{0}),
+                     thrust::make_counting_iterator(count),
+                     [times    = time_firsts[partition],
+                      types    = type_firsts[partition],
+                      min_time = min_time.data(),
+                      max_time = max_time.data(),
+                      num_types] __device__(size_t i) {
+                       auto const type = types[i];
+                       if ((type < edge_type_t{0}) || (static_cast<size_t>(type) >= num_types)) {
+                         return;
+                       }
+                       auto const idx       = static_cast<size_t>(type);
+                       auto const edge_time = times[i];
+                       elementwise_atomic_min(min_time + idx, edge_time);
+                       elementwise_atomic_max(max_time + idx, edge_time);
+                     });
+  }
+
+  if constexpr (multi_gpu) {
+    device_allreduce(handle.get_comms(),
+                     min_time.begin(),
+                     min_time.begin(),
+                     num_types,
+                     raft::comms::op_t::MIN,
+                     handle.get_stream());
+    device_allreduce(handle.get_comms(),
+                     max_time.begin(),
+                     max_time.begin(),
+                     num_types,
+                     raft::comms::op_t::MAX,
+                     handle.get_stream());
+  }
+
+  auto const bounds          = thrust::make_zip_iterator(min_time.begin(), max_time.begin());
+  auto const num_mixed_types = static_cast<size_t>(thrust::count_if(
+    handle.get_thrust_policy(), bounds, bounds + num_types, [missing_time] __device__(auto pair) {
+      auto const type_min = cuda::std::get<0>(pair);
+      auto const type_max = cuda::std::get<1>(pair);
+      return (type_min == missing_time) && (type_max != missing_time);
+    }));
+
+  CUGRAPH_EXPECTS(num_mixed_types == 0,
+                  "Invalid input argument: each edge type in heterogeneous LAST sampling must "
+                  "store either all missing times (numeric_limits<time_stamp_t>::lowest()) or no "
+                  "missing times.");
+}
+
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -536,6 +673,14 @@ temporal_neighbor_sample_impl(
     (sampling_flags.neighbor_selection == neighbor_selection_t::RANDOM) || !edge_bias_view,
     "Invalid input argument: LAST neighbor selection does not accept edge "
     "biases.");
+
+  if (do_expensive_check && (sampling_flags.neighbor_selection == neighbor_selection_t::LAST) &&
+      num_edge_types && (*num_edge_types > 1)) {
+    CUGRAPH_EXPECTS(edge_type_view.has_value(),
+                    "Invalid input argument: heterogeneous LAST sampling requires edge types.");
+    validate_last_n_heterogeneous_edge_times<edge_t, time_stamp_t, edge_type_t, multi_gpu>(
+      handle, edge_start_time_view, *edge_type_view, *num_edge_types);
+  }
 
   // LAST ranks eligible edges by converting timestamps to double bias values
   // (detail::last_n_time_bias) for per_v_top_k_select_transform_outgoing_e.
@@ -708,6 +853,11 @@ temporal_neighbor_sample_impl(
       sampling_flags.fixed_window && frontier_vertex_times.has_value();
     std::vector<rmm::device_uvector<time_stamp_t>> next_frontier_window_start_vectors{};
     if (fixed_window_starts) { next_frontier_window_start_vectors.reserve(2); }
+    // Backing store for frontier times that replace a missing edge time (lowest()) with the
+    // source's current bound. At most one push for level_Ks and one for gather. Reserved up
+    // front so a second push cannot move the first buffer out from under its published span.
+    std::vector<rmm::device_uvector<time_stamp_t>> next_frontier_preserved_time_vectors{};
+    next_frontier_preserved_time_vectors.reserve(2);
 
     auto start_offset = hop * (num_edge_types ? *num_edge_types : edge_type_t{1});
     auto end_offset =
@@ -822,8 +972,27 @@ temporal_neighbor_sample_impl(
                         props[edge_start_time_prop_idx].index());
         auto const& edge_start_times =
           std::get<rmm::device_uvector<time_stamp_t>>(props[edge_start_time_prop_idx]);
-        next_frontier_vertex_time_spans->push_back(
-          raft::device_span<time_stamp_t const>{edge_start_times.data(), edge_start_times.size()});
+        auto preserved_frontier_times =
+          frontier_times_keeping_bound_for_missing_edges<vertex_t, time_stamp_t, label_t>(
+            handle,
+            temporal_sampling_comparison,
+            active_majors,
+            active_labels,
+            active_window_starts,
+            raft::device_span<time_stamp_t const>{edge_start_times.data(), edge_start_times.size()},
+            raft::device_span<vertex_t const>{srcs.data(), srcs.size()},
+            labels
+              ? std::make_optional(raft::device_span<label_t const>{labels->data(), labels->size()})
+              : std::nullopt);
+        if (preserved_frontier_times) {
+          next_frontier_preserved_time_vectors.push_back(std::move(*preserved_frontier_times));
+          next_frontier_vertex_time_spans->push_back(raft::device_span<time_stamp_t const>{
+            next_frontier_preserved_time_vectors.back().data(),
+            next_frontier_preserved_time_vectors.back().size()});
+        } else {
+          next_frontier_vertex_time_spans->push_back(raft::device_span<time_stamp_t const>{
+            edge_start_times.data(), edge_start_times.size()});
+        }
       }
       if (next_frontier_vertex_label_spans) {
         next_frontier_vertex_label_spans->push_back(
@@ -922,8 +1091,27 @@ temporal_neighbor_sample_impl(
                         props[edge_start_time_prop_idx].index());
         auto const& edge_start_times =
           std::get<rmm::device_uvector<time_stamp_t>>(props[edge_start_time_prop_idx]);
-        next_frontier_vertex_time_spans->push_back(
-          raft::device_span<time_stamp_t const>{edge_start_times.data(), edge_start_times.size()});
+        auto preserved_frontier_times =
+          frontier_times_keeping_bound_for_missing_edges<vertex_t, time_stamp_t, label_t>(
+            handle,
+            temporal_sampling_comparison,
+            active_majors,
+            active_labels,
+            active_window_starts,
+            raft::device_span<time_stamp_t const>{edge_start_times.data(), edge_start_times.size()},
+            raft::device_span<vertex_t const>{srcs.data(), srcs.size()},
+            labels
+              ? std::make_optional(raft::device_span<label_t const>{labels->data(), labels->size()})
+              : std::nullopt);
+        if (preserved_frontier_times) {
+          next_frontier_preserved_time_vectors.push_back(std::move(*preserved_frontier_times));
+          next_frontier_vertex_time_spans->push_back(raft::device_span<time_stamp_t const>{
+            next_frontier_preserved_time_vectors.back().data(),
+            next_frontier_preserved_time_vectors.back().size()});
+        } else {
+          next_frontier_vertex_time_spans->push_back(raft::device_span<time_stamp_t const>{
+            edge_start_times.data(), edge_start_times.size()});
+        }
       }
       if (next_frontier_vertex_label_spans) {
         next_frontier_vertex_label_spans->push_back(

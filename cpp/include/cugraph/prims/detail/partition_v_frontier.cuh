@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -18,7 +18,6 @@
 
 #include <raft/random/rng.cuh>
 
-#include <cub/cub.cuh>
 #include <cuda/atomic>
 #include <cuda/functional>
 #include <cuda/std/iterator>

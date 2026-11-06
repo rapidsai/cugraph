@@ -21,6 +21,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cub/block/block_scan.cuh>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>

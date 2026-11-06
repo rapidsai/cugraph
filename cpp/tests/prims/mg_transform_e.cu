@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -34,8 +34,6 @@
 #include <cuda/std/tuple>
 #include <thrust/count.h>
 #include <thrust/iterator/zip_iterator.h>
-
-#include <cuco/hash_functions.cuh>
 
 #include <gtest/gtest.h>
 
