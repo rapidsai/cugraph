@@ -27,6 +27,7 @@
 
 #include <cuda/functional>
 #include <cuda/iterator>
+#include <cuda/std/algorithm.min.h>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/equal.h>

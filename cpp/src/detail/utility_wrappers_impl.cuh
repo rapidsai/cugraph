@@ -15,6 +15,7 @@
 
 #include <cuda/functional>
 #include <cuda/iterator>
+#include <cuda/std/algorithm.max.h>
 #include <cuda/std/tuple>
 #include <cuda/stream>
 #include <thrust/count.h>

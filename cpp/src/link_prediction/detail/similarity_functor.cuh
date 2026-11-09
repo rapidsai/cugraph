@@ -4,7 +4,7 @@
  */
 #pragma once
 
-#include <cuda/std/algorithm>
+#include <cuda/std/algorithm.min.h>
 
 #include <limits>
 

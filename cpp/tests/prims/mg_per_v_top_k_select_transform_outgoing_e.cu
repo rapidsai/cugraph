@@ -30,6 +30,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/algorithm.min.h>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>

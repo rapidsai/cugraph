@@ -9,6 +9,7 @@
 #include <raft/core/handle.hpp>
 #include <raft/core/span.hpp>
 
+#include <cuda/std/algorithm.max.h>
 #include <cuda/std/functional>
 
 #include <numeric>
