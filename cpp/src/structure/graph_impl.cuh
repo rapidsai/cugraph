@@ -119,7 +119,7 @@ std::enable_if_t<multi_gpu,
                             std::optional<std::vector<vertex_t>>>>
 update_local_sorted_unique_edge_majors_minors(
   raft::handle_t const& handle,
-  graph_meta_t<vertex_t, edge_t, multi_gpu> const& meta,
+  detail::graph_meta_t<vertex_t, edge_t, multi_gpu> const& meta,
   std::vector<rmm::device_uvector<edge_t>> const& edge_partition_offsets,
   std::vector<rmm::device_uvector<vertex_t>> const& edge_partition_indices,
   std::optional<std::vector<rmm::device_uvector<vertex_t>>> const& edge_partition_dcs_nzd_vertices)
@@ -379,7 +379,7 @@ template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::enable_if_t<multi_gpu, std::vector<rmm::device_uvector<uint32_t>>>
 compute_edge_partition_dcs_nzd_range_bitmaps(
   raft::handle_t const& handle,
-  graph_meta_t<vertex_t, edge_t, multi_gpu> const& meta,
+  detail::graph_meta_t<vertex_t, edge_t, multi_gpu> const& meta,
   std::vector<rmm::device_uvector<vertex_t>> const& edge_partition_dcs_nzd_vertices)
 {
   auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
@@ -421,18 +421,20 @@ compute_edge_partition_dcs_nzd_range_bitmaps(
 
 }  // namespace
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::graph_t(
+template <typename vertex_t, typename edge_t, bool store_transposed, bool dynamic>
+graph_t<vertex_t, edge_t, store_transposed, true, dynamic>::graph_t(
   raft::handle_t const& handle,
   std::vector<rmm::device_uvector<edge_t>>&& edge_partition_offsets,
   std::vector<rmm::device_uvector<vertex_t>>&& edge_partition_indices,
   std::optional<std::vector<rmm::device_uvector<vertex_t>>>&& edge_partition_dcs_nzd_vertices,
-  graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
-  bool do_expensive_check)
+  detail::graph_meta_t<vertex_t, edge_t, true> meta,
+  bool do_expensive_check) requires(!dynamic)
   : detail::graph_base_t<vertex_t, edge_t>(
       meta.number_of_vertices, meta.number_of_edges, meta.properties),
-    partition_(meta.partition)
+    graph_(handle)
 {
+  graph_.partition = meta.partition;
+
   CUGRAPH_EXPECTS(
     edge_partition_offsets.size() == edge_partition_indices.size(),
     "Invalid input argument: edge_partition_offsets.size() != edge_partition_indices.size().");
@@ -441,56 +443,56 @@ graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gp
                   "Invalid input argument: edge_partition_dcs_nzd_vertices.has_value() && "
                   "edge_partition_indices.size() != (*edge_partition_dcs_nzd_vertices).size().");
 
-  edge_partition_segment_offsets_            = meta.edge_partition_segment_offsets;
-  edge_partition_hypersparse_degree_offsets_ = meta.edge_partition_hypersparse_degree_offsets;
+  graph_.edge_partition_segment_offsets            = meta.edge_partition_segment_offsets;
+  graph_.edge_partition_hypersparse_degree_offsets = meta.edge_partition_hypersparse_degree_offsets;
 
   // compress edge list (COO) to CSR (or CSC) or CSR + DCSR (CSC + DCSC) hybrid
 
-  edge_partition_offsets_          = std::move(edge_partition_offsets);
-  edge_partition_indices_          = std::move(edge_partition_indices);
-  edge_partition_dcs_nzd_vertices_ = std::move(edge_partition_dcs_nzd_vertices);
+  graph_.edge_partition_offsets          = std::move(edge_partition_offsets);
+  graph_.edge_partition_indices          = std::move(edge_partition_indices);
+  graph_.edge_partition_dcs_nzd_vertices = std::move(edge_partition_dcs_nzd_vertices);
 
   // update local sorted unique edge sources/destinations (only if key, value pair will be used)
 
   if constexpr (store_transposed) {
-    std::tie(local_sorted_unique_edge_dsts_,
-             local_sorted_unique_edge_dst_chunk_start_offsets_,
-             local_sorted_unique_edge_dst_chunk_size_,
-             local_sorted_unique_edge_srcs_,
-             local_sorted_unique_edge_src_chunk_start_offsets_,
-             local_sorted_unique_edge_src_chunk_size_,
-             local_sorted_unique_edge_src_vertex_partition_offsets_) =
-      update_local_sorted_unique_edge_majors_minors<vertex_t, edge_t, store_transposed, multi_gpu>(
+    std::tie(graph_.local_sorted_unique_edge_dsts,
+             graph_.local_sorted_unique_edge_dst_chunk_start_offsets,
+             graph_.local_sorted_unique_edge_dst_chunk_size,
+             graph_.local_sorted_unique_edge_srcs,
+             graph_.local_sorted_unique_edge_src_chunk_start_offsets,
+             graph_.local_sorted_unique_edge_src_chunk_size,
+             graph_.local_sorted_unique_edge_src_vertex_partition_offsets) =
+      update_local_sorted_unique_edge_majors_minors<vertex_t, edge_t, store_transposed, true>(
         handle,
         meta,
-        edge_partition_offsets_,
-        edge_partition_indices_,
-        edge_partition_dcs_nzd_vertices_);
+        graph_.edge_partition_offsets,
+        graph_.edge_partition_indices,
+        graph_.edge_partition_dcs_nzd_vertices);
   } else {
-    std::tie(local_sorted_unique_edge_srcs_,
-             local_sorted_unique_edge_src_chunk_start_offsets_,
-             local_sorted_unique_edge_src_chunk_size_,
-             local_sorted_unique_edge_dsts_,
-             local_sorted_unique_edge_dst_chunk_start_offsets_,
-             local_sorted_unique_edge_dst_chunk_size_,
-             local_sorted_unique_edge_dst_vertex_partition_offsets_) =
-      update_local_sorted_unique_edge_majors_minors<vertex_t, edge_t, store_transposed, multi_gpu>(
+    std::tie(graph_.local_sorted_unique_edge_srcs,
+             graph_.local_sorted_unique_edge_src_chunk_start_offsets,
+             graph_.local_sorted_unique_edge_src_chunk_size,
+             graph_.local_sorted_unique_edge_dsts,
+             graph_.local_sorted_unique_edge_dst_chunk_start_offsets,
+             graph_.local_sorted_unique_edge_dst_chunk_size,
+             graph_.local_sorted_unique_edge_dst_vertex_partition_offsets) =
+      update_local_sorted_unique_edge_majors_minors<vertex_t, edge_t, store_transposed, true>(
         handle,
         meta,
-        edge_partition_offsets_,
-        edge_partition_indices_,
-        edge_partition_dcs_nzd_vertices_);
+        graph_.edge_partition_offsets,
+        graph_.edge_partition_indices,
+        graph_.edge_partition_dcs_nzd_vertices);
   }
 
-  if (edge_partition_dcs_nzd_vertices_) {
-    edge_partition_dcs_nzd_range_bitmaps_ =
-      compute_edge_partition_dcs_nzd_range_bitmaps(handle, meta, *edge_partition_dcs_nzd_vertices_);
+  if (graph_.edge_partition_dcs_nzd_vertices) {
+    graph_.edge_partition_dcs_nzd_range_bitmaps = compute_edge_partition_dcs_nzd_range_bitmaps(
+      handle, meta, *graph_.edge_partition_dcs_nzd_vertices);
   }
 
   // Global logical |E|: sum local CSR index counts, then SUM allreduce (each edge on one GPU).
   {
     edge_t local_count{0};
-    for (auto const& indices : edge_partition_indices_) {
+    for (auto const& indices : graph_.edge_partition_indices) {
       local_count += static_cast<edge_t>(indices.size());
     }
 #if 1  // FIXME: we should add host_allreduce to raft
@@ -504,20 +506,21 @@ graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gp
   }
 }
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::graph_t(
+template <typename vertex_t, typename edge_t, bool store_transposed, bool dynamic>
+graph_t<vertex_t, edge_t, store_transposed, false, dynamic>::graph_t(
   raft::handle_t const& handle,
   rmm::device_uvector<edge_t>&& offsets,
   rmm::device_uvector<vertex_t>&& indices,
-  graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
-  bool do_expensive_check)
+  detail::graph_meta_t<vertex_t, edge_t, false> meta,
+  bool do_expensive_check) requires(!dynamic)
   : detail::graph_base_t<vertex_t, edge_t>(
       meta.number_of_vertices, static_cast<edge_t>(indices.size()), meta.properties),
-    offsets_(std::move(offsets)),
-    indices_(std::move(indices)),
-    segment_offsets_(meta.segment_offsets),
-    hypersparse_degree_offsets_(meta.hypersparse_degree_offsets)
+    graph_(handle)
 {
+  graph_.offsets                    = std::move(offsets);
+  graph_.indices                    = std::move(indices);
+  graph_.segment_offsets            = meta.segment_offsets;
+  graph_.hypersparse_degree_offsets = meta.hypersparse_degree_offsets;
 }
 
 }  // namespace cugraph
