@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -361,8 +361,6 @@ __host__ __device__ std::enable_if_t<std::is_unsigned<vertex_t>::value, bool> is
 }
 
 }  // namespace CUGRAPH_EXPORT cugraph
-
-#include "eidecl_graph.hpp"
 
 /**
  * @}
