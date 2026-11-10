@@ -11,6 +11,7 @@ jobs:
   # Please keep pr-builder as the top job here
   pr-builder:
     needs:
+      - burndown-pr
       - build-details
       - check-nightly-ci
       - changed-files
@@ -35,6 +36,13 @@ jobs:
       needs: ${{ toJSON(needs) }}
     permissions:
       contents: read
+  burndown-pr:
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    uses: rapidsai/shared-workflows/.github/workflows/burndown-pr.yaml@main
+
   build-details:
     uses: rapidsai/shared-workflows/.github/workflows/compute-build-details.yaml@main
   check-nightly-ci:
@@ -246,7 +254,9 @@ jobs:
     permissions:
       contents: read
   conda-cpp-build:
-    needs: [build-details, checks]
+    if: >-
+      needs.burndown-pr.result == 'success' && needs.burndown-pr.outputs.skip-product-ci != 'true'
+    needs: [burndown-pr, build-details, checks]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@main
     with:
@@ -262,10 +272,11 @@ jobs:
       packages: read
       pull-requests: read
   conda-cpp-tests:
-    needs: [conda-cpp-build, changed-files]
+    needs: [burndown-pr, conda-cpp-build, changed-files]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@main
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_cpp
+    if: >-
+      needs.burndown-pr.result == 'success' && needs.burndown-pr.outputs.skip-product-ci != 'true' && (fromJSON(needs.changed-files.outputs.changed_file_groups).test_cpp)
     with:
       build_type: pull-request
       script: ci/test_cpp.sh
@@ -277,7 +288,9 @@ jobs:
       packages: read
       pull-requests: read
   conda-cpp-checks:
-    needs: conda-cpp-build
+    if: >-
+      needs.burndown-pr.result == 'success' && needs.burndown-pr.outputs.skip-product-ci != 'true'
+    needs: [burndown-pr, conda-cpp-build]
     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@main
     with:
       build_type: pull-request
@@ -290,7 +303,9 @@ jobs:
       packages: read
       pull-requests: read
   conda-python-build:
-    needs: [build-details, conda-cpp-build]
+    if: >-
+      needs.burndown-pr.result == 'success' && needs.burndown-pr.outputs.skip-product-ci != 'true'
+    needs: [burndown-pr, build-details, conda-cpp-build]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@main
     with:
@@ -307,10 +322,11 @@ jobs:
       packages: read
       pull-requests: read
   conda-python-tests:
-    needs: [conda-python-build, changed-files]
+    needs: [burndown-pr, conda-python-build, changed-files]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@main
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_conda
+    if: >-
+      needs.burndown-pr.result == 'success' && needs.burndown-pr.outputs.skip-product-ci != 'true' && (fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_conda)
     with:
       build_type: pull-request
       script: ci/test_python.sh
@@ -322,10 +338,11 @@ jobs:
       packages: read
       pull-requests: read
   conda-notebook-tests:
-    needs: [conda-python-build, changed-files]
+    needs: [burndown-pr, conda-python-build, changed-files]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_notebooks
+    if: >-
+      needs.burndown-pr.result == 'success' && needs.burndown-pr.outputs.skip-product-ci != 'true' && (fromJSON(needs.changed-files.outputs.changed_file_groups).test_notebooks)
     with:
       build_type: pull-request
       node_type: "gpu-rtxpro6000-latest-1"
@@ -339,6 +356,9 @@ jobs:
       packages: read
       pull-requests: read
   docs-build-matrix:
+    if: >-
+      needs.burndown-pr.result == 'success' && needs.burndown-pr.outputs.skip-product-ci != 'true'
+    needs: [burndown-pr]
     permissions:
       contents: read
     uses: rapidsai/shared-workflows/.github/workflows/compute-matrix.yaml@main
@@ -347,13 +367,14 @@ jobs:
       matrix_name: docs-build
       matrix_type: pull-request
   docs-build:
-    needs: [docs-build-matrix, conda-python-build, changed-files]
+    needs: [burndown-pr, docs-build-matrix, conda-python-build, changed-files]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.docs-build-matrix.outputs.matrix) }}
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).build_docs
+    if: >-
+      needs.burndown-pr.result == 'success' && needs.burndown-pr.outputs.skip-product-ci != 'true' && (fromJSON(needs.changed-files.outputs.changed_file_groups).build_docs)
     with:
       build_type: pull-request
       node_type: "gpu-${{ matrix.GPU }}-${{ matrix.DRIVER }}-1"
@@ -367,7 +388,9 @@ jobs:
       packages: read
       pull-requests: read
   wheel-build-libcugraph:
-    needs: [build-details, checks]
+    if: >-
+      needs.burndown-pr.result == 'success' && needs.burndown-pr.outputs.skip-product-ci != 'true'
+    needs: [burndown-pr, build-details, checks]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
     with:
@@ -387,7 +410,9 @@ jobs:
       packages: read
       pull-requests: read
   wheel-build-pylibcugraph:
-    needs: [build-details, wheel-build-libcugraph]
+    if: >-
+      needs.burndown-pr.result == 'success' && needs.burndown-pr.outputs.skip-product-ci != 'true'
+    needs: [burndown-pr, build-details, wheel-build-libcugraph]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
     with:
@@ -407,10 +432,11 @@ jobs:
       packages: read
       pull-requests: read
   wheel-tests-pylibcugraph:
-    needs: [wheel-build-pylibcugraph, changed-files]
+    needs: [burndown-pr, wheel-build-pylibcugraph, changed-files]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_wheels
+    if: >-
+      needs.burndown-pr.result == 'success' && needs.burndown-pr.outputs.skip-product-ci != 'true' && (fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_wheels)
     with:
       build_type: pull-request
       script: ci/test_wheel_pylibcugraph.sh
@@ -422,7 +448,9 @@ jobs:
       packages: read
       pull-requests: read
   wheel-build-cugraph:
-    needs: [build-details, wheel-build-pylibcugraph]
+    if: >-
+      needs.burndown-pr.result == 'success' && needs.burndown-pr.outputs.skip-product-ci != 'true'
+    needs: [burndown-pr, build-details, wheel-build-pylibcugraph]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
     with:
@@ -442,10 +470,11 @@ jobs:
       packages: read
       pull-requests: read
   wheel-tests-cugraph:
-    needs: [wheel-build-cugraph, changed-files]
+    needs: [burndown-pr, wheel-build-cugraph, changed-files]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_wheels
+    if: >-
+      needs.burndown-pr.result == 'success' && needs.burndown-pr.outputs.skip-product-ci != 'true' && (fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_wheels)
     with:
       build_type: pull-request
       script: ci/test_wheel_cugraph.sh
@@ -457,6 +486,9 @@ jobs:
       packages: read
       pull-requests: read
   devcontainer:
+    if: >-
+      needs.burndown-pr.result == 'success' && needs.burndown-pr.outputs.skip-product-ci != 'true'
+    needs: [burndown-pr]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/build-in-devcontainer.yaml@main
     with:
