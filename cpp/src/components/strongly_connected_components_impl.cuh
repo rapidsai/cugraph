@@ -37,6 +37,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/algorithm.min.h>
 #include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>

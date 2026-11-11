@@ -19,6 +19,7 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/algorithm.max.h>
 #include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>

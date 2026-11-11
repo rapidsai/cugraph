@@ -1,10 +1,10 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
-#include <cuda/std/algorithm>
+#include <cuda/std/algorithm.min.h>
 
 #include <limits>
 
