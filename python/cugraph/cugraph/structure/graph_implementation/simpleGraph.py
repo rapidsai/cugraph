@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 from cugraph.structure import graph_primtypes_wrapper
@@ -590,6 +590,7 @@ class simpleGraphImpl:
 
         if value_col is not None:
             self.properties.weighted = True
+        self.store_transposed = store_transposed
         self._make_plc_graph(
             value_col=value_col,
             store_transposed=store_transposed,

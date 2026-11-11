@@ -3,6 +3,7 @@
 
 import gc
 import time
+from unittest.mock import patch
 
 import pytest
 import pandas as pd
@@ -17,6 +18,7 @@ from cugraph.testing import utils
 from cudf.testing import assert_series_equal
 from cudf.testing.testing import assert_frame_equal
 from cugraph.structure.symmetrize import symmetrize
+from cugraph.structure.graph_implementation import simpleGraphImpl
 
 # MG
 import dask_cudf
@@ -253,6 +255,38 @@ def test_add_adj_list_to_edge_list(graph_file):
 
 
 @pytest.mark.sg
+@pytest.mark.parametrize(
+    "options",
+    [
+        {},
+        {"renumber": False, "store_transposed": False},
+        {"renumber": False, "store_transposed": True},
+        {"renumber": True, "store_transposed": False},
+        {"renumber": True, "store_transposed": True},
+    ],
+)
+@pytest.mark.parametrize("symmetrize", [None, False, True])
+def test_from_cudf_adjlist_forwards_parameters(options, symmetrize):
+    # Stop before GPU construction to check forwarding independently of graph layout.
+    offsets, indices, weights = object(), object(), object()
+    G = cugraph.Graph()
+    with patch.object(simpleGraphImpl, "_make_plc_graph", autospec=True) as make_graph:
+        G.from_cudf_adjlist(offsets, indices, weights, symmetrize=symmetrize, **options)
+
+    make_graph.assert_called_once_with(
+        G._Impl,
+        value_col=weights,
+        renumber=options.get("renumber", True),
+        store_transposed=options.get("store_transposed", False),
+        symmetrize=True if symmetrize is None else symmetrize,
+    )
+    assert G._Impl.adjlist.offsets is offsets
+    assert G._Impl.adjlist.indices is indices
+    assert G._Impl.adjlist.weights is weights
+    assert G.store_transposed is options.get("store_transposed", False)
+
+
+@pytest.mark.sg
 def test_create_undirected_graph_from_asymmetric_adj_list():
     # karate_asymmetric.get_path()
     Mnx = utils.read_csv_for_nx(karate_asymmetric.get_path())
@@ -336,7 +370,6 @@ def test_delete_edge_list_delete_adj_list(graph_file):
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", TEST_DATASETS)
 def test_add_edge_or_adj_list_after_add_edge_or_adj_list(graph_file):
-
     Mnx = utils.read_csv_for_nx(graph_file.get_path())
     df = cudf.DataFrame()
     df["src"] = cudf.Series(Mnx["0"])
