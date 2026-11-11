@@ -588,13 +588,11 @@ ConfigureTest(LOOKUP_SRC_DST_TEST lookup/lookup_src_dst_test.cpp)
 ConfigureTest(K_HOP_NBRS_TEST traversal/k_hop_nbrs_test.cpp)
 
 ###################################################################################################
-# - Dynamic graph memory manager tests ------------------------------------------------------------
-ConfigureTest(DYNAMIC_BIT_TREE_TEST dynamic/memory_manager/bit_tree_test.cpp)
-
-ConfigureTest(DYNAMIC_BLOCK_ARRAY_TEST dynamic/memory_manager/block_array_test.cpp)
-
-ConfigureTest(DYNAMIC_BLOCK_ARRAY_MANAGER_TEST
-              dynamic/memory_manager/block_array_manager_test.cpp)
+# - Dynamic graph allocator tests -----------------------------------------------------------------
+ConfigureTest(DYNAMIC_BIT_TREE_TEST dynamic/allocator/bit_tree_test.cpp)
+ConfigureTest(DYNAMIC_BLOCK_ARRAY_TEST dynamic/allocator/block_array_test.cpp)
+ConfigureTest(DYNAMIC_BLOCK_ALLOCATOR_TEST dynamic/allocator/block_allocator_test.cpp)
+ConfigureTest(DYNAMIC_BLOCK_STORAGE_TEST dynamic/allocator/block_storage_test.cpp)
 
 
 ###################################################################################################
