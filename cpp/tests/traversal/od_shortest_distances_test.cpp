@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -125,9 +125,9 @@ class Tests_ODShortestDistances
 
     raft::random::RngState rng_state(0);
     auto origins = cugraph::select_random_vertices<vertex_t, edge_t, false, false>(
-      handle, graph_view, std::nullopt, rng_state, od_usecase.num_origins, false, true);
+      handle, rng_state, graph_view, std::nullopt, od_usecase.num_origins, false, true);
     auto destinations = cugraph::select_random_vertices<vertex_t, edge_t, false, false>(
-      handle, graph_view, std::nullopt, rng_state, od_usecase.num_destinations, false, true);
+      handle, rng_state, graph_view, std::nullopt, od_usecase.num_destinations, false, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -155,16 +155,13 @@ class Tests_ODShortestDistances
           handle,
           graph_view,
           edge_weight_view,
-          d_renumber_map_labels
-            ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
-                                                                    (*d_renumber_map_labels).size())
-            : std::nullopt);
+          d_renumber_map_labels ? std::make_optional(d_renumber_map_labels->view()) : std::nullopt);
       assert(h_weights.has_value());
 
       auto unrenumbered_origins      = cugraph::test::to_host(handle, origins);
       auto unrenumbered_destinations = cugraph::test::to_host(handle, destinations);
       if (renumber) {
-        auto h_renumber_map_labels = cugraph::test::to_host(handle, *d_renumber_map_labels);
+        auto h_renumber_map_labels = cugraph::test::to_host(handle, d_renumber_map_labels->view());
         std::transform(unrenumbered_origins.begin(),
                        unrenumbered_origins.end(),
                        unrenumbered_origins.begin(),

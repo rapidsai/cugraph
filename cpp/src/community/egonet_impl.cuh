@@ -10,6 +10,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/transform_v.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #ifdef TIMING
@@ -25,7 +26,6 @@
 #include <thrust/fill.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/remove.h>
-#include <thrust/transform.h>
 
 #include <cstddef>
 #include <ctime>
@@ -99,17 +99,7 @@ extract(raft::handle_t const& handle,
     raft::handle_t light_handle(handle.get_next_usable_stream(i));
     auto worker_stream_view = multi_gpu ? handle.get_stream() : light_handle.get_stream();
 
-    rmm::device_uvector<vertex_t> local_reach(graph_view.local_vertex_partition_range_size(),
-                                              worker_stream_view);
-    reached.push_back(std::move(local_reach));
-
-    // BFS with cutoff
-    // consider adding a device API to BFS (ie. accept source on the device)
     bool direction_optimizing = false;
-    cugraph::fill(rmm::exec_policy(worker_stream_view),
-                  reached[i].begin(),
-                  reached[i].end(),
-                  std::numeric_limits<vertex_t>::max());
 
     raft::device_span<vertex_t const> source{source_vertex.data() + i, 1};
 
@@ -123,26 +113,33 @@ extract(raft::handle_t const& handle,
         source = raft::device_span<vertex_t const>{source_vertex.data(), size_t{0}};
     }
 
-    cugraph::bfs<vertex_t, edge_t, multi_gpu>(multi_gpu ? handle : light_handle,
-                                              graph_view,
-                                              reached[i].data(),
-                                              nullptr,
-                                              source.data(),
-                                              source.size(),
-                                              direction_optimizing,
-                                              radius,
-                                              do_expensive_check);
+    auto [distance_property, predecessor_property] =
+      cugraph::bfs<vertex_t, edge_t, multi_gpu>(multi_gpu ? handle : light_handle,
+                                                graph_view,
+                                                source,
+                                                direction_optimizing,
+                                                radius,
+                                                false,
+                                                do_expensive_check);
 
     // identify reached vertex ids from distance array
-    thrust::transform(
-      rmm::exec_policy(worker_stream_view),
-      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
-      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
-      reached[i].begin(),
-      reached[i].begin(),
-      [sentinel = std::numeric_limits<vertex_t>::max()] __device__(auto id, auto val) {
-        return val < sentinel ? id : sentinel;
-      });
+    cugraph::vertex_property_t<vertex_t, vertex_t> local_reach(multi_gpu ? handle : light_handle,
+                                                               graph_view);
+    cugraph::transform_v(
+      multi_gpu ? handle : light_handle,
+      graph_view,
+      cugraph::view_concat(
+        cugraph::vertex_property_view_t{
+          thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
+          graph_view.local_vertex_partition_range_size()},
+        distance_property.view()),
+      [sentinel = std::numeric_limits<vertex_t>::max()] __device__(auto pair) {
+        auto v        = cuda::std::get<0>(pair);
+        auto distance = cuda::std::get<1>(pair);
+        return distance < sentinel ? v : sentinel;
+      },
+      local_reach.mutable_view());
+    reached.push_back(local_reach.release_buffer());
 
     // removes unreached data
     auto reached_end = thrust::remove(rmm::exec_policy(worker_stream_view),
@@ -202,35 +199,6 @@ extract(raft::handle_t const& handle,
 }  // namespace
 
 namespace cugraph {
-
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>,
-           rmm::device_uvector<size_t>>
-extract_ego(raft::handle_t const& handle,
-            graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-            std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-            vertex_t* source_vertex,
-            vertex_t n_subgraphs,
-            vertex_t radius)
-{
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
-  CUGRAPH_EXPECTS(n_subgraphs > 0, "Need at least one source to extract the egonet from");
-  CUGRAPH_EXPECTS(n_subgraphs < graph_view.number_of_vertices(),
-                  "Can't have more sources to extract from than vertices in the graph");
-  CUGRAPH_EXPECTS(radius > 0, "Radius should be at least 1");
-  CUGRAPH_EXPECTS(radius < graph_view.number_of_vertices(), "radius is too large");
-  // source_vertex range is checked in bfs.
-
-  return extract(handle,
-                 graph_view,
-                 edge_weight_view,
-                 raft::device_span<vertex_t const>{source_vertex, static_cast<size_t>(n_subgraphs)},
-                 radius,
-                 false);
-}
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,

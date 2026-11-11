@@ -9,6 +9,7 @@
 
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/prims/transform_e.cuh>
+#include <cugraph/prims/transform_v.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
@@ -22,7 +23,6 @@
 #include <cuda/atomic>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
-#include <thrust/iterator/counting_iterator.h>
 #include <thrust/transform.h>
 
 #include <tuple>
@@ -53,35 +53,46 @@ generate<GraphViewType, property_t>::vertex_property(raft::handle_t const& handl
 }
 
 template <typename GraphViewType, typename property_t>
-typename generate<GraphViewType, property_t>::property_buffer_type
+cugraph::vertex_property_t<typename GraphViewType::vertex_type, property_t>
+generate<GraphViewType, property_t>::vertex_property(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  cugraph::vertex_property_view_t<vertex_type, vertex_type const*> labels,
+  int32_t hash_bin_count)
+{
+  cugraph::vertex_property_t<vertex_type, property_t> output_property(handle, graph_view);
+  transform_v(handle,
+              graph_view,
+              labels,
+              detail::vertex_property_transform<vertex_type, property_t>{hash_bin_count},
+              output_property.mutable_view());
+  return output_property;
+}
+
+template <typename GraphViewType, typename property_t>
+cugraph::vertex_property_t<typename GraphViewType::vertex_type, property_t>
 generate<GraphViewType, property_t>::vertex_property(raft::handle_t const& handle,
-                                                     vertex_type local_vertex_partition_range_first,
-                                                     vertex_type local_vertex_partition_range_last,
+                                                     GraphViewType const& graph_view,
                                                      int32_t hash_bin_count)
 {
-  auto data = cugraph::allocate_dataframe_buffer<property_t>(
-    local_vertex_partition_range_last - local_vertex_partition_range_first, handle.get_stream());
-  thrust::transform(handle.get_thrust_policy(),
-                    thrust::make_counting_iterator(local_vertex_partition_range_first),
-                    thrust::make_counting_iterator(local_vertex_partition_range_last),
-                    cugraph::get_dataframe_buffer_begin(data),
-                    detail::vertex_property_transform<vertex_type, property_t>{hash_bin_count});
-  return data;
+  cugraph::vertex_property_t<vertex_type, property_t> output_property(handle, graph_view);
+  transform_v(handle,
+              graph_view,
+              detail::vertex_property_transform<vertex_type, property_t>{hash_bin_count},
+              output_property.mutable_view());
+  return output_property;
 }
 
 template <typename GraphViewType, typename property_t>
 cugraph::edge_src_property_t<typename GraphViewType::vertex_type, property_t>
 generate<GraphViewType, property_t>::src_property(raft::handle_t const& handle,
                                                   GraphViewType const& graph_view,
-                                                  property_buffer_type const& property)
+                                                  vertex_property_view_type property)
 {
   auto output_property =
     cugraph::edge_src_property_t<typename GraphViewType::vertex_type, property_t>(handle,
                                                                                   graph_view);
-  update_edge_src_property(handle,
-                           graph_view,
-                           cugraph::get_dataframe_buffer_begin(property),
-                           output_property.mutable_view());
+  update_edge_src_property(handle, graph_view, property, output_property.mutable_view());
   return output_property;
 }
 
@@ -89,15 +100,12 @@ template <typename GraphViewType, typename property_t>
 cugraph::edge_dst_property_t<typename GraphViewType::vertex_type, property_t>
 generate<GraphViewType, property_t>::dst_property(raft::handle_t const& handle,
                                                   GraphViewType const& graph_view,
-                                                  property_buffer_type const& property)
+                                                  vertex_property_view_type property)
 {
   auto output_property =
     cugraph::edge_dst_property_t<typename GraphViewType::vertex_type, property_t>(handle,
                                                                                   graph_view);
-  update_edge_dst_property(handle,
-                           graph_view,
-                           cugraph::get_dataframe_buffer_begin(property),
-                           output_property.mutable_view());
+  update_edge_dst_property(handle, graph_view, property, output_property.mutable_view());
   return output_property;
 }
 

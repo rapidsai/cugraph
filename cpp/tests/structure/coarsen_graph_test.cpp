@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -289,7 +289,12 @@ class Tests_CoarsenGraph
     }
 
     auto [coarse_graph, coarse_edge_weights, coarse_vertices_to_labels] =
-      cugraph::coarsen_graph(handle, graph_view, edge_weight_view, d_labels.begin(), true);
+      cugraph::coarsen_graph(handle,
+                             graph_view,
+                             edge_weight_view,
+                             cugraph::vertex_property_view_t<vertex_t, vertex_t const*>{
+                               d_labels.data(), graph_view.local_vertex_partition_range_size()},
+                             true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -310,7 +315,8 @@ class Tests_CoarsenGraph
         cugraph::test::graph_to_host_csr<vertex_t, edge_t, weight_t, store_transposed, false>(
           handle, coarse_graph_view, coarse_edge_weight_view, std::nullopt);
 
-      auto h_coarse_vertices_to_labels = cugraph::test::to_host(handle, *coarse_vertices_to_labels);
+      auto h_coarse_vertices_to_labels =
+        cugraph::test::to_host(handle, coarse_vertices_to_labels->release_buffer());
 
       check_coarsened_graph_results(
         h_org_offsets.data(),

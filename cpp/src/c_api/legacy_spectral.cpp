@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -372,13 +372,12 @@ struct analyze_clustering_ratio_cut_functor : public cugraph::c_api::abstract_fu
         raft::copy(
           tmp_c.data(), clusters_->as_type<vertex_t>(), clusters_->size_, handle_.get_stream());
 
-        cugraph::renumber_ext_vertices<vertex_t, false>(
+        tmp_v = cugraph::renumber_ext_vertices(
           handle_,
-          tmp_v.data(),
-          tmp_v.size(),
-          number_map->data(),
-          graph_view.local_vertex_partition_range_first(),
-          graph_view.local_vertex_partition_range_last(),
+          graph_view,
+          std::move(tmp_v),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
           false);
 
         cugraph::c_api::detail::sort_by_key(
@@ -495,13 +494,12 @@ struct analyze_clustering_edge_cut_functor : public cugraph::c_api::abstract_fun
         raft::copy(
           tmp_c.data(), clusters_->as_type<vertex_t>(), clusters_->size_, handle_.get_stream());
 
-        cugraph::renumber_ext_vertices<vertex_t, false>(
+        tmp_v = cugraph::renumber_ext_vertices(
           handle_,
-          tmp_v.data(),
-          tmp_v.size(),
-          number_map->data(),
-          graph_view.local_vertex_partition_range_first(),
-          graph_view.local_vertex_partition_range_last(),
+          graph_view,
+          std::move(tmp_v),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
           false);
 
         cugraph::c_api::detail::sort_by_key(
@@ -618,13 +616,12 @@ struct analyze_clustering_modularity_functor : public cugraph::c_api::abstract_f
         raft::copy(
           tmp_c.data(), clusters_->as_type<vertex_t>(), clusters_->size_, handle_.get_stream());
 
-        cugraph::renumber_ext_vertices<vertex_t, false>(
+        tmp_v = cugraph::renumber_ext_vertices(
           handle_,
-          tmp_v.data(),
-          tmp_v.size(),
-          number_map->data(),
-          graph_view.local_vertex_partition_range_first(),
-          graph_view.local_vertex_partition_range_last(),
+          graph_view,
+          std::move(tmp_v),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
           false);
 
         cugraph::c_api::detail::sort_by_key(

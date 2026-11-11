@@ -110,7 +110,7 @@ cugraph_error_code_t transpose_storage(raft::handle_t const& handle,
     auto graph_transposed =
       new cugraph::graph_t<vertex_t, edge_t, !store_transposed, multi_gpu>(handle);
 
-    std::optional<rmm::device_uvector<vertex_t>> new_number_map{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> new_number_map{std::nullopt};
 
     auto new_optional_edge_weights = std::optional<edge_property_t<edge_t, weight_t>>(std::nullopt);
 
@@ -119,9 +119,10 @@ cugraph_error_code_t transpose_storage(raft::handle_t const& handle,
         handle,
         std::move(*p_graph),
         std::move(optional_edge_weights),
-        std::make_optional<rmm::device_uvector<vertex_t>>(std::move(*number_map)));
+        std::make_optional(cugraph::vertex_property_t<vertex_t, vertex_t>(
+          std::move(*number_map), p_graph->view().local_vertex_partition_range_size())));
 
-    *number_map = std::move(new_number_map.value());
+    *number_map = new_number_map->release_buffer();
 
     delete p_graph;
 

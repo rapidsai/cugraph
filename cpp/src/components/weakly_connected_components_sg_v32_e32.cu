@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -15,6 +15,11 @@ template CUGRAPH_EXPORT void weakly_connected_components(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, false, false> const& graph_view,
   int32_t* components,
+  bool do_expensive_check);
+
+template CUGRAPH_EXPORT vertex_property_t<int32_t, int32_t> weakly_connected_components(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
   bool do_expensive_check);
 
 }  // namespace cugraph

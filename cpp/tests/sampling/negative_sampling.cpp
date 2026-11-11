@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -78,36 +78,29 @@ class Tests_Negative_Sampling : public ::testing::TestWithParam<input_usecase_t>
     size_t num_samples =
       graph_view.compute_number_of_edges(handle) * negative_sampling_usecase.sample_multiplier;
 
-    rmm::device_uvector<weight_t> src_bias_v(0, handle.get_stream());
-    rmm::device_uvector<weight_t> dst_bias_v(0, handle.get_stream());
-
-    std::optional<raft::device_span<weight_t const>> src_bias{std::nullopt};
-    std::optional<raft::device_span<weight_t const>> dst_bias{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, weight_t>> src_bias{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, weight_t>> dst_bias{std::nullopt};
 
     if (negative_sampling_usecase.use_src_bias) {
-      src_bias_v.resize(graph_view.number_of_vertices(), handle.get_stream());
+      src_bias = cugraph::vertex_property_t<vertex_t, weight_t>(handle, graph_view);
 
       cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                           src_bias_v.data(),
-                                           src_bias_v.size(),
+                                           src_bias->mutable_view().value_first(),
+                                           static_cast<size_t>(src_bias->view().range_size()),
                                            weight_t{1},
                                            weight_t{10},
                                            rng_state);
-
-      src_bias = raft::device_span<weight_t const>{src_bias_v.data(), src_bias_v.size()};
     }
 
     if (negative_sampling_usecase.use_dst_bias) {
-      dst_bias_v.resize(graph_view.number_of_vertices(), handle.get_stream());
+      dst_bias = cugraph::vertex_property_t<vertex_t, weight_t>(handle, graph_view);
 
       cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                           dst_bias_v.data(),
-                                           dst_bias_v.size(),
+                                           dst_bias->mutable_view().value_first(),
+                                           static_cast<size_t>(dst_bias->view().range_size()),
                                            weight_t{1},
                                            weight_t{10},
                                            rng_state);
-
-      dst_bias = raft::device_span<weight_t const>{dst_bias_v.data(), dst_bias_v.size()};
     }
 
     if (cugraph::test::g_perf) {
@@ -119,8 +112,8 @@ class Tests_Negative_Sampling : public ::testing::TestWithParam<input_usecase_t>
       cugraph::negative_sampling(handle,
                                  rng_state,
                                  graph_view,
-                                 src_bias,
-                                 dst_bias,
+                                 src_bias ? std::make_optional(src_bias->view()) : std::nullopt,
+                                 dst_bias ? std::make_optional(dst_bias->view()) : std::nullopt,
                                  num_samples,
                                  negative_sampling_usecase.remove_duplicates,
                                  negative_sampling_usecase.remove_existing_edges,
@@ -164,9 +157,13 @@ class Tests_Negative_Sampling : public ::testing::TestWithParam<input_usecase_t>
         rmm::device_uvector<vertex_t> graph_src(0, handle.get_stream());
         rmm::device_uvector<vertex_t> graph_dst(0, handle.get_stream());
 
-        std::tie(graph_src, graph_dst, std::ignore, std::ignore, std::ignore) =
-          cugraph::decompress_to_edgelist<vertex_t, edge_t, float, int, false, false>(
-            handle, graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
+        std::tie(graph_src, graph_dst, std::ignore) =
+          cugraph::decompress_to_edgelist<vertex_t, edge_t, false, false>(
+            handle,
+            graph_view,
+            std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{},
+            std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{
+              std::nullopt});
 
         error_count = cugraph::test::count_intersection<vertex_t, edge_t, weight_t, int32_t>(
           handle,
@@ -196,7 +193,7 @@ class Tests_Negative_Sampling : public ::testing::TestWithParam<input_usecase_t>
   graph_t graph_;
   std::optional<cugraph::edge_property_t<edge_t, weight_t>> edge_weights_{std::nullopt};
   std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask_{std::nullopt};
-  std::optional<rmm::device_uvector<vertex_t>> renumber_map_labels_{std::nullopt};
+  std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> renumber_map_labels_{std::nullopt};
 };
 
 using Tests_Negative_Sampling_File_i32_i32_float =

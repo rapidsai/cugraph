@@ -8,6 +8,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/vertex_property_device_view.cuh>
 
 #include <raft/core/handle.hpp>
 
@@ -23,15 +24,15 @@ namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
-template <typename vertex_t, typename VertexValueInputIterator, typename VertexOp>
+template <typename vertex_t, typename VertexValueInputWrapper, typename VertexOp>
 struct count_if_call_v_op_t {
   vertex_t local_vertex_partition_range_first;
-  VertexValueInputIterator vertex_value_input_first;
+  VertexValueInputWrapper vertex_value_input;
   VertexOp v_op;
 
-  __device__ bool operator()(vertex_t i)
+  __device__ bool operator()(vertex_t v_offset)
   {
-    return v_op(local_vertex_partition_range_first + i, *(vertex_value_input_first + i))
+    return v_op(local_vertex_partition_range_first + v_offset, vertex_value_input.get(v_offset))
              ? vertex_t{1}
              : vertex_t{0};
   }
@@ -46,24 +47,22 @@ struct count_if_call_v_op_t {
  * thrust::count_if().
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam VertexValueInputIterator Type of the iterator for vertex property values.
+ * @tparam VertexValueInputWrapper Type of the wrapper for vertex property values.
  * @tparam VertexOp Type of the unary predicate operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param vertex_value_input_first Iterator pointing to the vertex property values for the first
- * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
- * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().
- * @param v_op Binary operator takes vertex ID and *(@p vertex_value_input_first + i) (where i is
- * [0, @p graph_view.local_vertex_partition_range_size())) and returns true if this vertex should be
- * included in the returned count.
+ * @param vertex_value_input Wrapper used to access vertex property values (for the vertices
+ * assigned to this process in multi-GPU).
+ * @param v_op Binary operator takes vertex ID and its property value and returns true if this
+ * vertex should be included in the returned count.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return GraphViewType::vertex_type Number of times @p v_op returned true.
  */
-template <typename GraphViewType, typename VertexValueInputIterator, typename VertexOp>
+template <typename GraphViewType, typename VertexValueInputWrapper, typename VertexOp>
 typename GraphViewType::vertex_type count_if_v(raft::handle_t const& handle,
                                                GraphViewType const& graph_view,
-                                               VertexValueInputIterator vertex_value_input_first,
+                                               VertexValueInputWrapper vertex_value_input,
                                                VertexOp v_op,
                                                bool do_expensive_check = false)
 {
@@ -73,10 +72,12 @@ typename GraphViewType::vertex_type count_if_v(raft::handle_t const& handle,
     // currently, nothing to do
   }
 
+  auto vertex_value_input_device_view = detail::vertex_property_device_view_t{vertex_value_input};
+
   auto it = cuda::make_transform_iterator(
     thrust::make_counting_iterator(vertex_t{0}),
-    detail::count_if_call_v_op_t<vertex_t, VertexValueInputIterator, VertexOp>{
-      graph_view.local_vertex_partition_range_first(), vertex_value_input_first, v_op});
+    detail::count_if_call_v_op_t<vertex_t, decltype(vertex_value_input_device_view), VertexOp>{
+      graph_view.local_vertex_partition_range_first(), vertex_value_input_device_view, v_op});
   auto count = thrust::reduce(handle.get_thrust_policy(),
                               it,
                               it + graph_view.local_vertex_partition_range_size(),

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -8,6 +8,7 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 
 #include <raft/core/handle.hpp>
@@ -104,13 +105,13 @@ class Tests_Degree : public ::testing::TestWithParam<Degree_Usecase> {
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-    auto d_in_degrees  = graph_view.compute_in_degrees(handle);
-    auto d_out_degrees = graph_view.compute_out_degrees(handle);
+    auto d_in_degrees  = cugraph::compute_in_degrees(handle, graph_view);
+    auto d_out_degrees = cugraph::compute_out_degrees(handle, graph_view);
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-    auto h_cugraph_in_degrees  = cugraph::test::to_host(handle, d_in_degrees);
-    auto h_cugraph_out_degrees = cugraph::test::to_host(handle, d_out_degrees);
+    auto h_cugraph_in_degrees  = cugraph::test::to_host(handle, d_in_degrees.view());
+    auto h_cugraph_out_degrees = cugraph::test::to_host(handle, d_out_degrees.view());
 
     ASSERT_TRUE(std::equal(
       h_reference_in_degrees.begin(), h_reference_in_degrees.end(), h_cugraph_in_degrees.begin()))

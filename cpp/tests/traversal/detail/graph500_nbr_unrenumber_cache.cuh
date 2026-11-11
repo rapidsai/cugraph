@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <cugraph/algorithms.hpp>
@@ -18,6 +18,7 @@
 #include <cugraph/utilities/thrust_wrappers/scatter.hpp>
 #include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/utilities/thrust_wrappers/unique.hpp>
+#include <cugraph/vertex_property.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -547,7 +548,7 @@ template <typename vertex_t, typename edge_t>
 nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, false, true> const& mg_graph_view,
-  raft::device_span<vertex_t const> renumber_map,
+  cugraph::vertex_property_view_t<vertex_t, vertex_t const*> renumber_map,
   vertex_t invalid_vertex,
   std::optional<cugraph::large_buffer_type_t> large_buffer_type)
 {
@@ -855,7 +856,7 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
     auto this_chunk_unrenumbered_nbrs = cugraph::collect_values_for_sorted_unique_int_vertices(
       handle,
       raft::device_span<vertex_t const>(this_chunk_nbrs.data(), this_chunk_nbrs.size()),
-      renumber_map.begin(),
+      renumber_map.value_first(),
       mg_graph_view.vertex_partition_range_lasts(),
       mg_graph_view.local_vertex_partition_range_first());
     this_chunk_nbrs.resize(0, handle.get_stream());

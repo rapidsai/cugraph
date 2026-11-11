@@ -274,12 +274,13 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
              iter] __device__(auto src, auto dst, auto, auto, auto) { return edge_t{1}; }),
           reduce_op::plus<edge_t>());
 
-      unrenumber_local_int_vertices(handle,
-                                    inv_dst_vertices.data(),
-                                    inv_dst_vertices.size(),
-                                    from_inverse_renumber_map.data(),
-                                    inverse_graph_view.local_vertex_partition_range_first(),
-                                    inverse_graph_view.local_vertex_partition_range_last());
+      inv_dst_vertices =
+        unrenumber_local_int_vertices(handle,
+                                      inverse_graph_view,
+                                      std::move(inv_dst_vertices),
+                                      vertex_property_view_t<vertex_t, vertex_t const*>(
+                                        from_inverse_renumber_map.data(),
+                                        static_cast<vertex_t>(from_inverse_renumber_map.size())));
 
       if constexpr (multi_gpu) {
         std::vector<arithmetic_device_uvector_t> properties{};
@@ -469,18 +470,20 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
           [] __device__(auto, auto, auto, auto flag, auto) { return !flag; }),
         ancestors.begin());
 
-      unrenumber_local_int_vertices(handle,
-                                    inv_one_vertices.data(),
-                                    inv_one_vertices.size(),
-                                    from_inverse_renumber_map.data(),
-                                    inverse_graph_view.local_vertex_partition_range_first(),
-                                    inverse_graph_view.local_vertex_partition_range_last());
-      unrenumber_int_vertices<vertex_t, multi_gpu>(
+      inv_one_vertices =
+        unrenumber_local_int_vertices(handle,
+                                      inverse_graph_view,
+                                      std::move(inv_one_vertices),
+                                      vertex_property_view_t<vertex_t, vertex_t const*>(
+                                        from_inverse_renumber_map.data(),
+                                        static_cast<vertex_t>(from_inverse_renumber_map.size())));
+      ancestors = cugraph::unrenumber_int_vertices(
         handle,
-        ancestors.data(),
-        ancestors.size(),
-        from_inverse_renumber_map.data(),
-        inverse_graph_view.vertex_partition_range_lasts());
+        inverse_graph_view,
+        std::move(ancestors),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          from_inverse_renumber_map.data(),
+          static_cast<vertex_t>(from_inverse_renumber_map.size())));
 
       if constexpr (multi_gpu) {
         std::vector<arithmetic_device_uvector_t> properties{};
@@ -1797,7 +1800,7 @@ forward_backward_intersect(
 
   constexpr bool multi_gpu = GraphViewType::is_multi_gpu;
 
-  auto in_degrees = inverse_graph_view.compute_out_degrees(handle);
+  auto in_degrees = compute_out_degrees(handle, inverse_graph_view).release_buffer();
   {
     auto tmp_degrees = rmm::device_uvector<edge_t>(graph_view.local_vertex_partition_range_size(),
                                                    handle.get_stream());
@@ -1833,7 +1836,7 @@ forward_backward_intersect(
     }
     in_degrees = std::move(tmp_degrees);
   }
-  auto out_degrees = graph_view.compute_out_degrees(handle);
+  auto out_degrees = compute_out_degrees(handle, graph_view);
 
   rmm::device_uvector<edge_t> unresolved_component_vertex_in_degrees(
     unresolved_component_vertices.size(), handle.get_stream());
@@ -1851,7 +1854,7 @@ forward_backward_intersect(
     cugraph::gather(handle.get_thrust_policy(),
                     map_first,
                     map_first + unresolved_component_vertices.size(),
-                    out_degrees.begin(),
+                    out_degrees.view().value_first(),
                     unresolved_component_vertex_out_degrees.begin());
   }
 
@@ -1864,7 +1867,7 @@ forward_backward_intersect(
     raft::device_span<vertex_t const>(unresolved_component_vertices.data(),
                                       unresolved_component_vertices.size()),
     std::move(in_degrees),
-    std::move(out_degrees));
+    out_degrees.release_buffer());
 
   auto [pivots, pivot_unresolved_component_idxs] =
     find_pivots(handle,
@@ -1939,12 +1942,12 @@ forward_backward_intersect(
                                                        pivot_unresolved_component_idxs.size()),
                      static_cast<vertex_t>(unresolved_component_offsets.size() - 1));
 
-    unrenumber_local_int_vertices(handle,
-                                  backward_set_vertices.data(),
-                                  backward_set_vertices.size(),
-                                  from_inverse_renumber_map.data(),
-                                  inverse_graph_view.local_vertex_partition_range_first(),
-                                  inverse_graph_view.local_vertex_partition_range_last());
+    backward_set_vertices = unrenumber_local_int_vertices(
+      handle,
+      inverse_graph_view,
+      std::move(backward_set_vertices),
+      vertex_property_view_t<vertex_t, vertex_t const*>(
+        from_inverse_renumber_map.data(), static_cast<vertex_t>(from_inverse_renumber_map.size())));
     rmm::device_uvector<vertex_t> tmp_unresolved_component_idxs(backward_set_vertices.size(),
                                                                 handle.get_stream());
     auto component_idx_first = cuda::make_transform_iterator(
@@ -2088,9 +2091,12 @@ void strongly_connected_components_impl(
 
     rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
     rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
-    std::tie(edgelist_srcs, edgelist_dsts, std::ignore, std::ignore, std::ignore) =
-      decompress_to_edgelist<vertex_t, edge_t, weight_t, edge_type_t, store_transposed, multi_gpu>(
-        handle, forward_graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
+    std::tie(edgelist_srcs, edgelist_dsts, std::ignore) =
+      decompress_to_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+        handle,
+        forward_graph_view,
+        {},
+        std::optional<vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
     std::swap(edgelist_srcs, edgelist_dsts);
     if constexpr (multi_gpu) {
       std::tie(edgelist_srcs, edgelist_dsts, std::ignore) =
@@ -2100,9 +2106,9 @@ void strongly_connected_components_impl(
                           std::vector<cugraph::arithmetic_device_uvector_t>{},
                           store_transposed);
     }
-    std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
+    std::optional<vertex_property_t<vertex_t, vertex_t>> tmp_renumber_map{std::nullopt};
     std::tie(inverse_graph, std::ignore, tmp_renumber_map) =
-      create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+      create_graph<vertex_t, edge_t, store_transposed, multi_gpu>(
         handle,
         std::move(vertices),
         std::move(edgelist_srcs),
@@ -2110,7 +2116,7 @@ void strongly_connected_components_impl(
         std::vector<cugraph::arithmetic_device_uvector_t>{},
         graph_properties_t{false, false},
         true);
-    from_inverse_renumber_map = std::move(*tmp_renumber_map);
+    from_inverse_renumber_map = tmp_renumber_map->release_buffer();
   }
   auto inverse_graph_view = inverse_graph.view();
   kv_store_t<vertex_t, vertex_t, false> to_inverse_renumber_map(
@@ -2305,18 +2311,22 @@ void strongly_connected_components_impl(
     scc_component_vertices.resize(0, handle.get_stream());
     scc_component_vertices.shrink_to_fit(handle.get_stream());
 
-    auto edge_src_component_view = multi_gpu
-                                     ? edge_src_components.view()
-                                     : make_edge_src_property_view<vertex_t, vertex_t>(
-                                         forward_graph_view,
-                                         components.begin(),
-                                         forward_graph_view.local_vertex_partition_range_size());
-    auto edge_dst_component_view = multi_gpu
-                                     ? edge_dst_components.view()
-                                     : make_edge_dst_property_view<vertex_t, vertex_t>(
-                                         forward_graph_view,
-                                         components.begin(),
-                                         forward_graph_view.local_vertex_partition_range_size());
+    auto edge_src_component_view =
+      multi_gpu
+        ? edge_src_components.view()
+        : make_edge_src_property_view(
+            forward_graph_view,
+            vertex_property_view_t{
+              components.begin(),
+              static_cast<vertex_t>(forward_graph_view.local_vertex_partition_range_size())});
+    auto edge_dst_component_view =
+      multi_gpu
+        ? edge_dst_components.view()
+        : make_edge_dst_property_view(
+            forward_graph_view,
+            vertex_property_view_t{
+              components.begin(),
+              static_cast<vertex_t>(forward_graph_view.local_vertex_partition_range_size())});
 
     auto new_edge_mask = make_initialized_edge_property(handle, forward_graph_view, false);
     transform_e(handle,
@@ -2346,17 +2356,21 @@ void strongly_connected_components_impl(
       }
 
       auto inverse_edge_src_component_view =
-        multi_gpu ? inverse_edge_src_components.view()
-                  : make_edge_src_property_view<vertex_t, vertex_t>(
-                      inverse_graph_view,
-                      inverse_components->begin(),
-                      inverse_graph_view.local_vertex_partition_range_size());
+        multi_gpu
+          ? inverse_edge_src_components.view()
+          : make_edge_src_property_view(
+              inverse_graph_view,
+              vertex_property_view_t{
+                inverse_components->begin(),
+                static_cast<vertex_t>(inverse_graph_view.local_vertex_partition_range_size())});
       auto inverse_edge_dst_component_view =
-        multi_gpu ? inverse_edge_dst_components.view()
-                  : make_edge_dst_property_view<vertex_t, vertex_t>(
-                      inverse_graph_view,
-                      inverse_components->begin(),
-                      inverse_graph_view.local_vertex_partition_range_size());
+        multi_gpu
+          ? inverse_edge_dst_components.view()
+          : make_edge_dst_property_view(
+              inverse_graph_view,
+              vertex_property_view_t{
+                inverse_components->begin(),
+                static_cast<vertex_t>(inverse_graph_view.local_vertex_partition_range_size())});
 
       auto new_inverse_edge_mask =
         make_initialized_edge_property(handle, inverse_graph_view, false);

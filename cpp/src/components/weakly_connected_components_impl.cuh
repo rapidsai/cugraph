@@ -8,11 +8,15 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/copy_v.cuh>
+#include <cugraph/prims/extract_transform_if_v.cuh>
 #include <cugraph/prims/fill_edge_property.cuh>
 #include <cugraph/prims/fill_edge_src_dst_property.cuh>
+#include <cugraph/prims/gather_v.cuh>
 #include <cugraph/prims/make_initialized_edge_property.cuh>
 #include <cugraph/prims/transform_e.cuh>
 #include <cugraph/prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh>
+#include <cugraph/prims/transform_v.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/prims/update_v_frontier.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
@@ -26,12 +30,13 @@
 #include <cugraph/utilities/thrust_wrappers/scan.hpp>
 #include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/utilities/thrust_wrappers/unique.hpp>
+#include <cugraph/vertex_property.hpp>
+#include <cugraph/vertex_property_device_view.cuh>
 
 #include <raft/core/handle.hpp>
 
 #include <rmm/device_uvector.hpp>
 
-#include <cuda/atomic>
 #include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/optional>
@@ -40,7 +45,6 @@
 #include <thrust/copy.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/merge.h>
 #include <thrust/partition.h>
@@ -75,8 +79,10 @@ std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
 accumulate_new_roots(raft::handle_t const& handle,
                      vertex_partition_device_view_t<typename GraphViewType::vertex_type,
                                                     GraphViewType::is_multi_gpu> vertex_partition,
-                     typename GraphViewType::vertex_type const* components,
-                     typename GraphViewType::edge_type const* degrees,
+                     vertex_property_view_t<typename GraphViewType::vertex_type,
+                                            typename GraphViewType::vertex_type const*> components,
+                     vertex_property_view_t<typename GraphViewType::vertex_type,
+                                            typename GraphViewType::edge_type const*> degrees,
                      typename GraphViewType::vertex_type const* candidate_first,
                      typename GraphViewType::vertex_type const* candidate_last,
                      typename GraphViewType::vertex_type max_new_roots,
@@ -113,11 +119,12 @@ accumulate_new_roots(raft::handle_t const& handle,
           input_pair_first,
           input_pair_first + scan_size,
           output_pair_first,
-          [vertex_partition, components] __device__(auto pair) {
+          [vertex_partition,
+           components = detail::vertex_property_device_view_t(components)] __device__(auto pair) {
             auto v = cuda::std::get<0>(pair);
-            return (
-              components[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)] ==
-              invalid_component_id<vertex_t>::value);
+            return (components.get(
+                      vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)) ==
+                    invalid_component_id<vertex_t>::value);
           }))),
       handle.get_stream());
     tmp_indices.resize(tmp_new_roots.size(), handle.get_stream());
@@ -129,8 +136,9 @@ accumulate_new_roots(raft::handle_t const& handle,
         tmp_new_roots.begin(),
         tmp_new_roots.end(),
         tmp_cumulative_degrees.begin(),
-        [vertex_partition, degrees] __device__(auto v) {
-          return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)];
+        [vertex_partition,
+         degrees = detail::vertex_property_device_view_t(degrees)] __device__(auto v) {
+          return degrees.get(vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v));
         });
       cugraph::inclusive_scan(handle.get_thrust_policy(),
                               tmp_cumulative_degrees.begin(),
@@ -226,7 +234,7 @@ struct v_op_t {
 
   vertex_partition_device_view_t<typename GraphViewType::vertex_type, GraphViewType::is_multi_gpu>
     vertex_partition{};
-  vertex_type* level_components{};
+  detail::vertex_property_device_view_t<vertex_type, vertex_type*> level_components{};
   size_t bucket_idx_next{};
   size_t bucket_idx_conflict{};  // relevant only if GraphViewType::is_multi_gpu is true
 
@@ -234,14 +242,15 @@ struct v_op_t {
   __device__
     std::enable_if_t<multi_gpu,
                      cuda::std::tuple<cuda::std::optional<size_t>, cuda::std::optional<std::byte>>>
-    operator()(cuda::std::tuple<vertex_type, vertex_type> tagged_v, int /* v_val */) const
+    operator()(cuda::std::tuple<vertex_type, vertex_type> tagged_v,
+               cuda::std::nullopt_t /* v_val */) const
   {
     auto tag      = cuda::std::get<1>(tagged_v);
     auto v_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(
       cuda::std::get<0>(tagged_v));
-    cuda::atomic_ref<vertex_type> v_component(*(level_components + v_offset));
-    auto old     = invalid_component_id<vertex_type>::value;
-    bool success = v_component.compare_exchange_strong(old, tag, cuda::std::memory_order_relaxed);
+    auto old = level_components.elementwise_atomic_cas(
+      v_offset, invalid_component_id<vertex_type>::value, tag);
+    bool success = (old == invalid_component_id<vertex_type>::value);
     if (!success && (old != tag)) {  // conflict
       return cuda::std::make_tuple(cuda::std::optional<size_t>{bucket_idx_conflict},
                                    cuda::std::optional<std::byte>{std::byte{0}} /* dummy */);
@@ -256,7 +265,8 @@ struct v_op_t {
   __device__
     std::enable_if_t<!multi_gpu,
                      cuda::std::tuple<cuda::std::optional<size_t>, cuda::std::optional<std::byte>>>
-    operator()(cuda::std::tuple<vertex_type, vertex_type> /* tagged_v */, int /* v_val */) const
+    operator()(cuda::std::tuple<vertex_type, vertex_type> /* tagged_v */,
+               cuda::std::nullopt_t /* v_val */) const
   {
     return cuda::std::make_tuple(cuda::std::optional<size_t>{bucket_idx_next},
                                  cuda::std::optional<std::byte>{std::byte{0}} /* dummy */);
@@ -264,10 +274,10 @@ struct v_op_t {
 };
 
 template <typename GraphViewType>
-void weakly_connected_components_impl(raft::handle_t const& handle,
-                                      GraphViewType const& push_graph_view,
-                                      typename GraphViewType::vertex_type* components,
-                                      bool do_expensive_check)
+vertex_property_t<typename GraphViewType::vertex_type, typename GraphViewType::vertex_type>
+weakly_connected_components_impl(raft::handle_t const& handle,
+                                 GraphViewType const& push_graph_view,
+                                 bool do_expensive_check)
 {
   using vertex_t    = typename GraphViewType::vertex_type;
   using edge_t      = typename GraphViewType::edge_type;
@@ -279,8 +289,9 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
   static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
 
-  auto const num_vertices = push_graph_view.number_of_vertices();
-  if (num_vertices == 0) { return; }
+  if (push_graph_view.number_of_vertices() == 0) {
+    return vertex_property_t<vertex_t, vertex_t>(handle, push_graph_view);
+  }
 
   // 1. check input arguments
 
@@ -324,19 +335,17 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
   size_t num_levels{0};
   graph_t<vertex_t, edge_t, GraphViewType::is_storage_transposed, GraphViewType::is_multi_gpu>
     level_graph(handle);
-  rmm::device_uvector<vertex_t> level_renumber_map(0, handle.get_stream());
-  std::vector<rmm::device_uvector<vertex_t>> level_component_vectors{};
+  vertex_property_t<vertex_t, vertex_t> level_renumber_map(handle);
+  std::vector<vertex_property_t<vertex_t, vertex_t>> level_component_vectors{};
   // vertex ID in this level to the component ID in the previous level
-  std::vector<rmm::device_uvector<vertex_t>> level_renumber_map_vectors{};
+  std::vector<vertex_property_t<vertex_t, vertex_t>> level_renumber_map_vectors{};
   std::vector<std::vector<vertex_t>> level_vertex_partition_range_last_vectors{};
   std::vector<vertex_t> level_local_vertex_first_vectors{};
   while (true) {
     auto level_graph_view = num_levels == 0 ? push_graph_view : level_graph.view();
     auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
       level_graph_view.local_vertex_partition_view());
-    level_component_vectors.push_back(rmm::device_uvector<vertex_t>(
-      num_levels == 0 ? vertex_t{0} : level_graph_view.local_vertex_partition_range_size(),
-      handle.get_stream()));
+    level_component_vectors.emplace_back(handle, level_graph_view);
     level_renumber_map_vectors.push_back(std::move(level_renumber_map));
     {
       auto lasts = level_graph_view.vertex_partition_range_lasts();
@@ -344,25 +353,25 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     }
     level_local_vertex_first_vectors.push_back(
       level_graph_view.local_vertex_partition_range_first());
-    auto level_components =
-      num_levels == 0 ? components : level_component_vectors[num_levels].data();
+    auto level_components = level_component_vectors[num_levels].mutable_view();
     ++num_levels;
-    auto degrees = level_graph_view.compute_out_degrees(handle);
+    auto degrees = compute_out_degrees(handle, level_graph_view);
 
     // 2-1. filter out isolated vertices
 
-    auto pair_first = thrust::make_zip_iterator(
-      thrust::make_counting_iterator(level_graph_view.local_vertex_partition_range_first()),
-      degrees.begin());
-    thrust::transform(handle.get_thrust_policy(),
-                      pair_first,
-                      pair_first + level_graph_view.local_vertex_partition_range_size(),
-                      level_components,
-                      [] __device__(auto pair) {
-                        auto v      = cuda::std::get<0>(pair);
-                        auto degree = cuda::std::get<1>(pair);
-                        return degree > 0 ? invalid_component_id<vertex_t>::value : v;
-                      });
+    transform_v(
+      handle,
+      level_graph_view,
+      view_concat(vertex_property_view_t{thrust::make_counting_iterator(
+                                           level_graph_view.local_vertex_partition_range_first()),
+                                         level_graph_view.local_vertex_partition_range_size()},
+                  degrees.view()),
+      cuda::proclaim_return_type<vertex_t>([] __device__(cuda::std::tuple<vertex_t, edge_t> pair) {
+        auto v      = cuda::std::get<0>(pair);
+        auto degree = cuda::std::get<1>(pair);
+        return degree > 0 ? invalid_component_id<vertex_t>::value : v;
+      }),
+      level_components);
 
     // 2-2. decide whether to run BFS first or not
 
@@ -372,12 +381,15 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                             // reduce the graph size and accordingly, peak memory usage)
       edge_t max_degree{0};
       vertex_t max_v = std::numeric_limits<vertex_t>::max();
-      if (degrees.size() > 0) {
-        auto max_it =
-          thrust::max_element(handle.get_thrust_policy(), degrees.begin(), degrees.end());
-        auto max_v_offset = static_cast<vertex_t>(cuda::std::distance(degrees.begin(), max_it));
+      if (level_graph_view.local_vertex_partition_range_size() > 0) {
+        auto max_it = thrust::max_element(
+          handle.get_thrust_policy(),
+          degrees.view().value_first(),
+          degrees.view().value_first() + level_graph_view.local_vertex_partition_range_size());
+        auto max_v_offset =
+          static_cast<vertex_t>(cuda::std::distance(degrees.view().value_first(), max_it));
         raft::update_host(std::addressof(max_degree),
-                          degrees.data() + max_v_offset,
+                          degrees.view().value_first() + max_v_offset,
                           size_t{1},
                           handle.get_stream());
         handle.sync_stream();
@@ -423,8 +435,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     if (bfs_start_vertex) {
       // 2-3-1. run BFS and find the vertices that are reachable from the starting vertex
 
-      rmm::device_uvector<bool> visited(level_graph_view.local_vertex_partition_range_size(),
-                                        handle.get_stream());
+      vertex_property_t<vertex_t, vertex_t> distances(handle);
       {
         rmm::device_uvector<vertex_t> sources(0, handle.get_stream());
         if ((*bfs_start_vertex >= level_graph_view.local_vertex_partition_range_first()) &&
@@ -433,49 +444,48 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           raft::update_device(
             sources.data(), std::addressof(*bfs_start_vertex), size_t{1}, handle.get_stream());
         }
-        rmm::device_uvector<vertex_t> distances(visited.size(), handle.get_stream());
-        bfs(handle,
-            level_graph_view,
-            distances.data(),
-            static_cast<vertex_t*>(nullptr),
-            sources.data(),
-            sources.size(),
-            true /* direction_optimizing */,
-            std::numeric_limits<vertex_t>::max());
-        thrust::transform(handle.get_thrust_policy(),
-                          distances.begin(),
-                          distances.end(),
-                          visited.begin(),
-                          [invalid_distance = std::numeric_limits<vertex_t>::max()] __device__(
-                            auto d) { return d != invalid_distance; });
+        distances =
+          std::get<0>(bfs(handle,
+                          level_graph_view,
+                          raft::device_span<vertex_t const>(sources.data(), sources.size()),
+                          true /* direction_optimizing */,
+                          std::numeric_limits<vertex_t>::max()));
       }
 
       // 2-3-2. set level_components[] = start_vertex if reachable from the starting vertex and
       // itself if not reachable
 
-      auto pair_first = thrust::make_zip_iterator(
-        thrust::make_counting_iterator(level_graph_view.local_vertex_partition_range_first()),
-        visited.begin());
-      thrust::transform_if(handle.get_thrust_policy(),
-                           pair_first,
-                           pair_first + level_graph_view.local_vertex_partition_range_size(),
-                           degrees.begin(),
-                           level_components,
-                           cuda::proclaim_return_type<vertex_t>(
-                             [start_vertex = *bfs_start_vertex] __device__(auto pair) {
-                               auto v       = cuda::std::get<0>(pair);
-                               auto visited = cuda::std::get<1>(pair);
-                               return visited ? start_vertex : v;
-                             }),
-                           cuda::proclaim_return_type<bool>([] __device__(auto d) {
-                             return d > edge_t{0};
-                           }) /* skip isolated vertices (already updated) */);
+      transform_v(
+        handle,
+        level_graph_view,
+        view_concat(vertex_property_view_t{thrust::make_counting_iterator(
+                                             level_graph_view.local_vertex_partition_range_first()),
+                                           level_graph_view.local_vertex_partition_range_size()},
+                    distances.view()),
+        cuda::proclaim_return_type<vertex_t>(
+          [start_vertex     = *bfs_start_vertex,
+           invalid_distance = std::numeric_limits<vertex_t>::max()] __device__(auto pair) {
+            auto v = cuda::std::get<0>(pair);
+            auto d = cuda::std::get<1>(pair);
+            return d != invalid_distance ? start_vertex : v;
+          }),
+        level_components);
 
       // 2-3-3. extract edges that are unreachable from the starting vertex
 
+      vertex_property_t<vertex_t, bool> visited(handle, level_graph_view);
+      transform_v(handle,
+                  level_graph_view,
+                  distances.view(),
+                  cuda::proclaim_return_type<bool>(
+                    [invalid_distance = std::numeric_limits<vertex_t>::max()] __device__(auto d) {
+                      return d != invalid_distance;
+                    }),
+                  visited.mutable_view());
+
       edge_src_property_t<vertex_t, bool> edge_src_visited(handle, level_graph_view);
       update_edge_src_property(
-        handle, level_graph_view, visited.begin(), edge_src_visited.mutable_view());
+        handle, level_graph_view, visited.view(), edge_src_visited.mutable_view());
       {
         auto tmp_graph_view = level_graph_view;
         auto edge_mask      = make_initialized_edge_property(handle, level_graph_view, false);
@@ -492,17 +502,15 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                     edge_mask.mutable_view());
         if (tmp_graph_view.has_edge_mask()) { tmp_graph_view.clear_edge_mask(); }
         tmp_graph_view.attach_edge_mask(edge_mask.view());
-        std::tie(std::get<0>(edge_buffer),
-                 std::get<1>(edge_buffer),
-                 std::ignore,
-                 std::ignore,
-                 std::ignore) = decompress_to_edgelist<vertex_t,
-                                                       edge_t,
-                                                       weight_t,
-                                                       edge_type_t,
-                                                       GraphViewType::is_storage_transposed,
-                                                       GraphViewType::is_multi_gpu>(
-          handle, tmp_graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
+        std::tie(std::get<0>(edge_buffer), std::get<1>(edge_buffer), std::ignore) =
+          decompress_to_edgelist<vertex_t,
+                                 edge_t,
+                                 GraphViewType::is_storage_transposed,
+                                 GraphViewType::is_multi_gpu>(
+            handle,
+            tmp_graph_view,
+            std::vector<edge_arithmetic_property_view_t<edge_t>>{},
+            std::nullopt);
       }
       cugraph::sort(handle.get_thrust_policy(),
                     get_dataframe_buffer_begin(edge_buffer),
@@ -531,32 +539,24 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       // edges). the remaining low-degree vertices will be randomly shuffled so comparable ratios of
       // vertices will be selected as roots in the remaining connected components.
 
-      rmm::device_uvector<vertex_t> new_root_candidates(
-        level_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-      new_root_candidates.resize(
-        cuda::std::distance(
-          new_root_candidates.begin(),
-          thrust::copy_if(
-            handle.get_thrust_policy(),
-            thrust::make_counting_iterator(level_graph_view.local_vertex_partition_range_first()),
-            thrust::make_counting_iterator(level_graph_view.local_vertex_partition_range_last()),
-            new_root_candidates.begin(),
-            [vertex_partition, level_components] __device__(auto v) {
-              return level_components[vertex_partition
-                                        .local_vertex_partition_offset_from_vertex_nocheck(v)] ==
-                     invalid_component_id<vertex_t>::value;
-            })),
-        handle.get_stream());
+      auto new_root_candidates = extract_transform_if_v(
+        handle,
+        level_graph_view,
+        level_components,
+        cuda::proclaim_return_type<vertex_t>([] __device__(vertex_t v, vertex_t) { return v; }),
+        cuda::proclaim_return_type<bool>([] __device__(vertex_t, vertex_t c) {
+          return c == invalid_component_id<vertex_t>::value;
+        }));
       auto high_degree_partition_last = thrust::stable_partition(
         handle.get_thrust_policy(),
         new_root_candidates.begin(),
         new_root_candidates.end(),
         [vertex_partition,
-         degrees   = degrees.data(),
+         degrees   = detail::vertex_property_device_view_t(degrees.view()),
          threshold = static_cast<edge_t>(
            ceil(sqrt(static_cast<double>(degree_sum_threshold) * 2.0)))] __device__(auto v) {
-          return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)] >=
-                 threshold;
+          return degrees.get(vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(
+                   v)) >= threshold;
         });
       thrust::shuffle(handle.get_thrust_policy(),
                       high_degree_partition_last,
@@ -580,8 +580,10 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           new_root_candidates.begin(),
           new_root_candidates.begin() + (new_root_candidates.size() > 0 ? 1 : 0),
           cuda::proclaim_return_type<edge_t>(
-            [vertex_partition, degrees = degrees.data()] __device__(auto v) {
-              return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)];
+            [vertex_partition,
+             degrees = detail::vertex_property_device_view_t(degrees.view())] __device__(auto v) {
+              return degrees.get(
+                vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v));
             }),
           edge_t{0},
           cuda::std::plus<edge_t>{});
@@ -705,8 +707,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           auto [new_roots, num_scanned, degree_sum] = accumulate_new_roots<GraphViewType>(
             handle,
             vertex_partition,
-            level_components,
-            degrees.data(),
+            level_component_vectors.back().view(),
+            degrees.view(),
             new_root_candidates.data() + next_candidate_offset,
             new_root_candidates.data() + new_root_candidates.size(),
             iter == 0 ? init_max_new_roots : max_new_roots,
@@ -720,8 +722,11 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
             handle.get_thrust_policy(),
             new_roots.begin(),
             new_roots.end(),
-            [vertex_partition, components = level_components] __device__(auto c) {
-              components[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(c)] = c;
+            [vertex_partition,
+             components =
+               detail::vertex_property_device_view_t(level_components)] __device__(vertex_t c) {
+              components.set(vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(c),
+                             c);
             });
 
           auto pair_first = thrust::make_zip_iterator(new_roots.begin(), new_roots.begin());
@@ -733,14 +738,13 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         if constexpr (GraphViewType::is_multi_gpu) {
           rmm::device_uvector<vertex_t> gathered_level_components(
             vertex_frontier.bucket(bucket_idx_cur).size(), handle.get_stream());
-          auto map_first = cuda::make_transform_iterator(
+          gather_v(
+            handle,
+            level_graph_view,
             cuda::std::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
-            detail::shift_left_t<vertex_t>{level_graph_view.local_vertex_partition_range_first()});
-          cugraph::gather(handle.get_thrust_policy(),
-                          map_first,
-                          map_first + vertex_frontier.bucket(bucket_idx_cur).size(),
-                          level_components,
-                          gathered_level_components.begin());
+            cuda::std::get<0>(vertex_frontier.bucket(bucket_idx_cur).end().get_iterator_tuple()),
+            level_component_vectors.back().view(),
+            gathered_level_components.begin());
           update_edge_dst_property(
             handle,
             level_graph_view,
@@ -777,10 +781,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                 ? detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
                     edge_dst_components.mutable_view())
                 : detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
-                    make_edge_dst_property_mutable_view<vertex_t, vertex_t>(
-                      level_graph_view,
-                      level_components,
-                      static_cast<size_t>(level_graph_view.local_vertex_partition_range_size()))),
+                    make_edge_dst_property_mutable_view(level_graph_view, level_components)),
               level_graph_view.local_edge_partition_dst_range_first(),
               get_dataframe_buffer_begin(edge_buffer),
               num_edge_inserts.data()});
@@ -795,10 +796,12 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           vertex_frontier,
           raft::host_span<size_t const>(next_frontier_bucket_indices.data(),
                                         next_frontier_bucket_indices.size()),
-          cuda::make_constant_iterator(0) /* dummy */,
-          thrust::make_discard_iterator() /* dummy */,
-          v_op_t<GraphViewType>{
-            vertex_partition, level_components, bucket_idx_next, bucket_idx_conflict});
+          vertex_dummy_property_t{}.view(),
+          vertex_dummy_property_t{}.view(),
+          v_op_t<GraphViewType>{vertex_partition,
+                                detail::vertex_property_device_view_t(level_components),
+                                bucket_idx_next,
+                                bucket_idx_conflict});
 
         if (GraphViewType::is_multi_gpu) {
           auto cur_num_edge_inserts = num_edge_inserts.value(handle.get_stream());
@@ -810,12 +813,12 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
             conflict_bucket.begin(),
             conflict_bucket.end(),
             [vertex_partition,
-             level_components,
+             level_components  = detail::vertex_property_device_view_t(level_components),
              edge_buffer_first = get_dataframe_buffer_begin(edge_buffer),
              num_edge_inserts  = num_edge_inserts.data()] __device__(auto tagged_v) {
               auto v_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(
                 cuda::std::get<0>(tagged_v));
-              auto old = *(level_components + v_offset);
+              auto old = level_components.get(v_offset);
               auto tag = cuda::std::get<1>(tagged_v);
               static_assert(sizeof(unsigned long long int) == sizeof(size_t));
               auto edge_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(num_edge_inserts),
@@ -865,8 +868,10 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           cuda::std::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
           cuda::std::get<0>(vertex_frontier.bucket(bucket_idx_cur).end().get_iterator_tuple()),
           cuda::proclaim_return_type<edge_t>(
-            [vertex_partition, degrees = degrees.data()] __device__(auto v) {
-              return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)];
+            [vertex_partition,
+             degrees = detail::vertex_property_device_view_t(degrees.view())] __device__(auto v) {
+              return degrees.get(
+                vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v));
             }),
           edge_t{0},
           cuda::std::plus<edge_t>());
@@ -923,53 +928,68 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         shrink_to_fit_dataframe_buffer(edge_buffer, handle.get_stream());
       }
 
-      std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
+      std::optional<vertex_property_t<vertex_t, vertex_t>> tmp_renumber_map{std::nullopt};
       std::tie(level_graph, std::ignore, tmp_renumber_map) =
-        create_graph_from_edgelist<vertex_t,
-                                   edge_t,
-                                   GraphViewType::is_storage_transposed,
-                                   GraphViewType::is_multi_gpu>(
-          handle,
-          std::nullopt,
-          std::move(std::get<0>(edge_buffer)),
-          std::move(std::get<1>(edge_buffer)),
-          std::vector<arithmetic_device_uvector_t>{},
-          graph_properties_t{true, false},
-          true);
+        create_graph<vertex_t,
+                     edge_t,
+                     GraphViewType::is_storage_transposed,
+                     GraphViewType::is_multi_gpu>(handle,
+                                                  std::nullopt,
+                                                  std::move(std::get<0>(edge_buffer)),
+                                                  std::move(std::get<1>(edge_buffer)),
+                                                  std::vector<arithmetic_device_uvector_t>{},
+                                                  graph_properties_t{true, false},
+                                                  true);
       level_renumber_map = std::move(*tmp_renumber_map);
     } else {
       break;
     }
   }
 
-  // 3. recursive update the current level component IDs from the next level component IDs
+  // 3. recursive update the current level component IDs from the coarser level component IDs
 
-  for (size_t i = 0; i < num_levels - 1; ++i) {
-    size_t next_level    = num_levels - 1 - i;
-    size_t current_level = next_level - 1;
+  size_t coarser_level = num_levels - 1;
+  while (coarser_level > 0) {
+    auto current_level = coarser_level - 1;
 
-    unrenumber_int_vertices<vertex_t, GraphViewType::is_multi_gpu>(
-      handle,
-      level_component_vectors[next_level].data(),
-      level_component_vectors[next_level].size(),
-      level_renumber_map_vectors[next_level].data(),
-      raft::host_span<vertex_t const>(
-        level_vertex_partition_range_last_vectors[next_level].data(),
-        level_vertex_partition_range_last_vectors[next_level]
-          .size()));  // level_compponent_vectors[next_leve][]: component IDs are originally vertex
-                      // IDs of next_level, convert this to the vertex IDs of current_level
-    kv_store_t<vertex_t, vertex_t, true> next_level_kv_store(
-      std::move(level_renumber_map_vectors[next_level]),
-      std::move(level_component_vectors[next_level]),
-      invalid_vertex_id_v<vertex_t>,
-      false /* key sorted */,
-      handle.get_stream());
-    auto next_level_kv_store_view = next_level_kv_store.view();
-    auto current_level_components =
-      (current_level == 0) ? components : level_component_vectors[current_level].data();
-    auto current_level_local_vertex_partition_range_size =
-      (current_level == 0) ? push_graph_view.local_vertex_partition_range_size()
-                           : level_component_vectors[current_level].size();
+    // maps current_level vertex IDs (only the ones that are coarser_level vertices) to the
+    // component IDs in current_level vertex IDs; coarser_level graphs are created here as static
+    // graphs (no vertex insertion/deletion), so every vertex ID in the local vertex partition range
+    // is valid and the component IDs (coarser_level vertex IDs) can be directly unrenumbered
+    // without a graph view
+    kv_store_t<vertex_t, vertex_t, true> coarser_level_kv_store(handle.get_stream());
+    {
+      // keys: current_level vertex IDs of the coarser_level vertices, values: component IDs,
+      // unrenumbered below from coarser_level vertex IDs to current_level vertex IDs
+      auto keys   = level_renumber_map_vectors[coarser_level].release_buffer();
+      auto values = level_component_vectors[coarser_level].release_buffer();
+      if constexpr (GraphViewType::is_multi_gpu) {
+        values = collect_values_for_int_vertices(
+          handle,
+          values.begin(),
+          values.end(),
+          keys.begin(),
+          raft::host_span<vertex_t const>(
+            level_vertex_partition_range_last_vectors[coarser_level].data(),
+            level_vertex_partition_range_last_vectors[coarser_level].size()),
+          level_local_vertex_first_vectors[coarser_level]);
+      } else {
+        rmm::device_uvector<vertex_t> tmp_values(values.size(), handle.get_stream());
+        cugraph::gather(handle.get_thrust_policy(),
+                        values.begin(),
+                        values.end(),
+                        keys.begin(),
+                        tmp_values.begin());
+        values = std::move(tmp_values);
+      }
+      coarser_level_kv_store = kv_store_t<vertex_t, vertex_t, true>(std::move(keys),
+                                                                    std::move(values),
+                                                                    invalid_vertex_id_v<vertex_t>,
+                                                                    false /* key sorted */,
+                                                                    handle.get_stream());
+    }
+    auto coarser_level_kv_store_view = coarser_level_kv_store.view();
+    auto current_level_components    = level_component_vectors[current_level].mutable_view();
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& comm           = handle.get_comms();
       auto const comm_size = comm.get_size();
@@ -980,11 +1000,11 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       auto key_func              = detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
         comm_size, major_comm_size, minor_comm_size};
 
-      rmm::device_uvector<vertex_t> sorted_unique_keys(
-        current_level_local_vertex_partition_range_size, handle.get_stream());
+      rmm::device_uvector<vertex_t> sorted_unique_keys(current_level_components.range_size(),
+                                                       handle.get_stream());
       thrust::copy(handle.get_thrust_policy(),
-                   current_level_components,
-                   current_level_components + current_level_local_vertex_partition_range_size,
+                   current_level_components.value_first(),
+                   current_level_components.value_first() + current_level_components.range_size(),
                    sorted_unique_keys.begin());
       cugraph::sort(
         handle.get_thrust_policy(), sorted_unique_keys.begin(), sorted_unique_keys.end());
@@ -995,7 +1015,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                                 handle.get_stream());
       auto [unique_keys, values_for_unique_keys] = collect_values_for_unique_keys(
         handle,
-        next_level_kv_store.view(),
+        coarser_level_kv_store.view(),
         std::move(sorted_unique_keys),
         cuda::proclaim_return_type<int>([key_func] __device__(auto key) { return key_func(key); }));
       auto kv_pair_first =
@@ -1011,28 +1031,54 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                                 auto pair) { return cuda::std::get<1>(pair) == invalid_value; }))),
         handle.get_stream());
       values_for_unique_keys.resize(unique_keys.size(), handle.get_stream());
-      next_level_kv_store      = kv_store_t<vertex_t, vertex_t, true>(std::move(unique_keys),
-                                                                 std::move(values_for_unique_keys),
-                                                                 invalid_vertex_id_v<vertex_t>,
-                                                                 false /* key sorted */,
-                                                                 handle.get_stream());
-      next_level_kv_store_view = next_level_kv_store.view();
+      coarser_level_kv_store =
+        kv_store_t<vertex_t, vertex_t, true>(std::move(unique_keys),
+                                             std::move(values_for_unique_keys),
+                                             invalid_vertex_id_v<vertex_t>,
+                                             false /* key sorted */,
+                                             handle.get_stream());
+      coarser_level_kv_store_view = coarser_level_kv_store.view();
     }
-    auto device_view = detail::kv_binary_search_store_device_view_t(next_level_kv_store_view);
-    thrust::transform(
-      handle.get_thrust_policy(),
-      current_level_components,
-      current_level_components + current_level_local_vertex_partition_range_size,
-      current_level_components,
-      cuda::proclaim_return_type<vertex_t>(
-        [device_view, invalid_value = invalid_vertex_id_v<vertex_t>] __device__(auto old) {
-          auto val = device_view.find(old);
-          return val != invalid_value ? val : old;
-        }));
+    auto device_view = detail::kv_binary_search_store_device_view_t(coarser_level_kv_store_view);
+    auto update_op   = cuda::proclaim_return_type<vertex_t>(
+      [device_view, invalid_value = invalid_vertex_id_v<vertex_t>] __device__(vertex_t old) {
+        auto val = device_view.find(old);
+        return val != invalid_value ? val : old;
+      });
+    if (current_level == 0) {
+      transform_v(handle,
+                  push_graph_view,
+                  level_component_vectors[current_level].view(),
+                  update_op,
+                  current_level_components);
+    } else {
+      // graphs for levels > 0 are created here as static graphs (no vertex insertion/deletion),
+      // so every vertex ID in the local vertex partition range is active and no graph view is
+      // needed to skip inactive vertices
+      thrust::transform(
+        handle.get_thrust_policy(),
+        current_level_components.value_first(),
+        current_level_components.value_first() + current_level_components.range_size(),
+        current_level_components.value_first(),
+        update_op);
+    }
+
+    --coarser_level;
   }
+
+  return std::move(level_component_vectors[0]);
 }
 
 }  // namespace
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+vertex_property_t<vertex_t, vertex_t> weakly_connected_components(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  bool do_expensive_check)
+{
+  return weakly_connected_components_impl(handle, graph_view, do_expensive_check);
+}
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 void weakly_connected_components(raft::handle_t const& handle,
@@ -1040,7 +1086,10 @@ void weakly_connected_components(raft::handle_t const& handle,
                                  vertex_t* components,
                                  bool do_expensive_check)
 {
-  weakly_connected_components_impl(handle, graph_view, components, do_expensive_check);
+  copy_v(handle,
+         graph_view,
+         weakly_connected_components(handle, graph_view, do_expensive_check).view(),
+         vertex_property_view_t{components, graph_view.local_vertex_partition_range_size()});
 }
 
 }  // namespace cugraph

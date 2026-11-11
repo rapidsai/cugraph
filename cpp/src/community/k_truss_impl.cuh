@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -13,6 +13,7 @@
 #include <cugraph/prims/make_initialized_edge_property.cuh>
 #include <cugraph/prims/per_v_pair_src_dst_nbr_intersection.cuh>
 #include <cugraph/prims/transform_e.cuh>
+#include <cugraph/prims/transform_v.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -210,31 +211,24 @@ k_truss(raft::handle_t const& handle,
 
     // 2.2 Find (k-1)-core and exclude edges that do not belong to (k-1)-core
     {
-      rmm::device_uvector<edge_t> core_numbers(cur_graph_view.number_of_vertices(),
-                                               handle.get_stream());
-      core_number(handle,
-                  cur_graph_view,
-                  core_numbers.data(),
-                  k_core_degree_type_t::OUT,
-                  size_t{2},
-                  size_t{2});
+      auto core_numbers = cugraph::core_number(
+        handle, cur_graph_view, k_core_degree_type_t::OUT, size_t{2}, size_t{2});
 
       edge_src_property_t<vertex_t, bool> edge_src_in_k_minus_1_cores(handle, cur_graph_view);
       edge_dst_property_t<vertex_t, bool> edge_dst_in_k_minus_1_cores(handle, cur_graph_view);
-      auto in_k_minus_1_core_first =
-        cuda::make_transform_iterator(core_numbers.begin(), is_k_or_greater_t<edge_t>{k - 1});
-      rmm::device_uvector<bool> in_k_minus_1_core_flags(core_numbers.size(), handle.get_stream());
-      thrust::copy(handle.get_thrust_policy(),
-                   in_k_minus_1_core_first,
-                   in_k_minus_1_core_first + core_numbers.size(),
-                   in_k_minus_1_core_flags.begin());
+      vertex_property_t<vertex_t, bool> in_k_minus_1_core_flags(handle, cur_graph_view);
+      transform_v(handle,
+                  cur_graph_view,
+                  core_numbers.view(),
+                  is_k_or_greater_t<edge_t>{k - 1},
+                  in_k_minus_1_core_flags.mutable_view());
       update_edge_src_property(handle,
                                cur_graph_view,
-                               in_k_minus_1_core_flags.begin(),
+                               in_k_minus_1_core_flags.view(),
                                edge_src_in_k_minus_1_cores.mutable_view());
       update_edge_dst_property(handle,
                                cur_graph_view,
-                               in_k_minus_1_core_flags.begin(),
+                               in_k_minus_1_core_flags.view(),
                                edge_dst_in_k_minus_1_cores.mutable_view());
 
       auto in_k_minus_1_core_edge_mask =
@@ -265,11 +259,11 @@ k_truss(raft::handle_t const& handle,
 
   auto dodg_mask = make_initialized_edge_property(handle, cur_graph_view, false);
   {
-    auto out_degrees = cur_graph_view.compute_out_degrees(handle);
+    auto out_degrees = compute_out_degrees(handle, cur_graph_view);
     update_edge_src_property(
-      handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees.mutable_view());
+      handle, cur_graph_view, out_degrees.view(), edge_src_out_degrees.mutable_view());
     update_edge_dst_property(
-      handle, cur_graph_view, out_degrees.begin(), edge_dst_out_degrees.mutable_view());
+      handle, cur_graph_view, out_degrees.view(), edge_dst_out_degrees.mutable_view());
 
     cugraph::transform_e(
       handle,
@@ -691,14 +685,16 @@ k_truss(raft::handle_t const& handle,
     rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
     std::optional<rmm::device_uvector<weight_t>> edgelist_wgts{std::nullopt};
 
-    std::tie(edgelist_srcs, edgelist_dsts, edgelist_wgts, std::ignore, std::ignore) =
-      decompress_to_edgelist(
-        handle,
-        cur_graph_view,
-        edge_weight_view,
-        std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-        std::optional<raft::device_span<vertex_t const>>{std::nullopt});
+    std::vector<arithmetic_device_uvector_t> edge_property_values{};
+    std::tie(edgelist_srcs, edgelist_dsts, edge_property_values) = decompress_to_edgelist(
+      handle,
+      cur_graph_view,
+      edge_weight_view ? std::vector<edge_arithmetic_property_view_t<edge_t>>{*edge_weight_view}
+                       : std::vector<edge_arithmetic_property_view_t<edge_t>>{},
+      std::optional<vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
+    if (edge_weight_view) {
+      edgelist_wgts = std::move(std::get<rmm::device_uvector<weight_t>>(edge_property_values[0]));
+    }
 
     std::tie(edgelist_srcs,
              edgelist_dsts,
@@ -722,4 +718,5 @@ k_truss(raft::handle_t const& handle,
       std::move(edgelist_srcs), std::move(edgelist_dsts), std::move(edgelist_wgts));
   }
 }
+
 }  // namespace cugraph

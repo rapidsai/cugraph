@@ -1,27 +1,34 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/prims/fill_edge_property.cuh>
+#include <cugraph/prims/fill_v.cuh>
 #include <cugraph/prims/make_initialized_edge_property.cuh>
+#include <cugraph/prims/scatter_v.cuh>
 #include <cugraph/prims/transform_e.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
-#include <cugraph/utilities/thrust_wrappers/fill.hpp>
+#include <cugraph/vertex_property.hpp>
+#include <cugraph/vertex_property_device_view.cuh>
 
 #include <raft/core/handle.hpp>
 #include <raft/random/rng_state.hpp>
 
+#include <cuda/functional>
+#include <cuda/iterator>
+#include <cuda/std/algorithm>
 #include <cuda/std/optional>
+#include <thrust/iterator/constant_iterator.h>
 
 namespace cugraph {
 
 namespace detail {
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-rmm::device_uvector<vertex_t> vertex_coloring(
+vertex_property_t<vertex_t, vertex_t> vertex_coloring(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state)
@@ -47,50 +54,53 @@ rmm::device_uvector<vertex_t> vertex_coloring(
 
   current_graph_view.attach_edge_mask(edge_masks_even.view());
 
-  // device vector to store colors of vertices
-  rmm::device_uvector<vertex_t> colors = rmm::device_uvector<vertex_t>(
-    current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-  cugraph::fill(
-    handle.get_thrust_policy(), colors.begin(), colors.end(), std::numeric_limits<vertex_t>::max());
+  vertex_property_t<vertex_t, vertex_t> colors(handle, current_graph_view);
+  fill_v(handle, current_graph_view, colors.mutable_view(), std::numeric_limits<vertex_t>::max());
 
   vertex_t color_id = 0;
   while (true) {
     auto mis = cugraph::maximal_independent_set<vertex_t, edge_t, multi_gpu>(
-      handle, current_graph_view, rng_state);
+      handle, rng_state, current_graph_view);
 
-    using flag_t                                 = uint8_t;
-    rmm::device_uvector<flag_t> is_vertex_in_mis = rmm::device_uvector<flag_t>(
-      current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-    cugraph::fill(handle.get_thrust_policy(), is_vertex_in_mis.begin(), is_vertex_in_mis.end(), 0);
+    vertex_property_t<vertex_t, bool> is_vertex_in_mis(handle, current_graph_view);
+    fill_v(handle, current_graph_view, is_vertex_in_mis.mutable_view(), false);
 
-    thrust::for_each(
-      handle.get_thrust_policy(),
+    scatter_v(handle,
+              current_graph_view,
+              thrust::make_constant_iterator(true),
+              thrust::make_constant_iterator(true) + mis.size(),
+              mis.begin(),
+              is_vertex_in_mis.mutable_view());
+
+    auto new_color_first = cuda::make_transform_iterator(
       mis.begin(),
-      mis.end(),
-      [color_id,
-       colors           = colors.data(),
-       is_vertex_in_mis = is_vertex_in_mis.data(),
-       v_first = current_graph_view.local_vertex_partition_range_first()] __device__(vertex_t v) {
-        auto v_offset              = v - v_first;
-        is_vertex_in_mis[v_offset] = flag_t{1};
-        vertex_t initial_color_id  = colors[v_offset];
-        colors[v_offset]           = (color_id < initial_color_id) ? color_id : initial_color_id;
-      });
+      cuda::proclaim_return_type<vertex_t>(
+        [color_id,
+         colors  = detail::vertex_property_device_view_t{colors.view()},
+         v_first = current_graph_view.local_vertex_partition_range_first()] __device__(vertex_t v) {
+          return cuda::std::min(color_id, colors.get(v - v_first));
+        }));
+    scatter_v(handle,
+              current_graph_view,
+              new_color_first,
+              new_color_first + mis.size(),
+              mis.begin(),
+              colors.mutable_view());
 
     if (current_graph_view.compute_number_of_edges(handle) == 0) { break; }
 
-    cugraph::edge_src_property_t<vertex_t, flag_t> src_mis_flags(handle);
-    cugraph::edge_dst_property_t<vertex_t, flag_t> dst_mis_flags(handle);
+    cugraph::edge_src_property_t<vertex_t, bool> src_mis_flags(handle);
+    cugraph::edge_dst_property_t<vertex_t, bool> dst_mis_flags(handle);
 
     if constexpr (graph_view_t::is_multi_gpu) {
-      src_mis_flags = cugraph::edge_src_property_t<vertex_t, flag_t>(handle, current_graph_view);
-      dst_mis_flags = cugraph::edge_dst_property_t<vertex_t, flag_t>(handle, current_graph_view);
+      src_mis_flags = cugraph::edge_src_property_t<vertex_t, bool>(handle, current_graph_view);
+      dst_mis_flags = cugraph::edge_dst_property_t<vertex_t, bool>(handle, current_graph_view);
 
       cugraph::update_edge_src_property(
-        handle, current_graph_view, is_vertex_in_mis.begin(), src_mis_flags.mutable_view());
+        handle, current_graph_view, is_vertex_in_mis.view(), src_mis_flags.mutable_view());
 
       cugraph::update_edge_dst_property(
-        handle, current_graph_view, is_vertex_in_mis.begin(), dst_mis_flags.mutable_view());
+        handle, current_graph_view, is_vertex_in_mis.view(), dst_mis_flags.mutable_view());
     }
 
     if (color_id % 2 == 0) {
@@ -99,16 +109,14 @@ rmm::device_uvector<vertex_t> vertex_coloring(
         current_graph_view,
         graph_view_t::is_multi_gpu
           ? src_mis_flags.view()
-          : make_edge_src_property_view<vertex_t, flag_t>(
-              current_graph_view, is_vertex_in_mis.begin(), is_vertex_in_mis.size()),
+          : make_edge_src_property_view(current_graph_view, is_vertex_in_mis.view()),
         graph_view_t::is_multi_gpu
           ? dst_mis_flags.view()
-          : make_edge_dst_property_view<vertex_t, flag_t>(
-              current_graph_view, is_vertex_in_mis.begin(), is_vertex_in_mis.size()),
+          : make_edge_dst_property_view(current_graph_view, is_vertex_in_mis.view()),
         cugraph::edge_dummy_property_t{}.view(),
         [color_id] __device__(
           auto src, auto dst, auto is_src_in_mis, auto is_dst_in_mis, cuda::std::nullopt_t) {
-          return !((is_src_in_mis == uint8_t{true}) || (is_dst_in_mis == uint8_t{true}));
+          return !(is_src_in_mis || is_dst_in_mis);
         },
         edge_masks_odd.mutable_view());
 
@@ -122,16 +130,14 @@ rmm::device_uvector<vertex_t> vertex_coloring(
         current_graph_view,
         graph_view_t::is_multi_gpu
           ? src_mis_flags.view()
-          : make_edge_src_property_view<vertex_t, flag_t>(
-              current_graph_view, is_vertex_in_mis.begin(), is_vertex_in_mis.size()),
+          : make_edge_src_property_view(current_graph_view, is_vertex_in_mis.view()),
         graph_view_t::is_multi_gpu
           ? dst_mis_flags.view()
-          : make_edge_dst_property_view<vertex_t, flag_t>(
-              current_graph_view, is_vertex_in_mis.begin(), is_vertex_in_mis.size()),
+          : make_edge_dst_property_view(current_graph_view, is_vertex_in_mis.view()),
         cugraph::edge_dummy_property_t{}.view(),
         [color_id] __device__(
           auto src, auto dst, auto is_src_in_mis, auto is_dst_in_mis, cuda::std::nullopt_t) {
-          return !((is_src_in_mis == uint8_t{true}) || (is_dst_in_mis == uint8_t{true}));
+          return !(is_src_in_mis || is_dst_in_mis);
         },
         edge_masks_even.mutable_view());
 
@@ -145,7 +151,22 @@ rmm::device_uvector<vertex_t> vertex_coloring(
   }
   return colors;
 }
+
 }  // namespace detail
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+vertex_property_t<vertex_t, vertex_t> vertex_coloring(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  bool do_expensive_check)
+{
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
+
+  return detail::vertex_coloring(handle, graph_view, rng_state);
+}
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> vertex_coloring(
@@ -153,7 +174,7 @@ rmm::device_uvector<vertex_t> vertex_coloring(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state)
 {
-  return detail::vertex_coloring(handle, graph_view, rng_state);
+  return vertex_coloring(handle, rng_state, graph_view).release_buffer();
 }
 
 }  // namespace cugraph

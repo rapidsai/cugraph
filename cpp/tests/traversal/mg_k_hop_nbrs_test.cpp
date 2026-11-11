@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -71,7 +71,7 @@ class Tests_MGKHopNbrs
     }
 
     cugraph::graph_t<vertex_t, edge_t, false, true> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> mg_renumber_map{std::nullopt};
     std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, false, true);
@@ -136,12 +136,8 @@ class Tests_MGKHopNbrs
     if (k_hop_nbrs_usecase.check_correctness) {
       // 3-1. unrenumber & aggregate MG start vertices & results
 
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        d_mg_start_vertices.data(),
-        d_mg_start_vertices.size(),
-        (*mg_renumber_map).data(),
-        mg_graph_view.vertex_partition_range_lasts());
+      d_mg_start_vertices = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(d_mg_start_vertices), mg_renumber_map->view());
 
       auto h_mg_offsets = cugraph::test::to_host(*handle_, d_mg_offsets);
       std::vector<size_t> h_mg_counts(d_mg_start_vertices.size());
@@ -150,12 +146,8 @@ class Tests_MGKHopNbrs
       raft::update_device(
         d_mg_counts.data(), h_mg_counts.data(), h_mg_counts.size(), handle_->get_stream());
 
-      cugraph::unrenumber_int_vertices<vertex_t, true>(
-        *handle_,
-        d_mg_nbrs.data(),
-        d_mg_nbrs.size(),
-        (*mg_renumber_map).data(),
-        mg_graph_view.vertex_partition_range_lasts());
+      d_mg_nbrs = cugraph::unrenumber_int_vertices(
+        *handle_, mg_graph_view, std::move(d_mg_nbrs), mg_renumber_map->view());
 
       auto d_mg_aggregate_start_vertices = cugraph::test::device_gatherv(
         *handle_,
@@ -175,8 +167,7 @@ class Tests_MGKHopNbrs
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
 
       if (handle_->get_comms().get_rank() == int{0}) {

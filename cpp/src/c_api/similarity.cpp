@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -98,22 +98,20 @@ struct similarity_functor : public cugraph::c_api::abstract_functor {
       //
       // Need to renumber vertex pairs
       //
-      cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+      v1 = cugraph::renumber_ext_vertices(
         handle_,
-        v1.data(),
-        v1.size(),
-        number_map->data(),
-        graph_view.local_vertex_partition_range_first(),
-        graph_view.local_vertex_partition_range_last(),
+        graph_view,
+        std::move(v1),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         false);
 
-      cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+      v2 = cugraph::renumber_ext_vertices(
         handle_,
-        v2.data(),
-        v2.size(),
-        number_map->data(),
-        graph_view.local_vertex_partition_range_first(),
-        graph_view.local_vertex_partition_range_last(),
+        graph_view,
+        std::move(v2),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         false);
 
       auto similarity_coefficients =
@@ -209,13 +207,12 @@ struct all_pairs_similarity_functor : public cugraph::c_api::abstract_functor {
         //
         // Need to renumber vertices
         //
-        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+        vertices = cugraph::renumber_ext_vertices(
           handle_,
-          vertices->data(),
-          vertices->size(),
-          number_map->data(),
-          graph_view.local_vertex_partition_range_first(),
-          graph_view.local_vertex_partition_range_last(),
+          graph_view,
+          std::move(*vertices),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
           do_expensive_check_);
       }
 
@@ -229,20 +226,20 @@ struct all_pairs_similarity_functor : public cugraph::c_api::abstract_functor {
         topk_ != SIZE_MAX ? std::make_optional(topk_) : std::nullopt,
         do_expensive_check_);
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+      v1 = cugraph::unrenumber_int_vertices(
         handle_,
-        v1.data(),
-        v1.size(),
-        number_map->data(),
-        graph_view.vertex_partition_range_lasts(),
+        graph_view,
+        std::move(v1),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         do_expensive_check_);
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+      v2 = cugraph::unrenumber_int_vertices(
         handle_,
-        v2.data(),
-        v2.size(),
-        number_map->data(),
-        graph_view.vertex_partition_range_lasts(),
+        graph_view,
+        std::move(v2),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         do_expensive_check_);
 
       result_ = new cugraph::c_api::cugraph_similarity_result_t{

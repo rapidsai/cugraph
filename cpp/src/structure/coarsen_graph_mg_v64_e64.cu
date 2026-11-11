@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "structure/coarsen_graph_impl.cuh"
@@ -12,11 +12,31 @@ namespace cugraph {
 
 template CUGRAPH_EXPORT std::tuple<graph_t<int64_t, int64_t, true, true>,
                                    std::optional<edge_property_t<int64_t, float>>,
+                                   std::optional<vertex_property_t<int64_t, int64_t>>>
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int64_t, int64_t, true, true> const& graph_view,
+              std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
+              vertex_property_view_t<int64_t, int64_t const*> labels,
+              bool renumber,
+              bool do_expensive_check);
+
+template CUGRAPH_EXPORT std::tuple<graph_t<int64_t, int64_t, true, true>,
+                                   std::optional<edge_property_t<int64_t, float>>,
                                    std::optional<rmm::device_uvector<int64_t>>>
 coarsen_graph(raft::handle_t const& handle,
               graph_view_t<int64_t, int64_t, true, true> const& graph_view,
               std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
               int64_t const* labels,
+              bool renumber,
+              bool do_expensive_check);
+
+template CUGRAPH_EXPORT std::tuple<graph_t<int64_t, int64_t, false, true>,
+                                   std::optional<edge_property_t<int64_t, float>>,
+                                   std::optional<vertex_property_t<int64_t, int64_t>>>
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int64_t, int64_t, false, true> const& graph_view,
+              std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
+              vertex_property_view_t<int64_t, int64_t const*> labels,
               bool renumber,
               bool do_expensive_check);
 
@@ -32,11 +52,31 @@ coarsen_graph(raft::handle_t const& handle,
 
 template CUGRAPH_EXPORT std::tuple<graph_t<int64_t, int64_t, true, true>,
                                    std::optional<edge_property_t<int64_t, double>>,
+                                   std::optional<vertex_property_t<int64_t, int64_t>>>
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int64_t, int64_t, true, true> const& graph_view,
+              std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
+              vertex_property_view_t<int64_t, int64_t const*> labels,
+              bool renumber,
+              bool do_expensive_check);
+
+template CUGRAPH_EXPORT std::tuple<graph_t<int64_t, int64_t, true, true>,
+                                   std::optional<edge_property_t<int64_t, double>>,
                                    std::optional<rmm::device_uvector<int64_t>>>
 coarsen_graph(raft::handle_t const& handle,
               graph_view_t<int64_t, int64_t, true, true> const& graph_view,
               std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
               int64_t const* labels,
+              bool renumber,
+              bool do_expensive_check);
+
+template CUGRAPH_EXPORT std::tuple<graph_t<int64_t, int64_t, false, true>,
+                                   std::optional<edge_property_t<int64_t, double>>,
+                                   std::optional<vertex_property_t<int64_t, int64_t>>>
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<int64_t, int64_t, false, true> const& graph_view,
+              std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
+              vertex_property_view_t<int64_t, int64_t const*> labels,
               bool renumber,
               bool do_expensive_check);
 

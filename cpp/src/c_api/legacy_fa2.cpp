@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -172,19 +172,21 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
 
       // Decompress to edgelist
 
-      auto [srcs, dsts, wgts, edge_ids, edge_types] =
-        cugraph::decompress_to_edgelist<vertex_t, edge_t, weight_t, int32_t, false, multi_gpu>(
+      auto [srcs, dsts, edge_property_values] =
+        cugraph::decompress_to_edgelist<vertex_t, edge_t, false, multi_gpu>(
           handle_,
           graph_view,
-          (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
-          std::nullopt,
-          std::nullopt,
+          (edge_weights != nullptr)
+            ? std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{edge_weights->view()}
+            : std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{},
           std::nullopt);  // Renumber srcs and dsts to internal IDs by not passing number_map
 
       cugraph::legacy::GraphCOOView<vertex_t, edge_t, weight_t> legacy_coo_graph_view(
         const_cast<vertex_t*>(srcs.data()),
         const_cast<vertex_t*>(dsts.data()),
-        (edge_weights == nullptr) ? tmp_weights.data() : const_cast<weight_t*>(wgts->data()),
+        (edge_weights == nullptr)
+          ? tmp_weights.data()
+          : std::get<rmm::device_uvector<weight_t>>(edge_property_values[0]).data(),
         graph->number_of_vertices(),
         edge_partition_view.number_of_edges());
 
@@ -224,13 +226,12 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
         raft::copy(
           y_start.data(), y_start_->as_type<float>(), y_start_->size_, handle_.get_stream());
 
-        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+        start_vertices = cugraph::renumber_ext_vertices(
           handle_,
-          start_vertices.data(),
-          start_vertices.size(),
-          number_map->data(),
-          graph_view.local_vertex_partition_range_first(),
-          graph_view.local_vertex_partition_range_last(),
+          graph_view,
+          std::move(start_vertices),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
           do_expensive_check_);
 
         cugraph::c_api::detail::sort_tuple_by_key(
@@ -253,13 +254,12 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
                    vertex_radius_values_->size_,
                    handle_.get_stream());
 
-        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+        vertex_radius_vertices = cugraph::renumber_ext_vertices(
           handle_,
-          vertex_radius_vertices.data(),
-          vertex_radius_vertices.size(),
-          number_map->data(),
-          graph_view.local_vertex_partition_range_first(),
-          graph_view.local_vertex_partition_range_last(),
+          graph_view,
+          std::move(vertex_radius_vertices),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
           do_expensive_check_);
 
         cugraph::c_api::detail::sort_by_key(
@@ -281,13 +281,12 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
                    vertex_mobility_values_->size_,
                    handle_.get_stream());
 
-        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+        vertex_mobility_vertices = cugraph::renumber_ext_vertices(
           handle_,
-          vertex_mobility_vertices.data(),
-          vertex_mobility_vertices.size(),
-          number_map->data(),
-          graph_view.local_vertex_partition_range_first(),
-          graph_view.local_vertex_partition_range_last(),
+          graph_view,
+          std::move(vertex_mobility_vertices),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
           do_expensive_check_);
 
         cugraph::c_api::detail::sort_by_key(
@@ -310,13 +309,12 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
                    vertex_mass_values_->size_,
                    handle_.get_stream());
 
-        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+        vertex_mass_vertices = cugraph::renumber_ext_vertices(
           handle_,
-          vertex_mass_vertices.data(),
-          vertex_mass_vertices.size(),
-          number_map->data(),
-          graph_view.local_vertex_partition_range_first(),
-          graph_view.local_vertex_partition_range_last(),
+          graph_view,
+          std::move(vertex_mass_vertices),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
           do_expensive_check_);
 
         cugraph::c_api::detail::sort_by_key(

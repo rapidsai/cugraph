@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -155,16 +155,8 @@ bool compare_edgelist(raft::handle_t const& handle,
 
     rmm::device_uvector<vertex_t> this_label_sorted_unrenumbered_edgelist_srcs(
       label_end_offset - label_start_offset, handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(),
-                 renumbered_edgelist_srcs.begin() + label_start_offset,
-                 renumbered_edgelist_srcs.begin() + label_end_offset,
-                 this_label_sorted_unrenumbered_edgelist_srcs.begin());
     rmm::device_uvector<vertex_t> this_label_sorted_unrenumbered_edgelist_dsts(
       label_end_offset - label_start_offset, handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(),
-                 renumbered_edgelist_dsts.begin() + label_start_offset,
-                 renumbered_edgelist_dsts.begin() + label_end_offset,
-                 this_label_sorted_unrenumbered_edgelist_dsts.begin());
     auto this_label_sorted_unrenumbered_edgelist_weights =
       renumbered_edgelist_weights ? std::make_optional<rmm::device_uvector<weight_t>>(
                                       label_end_offset - label_start_offset, handle.get_stream())
@@ -190,20 +182,25 @@ bool compare_edgelist(raft::handle_t const& handle,
                           handle.get_stream());
         handle.sync_stream();
       }
-      std::vector<vertex_t> lasts{
-        static_cast<vertex_t>(renumber_map_label_end_offset - renumber_map_label_start_offset)};
-      cugraph::unrenumber_int_vertices<vertex_t, false>(
-        handle,
-        this_label_sorted_unrenumbered_edgelist_srcs.data(),
-        this_label_sorted_unrenumbered_edgelist_srcs.size(),
-        (*renumber_map).data() + renumber_map_label_start_offset,
-        raft::host_span<vertex_t const>(lasts.data(), lasts.size()));
-      cugraph::unrenumber_int_vertices<vertex_t, false>(
-        handle,
-        this_label_sorted_unrenumbered_edgelist_dsts.data(),
-        this_label_sorted_unrenumbered_edgelist_dsts.size(),
-        (*renumber_map).data() + renumber_map_label_start_offset,
-        raft::host_span<vertex_t const>(lasts.data(), lasts.size()));
+      cugraph::gather(handle.get_thrust_policy(),
+                      renumbered_edgelist_srcs.begin() + label_start_offset,
+                      renumbered_edgelist_srcs.begin() + label_end_offset,
+                      (*renumber_map).begin() + renumber_map_label_start_offset,
+                      this_label_sorted_unrenumbered_edgelist_srcs.begin());
+      cugraph::gather(handle.get_thrust_policy(),
+                      renumbered_edgelist_dsts.begin() + label_start_offset,
+                      renumbered_edgelist_dsts.begin() + label_end_offset,
+                      (*renumber_map).begin() + renumber_map_label_start_offset,
+                      this_label_sorted_unrenumbered_edgelist_dsts.begin());
+    } else {
+      thrust::copy(handle.get_thrust_policy(),
+                   renumbered_edgelist_srcs.begin() + label_start_offset,
+                   renumbered_edgelist_srcs.begin() + label_end_offset,
+                   this_label_sorted_unrenumbered_edgelist_srcs.begin());
+      thrust::copy(handle.get_thrust_policy(),
+                   renumbered_edgelist_dsts.begin() + label_start_offset,
+                   renumbered_edgelist_dsts.begin() + label_end_offset,
+                   this_label_sorted_unrenumbered_edgelist_dsts.begin());
     }
 
     if (this_label_sorted_unrenumbered_edgelist_weights) {
@@ -510,10 +507,6 @@ bool compare_heterogeneous_edgelist(
 
       rmm::device_uvector<vertex_t> this_edge_type_unrenumbered_edgelist_srcs(
         edge_type_end_offset - edge_type_start_offset, handle.get_stream());
-      thrust::copy(handle.get_thrust_policy(),
-                   renumbered_edgelist_srcs.begin() + edge_type_start_offset,
-                   renumbered_edgelist_srcs.begin() + edge_type_end_offset,
-                   this_edge_type_unrenumbered_edgelist_srcs.begin());
       {
         vertex_t org_src{};
         raft::update_host(&org_src,
@@ -544,23 +537,17 @@ bool compare_heterogeneous_edgelist(
         auto renumber_map = raft::device_span<vertex_t const>(
           vertex_renumber_map.data() + renumber_map_label_start_offset,
           renumber_map_label_end_offset - renumber_map_label_start_offset);
-        std::vector<vertex_t> lasts{static_cast<vertex_t>(renumber_map.size())};
-        cugraph::unrenumber_int_vertices<vertex_t, false>(
-          handle,
-          this_edge_type_unrenumbered_edgelist_srcs.data(),
-          edge_type_end_offset - edge_type_start_offset,
-          renumber_map.data(),
-          raft::host_span<vertex_t const>(lasts.data(), lasts.size()));
+        cugraph::gather(handle.get_thrust_policy(),
+                        renumbered_edgelist_srcs.begin() + edge_type_start_offset,
+                        renumbered_edgelist_srcs.begin() + edge_type_end_offset,
+                        renumber_map.begin(),
+                        this_edge_type_unrenumbered_edgelist_srcs.begin());
       }
 
       // unrenumber destination vertex IDs
 
       rmm::device_uvector<vertex_t> this_edge_type_unrenumbered_edgelist_dsts(
         edge_type_end_offset - edge_type_start_offset, handle.get_stream());
-      thrust::copy(handle.get_thrust_policy(),
-                   renumbered_edgelist_dsts.begin() + edge_type_start_offset,
-                   renumbered_edgelist_dsts.begin() + edge_type_end_offset,
-                   this_edge_type_unrenumbered_edgelist_dsts.begin());
       {
         vertex_t org_dst{};
         raft::update_host(&org_dst,
@@ -591,13 +578,11 @@ bool compare_heterogeneous_edgelist(
         auto renumber_map = raft::device_span<vertex_t const>(
           vertex_renumber_map.data() + renumber_map_label_start_offset,
           renumber_map_label_end_offset - renumber_map_label_start_offset);
-        std::vector<vertex_t> lasts{static_cast<vertex_t>(renumber_map.size())};
-        cugraph::unrenumber_int_vertices<vertex_t, false>(
-          handle,
-          this_edge_type_unrenumbered_edgelist_dsts.data(),
-          edge_type_end_offset - edge_type_start_offset,
-          renumber_map.data(),
-          raft::host_span<vertex_t const>(lasts.data(), lasts.size()));
+        cugraph::gather(handle.get_thrust_policy(),
+                        renumbered_edgelist_dsts.begin() + edge_type_start_offset,
+                        renumbered_edgelist_dsts.begin() + edge_type_end_offset,
+                        renumber_map.begin(),
+                        this_edge_type_unrenumbered_edgelist_dsts.begin());
       }
 
       // unrenumber edge IDs
