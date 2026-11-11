@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -222,6 +222,64 @@ int test_sssp_with_transpose_double()
     src, dst, wgt, 0, expected_distances, expected_predecessors, num_vertices, num_edges, 10, TRUE);
 }
 
+int test_sssp_unweighted()
+{
+  int test_ret_value = 0;
+
+  size_t num_edges = 3;
+
+  vertex_t src[] = {0, 1, 2};
+  vertex_t dst[] = {1, 2, 0};
+
+  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
+  cugraph_error_t* ret_error    = NULL;
+
+  cugraph_resource_handle_t* p_handle = NULL;
+  cugraph_graph_t* p_graph            = NULL;
+  cugraph_paths_result_t* p_result    = NULL;
+
+  p_handle = cugraph_create_resource_handle(NULL);
+  TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
+
+  ret_code = create_sg_test_graph(p_handle,
+                                  INT32,
+                                  INT32,
+                                  src,
+                                  dst,
+                                  FLOAT32,
+                                  NULL,
+                                  INT32,
+                                  NULL,
+                                  INT32,
+                                  NULL,
+                                  INT32,
+                                  NULL,
+                                  NULL,
+                                  num_edges,
+                                  FALSE,
+                                  FALSE,
+                                  FALSE,
+                                  FALSE,
+                                  &p_graph,
+                                  &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
+
+  ret_code = cugraph_sssp(p_handle, p_graph, 0, FLT_MAX, TRUE, FALSE, &p_result, &ret_error);
+  TEST_ASSERT(test_ret_value,
+              ret_code == CUGRAPH_INVALID_INPUT,
+              "cugraph_sssp expected to fail on an unweighted graph");
+  TEST_ASSERT(test_ret_value, p_result == NULL, "cugraph_sssp returned a result on failure");
+  TEST_ASSERT(test_ret_value,
+              (ret_error != NULL) && (cugraph_error_message(ret_error)[0] != '\0'),
+              "cugraph_sssp did not report an error message");
+
+  cugraph_graph_free(p_graph);
+  cugraph_free_resource_handle(p_handle);
+  cugraph_error_free(ret_error);
+
+  return test_ret_value;
+}
+
 /******************************************************************************/
 
 int main(int argc, char** argv)
@@ -230,5 +288,6 @@ int main(int argc, char** argv)
   result |= RUN_TEST(test_sssp);
   result |= RUN_TEST(test_sssp_with_transpose);
   result |= RUN_TEST(test_sssp_with_transpose_double);
+  result |= RUN_TEST(test_sssp_unweighted);
   return result;
 }
