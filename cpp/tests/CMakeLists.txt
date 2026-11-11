@@ -342,6 +342,8 @@ ConfigureTest(LOUVAIN_TEST community/louvain_test.cpp)
 ###################################################################################################
 # - LEIDEN tests ----------------------------------------------------------------------------------
 ConfigureTest(LEIDEN_TEST community/leiden_test.cpp)
+# leiden_test also runs detail::leiden_csr (community/detail/leiden/leiden_csr.hpp) directly
+target_include_directories(LEIDEN_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
 
 ###################################################################################################
 # - WEIGHTED MATCHING tests -----------------------------------------------------------------------
