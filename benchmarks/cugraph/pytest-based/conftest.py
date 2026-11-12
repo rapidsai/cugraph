@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -36,6 +36,15 @@ def pytest_addoption(parser):
         "This results in a graph with (2^scale)*edgefactor edges. Default "
         "is %(default)s.",
     )
+
+
+def pytest_collection_modifyitems(items):
+
+    # TODO: remove when updating to a 'pytest-benchmark' with support for 'pytest>=9.2'
+    #  ref: https://github.com/ionelmc/pytest-benchmark/issues/321
+    for item in items:
+        if not hasattr(item, "_nodeid"):
+            item._nodeid = item.nodeid
 
 
 def pytest_sessionstart(session):
