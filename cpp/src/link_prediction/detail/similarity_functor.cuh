@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -57,7 +57,9 @@ struct cosine_functor_t {
                                     weight_t sum_of_product_of_a_and_b,
                                     weight_t reserved_param) const
   {
-    return sum_of_product_of_a_and_b / (norm_a * norm_b);
+    return (norm_a * norm_b) <= std::numeric_limits<weight_t>::min()
+             ? weight_t{0}
+             : sum_of_product_of_a_and_b / (norm_a * norm_b);
   }
 };
 
