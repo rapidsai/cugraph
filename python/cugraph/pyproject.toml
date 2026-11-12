@@ -86,7 +86,7 @@ regex = "(?P<value>.*)"
 [tool.rapids-build-backend]
 build-backend = "scikit_build_core.build"
 requires = [
-    "cmake>=4.0",
+    "cmake>=4.3",
     "libcugraph==27.2.*,>=0.0.0a0",
     "libraft==27.2.*,>=0.0.0a0",
     "librmm==27.2.*,>=0.0.0a0",

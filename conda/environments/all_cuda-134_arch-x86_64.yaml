@@ -8,7 +8,7 @@ dependencies:
 - breathe>=4.35.0
 - c-compiler
 - certifi
-- cmake>=4.0
+- cmake>=4.3
 - cuda-bindings>=13.0.2,<14.0
 - cuda-nvcc
 - cuda-nvtx-dev
