@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "betweenness_centrality_reference.hpp"
@@ -223,5 +223,47 @@ INSTANTIATE_TEST_SUITE_P(
                       BetweennessCentrality_Usecase{500, false, false, true, false, false},
                       BetweennessCentrality_Usecase{500, false, false, true, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+
+TEST(BetweennessCentrality, AllSourcesAcrossMultipleBatches)
+{
+  using vertex_t = int32_t;
+  using edge_t   = int32_t;
+  using weight_t = double;
+
+  // Disjoint 3-vertex paths; more than 65535 sources (the uint16_t origin limit) forces at least
+  // two source batches.
+  constexpr vertex_t num_paths    = 21846;
+  constexpr vertex_t num_vertices = 3 * num_paths;
+
+  raft::handle_t handle{};
+
+  std::vector<vertex_t> h_srcs{};
+  std::vector<vertex_t> h_dsts{};
+  for (vertex_t i = 0; i < num_paths; ++i) {
+    vertex_t center = 3 * i + 1;
+    h_srcs.insert(h_srcs.end(), {center - 1, center, center, center + 1});
+    h_dsts.insert(h_dsts.end(), {center, center - 1, center + 1, center});
+  }
+
+  auto [graph, edge_properties, renumber_map] =
+    cugraph::create_graph_from_edgelist<vertex_t, edge_t, false, false>(
+      handle,
+      std::nullopt,
+      cugraph::test::to_device(handle, h_srcs),
+      cugraph::test::to_device(handle, h_dsts),
+      {},
+      cugraph::graph_properties_t{true, false},
+      false);
+
+  auto d_centralities = cugraph::betweenness_centrality<vertex_t, edge_t, weight_t, false>(
+    handle, graph.view(), std::nullopt, std::nullopt, false, false, false);
+
+  std::vector<weight_t> h_expected(num_vertices, weight_t{0});
+  for (vertex_t i = 0; i < num_paths; ++i) {
+    h_expected[3 * i + 1] = weight_t{1};
+  }
+
+  EXPECT_EQ(cugraph::test::to_host(handle, d_centralities), h_expected);
+}
 
 CUGRAPH_TEST_PROGRAM_MAIN()
