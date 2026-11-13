@@ -39,6 +39,7 @@ classifiers = [
 
 [project.optional-dependencies]
 test = [
+    "cuda-core[cu13]>=1.0.0,<2.0.0",
     "cudf==27.2.*,>=0.0.0a0",
     "numpy>=2.0,<3.0",
     "pandas",
