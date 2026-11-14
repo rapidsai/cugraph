@@ -7,8 +7,9 @@
 #include <cugraph/export.hpp>
 
 #include <rmm/device_uvector.hpp>
-#include <rmm/resource_ref.hpp>
+#include <rmm/mr/per_device_resource.hpp>
 
+#include <cuda/memory_resource>
 #include <cuda/stream>
 
 #include <memory>
@@ -22,7 +23,7 @@ class Dendrogram {
   void add_level(vertex_t first_index,
                  vertex_t num_verts,
                  cuda::stream_ref stream_view,
-                 rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource_ref())
+                 cuda::mr::device_resource_ref mr = rmm::mr::get_current_device_resource_ref())
   {
     level_ptr_.push_back(
       std::make_unique<rmm::device_uvector<vertex_t>>(num_verts, stream_view, mr));
