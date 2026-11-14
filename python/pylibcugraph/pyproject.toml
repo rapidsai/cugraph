@@ -73,7 +73,7 @@ regex = "(?P<value>.*)"
 build-backend = "scikit_build_core.build"
 dependencies-file = "../../dependencies.yaml"
 requires = [
-    "cmake>=4.0",
+    "cmake>=4.0,<4.5",
     "cython>=3.2.2",
     "libcugraph==26.12.*,>=0.0.0a0",
     "libraft==26.12.*,>=0.0.0a0",

@@ -410,7 +410,7 @@ dependencies:
     common:
       - output_types: [conda, requirements, pyproject, constraints]
         packages:
-          - &cmake_ver cmake>=4.0
+          - &cmake_ver cmake>=4.0,<4.5
           - ninja
   cpp_build:
     common:
