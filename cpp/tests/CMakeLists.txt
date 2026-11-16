@@ -717,7 +717,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG STRONGLY CONNECTED COMPONENTS tests ----------------------------------------------------
     ConfigureTestMG(MG_STRONGLY_CONNECTED_COMPONENTS_TEST
-                    components/mg_strongly_connected_components_test.cpp)
+                    components/mg_strongly_connected_components_test.cpp
+                    components/strongly_connected_components_ecl_mg_test.cu)
 
     ###############################################################################################
     # - MG SIMPLE CYCLES tests --------------------------------------------------------------------

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -25,6 +25,8 @@
 #include <rmm/device_uvector.hpp>
 
 #include <gtest/gtest.h>
+
+void run_ecl_mg_reference_cases(raft::handle_t const& handle);
 
 struct StronglyConnectedComponents_Usecase {
   bool edge_masking{false};
@@ -225,5 +227,11 @@ INSTANTIATE_TEST_SUITE_P(
                     cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, false, false)),
     std::make_tuple(StronglyConnectedComponents_Usecase{true, false},
                     cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, false, false))));
+
+TEST(StronglyConnectedComponents_MG, OwnerMappingAndPropagation)
+{
+  auto handle = cugraph::test::initialize_mg_handle();
+  run_ecl_mg_reference_cases(*handle);
+}
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
