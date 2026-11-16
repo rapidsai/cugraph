@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -111,22 +111,47 @@ cugraph_louvain(const cugraph_resource_handle_t* handle,
 /**
  * @brief     Compute Leiden
  *
+ * Clusters the graph by maximizing the generalized modularity Q(resolution) with the Leiden
+ * algorithm (Traag, Waltman & van Eck, 2019). Every returned community is connected, the returned
+ * modularity is the exact Q(resolution) of the returned clustering (self-loops excluded), and the
+ * result is deterministic: identical inputs, parameters and random state give bitwise identical
+ * results, on any GPU. The result depends on the internal vertex numbering of the graph; for a
+ * given numbering it does not depend on the number of GPUs of a multi-GPU graph. Cluster ids are
+ * ordered by decreasing community size.
+ *
+ * The graph must be symmetric (every edge stored in both directions with the same weight; the
+ * data is checked), with finite, non-negative weights. Self-loops and edges of weight 0 are
+ * ignored, and parallel edges are summed. Unweighted graphs use weight 1 for every edge. The
+ * number of vertices must be less than 2^30 - 1. A multi-GPU graph's first level is split by rows
+ * over the GPUs; the coarser levels run on rank 0, which needs about the workspace of a single-GPU
+ * run. Graphs small enough for replicas (at most 2^18 counted edges, i.e. stored entries without
+ * self-loops and zero weights, and fewer than 2^29 vertices), and every graph on more than 32
+ * GPUs, are gathered onto every GPU instead.
+ *
+ * Invalid parameters return CUGRAPH_INVALID_INPUT; invalid graph data (asymmetric, negative or
+ * non-finite weights) returns an error whose message names the problem.
+ *
  * @param [in]  handle       Handle for accessing resources
+ * @param [in,out] rng_state State of the random number generator, updated with each call. The
+ *                           32-bit seed of the call is derived from it (for multi-GPU graphs,
+ *                           from the state of rank 0).
  * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
  *                           needs to be transposed
- * @param [in,out] rng_state State of the random number generator, updated with each call
- * @param [in]  max_level    Maximum level in hierarchy
+ * @param [in]  n_iterations Number of Leiden iterations (1 <= n_iterations < 2^16; 2 is
+ *                           recommended), or -1 to iterate until the partition is stable (until
+ *                           an iteration moves no vertex or improves the modularity by less than
+ *                           1e-6, at most 20 iterations). Replaces the former max_level argument.
  * @param [in]  resolution   Resolution parameter (gamma) in modularity formula.
  *                           This changes the size of the communities.  Higher resolutions
  *                           lead to more smaller communities, lower resolutions lead to
- *                           fewer larger communities.
- * @param[in]  theta         (optional) The value of the parameter to scale modularity
- *                           gain in Leiden refinement phase. It is used to compute
- *                           the probability of joining a random leiden community.
- *                           Called theta in the Leiden algorithm.
+ *                           fewer larger communities. Must be finite and in [0, 2^20].
+ * @param [in]  beta         Randomness of the refinement phase. Reserved: only 0 is implemented
+ *                           (any other value returns CUGRAPH_INVALID_INPUT). Replaces the former
+ *                           theta argument, which was never used.
  * @param [in]  do_expensive_check
  *                           A flag to run expensive checks for input arguments (if set to true)
- * @param [out] result       Output from the Leiden call
+ * @param [out] result       Output from the Leiden call: the (local) vertices, their cluster ids
+ *                           and the exact modularity (identical on every rank)
  * @param [out] error        Pointer to an error object storing details of any error.  Will
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
@@ -135,9 +160,9 @@ CUGRAPH_EXPORT cugraph_error_code_t
 cugraph_leiden(const cugraph_resource_handle_t* handle,
                cugraph_rng_state_t* rng_state,
                cugraph_graph_t* graph,
-               size_t max_level,
+               int32_t n_iterations,
                double resolution,
-               double theta,
+               double beta,
                bool_t do_expensive_check,
                cugraph_hierarchical_clustering_result_t** result,
                cugraph_error_t** error);

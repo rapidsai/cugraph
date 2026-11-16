@@ -1,8 +1,10 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
 # cython: language_level = 3
+
+from libc.stdint cimport int32_t
 
 from pylibcugraph._cugraph_c.types cimport (
     bool_t,
@@ -137,9 +139,9 @@ cdef extern from "cugraph_c/community_algorithms.h":
             const cugraph_resource_handle_t* handle,
             cugraph_rng_state_t* rng_state,
             cugraph_graph_t* graph,
-            size_t max_level,
+            int32_t n_iterations,
             double resolution,
-            double theta,
+            double beta,
             bool_t do_expensive_check,
             cugraph_hierarchical_clustering_result_t** result,
             cugraph_error_t** error
