@@ -37,6 +37,7 @@
 #include <cuda/atomic>
 #include <cuda/functional>
 #include <cuda/iterator>
+#include <cuda/std/algorithm.min.h>
 #include <cuda/std/cmath>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
