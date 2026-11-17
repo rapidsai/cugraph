@@ -245,7 +245,6 @@ def get_worker_id(sID, dask_worker=None):
 # the number of workers, including:
 #   * get_n_workers() (from cugraph.dask.common.read_utils)
 #   * len(get_visible_devices())
-#   * len(numba.cuda.gpus)
 # Consider consolidating these or emphasizing why different
 # functions/techniques are needed.
 def get_n_workers(sID=None, dask_worker=None):
