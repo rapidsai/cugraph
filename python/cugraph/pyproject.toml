@@ -30,7 +30,6 @@ dependencies = [
     "dask-cuda==26.12.*,>=0.0.0a0",
     "dask-cudf==26.12.*,>=0.0.0a0",
     "libcugraph==26.12.*,>=0.0.0a0",
-    "numba>=0.60.0,<0.65.0",
     "numpy>=2.0,<3.0",
     "pylibcudf==26.12.*,>=0.0.0a0",
     "pylibcugraph==26.12.*,>=0.0.0a0",
