@@ -81,7 +81,6 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
 
     leiden(graph_view,
            edge_weight_view,
-           graph_view.local_vertex_partition_range_size(),
            leiden_usecase.max_level_,
            leiden_usecase.resolution_,
            leiden_usecase.check_correctness_,
@@ -99,7 +98,6 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
   void leiden(
     cugraph::graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
     std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-    vertex_t num_vertices,
     size_t max_level,
     float resolution,
     bool check_correctness,
@@ -107,7 +105,6 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
     float expected_modularity)
   {
     raft::handle_t handle{};
-    (void)num_vertices;
 
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     raft::random::RngState rng_state(seed);
