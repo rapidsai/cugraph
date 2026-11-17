@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "centrality/eigenvector_centrality_impl.cuh"
@@ -27,5 +27,25 @@ template CUGRAPH_EXPORT rmm::device_uvector<double> eigenvector_centrality(
   double epsilon,
   size_t max_iterations,
   bool do_expensive_check);
+
+template CUGRAPH_EXPORT std::tuple<vertex_property_t<int64_t, float>,
+                                   iterative_algorithm_metadata_t>
+eigenvector_centrality(raft::handle_t const& handle,
+                       graph_view_t<int64_t, int64_t, true, false> const& graph_view,
+                       std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
+                       std::optional<vertex_property_t<int64_t, float>>&& initial_centralities,
+                       float epsilon,
+                       size_t max_iterations,
+                       bool do_expensive_check);
+
+template CUGRAPH_EXPORT std::tuple<vertex_property_t<int64_t, double>,
+                                   iterative_algorithm_metadata_t>
+eigenvector_centrality(raft::handle_t const& handle,
+                       graph_view_t<int64_t, int64_t, true, false> const& graph_view,
+                       std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
+                       std::optional<vertex_property_t<int64_t, double>>&& initial_centralities,
+                       double epsilon,
+                       size_t max_iterations,
+                       bool do_expensive_check);
 
 }  // namespace cugraph

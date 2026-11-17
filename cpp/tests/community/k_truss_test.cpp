@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -194,7 +194,7 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
         handle,
         graph_view,
         edge_weight ? std::make_optional((*edge_weight).view()) : std::nullopt,
-        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+        std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
 
       rmm::device_uvector<weight_t> d_sorted_cugraph_wgts{0, handle.get_stream()};
       rmm::device_uvector<vertex_t> d_sorted_cugraph_srcs{0, handle.get_stream()};

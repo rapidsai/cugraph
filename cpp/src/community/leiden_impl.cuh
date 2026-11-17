@@ -6,21 +6,25 @@
 
 #include "community/detail/common_methods.hpp"
 #include "community/detail/refine.hpp"
-#include "community/flatten_dendrogram.hpp"
 
+#include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
+#include <cugraph/prims/copy_v.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 #include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/utilities/thrust_wrappers/unique.hpp>
+#include <cugraph/vertex_property.hpp>
 
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/std/iterator>
+#include <thrust/iterator/counting_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/unique.h>
 
@@ -37,41 +41,12 @@ void check_clustering(graph_view_t<vertex_t, edge_t, false, multi_gpu> const& gr
   if (graph_view.local_vertex_partition_range_size() > 0)
     CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
 }
-template <typename vertex_t, bool multi_gpu>
-vertex_t remove_duplicates(raft::handle_t const& handle, rmm::device_uvector<vertex_t>& input_array)
-{
-  cugraph::sort(handle.get_thrust_policy(), input_array.begin(), input_array.end());
-
-  auto nr_unique_elements = static_cast<vertex_t>(cuda::std::distance(
-    input_array.begin(),
-    cugraph::unique(handle.get_thrust_policy(), input_array.begin(), input_array.end())));
-
-  input_array.resize(nr_unique_elements, handle.get_stream());
-
-  if constexpr (multi_gpu) {
-    std::tie(input_array, std::ignore) = shuffle_ext_vertices(
-      handle, std::move(input_array), std::vector<cugraph::arithmetic_device_uvector_t>{});
-
-    cugraph::sort(handle.get_thrust_policy(), input_array.begin(), input_array.end());
-
-    nr_unique_elements = static_cast<vertex_t>(cuda::std::distance(
-      input_array.begin(),
-      cugraph::unique(handle.get_thrust_policy(), input_array.begin(), input_array.end())));
-
-    input_array.resize(nr_unique_elements, handle.get_stream());
-
-    nr_unique_elements = host_scalar_allreduce(
-      handle.get_comms(), nr_unique_elements, raft::comms::op_t::SUM, handle.get_stream());
-  }
-  return nr_unique_elements;
-}
-
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           bool multi_gpu,
           bool store_transposed = false>
-std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
+std::pair<dendrogram_t<vertex_t>, weight_t> leiden(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
@@ -83,7 +58,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   using graph_t      = cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>;
   using graph_view_t = cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>;
 
-  std::unique_ptr<Dendrogram<vertex_t>> dendrogram = std::make_unique<Dendrogram<vertex_t>>();
+  dendrogram_t<vertex_t> dendrogram{};
 
   graph_view_t current_graph_view(graph_view);
   std::optional<edge_property_view_t<edge_t, weight_t const*>> current_edge_weight_view(
@@ -103,14 +78,13 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
   rmm::device_uvector<vertex_t> louvain_of_refined_graph(0, handle.get_stream());  // #V
 
-  while (dendrogram->num_levels() < max_level) {
+  while (dendrogram.num_levels() < max_level) {
     //
     //  Initialize every cluster to reference each vertex to itself
     //
 
-    dendrogram->add_level(current_graph_view.local_vertex_partition_range_first(),
-                          current_graph_view.local_vertex_partition_range_size(),
-                          handle.get_stream());
+    auto level_range_first = current_graph_view.local_vertex_partition_range_first();
+    vertex_property_t<vertex_t, vertex_t> level_clusters(handle, current_graph_view);
 
 //
 //  Compute the vertex and cluster weights, these are different for each
@@ -120,29 +94,33 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       handle, hr_timer, "compute_vertex_and_cluster_weights");
 #endif
 
-    rmm::device_uvector<weight_t> vertex_weights =
-      compute_out_weight_sums(handle, current_graph_view, *current_edge_weight_view);
+    auto vertex_weights =
+      compute_out_weight_sums(handle, current_graph_view, *current_edge_weight_view, false);
     rmm::device_uvector<vertex_t> cluster_keys(0, handle.get_stream());
     rmm::device_uvector<weight_t> cluster_weights(0, handle.get_stream());
 
-    if (dendrogram->num_levels() == 1) {
-      cluster_keys.resize(vertex_weights.size(), handle.get_stream());
-      cluster_weights.resize(vertex_weights.size(), handle.get_stream());
+    if (dendrogram.num_levels() == 0) {
+      cluster_keys.resize(current_graph_view.local_vertex_partition_range_size(),
+                          handle.get_stream());
+      cluster_weights.resize(current_graph_view.local_vertex_partition_range_size(),
+                             handle.get_stream());
 
-      cugraph::sequence(rmm::exec_policy(handle.get_stream()),
-                        dendrogram->current_level_begin(),
-                        dendrogram->current_level_begin() + dendrogram->current_level_size(),
-                        current_graph_view.local_vertex_partition_range_first());
+      copy_v(handle,
+             current_graph_view,
+             vertex_property_view_t{thrust::make_counting_iterator(level_range_first),
+                                    current_graph_view.local_vertex_partition_range_size()},
+             level_clusters.mutable_view());
 
       cugraph::sequence(rmm::exec_policy(handle.get_stream()),
                         cluster_keys.begin(),
                         cluster_keys.begin() + cluster_keys.size(),
                         current_graph_view.local_vertex_partition_range_first());
 
-      raft::copy(cluster_weights.begin(),
-                 vertex_weights.begin(),
-                 vertex_weights.size(),
-                 handle.get_stream());
+      copy_v(handle,
+             current_graph_view,
+             vertex_weights.view(),
+             vertex_property_view_t{cluster_weights.begin(),
+                                    current_graph_view.local_vertex_partition_range_size()});
 
       if constexpr (graph_view_t::is_multi_gpu) {
         std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
@@ -152,18 +130,22 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
         cluster_weights = std::move(std::get<rmm::device_uvector<weight_t>>(vertex_properties[0]));
       }
     } else {
-      rmm::device_uvector<weight_t> tmp_weights_buffer(vertex_weights.size(),
-                                                       handle.get_stream());  // #C
+      rmm::device_uvector<weight_t> tmp_weights_buffer(
+        current_graph_view.local_vertex_partition_range_size(),
+        handle.get_stream());  // #C
 
-      raft::copy(dendrogram->current_level_begin(),
-                 louvain_of_refined_graph.begin(),
-                 louvain_of_refined_graph.size(),
-                 handle.get_stream());
+      copy_v(
+        handle,
+        current_graph_view,
+        vertex_property_view_t<vertex_t, vertex_t const*>{
+          louvain_of_refined_graph.data(), current_graph_view.local_vertex_partition_range_size()},
+        level_clusters.mutable_view());
 
-      raft::copy(tmp_weights_buffer.begin(),
-                 vertex_weights.begin(),
-                 vertex_weights.size(),
-                 handle.get_stream());
+      copy_v(handle,
+             current_graph_view,
+             vertex_weights.view(),
+             vertex_property_view_t{tmp_weights_buffer.begin(),
+                                    current_graph_view.local_vertex_partition_range_size()});
 
       thrust::sort_by_key(handle.get_thrust_policy(),
                           louvain_of_refined_graph.begin(),
@@ -238,10 +220,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     if constexpr (graph_view_t::is_multi_gpu) {
       src_vertex_weights_cache =
         edge_src_property_t<vertex_t, weight_t>(handle, current_graph_view);
-      update_edge_src_property(handle,
-                               current_graph_view,
-                               vertex_weights.begin(),
-                               src_vertex_weights_cache.mutable_view());
+      update_edge_src_property(
+        handle, current_graph_view, vertex_weights.view(), src_vertex_weights_cache.mutable_view());
     }
 
 #ifdef TIMING
@@ -253,13 +233,12 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     detail::timer_start<graph_view_t::is_multi_gpu>(handle, hr_timer, "update_clustering");
 #endif
 
-    rmm::device_uvector<vertex_t> louvain_assignment_for_vertices(dendrogram->current_level_size(),
-                                                                  handle.get_stream());
-
-    raft::copy(louvain_assignment_for_vertices.begin(),
-               dendrogram->current_level_begin(),
-               dendrogram->current_level_size(),
-               handle.get_stream());
+    vertex_property_t<vertex_t, vertex_t> louvain_assignment_for_vertices(handle,
+                                                                          current_graph_view);
+    copy_v(handle,
+           current_graph_view,
+           level_clusters.view(),
+           louvain_assignment_for_vertices.mutable_view());
 
     edge_src_property_t<vertex_t, vertex_t> src_louvain_assignment_cache(handle);
     edge_dst_property_t<vertex_t, vertex_t> dst_louvain_assignment_cache(handle);
@@ -268,13 +247,13 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
         edge_src_property_t<vertex_t, vertex_t>(handle, current_graph_view);
       update_edge_src_property(handle,
                                current_graph_view,
-                               louvain_assignment_for_vertices.begin(),
+                               louvain_assignment_for_vertices.view(),
                                src_louvain_assignment_cache.mutable_view());
       dst_louvain_assignment_cache =
         edge_dst_property_t<vertex_t, vertex_t>(handle, current_graph_view);
       update_edge_dst_property(handle,
                                current_graph_view,
-                               louvain_assignment_for_vertices.begin(),
+                               louvain_assignment_for_vertices.view(),
                                dst_louvain_assignment_cache.mutable_view());
     }
 
@@ -283,7 +262,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                                 current_edge_weight_view,
                                                 src_louvain_assignment_cache,
                                                 dst_louvain_assignment_cache,
-                                                louvain_assignment_for_vertices,
+                                                louvain_assignment_for_vertices.view(),
                                                 cluster_weights,
                                                 total_edge_weight,
                                                 resolution);
@@ -319,7 +298,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                                       current_edge_weight_view,
                                                       total_edge_weight,
                                                       resolution,
-                                                      vertex_weights,
+                                                      vertex_weights.view(),
                                                       std::move(cluster_keys),
                                                       std::move(cluster_weights),
                                                       std::move(louvain_assignment_for_vertices),
@@ -332,11 +311,11 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       if constexpr (graph_view_t::is_multi_gpu) {
         update_edge_src_property(handle,
                                  current_graph_view,
-                                 louvain_assignment_for_vertices.begin(),
+                                 louvain_assignment_for_vertices.view(),
                                  src_louvain_assignment_cache.mutable_view());
         update_edge_dst_property(handle,
                                  current_graph_view,
-                                 louvain_assignment_for_vertices.begin(),
+                                 louvain_assignment_for_vertices.view(),
                                  dst_louvain_assignment_cache.mutable_view());
       }
 
@@ -344,7 +323,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
         detail::compute_cluster_keys_and_values(handle,
                                                 current_graph_view,
                                                 current_edge_weight_view,
-                                                louvain_assignment_for_vertices,
+                                                louvain_assignment_for_vertices.view(),
                                                 src_louvain_assignment_cache);
 
       up_down = !up_down;
@@ -354,16 +333,16 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                          current_edge_weight_view,
                                          src_louvain_assignment_cache,
                                          dst_louvain_assignment_cache,
-                                         louvain_assignment_for_vertices,
+                                         louvain_assignment_for_vertices.view(),
                                          cluster_weights,
                                          total_edge_weight,
                                          resolution);
 
       if (new_Q > (cur_Q + 1e-4)) {
-        raft::copy(dendrogram->current_level_begin(),
-                   louvain_assignment_for_vertices.begin(),
-                   louvain_assignment_for_vertices.size(),
-                   handle.get_stream());
+        copy_v(handle,
+               current_graph_view,
+               louvain_assignment_for_vertices.view(),
+               level_clusters.mutable_view());
       }
     }
 
@@ -377,37 +356,39 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
     // Count number of unique louvain clusters
 
-    rmm::device_uvector<vertex_t> copied_louvain_partition(dendrogram->current_level_size(),
-                                                           handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(),
-                 dendrogram->current_level_begin(),
-                 dendrogram->current_level_begin() + dendrogram->current_level_size(),
-                 copied_louvain_partition.begin());
+    rmm::device_uvector<vertex_t> copied_louvain_partition(
+      current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
+    copy_v(
+      handle,
+      current_graph_view,
+      level_clusters.view(),
+      vertex_property_view_t<vertex_t, vertex_t*>{
+        copied_louvain_partition.data(), static_cast<vertex_t>(copied_louvain_partition.size())});
     auto nr_unique_louvain_clusters =
       remove_duplicates<vertex_t, multi_gpu>(handle, copied_louvain_partition);
 
     bool terminate = (nr_unique_louvain_clusters == current_graph_view.number_of_vertices());
 
-    rmm::device_uvector<vertex_t> refined_leiden_partition(0, handle.get_stream());
+    vertex_property_t<vertex_t, vertex_t> refined_leiden_partition(handle);
     std::pair<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> leiden_to_louvain_map{
       rmm::device_uvector<vertex_t>(0, handle.get_stream()),
       rmm::device_uvector<vertex_t>(0, handle.get_stream())};
 
     if (!terminate) {
       // Refine the current partition
-      thrust::copy(handle.get_thrust_policy(),
-                   dendrogram->current_level_begin(),
-                   dendrogram->current_level_begin() + dendrogram->current_level_size(),
-                   louvain_assignment_for_vertices.begin());
+      copy_v(handle,
+             current_graph_view,
+             level_clusters.view(),
+             louvain_assignment_for_vertices.mutable_view());
 
       if constexpr (graph_view_t::is_multi_gpu) {
         update_edge_src_property(handle,
                                  current_graph_view,
-                                 louvain_assignment_for_vertices.begin(),
+                                 louvain_assignment_for_vertices.view(),
                                  src_louvain_assignment_cache.mutable_view());
         update_edge_dst_property(handle,
                                  current_graph_view,
-                                 louvain_assignment_for_vertices.begin(),
+                                 louvain_assignment_for_vertices.view(),
                                  dst_louvain_assignment_cache.mutable_view());
       }
 
@@ -416,16 +397,16 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                   rng_state,
                                   current_graph_view,
                                   current_edge_weight_view,
-                                  total_edge_weight,
-                                  resolution,
-                                  theta,
-                                  vertex_weights,
-                                  std::move(cluster_keys),
-                                  std::move(cluster_weights),
-                                  std::move(louvain_assignment_for_vertices),
+                                  vertex_weights.view(),
+                                  louvain_assignment_for_vertices.view(),
                                   src_vertex_weights_cache,
                                   src_louvain_assignment_cache,
-                                  dst_louvain_assignment_cache);
+                                  dst_louvain_assignment_cache,
+                                  std::move(cluster_keys),
+                                  std::move(cluster_weights),
+                                  total_edge_weight,
+                                  resolution,
+                                  theta);
     }
 
     // Clear buffer and contract the graph
@@ -434,19 +415,17 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                          current_edge_weight_view,
                                          src_louvain_assignment_cache,
                                          dst_louvain_assignment_cache,
-                                         louvain_assignment_for_vertices,
+                                         louvain_assignment_for_vertices.view(),
                                          cluster_weights,
                                          total_edge_weight,
                                          resolution);
 
     cluster_keys.resize(0, handle.get_stream());
     cluster_weights.resize(0, handle.get_stream());
-    vertex_weights.resize(0, handle.get_stream());
-    louvain_assignment_for_vertices.resize(0, handle.get_stream());
     cluster_keys.shrink_to_fit(handle.get_stream());
     cluster_weights.shrink_to_fit(handle.get_stream());
-    vertex_weights.shrink_to_fit(handle.get_stream());
-    louvain_assignment_for_vertices.shrink_to_fit(handle.get_stream());
+    vertex_weights                  = vertex_property_t<vertex_t, weight_t>(handle);
+    louvain_assignment_for_vertices = vertex_property_t<vertex_t, vertex_t>(handle);
     src_vertex_weights_cache.clear();
     src_louvain_assignment_cache.clear();
     dst_louvain_assignment_cache.clear();
@@ -464,30 +443,37 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       terminate = terminate || (nr_unique_leiden == current_graph_view.number_of_vertices());
 
       if (nr_unique_leiden < current_graph_view.number_of_vertices()) {
+        // New approach, mimic Louvain, we'll store the Leiden results in the dendrogram
+        copy_v(handle,
+               current_graph_view,
+               refined_leiden_partition.view(),
+               level_clusters.mutable_view());
+
+        std::vector<vertex_t> vertex_partition_range_lasts(
+          current_graph_view.vertex_partition_range_lasts().begin(),
+          current_graph_view.vertex_partition_range_lasts().end());
+
         // Create aggregate graph based on refined (leiden) partition
-        std::optional<rmm::device_uvector<vertex_t>> numbering_map{std::nullopt};
-        std::tie(coarse_graph, coarsen_graph_edge_weight, numbering_map) =
+        std::optional<vertex_property_t<vertex_t, vertex_t>> coarse_renumber_map{std::nullopt};
+        std::tie(coarse_graph, coarsen_graph_edge_weight, coarse_renumber_map) =
           coarsen_graph(handle,
                         current_graph_view,
                         current_edge_weight_view,
-                        refined_leiden_partition.data(),
+                        refined_leiden_partition.view(),
                         true);
+        level_clusters = vertex_property_t<vertex_t, vertex_t>(
+          renumber_ext_vertices(handle,
+                                coarse_graph.view(),
+                                level_clusters.release_buffer(),
+                                coarse_renumber_map->view()),
+          current_graph_view.local_vertex_partition_range_size());
+        auto numbering_map = std::make_optional(coarse_renumber_map->release_buffer());
 
         current_graph_view = coarse_graph.view();
 
         current_edge_weight_view =
           std::make_optional<edge_property_view_t<edge_t, weight_t const*>>(
             (*coarsen_graph_edge_weight).view());
-
-        // FIXME: reconsider what's put into dendrogram->current_level_begin()
-        // at what point in the code. I'm just going to overwrite it here,
-        // so perhaps it should be in different structures until now
-
-        // New approach, mimic Louvain, we'll store the Leiden results in the dendrogram
-        raft::copy(dendrogram->current_level_begin(),
-                   refined_leiden_partition.data(),
-                   refined_leiden_partition.size(),
-                   handle.get_stream());
 
         louvain_of_refined_graph.resize(current_graph_view.local_vertex_partition_range_size(),
                                         handle.get_stream());
@@ -499,27 +485,20 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                           numeric_sequence.data() + numeric_sequence.size(),
                           current_graph_view.local_vertex_partition_range_first());
 
-        relabel<vertex_t, multi_gpu>(
-          handle,
-          std::make_tuple(static_cast<vertex_t const*>((*numbering_map).begin()),
-                          static_cast<vertex_t const*>(numeric_sequence.begin())),
-          (*numbering_map).size(),
-          dendrogram->current_level_begin(),
-          dendrogram->current_level_size(),
-          false);
-
         raft::copy(louvain_of_refined_graph.begin(),
                    numbering_map->data(),
                    numbering_map->size(),
                    handle.get_stream());
 
-        relabel<vertex_t, multi_gpu>(
+        louvain_of_refined_graph = relabel<vertex_t, multi_gpu>(
           handle,
-          std::make_tuple(static_cast<vertex_t const*>(leiden_to_louvain_map.first.begin()),
-                          static_cast<vertex_t const*>(leiden_to_louvain_map.second.begin())),
-          leiden_to_louvain_map.first.size(),
-          louvain_of_refined_graph.data(),
-          louvain_of_refined_graph.size(),
+          raft::device_span<vertex_t const>(leiden_to_louvain_map.first.data(),
+                                            leiden_to_louvain_map.first.size()),
+          raft::device_span<vertex_t const>(leiden_to_louvain_map.second.data(),
+                                            leiden_to_louvain_map.second.size()),
+          std::move(louvain_of_refined_graph),
+          std::make_optional(raft::host_span<vertex_t const>(vertex_partition_range_lasts.data(),
+                                                             vertex_partition_range_lasts.size())),
           false);
 
         // Relabel clusters so that each cluster is identified by the lowest vertex id
@@ -569,26 +548,28 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
           numeric_sequence.resize(new_size, handle.get_stream());
         }
 
-        relabel<vertex_t, multi_gpu>(
+        louvain_of_refined_graph = relabel<vertex_t, multi_gpu>(
           handle,
-          std::make_tuple(static_cast<vertex_t const*>((*numbering_map).begin()),
-                          static_cast<vertex_t const*>(numeric_sequence.begin())),
-          (*numbering_map).size(),
-          louvain_of_refined_graph.data(),
-          louvain_of_refined_graph.size(),
+          raft::device_span<vertex_t const>(numbering_map->data(), numbering_map->size()),
+          raft::device_span<vertex_t const>(numeric_sequence.data(), numeric_sequence.size()),
+          std::move(louvain_of_refined_graph),
+          std::nullopt,
           false);
       }
     } else {
       // Reset dendrogram.
       //    FIXME: Revisit how dendrogram is populated
-      cugraph::sequence(rmm::exec_policy(handle.get_stream()),
-                        dendrogram->current_level_begin(),
-                        dendrogram->current_level_begin() + dendrogram->current_level_size(),
-                        current_graph_view.local_vertex_partition_range_first());
+      copy_v(handle,
+             current_graph_view,
+             vertex_property_view_t{thrust::make_counting_iterator(level_range_first),
+                                    current_graph_view.local_vertex_partition_range_size()},
+             level_clusters.mutable_view());
     }
 
     copied_louvain_partition.resize(0, handle.get_stream());
     copied_louvain_partition.shrink_to_fit(handle.get_stream());
+
+    dendrogram.add_level(std::move(level_clusters), level_range_first);
 
     if (terminate) { break; }
 
@@ -604,90 +585,69 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   return std::make_pair(std::move(dendrogram), final_Q);
 }
 
-template <typename vertex_t, bool multi_gpu>
-void relabel_cluster_ids(raft::handle_t const& handle,
-                         rmm::device_uvector<vertex_t>& unique_cluster_ids,
-                         vertex_t* clustering,
-                         size_t num_nodes)
-{
-  vertex_t local_cluster_id_first{0};
-
-  // Get unique cluster id and shuffle
-  remove_duplicates<vertex_t, multi_gpu>(handle, unique_cluster_ids);
-
-  if constexpr (multi_gpu) {
-    auto cluster_ids_size_per_rank = cugraph::host_scalar_allgather(
-      handle.get_comms(), unique_cluster_ids.size(), handle.get_stream());
-
-    std::vector<vertex_t> cluster_ids_starts(cluster_ids_size_per_rank.size());
-    std::exclusive_scan(cluster_ids_size_per_rank.begin(),
-                        cluster_ids_size_per_rank.end(),
-                        cluster_ids_starts.begin(),
-                        size_t{0});
-    local_cluster_id_first = cluster_ids_starts[handle.get_comms().get_rank()];
-  }
-
-  rmm::device_uvector<vertex_t> numbering_indices(unique_cluster_ids.size(), handle.get_stream());
-  cugraph::sequence(rmm::exec_policy(handle.get_stream()),
-                    numbering_indices.data(),
-                    numbering_indices.data() + numbering_indices.size(),
-                    local_cluster_id_first);
-
-  relabel<vertex_t, multi_gpu>(
-    handle,
-    std::make_tuple(static_cast<vertex_t const*>(unique_cluster_ids.begin()),
-                    static_cast<vertex_t const*>(numbering_indices.begin())),
-    unique_cluster_ids.size(),
-    clustering,
-    num_nodes,
-    false);
-}
-
-template <typename vertex_t, typename edge_t, bool multi_gpu>
-void flatten_leiden_dendrogram(raft::handle_t const& handle,
-                               graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-                               Dendrogram<vertex_t> const& dendrogram,
-                               vertex_t* clustering)
-{
-  rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.local_vertex_partition_range_size(),
-                                             handle.get_stream());
-
-  cugraph::sequence(rmm::exec_policy(handle.get_stream()),
-                    vertex_ids_v.begin(),
-                    vertex_ids_v.begin() + vertex_ids_v.size(),
-                    graph_view.local_vertex_partition_range_first());
-
-  partition_at_level<vertex_t, multi_gpu>(
-    handle, dendrogram, vertex_ids_v.data(), clustering, dendrogram.num_levels());
-}
-
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
+std::pair<dendrogram_t<vertex_t>, weight_t> leiden_dendrogram(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level,
   weight_t resolution,
-  weight_t theta = 1.0)
+  weight_t theta,
+  bool do_expensive_check)
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
 
   return detail::leiden(
     handle, rng_state, graph_view, edge_weight_view, max_level, resolution, theta);
 }
 
-template <typename vertex_t, typename edge_t, bool multi_gpu>
-void flatten_leiden_dendrogram(raft::handle_t const& handle,
-                               graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-                               Dendrogram<vertex_t> const& dendrogram,
-                               vertex_t* clustering)
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::pair<std::unique_ptr<dendrogram_t<vertex_t>>, weight_t> leiden(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  size_t max_level,
+  weight_t resolution,
+  weight_t theta)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+  auto [dendrogram, modularity] = cugraph::leiden_dendrogram(
+    handle, rng_state, graph_view, edge_weight_view, max_level, resolution, theta);
 
-  detail::flatten_leiden_dendrogram(handle, graph_view, dendrogram, clustering);
+  return std::make_pair(std::make_unique<dendrogram_t<vertex_t>>(std::move(dendrogram)),
+                        modularity);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<vertex_property_t<vertex_t, vertex_t>, size_t, weight_t> leiden(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  bool compact_cluster_ids,
+  size_t max_level,
+  weight_t resolution,
+  weight_t theta,
+  bool do_expensive_check)
+{
+  auto [dendrogram, modularity] = cugraph::leiden_dendrogram(handle,
+                                                             rng_state,
+                                                             graph_view,
+                                                             edge_weight_view,
+                                                             max_level,
+                                                             resolution,
+                                                             theta,
+                                                             do_expensive_check);
+  auto clustering               = cugraph::flatten_dendrogram(
+    handle, graph_view, dendrogram, compact_cluster_ids, do_expensive_check);
+
+  return std::make_tuple(std::move(clustering), dendrogram.num_levels(), modularity);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -699,33 +659,21 @@ std::pair<size_t, weight_t> leiden(
   vertex_t* clustering,
   size_t max_level,
   weight_t resolution,
-  weight_t theta = 1.0)
+  weight_t theta)
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted");
   detail::check_clustering(graph_view, clustering);
 
-  std::unique_ptr<Dendrogram<vertex_t>> dendrogram;
-  weight_t modularity;
+  auto [clustering_prop, num_levels, modularity] = cugraph::leiden(
+    handle, rng_state, graph_view, edge_weight_view, true, max_level, resolution, theta);
+  copy_v(handle,
+         graph_view,
+         clustering_prop.view(),
+         vertex_property_view_t<vertex_t, vertex_t*, vertex_t>{
+           clustering, graph_view.local_vertex_partition_range_size()});
 
-  std::tie(dendrogram, modularity) =
-    detail::leiden(handle, rng_state, graph_view, edge_weight_view, max_level, resolution, theta);
-
-  detail::flatten_leiden_dendrogram(handle, graph_view, *dendrogram, clustering);
-
-  size_t local_num_verts = (*dendrogram).get_level_size_nocheck(0);
-  rmm::device_uvector<vertex_t> unique_cluster_ids(local_num_verts, handle.get_stream());
-
-  thrust::copy(handle.get_thrust_policy(),
-               clustering,
-               clustering + local_num_verts,
-               unique_cluster_ids.begin());
-
-  detail::relabel_cluster_ids<vertex_t, multi_gpu>(
-    handle, unique_cluster_ids, clustering, local_num_verts);
-
-  return std::make_pair(dendrogram->num_levels(), modularity);
+  return std::make_pair(num_levels, modularity);
 }
 
 }  // namespace cugraph
