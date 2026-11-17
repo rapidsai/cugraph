@@ -106,7 +106,6 @@ requirements:
     - cupy >=14.0.1,!=14.1.0
     - dask-cuda =${{ minor_version }}
     - dask-cudf =${{ minor_version }}
-    - fsspec>=0.6.0
     - libcugraph =${{ version }}
     - librmm =${{ minor_version }}
     - numba >=0.60.0,<0.65.0
@@ -117,7 +116,6 @@ requirements:
     - python
     - raft-dask =${{ minor_version }}
     - rapids-dask-dependency =${{ minor_version }}
-    - requests
     - ucxx ${{ ucxx_version }}
     - if: cuda_major == "12"
       then: cuda-bindings >=12.9.3,<13.0
