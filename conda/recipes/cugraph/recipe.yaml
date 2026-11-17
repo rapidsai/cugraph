@@ -102,7 +102,6 @@ requirements:
     - scikit-build-core>=0.11.0
   run:
     - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
-    - aiohttp
     - cudf =${{ minor_version }}
     - cupy >=14.0.1,!=14.1.0
     - dask-cuda =${{ minor_version }}
