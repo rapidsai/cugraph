@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -128,23 +128,23 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
     ASSERT_TRUE(static_cast<vertex_t>(sssp_usecase.source) >= 0 &&
                 static_cast<vertex_t>(sssp_usecase.source) < graph_view.number_of_vertices());
 
-    rmm::device_uvector<weight_t> d_distances(graph_view.number_of_vertices(), handle.get_stream());
-    rmm::device_uvector<vertex_t> d_predecessors(graph_view.number_of_vertices(),
-                                                 handle.get_stream());
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.start("SSSP");
     }
 
-    cugraph::sssp(handle,
-                  graph_view,
-                  *edge_weight_view,
-                  d_distances.data(),
-                  d_predecessors.data(),
-                  static_cast<vertex_t>(sssp_usecase.source),
-                  std::numeric_limits<weight_t>::max(),
-                  false);
+    auto source_vertex = static_cast<vertex_t>(sssp_usecase.source);
+    rmm::device_uvector<vertex_t> frontier(size_t{1}, handle.get_stream());
+    raft::update_device(frontier.data(), &source_vertex, size_t{1}, handle.get_stream());
+    auto [distance_property, predecessor_property] =
+      cugraph::shortest_path(handle,
+                             graph_view,
+                             *edge_weight_view,
+                             raft::device_span<vertex_t const>(frontier.data(), frontier.size()),
+                             std::numeric_limits<weight_t>::max(),
+                             true);
+    auto d_distances    = distance_property.release_buffer();
+    auto d_predecessors = predecessor_property->release_buffer();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -158,15 +158,12 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
           handle,
           graph_view,
           edge_weight_view,
-          d_renumber_map_labels
-            ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
-                                                                    (*d_renumber_map_labels).size())
-            : std::nullopt);
+          d_renumber_map_labels ? std::make_optional(d_renumber_map_labels->view()) : std::nullopt);
       assert(h_weights.has_value());
 
       auto unrenumbered_source = static_cast<vertex_t>(sssp_usecase.source);
       if (renumber) {
-        auto h_renumber_map_labels = cugraph::test::to_host(handle, *d_renumber_map_labels);
+        auto h_renumber_map_labels = cugraph::test::to_host(handle, d_renumber_map_labels->view());
         unrenumbered_source        = h_renumber_map_labels[sssp_usecase.source];
       }
 
@@ -185,22 +182,16 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
       std::vector<weight_t> h_cugraph_distances(graph_view.number_of_vertices());
       std::vector<vertex_t> h_cugraph_predecessors(graph_view.number_of_vertices());
       if (renumber) {
-        cugraph::unrenumber_local_int_vertices(handle,
-                                               d_predecessors.data(),
-                                               d_predecessors.size(),
-                                               (*d_renumber_map_labels).data(),
-                                               vertex_t{0},
-                                               graph_view.number_of_vertices(),
-                                               true);
+        d_predecessors = cugraph::unrenumber_local_int_vertices(
+          handle, graph_view, std::move(d_predecessors), d_renumber_map_labels->view(), true);
 
+        auto d_renumber_map = d_renumber_map_labels->release_buffer();
         rmm::device_uvector<weight_t> d_unrenumbered_distances(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_distances) =
-          cugraph::test::sort_by_key<vertex_t, weight_t>(
-            handle, *d_renumber_map_labels, d_distances);
+          cugraph::test::sort_by_key<vertex_t, weight_t>(handle, d_renumber_map, d_distances);
         rmm::device_uvector<vertex_t> d_unrenumbered_predecessors(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_predecessors) =
-          cugraph::test::sort_by_key<vertex_t, vertex_t>(
-            handle, *d_renumber_map_labels, d_predecessors);
+          cugraph::test::sort_by_key<vertex_t, vertex_t>(handle, d_renumber_map, d_predecessors);
 
         h_cugraph_distances    = cugraph::test::to_host(handle, d_unrenumbered_distances);
         h_cugraph_predecessors = cugraph::test::to_host(handle, d_unrenumbered_predecessors);

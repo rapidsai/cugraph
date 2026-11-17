@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -252,7 +252,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<vertex_t>* number_map =
         new rmm::device_uvector<vertex_t>(0, handle_.get_stream());
 
-      std::optional<rmm::device_uvector<vertex_t>> new_number_map;
+      std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> new_number_map;
 
       std::optional<cugraph::edge_property_t<edge_t, weight_t>> new_edge_weights{std::nullopt};
       std::optional<cugraph::edge_property_t<edge_t, edge_t>> new_edge_ids{std::nullopt};
@@ -274,7 +274,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       std::vector<cugraph::edge_arithmetic_property_t<edge_t>> new_edge_properties{};
 
       std::tie(*graph, new_edge_properties, new_number_map) =
-        cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+        cugraph::create_graph<vertex_t, edge_t, store_transposed, multi_gpu>(
           handle_,
           std::move(vertex_list),
           std::move(edgelist_srcs),
@@ -313,7 +313,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       }
 
       if (renumber_) {
-        *number_map = std::move(new_number_map.value());
+        *number_map = new_number_map->release_buffer();
       } else {
         number_map->resize(graph->number_of_vertices(), handle_.get_stream());
         cugraph::sequence(rmm::exec_policy(handle_.get_stream()),
@@ -445,7 +445,7 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
         // FIXME:  Need an implementation here.
       }
 
-      std::optional<rmm::device_uvector<vertex_t>> new_number_map;
+      std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> new_number_map;
 
       std::optional<cugraph::edge_property_t<edge_t, weight_t>> new_edge_weights{std::nullopt};
 
@@ -565,7 +565,7 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
 
       std::vector<cugraph::edge_arithmetic_property_t<edge_t>> new_edge_properties{};
       std::tie(*graph, new_edge_properties, new_number_map) =
-        cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+        cugraph::create_graph<vertex_t, edge_t, store_transposed, multi_gpu>(
           handle_,
           std::move(vertex_list),
           std::move(edgelist_srcs),
@@ -578,7 +578,7 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
           do_expensive_check_);
 
       if (renumber_) {
-        *number_map = std::move(new_number_map.value());
+        *number_map = new_number_map->release_buffer();
       } else {
         number_map->resize(graph->number_of_vertices(), handle_.get_stream());
         cugraph::sequence(rmm::exec_policy(handle_.get_stream()),

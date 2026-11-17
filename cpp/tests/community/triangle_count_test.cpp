@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -28,6 +28,7 @@
 #include <limits>
 #include <numeric>
 #include <random>
+#include <variant>
 #include <vector>
 
 template <typename vertex_t, typename edge_t>
@@ -117,7 +118,8 @@ class Tests_TriangleCount
     }
 
     cugraph::graph_t<vertex_t, edge_t, false, false> graph(handle);
-    std::optional<rmm::device_uvector<vertex_t>> d_renumber_map_labels{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> d_renumber_map_labels{
+      std::nullopt};
     std::tie(graph, std::ignore, d_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, false, renumber, false, true);
@@ -163,22 +165,22 @@ class Tests_TriangleCount
         (*d_vertices).data(), (*h_vertices).data(), (*h_vertices).size(), handle.get_stream());
     }
 
-    rmm::device_uvector<edge_t> d_triangle_counts(
-      d_vertices ? (*d_vertices).size() : graph_view.number_of_vertices(), handle.get_stream());
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.start("TriangleCount");
     }
 
-    cugraph::triangle_count<vertex_t, edge_t, false>(
+    auto triangle_counts = cugraph::triangle_count<vertex_t, edge_t, false>(
       handle,
       graph_view,
       d_vertices ? std::make_optional<raft::device_span<vertex_t const>>((*d_vertices).begin(),
                                                                          (*d_vertices).end())
                  : std::nullopt,
-      raft::device_span<edge_t>(d_triangle_counts.begin(), d_triangle_counts.end()),
       false);
+    auto d_triangle_counts =
+      d_vertices
+        ? std::move(std::get<rmm::device_uvector<edge_t>>(triangle_counts))
+        : std::get<cugraph::vertex_property_t<vertex_t, edge_t>>(triangle_counts).release_buffer();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -194,10 +196,7 @@ class Tests_TriangleCount
           handle,
           graph_view,
           std::nullopt,
-          d_renumber_map_labels
-            ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
-                                                                    (*d_renumber_map_labels).size())
-            : std::nullopt);
+          d_renumber_map_labels ? std::make_optional(d_renumber_map_labels->view()) : std::nullopt);
 
       std::vector<edge_t> h_reference_triangle_counts(graph_view.number_of_vertices());
 
@@ -209,18 +208,13 @@ class Tests_TriangleCount
       std::vector<vertex_t> h_cugraph_vertices{};
       if (d_vertices) {
         if (renumber) {
-          cugraph::unrenumber_local_int_vertices(handle,
-                                                 (*d_vertices).data(),
-                                                 (*d_vertices).size(),
-                                                 (*d_renumber_map_labels).data(),
-                                                 vertex_t{0},
-                                                 graph_view.number_of_vertices(),
-                                                 true);
+          d_vertices = cugraph::unrenumber_local_int_vertices(
+            handle, graph_view, std::move(*d_vertices), d_renumber_map_labels->view(), true);
         }
         h_cugraph_vertices = cugraph::test::to_host(handle, *d_vertices);
       } else {
         if (renumber) {
-          h_cugraph_vertices = cugraph::test::to_host(handle, *d_renumber_map_labels);
+          h_cugraph_vertices = cugraph::test::to_host(handle, d_renumber_map_labels->view());
         } else {
           h_cugraph_vertices.resize(d_triangle_counts.size());
           std::iota(h_cugraph_vertices.begin(), h_cugraph_vertices.end(), vertex_t{0});

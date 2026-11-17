@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "structure/transpose_graph_impl.cuh"
@@ -12,11 +12,29 @@ namespace cugraph {
 
 template CUGRAPH_EXPORT std::tuple<graph_t<int32_t, int32_t, true, false>,
                                    std::optional<edge_property_t<int32_t, float>>,
+                                   std::optional<vertex_property_t<int32_t, int32_t>>>
+transpose_graph(raft::handle_t const& handle,
+                graph_t<int32_t, int32_t, true, false>&& graph,
+                std::optional<edge_property_t<int32_t, float>>&& edge_weights,
+                std::optional<vertex_property_t<int32_t, int32_t>>&& renumber_map,
+                bool do_expensive_check);
+
+template CUGRAPH_EXPORT std::tuple<graph_t<int32_t, int32_t, true, false>,
+                                   std::optional<edge_property_t<int32_t, float>>,
                                    std::optional<rmm::device_uvector<int32_t>>>
 transpose_graph(raft::handle_t const& handle,
                 graph_t<int32_t, int32_t, true, false>&& graph,
                 std::optional<edge_property_t<int32_t, float>>&& edge_weights,
                 std::optional<rmm::device_uvector<int32_t>>&& renumber_map,
+                bool do_expensive_check);
+
+template CUGRAPH_EXPORT std::tuple<graph_t<int32_t, int32_t, false, false>,
+                                   std::optional<edge_property_t<int32_t, float>>,
+                                   std::optional<vertex_property_t<int32_t, int32_t>>>
+transpose_graph(raft::handle_t const& handle,
+                graph_t<int32_t, int32_t, false, false>&& graph,
+                std::optional<edge_property_t<int32_t, float>>&& edge_weights,
+                std::optional<vertex_property_t<int32_t, int32_t>>&& renumber_map,
                 bool do_expensive_check);
 
 template CUGRAPH_EXPORT std::tuple<graph_t<int32_t, int32_t, false, false>,
@@ -30,11 +48,29 @@ transpose_graph(raft::handle_t const& handle,
 
 template CUGRAPH_EXPORT std::tuple<graph_t<int32_t, int32_t, true, false>,
                                    std::optional<edge_property_t<int32_t, double>>,
+                                   std::optional<vertex_property_t<int32_t, int32_t>>>
+transpose_graph(raft::handle_t const& handle,
+                graph_t<int32_t, int32_t, true, false>&& graph,
+                std::optional<edge_property_t<int32_t, double>>&& edge_weights,
+                std::optional<vertex_property_t<int32_t, int32_t>>&& renumber_map,
+                bool do_expensive_check);
+
+template CUGRAPH_EXPORT std::tuple<graph_t<int32_t, int32_t, true, false>,
+                                   std::optional<edge_property_t<int32_t, double>>,
                                    std::optional<rmm::device_uvector<int32_t>>>
 transpose_graph(raft::handle_t const& handle,
                 graph_t<int32_t, int32_t, true, false>&& graph,
                 std::optional<edge_property_t<int32_t, double>>&& edge_weights,
                 std::optional<rmm::device_uvector<int32_t>>&& renumber_map,
+                bool do_expensive_check);
+
+template CUGRAPH_EXPORT std::tuple<graph_t<int32_t, int32_t, false, false>,
+                                   std::optional<edge_property_t<int32_t, double>>,
+                                   std::optional<vertex_property_t<int32_t, int32_t>>>
+transpose_graph(raft::handle_t const& handle,
+                graph_t<int32_t, int32_t, false, false>&& graph,
+                std::optional<edge_property_t<int32_t, double>>&& edge_weights,
+                std::optional<vertex_property_t<int32_t, int32_t>>&& renumber_map,
                 bool do_expensive_check);
 
 template CUGRAPH_EXPORT std::tuple<graph_t<int32_t, int32_t, false, false>,

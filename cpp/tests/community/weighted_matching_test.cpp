@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -85,12 +85,10 @@ class Tests_SGWeightedMatching
       sg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
-    rmm::device_uvector<vertex_t> d_partners(0, handle.get_stream());
-    weight_t total_matching_weights;
-
-    std::forward_as_tuple(d_partners, total_matching_weights) =
-      cugraph::approximate_weighted_matching<vertex_t, edge_t, weight_t, multi_gpu>(
+    auto [partners, total_matching_weights] =
+      cugraph::approx_weighted_matching<vertex_t, edge_t, weight_t, multi_gpu>(
         handle, sg_graph_view, (*sg_edge_weights).view());
+    auto d_partners = partners.release_buffer();
 
     if (weighted_matching_usecase.check_correctness) {
       auto h_partners                = cugraph::test::to_host(handle, d_partners);
