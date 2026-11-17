@@ -9,6 +9,7 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/vertex_property.hpp>
 #ifdef TIMING
 #include <cugraph/utilities/high_res_timer.hpp>
 #endif
@@ -66,30 +67,31 @@ weight_t compute_modularity(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   edge_src_property_t<vertex_t, vertex_t> const& src_clusters_cache,
   edge_dst_property_t<vertex_t, vertex_t> const& dst_clusters_cache,
-  rmm::device_uvector<vertex_t> const& next_clusters,
+  vertex_property_view_t<vertex_t, vertex_t const*> next_clusters,
   rmm::device_uvector<weight_t> const& cluster_weights,
   weight_t total_edge_weight,
   weight_t resolution);
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<graph_t<vertex_t, edge_t, false, multi_gpu>,
-           std::optional<edge_property_t<edge_t, weight_t>>>
+           std::optional<edge_property_t<edge_t, weight_t>>,
+           vertex_property_t<vertex_t, vertex_t>>
 graph_contraction(raft::handle_t const& handle,
                   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
-                  raft::device_span<vertex_t> labels);
+                  vertex_property_t<vertex_t, vertex_t>&& labels);
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
+vertex_property_t<vertex_t, vertex_t> update_clustering_by_delta_modularity(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   weight_t total_edge_weight,
   weight_t resolution,
-  rmm::device_uvector<weight_t> const& vertex_weights_v,
+  vertex_property_view_t<vertex_t, weight_t const*> vertex_weights_v,
   rmm::device_uvector<vertex_t>&& cluster_keys_v,
   rmm::device_uvector<weight_t>&& cluster_weights_v,
-  rmm::device_uvector<vertex_t>&& next_clusters_v,
+  vertex_property_t<vertex_t, vertex_t>&& next_clusters_v,
   edge_src_property_t<vertex_t, weight_t> const& src_vertex_weights_cache,
   edge_src_property_t<vertex_t, vertex_t> const& src_clusters_cache,
   edge_dst_property_t<vertex_t, vertex_t> const& dst_clusters_cache,
@@ -102,8 +104,12 @@ compute_cluster_keys_and_values(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  rmm::device_uvector<vertex_t> const& next_clusters_v,
+  vertex_property_view_t<vertex_t, vertex_t const*> next_clusters_v,
   edge_src_property_t<vertex_t, vertex_t> const& src_clusters_cache);
+
+template <typename vertex_t, bool multi_gpu>
+vertex_t remove_duplicates(raft::handle_t const& handle,
+                           rmm::device_uvector<vertex_t>& input_array);
 
 }  // namespace detail
 }  // namespace cugraph

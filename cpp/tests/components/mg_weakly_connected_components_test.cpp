@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -66,7 +66,7 @@ class Tests_MGWeaklyConnectedComponents
     }
 
     cugraph::graph_t<vertex_t, edge_t, false, true> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> mg_renumber_map{std::nullopt};
     std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, false, true);
@@ -89,8 +89,7 @@ class Tests_MGWeaklyConnectedComponents
 
     // 2. run MG weakly connected components
 
-    rmm::device_uvector<vertex_t> d_mg_components(mg_graph_view.local_vertex_partition_range_size(),
-                                                  handle_->get_stream());
+    rmm::device_uvector<vertex_t> d_mg_components(0, handle_->get_stream());
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -98,7 +97,8 @@ class Tests_MGWeaklyConnectedComponents
       hr_timer.start("MG weakly_connected_components");
     }
 
-    cugraph::weakly_connected_components(*handle_, mg_graph_view, d_mg_components.data());
+    d_mg_components =
+      cugraph::weakly_connected_components(*handle_, mg_graph_view).release_buffer();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -116,10 +116,9 @@ class Tests_MGWeaklyConnectedComponents
       std::tie(std::ignore, d_mg_aggregate_components) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
-          mg_graph_view.local_vertex_partition_range(),
-          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          mg_graph_view,
+          std::make_optional(mg_renumber_map->view()),
+          std::nullopt,
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           raft::device_span<vertex_t const>(d_mg_components.data(), d_mg_components.size()));
 
@@ -131,8 +130,7 @@ class Tests_MGWeaklyConnectedComponents
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
 
       if (handle_->get_comms().get_rank() == int{0}) {
@@ -142,10 +140,8 @@ class Tests_MGWeaklyConnectedComponents
 
         ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
 
-        rmm::device_uvector<vertex_t> d_sg_components(sg_graph_view.number_of_vertices(),
-                                                      handle_->get_stream());
-
-        cugraph::weakly_connected_components(*handle_, sg_graph_view, d_sg_components.data());
+        auto d_sg_components =
+          cugraph::weakly_connected_components(*handle_, sg_graph_view).release_buffer();
 
         // 3-3. compare
 

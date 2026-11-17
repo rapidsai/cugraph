@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "structure/renumber_edgelist_impl.cuh"
@@ -22,5 +22,19 @@ template CUGRAPH_EXPORT
     std::optional<large_buffer_type_t> large_vertex_buffer_type,
     std::optional<large_buffer_type_t> large_edge_buffer_type,
     bool do_expensive_check);
+
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
+                                   rmm::device_uvector<int64_t>,
+                                   rmm::device_uvector<int64_t>,
+                                   renumber_meta_t<int64_t, int64_t, false>>
+renumber_edgelist<int64_t, int64_t, false>(
+  raft::handle_t const& handle,
+  std::optional<rmm::device_uvector<int64_t>>&& vertices,
+  rmm::device_uvector<int64_t>&& edgelist_srcs,
+  rmm::device_uvector<int64_t>&& edgelist_dsts,
+  bool store_transposed,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
+  bool do_expensive_check);
 
 }  // namespace cugraph

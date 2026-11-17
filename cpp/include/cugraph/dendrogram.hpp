@@ -5,60 +5,70 @@
 #pragma once
 
 #include <cugraph/export.hpp>
+#include <cugraph/vertex_property.hpp>
+
+#include <raft/core/device_span.hpp>
 
 #include <rmm/device_uvector.hpp>
 #include <rmm/resource_ref.hpp>
 
 #include <cuda/stream>
 
-#include <memory>
+#include <utility>
 #include <vector>
 
 namespace CUGRAPH_EXPORT cugraph {
 
 template <typename vertex_t>
-class Dendrogram {
+class dendrogram_t {
  public:
-  void add_level(vertex_t first_index,
-                 vertex_t num_verts,
-                 cuda::stream_ref stream_view,
-                 rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource_ref())
+  void add_level(vertex_property_t<vertex_t, vertex_t>&& values, vertex_t range_first)
   {
-    level_ptr_.push_back(
-      std::make_unique<rmm::device_uvector<vertex_t>>(num_verts, stream_view, mr));
-    level_first_index_.push_back(first_index);
+    levels_.push_back(std::move(values));
+    level_range_first_.push_back(range_first);
   }
 
-  size_t current_level() const { return level_ptr_.size() - 1; }
+  size_t current_level() const { return levels_.size() - 1; }
 
-  size_t num_levels() const { return level_ptr_.size(); }
+  size_t num_levels() const { return levels_.size(); }
 
-  vertex_t const* get_level_ptr_nocheck(size_t level) const { return level_ptr_[level]->data(); }
-
-  vertex_t* get_level_ptr_nocheck(size_t level) { return level_ptr_[level]->data(); }
-
-  size_t get_level_size_nocheck(size_t level) const { return level_ptr_[level]->size(); }
-
-  vertex_t get_level_first_index_nocheck(size_t level) const { return level_first_index_[level]; }
-
-  vertex_t const* current_level_begin() const { return get_level_ptr_nocheck(current_level()); }
-
-  vertex_t const* current_level_end() const { return current_level_begin() + current_level_size(); }
-
-  vertex_t* current_level_begin() { return get_level_ptr_nocheck(current_level()); }
-
-  vertex_t* current_level_end() { return current_level_begin() + current_level_size(); }
-
-  size_t current_level_size() const { return get_level_size_nocheck(current_level()); }
-
-  vertex_t current_level_first_index() const
+  raft::device_span<vertex_t const> level_data(size_t level) const
   {
-    return get_level_first_index_nocheck(current_level());
+    return raft::device_span<vertex_t const>(levels_[level].view().value_first(),
+                                             level_size(level));
   }
+
+  raft::device_span<vertex_t> level_data(size_t level)
+  {
+    return raft::device_span<vertex_t>(levels_[level].mutable_view().value_first(),
+                                       level_size(level));
+  }
+
+  size_t level_size(size_t level) const
+  {
+    return static_cast<size_t>(levels_[level].view().range_size());
+  }
+
+  vertex_t level_range_first(size_t level) const { return level_range_first_[level]; }
+
+  raft::device_span<vertex_t const> current_level_data() const
+  {
+    return level_data(current_level());
+  }
+
+  raft::device_span<vertex_t> current_level_data() { return level_data(current_level()); }
+
+  size_t current_level_size() const { return level_size(current_level()); }
+
+  vertex_t current_level_range_first() const { return level_range_first(current_level()); }
 
  private:
-  std::vector<vertex_t> level_first_index_;
-  std::vector<std::unique_ptr<rmm::device_uvector<vertex_t>>> level_ptr_;
+  std::vector<vertex_property_t<vertex_t, vertex_t>> levels_;
+  std::vector<vertex_t> level_range_first_;
 };
+
+/** @deprecated Use dendrogram_t. */
+template <typename vertex_t>
+using Dendrogram = dendrogram_t<vertex_t>;
 
 }  // namespace CUGRAPH_EXPORT cugraph
