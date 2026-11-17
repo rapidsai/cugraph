@@ -190,8 +190,6 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
         graph->number_of_vertices(),
         edge_partition_view.number_of_edges());
 
-      cugraph::internals::GraphBasedDimRedCallback* callback = nullptr;
-
       rmm::device_uvector<float> pos(2 * (edge_partition_view.offsets().size() - 1),
                                      handle_.get_stream());
 
@@ -345,8 +343,7 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
         gravity_,
         vertex_mobility_values_ != nullptr ? vertex_mobility_values.data() : nullptr,
         vertex_mass_values_ != nullptr ? vertex_mass_values.data() : nullptr,
-        verbose_,
-        callback);
+        verbose_);
 
       rmm::device_uvector<float> x_axis(graph_view.local_vertex_partition_range_size(),
                                         handle_.get_stream());

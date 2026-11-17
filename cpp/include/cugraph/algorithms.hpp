@@ -11,7 +11,6 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/legacy/graph.hpp>
-#include <cugraph/legacy/internals.hpp>
 #include <cugraph/vertex_property.hpp>
 
 #include <raft/core/device_span.hpp>
@@ -124,8 +123,6 @@ namespace CUGRAPH_EXPORT cugraph {
  * (scaling factor for the displacement at each iteration).
  * @param[in] vertex_mass_values               Device array containing mass of each vertex
  * @param[in] verbose                          Output convergence info at each interation.
- * @param[in] callback                         An instance of GraphBasedDimRedCallback class to
- * intercept the internal state of positions while they are being trained.
  *
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -133,25 +130,24 @@ void force_atlas2(raft::handle_t const& handle,
                   raft::random::RngState& rng_state,
                   legacy::GraphCOOView<vertex_t, edge_t, weight_t>& graph,
                   float* pos,
-                  const int max_iter                            = 500,
-                  float* x_start                                = nullptr,
-                  float* y_start                                = nullptr,
-                  bool outbound_attraction_distribution         = true,
-                  bool lin_log_mode                             = false,
-                  bool prevent_overlapping                      = false,
-                  float* vertex_radius_values                   = nullptr,
-                  const float overlap_scaling_ratio             = 100.0,
-                  const float edge_weight_influence             = 1.0,
-                  const float jitter_tolerance                  = 1.0,
-                  bool barnes_hut_optimize                      = true,
-                  const float barnes_hut_theta                  = 0.5,
-                  const float scaling_ratio                     = 2.0,
-                  bool strong_gravity_mode                      = false,
-                  const float gravity                           = 1.0,
-                  float* vertex_mobility_values                 = nullptr,
-                  float* vertex_mass_values                     = nullptr,
-                  bool verbose                                  = false,
-                  internals::GraphBasedDimRedCallback* callback = nullptr);
+                  const int max_iter                    = 500,
+                  float* x_start                        = nullptr,
+                  float* y_start                        = nullptr,
+                  bool outbound_attraction_distribution = true,
+                  bool lin_log_mode                     = false,
+                  bool prevent_overlapping              = false,
+                  float* vertex_radius_values           = nullptr,
+                  const float overlap_scaling_ratio     = 100.0,
+                  const float edge_weight_influence     = 1.0,
+                  const float jitter_tolerance          = 1.0,
+                  bool barnes_hut_optimize              = true,
+                  const float barnes_hut_theta          = 0.5,
+                  const float scaling_ratio             = 2.0,
+                  bool strong_gravity_mode              = false,
+                  const float gravity                   = 1.0,
+                  float* vertex_mobility_values         = nullptr,
+                  float* vertex_mass_values             = nullptr,
+                  bool verbose                          = false);
 
 /**
  * @ingroup centrality_cpp
