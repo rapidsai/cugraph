@@ -280,6 +280,8 @@ set(CUGRAPH_SG_SOURCES
     src/community/louvain_sg_v32_e32.cu
     src/community/leiden_sg_v64_e64.cu
     src/community/leiden_sg_v32_e32.cu
+    src/community/flatten_dendrogram_sg_v64_e64.cu
+    src/community/flatten_dendrogram_sg_v32_e32.cu
     src/community/ecg_sg_v64_e64.cu
     src/community/ecg_sg_v32_e32.cu
     src/community/egonet_sg_v64_e64.cu
@@ -332,8 +334,8 @@ set(CUGRAPH_SG_SOURCES
     src/structure/transpose_graph_storage_sg_v32_e32.cu
     src/structure/coarsen_graph_sg_v64_e64.cu
     src/structure/coarsen_graph_sg_v32_e32.cu
-    src/structure/graph_weight_utils_sg_v64_e64.cu
-    src/structure/graph_weight_utils_sg_v32_e32.cu
+    src/structure/graph_utils_sg_v64_e64.cu
+    src/structure/graph_utils_sg_v32_e32.cu
     src/structure/renumber_edgelist_sg_v64_e64.cu
     src/structure/renumber_edgelist_sg_v32_e32.cu
     src/structure/renumber_utils_sg_v64_e64.cu
@@ -348,8 +350,8 @@ set(CUGRAPH_SG_SOURCES
     src/traversal/extract_bfs_paths_sg_v32_e32.cu
     src/traversal/bfs_sg_v64_e64.cu
     src/traversal/bfs_sg_v32_e32.cu
-    src/traversal/sssp_sg_v64_e64.cu
-    src/traversal/sssp_sg_v32_e32.cu
+    src/traversal/shortest_path_sg_v64_e64.cu
+    src/traversal/shortest_path_sg_v32_e32.cu
     src/traversal/od_shortest_distances_sg_v64_e64.cu
     src/traversal/od_shortest_distances_sg_v32_e32.cu
     src/dag/topological_sort_sg_v64_e64.cu
@@ -375,8 +377,8 @@ set(CUGRAPH_SG_SOURCES
     src/components/mis_sg_v32_e32.cu
     src/components/vertex_coloring_sg_v64_e64.cu
     src/components/vertex_coloring_sg_v32_e32.cu
-    src/structure/create_graph_from_edgelist_sg_v64_e64.cu
-    src/structure/create_graph_from_edgelist_sg_v32_e32.cu
+    src/structure/create_graph_sg_v64_e64.cu
+    src/structure/create_graph_sg_v32_e32.cu
     src/structure/symmetrize_edgelist_sg_v64_e64.cu
     src/structure/symmetrize_edgelist_sg_v32_e32.cu
     src/community/triangle_count_sg_v64_e64.cu
@@ -426,6 +428,8 @@ set(CUGRAPH_MG_SOURCES
     src/community/louvain_mg_v32_e32.cu
     src/community/leiden_mg_v64_e64.cu
     src/community/leiden_mg_v32_e32.cu
+    src/community/flatten_dendrogram_mg_v64_e64.cu
+    src/community/flatten_dendrogram_mg_v32_e32.cu
     src/community/ecg_mg_v64_e64.cu
     src/community/ecg_mg_v32_e32.cu
     src/community/egonet_mg_v64_e64.cu
@@ -460,12 +464,10 @@ set(CUGRAPH_MG_SOURCES
     src/structure/transpose_graph_storage_mg_v32_e32.cu
     src/structure/coarsen_graph_mg_v64_e64.cu
     src/structure/coarsen_graph_mg_v32_e32.cu
-    src/structure/graph_weight_utils_mg_v64_e64.cu
-    src/structure/graph_weight_utils_mg_v32_e32.cu
+    src/structure/graph_utils_mg_v64_e64.cu
+    src/structure/graph_utils_mg_v32_e32.cu
     src/structure/renumber_edgelist_mg_v64_e64.cu
     src/structure/renumber_edgelist_mg_v32_e32.cu
-    src/structure/graph_weight_utils_mg_v64_e64.cu
-    src/structure/graph_weight_utils_mg_v32_e32.cu
     src/structure/renumber_utils_mg_v64_e64.cu
     src/structure/renumber_utils_mg_v32_e32.cu
     src/structure/relabel_mg_v64_e64.cu
@@ -480,8 +482,8 @@ set(CUGRAPH_MG_SOURCES
     src/traversal/k_hop_nbrs_mg_v32_e32.cu
     src/traversal/bfs_mg_v64_e64.cu
     src/traversal/bfs_mg_v32_e32.cu
-    src/traversal/sssp_mg_v64_e64.cu
-    src/traversal/sssp_mg_v32_e32.cu
+    src/traversal/shortest_path_mg_v64_e64.cu
+    src/traversal/shortest_path_mg_v32_e32.cu
     src/dag/topological_sort_mg_v64_e64.cu
     src/dag/topological_sort_mg_v32_e32.cu
     src/link_analysis/hits_mg_v64_e64.cu
@@ -504,8 +506,8 @@ set(CUGRAPH_MG_SOURCES
     src/components/mis_mg_v32_e32.cu
     src/components/vertex_coloring_mg_v64_e64.cu
     src/components/vertex_coloring_mg_v32_e32.cu
-    src/structure/create_graph_from_edgelist_mg_v64_e64.cu
-    src/structure/create_graph_from_edgelist_mg_v32_e32.cu
+    src/structure/create_graph_mg_v64_e64.cu
+    src/structure/create_graph_mg_v32_e32.cu
     src/structure/symmetrize_edgelist_mg_v64_e64.cu
     src/structure/symmetrize_edgelist_mg_v32_e32.cu
     src/community/triangle_count_mg_v64_e64.cu

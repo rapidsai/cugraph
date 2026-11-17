@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -42,14 +42,17 @@ egonet_reference(
   rmm::device_uvector<vertex_t> d_coo_dst(0, handle.get_stream());
   std::optional<rmm::device_uvector<weight_t>> d_coo_wgt{std::nullopt};
 
-  std::tie(d_coo_src, d_coo_dst, d_coo_wgt, std::ignore, std::ignore) =
-    cugraph::decompress_to_edgelist(
-      handle,
-      graph_view,
-      edge_weight_view,
-      std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
-      std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-      std::optional<raft::device_span<vertex_t const>>{std::nullopt});
+  std::vector<cugraph::arithmetic_device_uvector_t> edge_property_values{};
+  std::tie(d_coo_src, d_coo_dst, edge_property_values) = cugraph::decompress_to_edgelist(
+    handle,
+    graph_view,
+    edge_weight_view
+      ? std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{*edge_weight_view}
+      : std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>>{},
+    std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
+  if (edge_weight_view) {
+    d_coo_wgt = std::move(std::get<rmm::device_uvector<weight_t>>(edge_property_values[0]));
+  }
 #else
   // FIXME: This should be faster (smaller list of edges to operate on), but uniform_nbr_sample
   // doesn't preserve multi-edges (which is probably a bug)
