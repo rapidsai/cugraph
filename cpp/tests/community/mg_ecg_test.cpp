@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -101,6 +101,7 @@ class Tests_MGEcg : public ::testing::TestWithParam<std::tuple<Ecg_Usecase, inpu
                                                    mg_edge_weight_view,
                                                    ecg_usecase.min_weight_,
                                                    ecg_usecase.ensemble_size_,
+                                                   false,
                                                    ecg_usecase.max_level_,
                                                    ecg_usecase.threshold_,
                                                    ecg_usecase.resolution_);
@@ -123,7 +124,7 @@ class Tests_MGEcg : public ::testing::TestWithParam<std::tuple<Ecg_Usecase, inpu
         mg_edge_weight_view,
         std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
         std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+        std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
         false);  // crate a SG graph with MG graph vertex IDs
 
     auto const comm_rank = handle_->get_comms().get_rank();
@@ -138,6 +139,7 @@ class Tests_MGEcg : public ::testing::TestWithParam<std::tuple<Ecg_Usecase, inpu
                                                       sg_edge_weight_view,
                                                       ecg_usecase.min_weight_,
                                                       ecg_usecase.ensemble_size_,
+                                                      false,
                                                       ecg_usecase.max_level_,
                                                       ecg_usecase.threshold_,
                                                       ecg_usecase.resolution_);

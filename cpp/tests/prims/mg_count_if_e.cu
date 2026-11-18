@@ -76,7 +76,7 @@ class Tests_MGCountIfE
       hr_timer.start("MG Construct graph");
     }
     cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> mg_renumber_map{std::nullopt};
     std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, prims_usecase.test_weighted, true);
@@ -103,11 +103,11 @@ class Tests_MGCountIfE
 
     auto mg_vertex_prop =
       cugraph::test::generate<decltype(mg_graph_view), result_t>::vertex_property(
-        *handle_, *mg_renumber_map, hash_bin_count);
+        *handle_, mg_graph_view, mg_renumber_map->view(), hash_bin_count);
     auto mg_src_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::src_property(
-      *handle_, mg_graph_view, mg_vertex_prop);
+      *handle_, mg_graph_view, mg_vertex_prop.view());
     auto mg_dst_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::dst_property(
-      *handle_, mg_graph_view, mg_vertex_prop);
+      *handle_, mg_graph_view, mg_vertex_prop.view());
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -144,8 +144,7 @@ class Tests_MGCountIfE
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::make_optional(mg_renumber_map->view()),
           false);
 
       if (handle_->get_comms().get_rank() == 0) {
@@ -153,14 +152,11 @@ class Tests_MGCountIfE
 
         auto sg_vertex_prop =
           cugraph::test::generate<decltype(sg_graph_view), result_t>::vertex_property(
-            *handle_,
-            sg_graph_view.local_vertex_partition_range_first(),
-            sg_graph_view.local_vertex_partition_range_last(),
-            hash_bin_count);
+            *handle_, sg_graph_view, hash_bin_count);
         auto sg_src_prop = cugraph::test::generate<decltype(sg_graph_view), result_t>::src_property(
-          *handle_, sg_graph_view, sg_vertex_prop);
+          *handle_, sg_graph_view, sg_vertex_prop.view());
         auto sg_dst_prop = cugraph::test::generate<decltype(sg_graph_view), result_t>::dst_property(
-          *handle_, sg_graph_view, sg_vertex_prop);
+          *handle_, sg_graph_view, sg_vertex_prop.view());
 
         auto expected_result = count_if_e(
           *handle_,

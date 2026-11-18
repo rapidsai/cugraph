@@ -30,7 +30,6 @@ dependencies = [
     "dask-cuda==27.2.*,>=0.0.0a0",
     "dask-cudf==27.2.*,>=0.0.0a0",
     "libcugraph==27.2.*,>=0.0.0a0",
-    "numba>=0.60.0,<0.65.0",
     "numpy>=2.0,<3.0",
     "pylibcudf==27.2.*,>=0.0.0a0",
     "pylibcugraph==27.2.*,>=0.0.0a0",
@@ -86,7 +85,7 @@ regex = "(?P<value>.*)"
 [tool.rapids-build-backend]
 build-backend = "scikit_build_core.build"
 requires = [
-    "cmake>=4.0",
+    "cmake>=4.3,<4.5",
     "libcugraph==27.2.*,>=0.0.0a0",
     "libraft==27.2.*,>=0.0.0a0",
     "librmm==27.2.*,>=0.0.0a0",
@@ -103,5 +102,5 @@ select = [
     "distro-too-large-compressed",
 ]
 
-# PyPI hard limit is 1GiB, but try to keep this as small as possible
-max_allowed_size_compressed = '15Mi'
+# PyPI hard limit is 1GiB, but try to keep this as small as possible.
+max_allowed_size_compressed = '2.0Mi'

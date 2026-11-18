@@ -94,13 +94,12 @@ struct simple_cycles_functor : public cugraph::c_api::abstract_functor {
                                           std::vector<cugraph::arithmetic_device_uvector_t>{});
         }
 
-        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+        seed_vertices = cugraph::renumber_ext_vertices(
           handle_,
-          seed_vertices->data(),
-          seed_vertices->size(),
-          number_map->data(),
-          graph_view.local_vertex_partition_range_first(),
-          graph_view.local_vertex_partition_range_last(),
+          graph_view,
+          std::move(*seed_vertices),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
           do_expensive_check_);
 
         if (seed_vertices->size() > 0) {
@@ -117,12 +116,12 @@ struct simple_cycles_functor : public cugraph::c_api::abstract_functor {
         length_bound_v,
         do_expensive_check_);
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+      cycle_vertices = cugraph::unrenumber_int_vertices(
         handle_,
-        cycle_vertices.data(),
-        cycle_vertices.size(),
-        number_map->data(),
-        graph_view.vertex_partition_range_lasts(),
+        graph_view,
+        std::move(cycle_vertices),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         do_expensive_check_);
 
       result_ = new cugraph::c_api::cugraph_simple_cycles_result_t{

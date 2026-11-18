@@ -62,11 +62,9 @@ struct wcc_functor : public cugraph::c_api::abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<vertex_t> components(graph_view.local_vertex_partition_range_size(),
-                                               handle_.get_stream());
-
-      cugraph::weakly_connected_components<vertex_t, edge_t, multi_gpu>(
-        handle_, graph_view, components.data(), do_expensive_check_);
+      auto components = cugraph::weakly_connected_components<vertex_t, edge_t, multi_gpu>(
+                          handle_, graph_view, do_expensive_check_)
+                          .release_buffer();
 
       rmm::device_uvector<vertex_t> vertex_ids(graph_view.local_vertex_partition_range_size(),
                                                handle_.get_stream());

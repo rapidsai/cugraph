@@ -56,21 +56,23 @@ std::tuple<std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<weight_t>>>
 normalize_biases(raft::handle_t const& handle,
                  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-                 raft::device_span<weight_t const> biases)
+                 vertex_property_view_t<vertex_t, weight_t const*> biases)
 {
   std::optional<rmm::device_uvector<weight_t>> normalized_biases{std::nullopt};
   std::optional<rmm::device_uvector<weight_t>> gpu_biases{std::nullopt};
 
-  // Need to normalize the biases
-  normalized_biases =
-    std::make_optional<rmm::device_uvector<weight_t>>(biases.size(), handle.get_stream());
+  auto biases_first = biases.value_first();
+  auto biases_last  = biases.value_first() + biases.range_size();
 
-  weight_t sum =
-    thrust::reduce(handle.get_thrust_policy(), biases.begin(), biases.end(), weight_t{0});
+  // Need to normalize the biases
+  normalized_biases = std::make_optional<rmm::device_uvector<weight_t>>(
+    static_cast<size_t>(biases.range_size()), handle.get_stream());
+
+  weight_t sum = thrust::reduce(handle.get_thrust_policy(), biases_first, biases_last, weight_t{0});
 
   thrust::transform(handle.get_thrust_policy(),
-                    biases.begin(),
-                    biases.end(),
+                    biases_first,
+                    biases_last,
                     normalized_biases->begin(),
                     divider_t<weight_t>{sum});
 
@@ -271,8 +273,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  std::optional<raft::device_span<weight_t const>> src_biases,
-  std::optional<raft::device_span<weight_t const>> dst_biases,
+  std::optional<vertex_property_view_t<vertex_t, weight_t const*>> src_biases,
+  std::optional<vertex_property_view_t<vertex_t, weight_t const*>> dst_biases,
   size_t num_samples,
   bool remove_duplicates,
   bool remove_existing_edges,
@@ -557,6 +559,40 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
   }
 
   return std::make_tuple(std::move(srcs), std::move(dsts));
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negative_sampling(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<raft::device_span<weight_t const>> src_biases,
+  std::optional<raft::device_span<weight_t const>> dst_biases,
+  size_t num_samples,
+  bool remove_duplicates,
+  bool remove_existing_edges,
+  bool exact_number_of_samples,
+  bool do_expensive_check)
+{
+  auto to_view = [](raft::device_span<weight_t const> biases) {
+    return vertex_property_view_t<vertex_t, weight_t const*>(biases.data(),
+                                                             static_cast<vertex_t>(biases.size()));
+  };
+
+  return negative_sampling(handle,
+                           rng_state,
+                           graph_view,
+                           src_biases ? std::make_optional(to_view(*src_biases)) : std::nullopt,
+                           dst_biases ? std::make_optional(to_view(*dst_biases)) : std::nullopt,
+                           num_samples,
+                           remove_duplicates,
+                           remove_existing_edges,
+                           exact_number_of_samples,
+                           do_expensive_check);
 }
 
 }  // namespace cugraph
