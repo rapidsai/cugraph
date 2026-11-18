@@ -107,13 +107,12 @@ struct extract_ego_functor : public cugraph::c_api::abstract_functor {
         source_indices = std::move(std::get<rmm::device_uvector<size_t>>(vertex_properties[0]));
       }
 
-      cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+      source_vertices = cugraph::renumber_ext_vertices(
         handle_,
-        source_vertices.data(),
-        source_vertices.size(),
-        number_map->data(),
-        graph_view.local_vertex_partition_range_first(),
-        graph_view.local_vertex_partition_range_last(),
+        graph_view,
+        std::move(source_vertices),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         do_expensive_check_);
 
       auto [src, dst, wgt, edge_offsets] =
@@ -125,20 +124,20 @@ struct extract_ego_functor : public cugraph::c_api::abstract_functor {
           radius_,
           do_expensive_check_);
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+      src = cugraph::unrenumber_int_vertices(
         handle_,
-        src.data(),
-        src.size(),
-        number_map->data(),
-        graph_view.vertex_partition_range_lasts(),
+        graph_view,
+        std::move(src),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         do_expensive_check_);
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+      dst = cugraph::unrenumber_int_vertices(
         handle_,
-        dst.data(),
-        dst.size(),
-        number_map->data(),
-        graph_view.vertex_partition_range_lasts(),
+        graph_view,
+        std::move(dst),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         do_expensive_check_);
 
       if constexpr (multi_gpu) {

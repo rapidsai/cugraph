@@ -11,20 +11,23 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/prims/count_if_v.cuh>
+#include <cugraph/prims/extract_transform_if_v.cuh>
+#include <cugraph/prims/gather_v.cuh>
 #include <cugraph/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
 #include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <cugraph/prims/reduce_op.cuh>
+#include <cugraph/prims/scatter_v.cuh>
 #include <cugraph/prims/transform_reduce_e_by_src_dst_key.cuh>
+#include <cugraph/prims/transform_v.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
-#include <cugraph/utilities/mask_utils.cuh>
-#include <cugraph/utilities/thrust_wrappers/gather.hpp>
-#include <cugraph/utilities/thrust_wrappers/scatter.hpp>
-#include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 #include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/utilities/thrust_wrappers/unique.hpp>
+#include <cugraph/vertex_property.hpp>
+#include <cugraph/vertex_property_device_view.cuh>
 
 #include <raft/random/rng_device.cuh>
 
@@ -130,22 +133,22 @@ struct leiden_key_aggregated_edge_op_t {
 };
 
 template <typename vertex_t, typename edge_t, bool multi_gpu, typename weight_t>
-std::tuple<rmm::device_uvector<vertex_t>,
+std::tuple<vertex_property_t<vertex_t, vertex_t>,
            std::pair<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>>
 refine_clustering(raft::handle_t const& handle,
                   raft::random::RngState& rng_state,
                   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-                  weight_t total_edge_weight,
-                  weight_t resolution,
-                  weight_t theta,
-                  rmm::device_uvector<weight_t> const& weighted_degree_of_vertices,
-                  rmm::device_uvector<vertex_t>&& louvain_cluster_keys,
-                  rmm::device_uvector<weight_t>&& louvain_cluster_weights,
-                  rmm::device_uvector<vertex_t>&& louvain_assignment_of_vertices,
+                  vertex_property_view_t<vertex_t, weight_t const*> weighted_degree_of_vertices,
+                  vertex_property_view_t<vertex_t, vertex_t const*> louvain_assignment_of_vertices,
                   edge_src_property_t<vertex_t, weight_t> const& src_vertex_weights_cache,
                   edge_src_property_t<vertex_t, vertex_t> const& src_louvain_assignment_cache,
-                  edge_dst_property_t<vertex_t, vertex_t> const& dst_louvain_assignment_cache)
+                  edge_dst_property_t<vertex_t, vertex_t> const& dst_louvain_assignment_cache,
+                  rmm::device_uvector<vertex_t>&& louvain_cluster_keys,
+                  rmm::device_uvector<weight_t>&& louvain_cluster_weights,
+                  weight_t total_edge_weight,
+                  weight_t resolution,
+                  weight_t theta)
 {
   const weight_t POSITIVE_GAIN = 1e-6;
 
@@ -161,7 +164,7 @@ refine_clustering(raft::handle_t const& handle,
   louvain_cluster_weights.resize(0, handle.get_stream());
   louvain_cluster_weights.shrink_to_fit(handle.get_stream());
 
-  rmm::device_uvector<weight_t> vertex_louvain_cluster_weights(0, handle.get_stream());
+  vertex_property_t<vertex_t, weight_t> vertex_louvain_cluster_weights(handle);
   if constexpr (multi_gpu) {
     auto& comm                 = handle.get_comms();
     auto const comm_size       = comm.get_size();
@@ -173,20 +176,21 @@ refine_clustering(raft::handle_t const& handle,
     cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
       comm_size, major_comm_size, minor_comm_size};
 
-    vertex_louvain_cluster_weights =
+    vertex_louvain_cluster_weights = vertex_property_t<vertex_t, weight_t>(
       cugraph::collect_values_for_keys(handle,
                                        cluster_key_weight_map.view(),
-                                       louvain_assignment_of_vertices.begin(),
-                                       louvain_assignment_of_vertices.end(),
-                                       vertex_to_gpu_id_op);
+                                       louvain_assignment_of_vertices.value_first(),
+                                       louvain_assignment_of_vertices.value_first() +
+                                         graph_view.local_vertex_partition_range_size(),
+                                       vertex_to_gpu_id_op),
+      graph_view.local_vertex_partition_range_size());
 
   } else {
-    vertex_louvain_cluster_weights.resize(louvain_assignment_of_vertices.size(),
-                                          handle.get_stream());
+    vertex_louvain_cluster_weights = vertex_property_t<vertex_t, weight_t>(handle, graph_view);
 
-    cluster_key_weight_map.view().find(louvain_assignment_of_vertices.begin(),
-                                       louvain_assignment_of_vertices.end(),
-                                       vertex_louvain_cluster_weights.begin(),
+    cluster_key_weight_map.view().find(graph_view,
+                                       louvain_assignment_of_vertices,
+                                       vertex_louvain_cluster_weights.mutable_view(),
                                        handle.get_stream());
   }
   //
@@ -194,22 +198,15 @@ refine_clustering(raft::handle_t const& handle,
   // and cut between itself and its Louvain community (E(v, S-v))
   //
 
-  rmm::device_uvector<weight_t> weighted_cut_of_vertices_to_louvain(
-    graph_view.local_vertex_partition_range_size(), handle.get_stream());
+  vertex_property_t<vertex_t, weight_t> weighted_cut_of_vertices_to_louvain(handle, graph_view);
 
   per_v_transform_reduce_outgoing_e(
     handle,
     graph_view,
-    multi_gpu
-      ? src_louvain_assignment_cache.view()
-      : make_edge_src_property_view<vertex_t, vertex_t>(graph_view,
-                                                        louvain_assignment_of_vertices.begin(),
-                                                        louvain_assignment_of_vertices.size()),
-    multi_gpu
-      ? dst_louvain_assignment_cache.view()
-      : make_edge_dst_property_view<vertex_t, vertex_t>(graph_view,
-                                                        louvain_assignment_of_vertices.begin(),
-                                                        louvain_assignment_of_vertices.size()),
+    multi_gpu ? src_louvain_assignment_cache.view()
+              : make_edge_src_property_view(graph_view, louvain_assignment_of_vertices),
+    multi_gpu ? dst_louvain_assignment_cache.view()
+              : make_edge_dst_property_view(graph_view, louvain_assignment_of_vertices),
     *edge_weight_view,
     cuda::proclaim_return_type<weight_t>(
       [] __device__(auto src, auto dst, auto src_cluster, auto dst_cluster, auto wt) {
@@ -224,33 +221,26 @@ refine_clustering(raft::handle_t const& handle,
       }),
     weight_t{0},
     cugraph::reduce_op::plus<weight_t>{},
-    weighted_cut_of_vertices_to_louvain.begin());
+    weighted_cut_of_vertices_to_louvain.mutable_view());
 
   // FIXME: Consider using bit mask logic here.  Would reduce memory by 8x
-  rmm::device_uvector<uint8_t> singleton_and_connected_flags(
-    graph_view.local_vertex_partition_range_size(), handle.get_stream());
+  vertex_property_t<vertex_t, uint8_t> singleton_and_connected_flags(handle, graph_view);
 
-  auto wcut_deg_and_cluster_vol_triple_begin =
-    thrust::make_zip_iterator(weighted_cut_of_vertices_to_louvain.begin(),
-                              weighted_degree_of_vertices.begin(),
-                              vertex_louvain_cluster_weights.begin());
-  auto wcut_deg_and_cluster_vol_triple_end =
-    thrust::make_zip_iterator(weighted_cut_of_vertices_to_louvain.end(),
-                              weighted_degree_of_vertices.end(),
-                              vertex_louvain_cluster_weights.end());
-
-  thrust::transform(handle.get_thrust_policy(),
-                    wcut_deg_and_cluster_vol_triple_begin,
-                    wcut_deg_and_cluster_vol_triple_end,
-                    singleton_and_connected_flags.begin(),
-                    cuda::proclaim_return_type<uint8_t>([resolution, total_edge_weight] __device__(
-                                                          auto wcut_wdeg_and_louvain_volume) {
-                      auto wcut           = cuda::std::get<0>(wcut_wdeg_and_louvain_volume);
-                      auto wdeg           = cuda::std::get<1>(wcut_wdeg_and_louvain_volume);
-                      auto louvain_volume = cuda::std::get<2>(wcut_wdeg_and_louvain_volume);
-                      return static_cast<uint8_t>(
-                        wcut > (resolution * wdeg * (louvain_volume - wdeg) / total_edge_weight));
-                    }));
+  transform_v(handle,
+              graph_view,
+              view_concat(weighted_cut_of_vertices_to_louvain.view(),
+                          weighted_degree_of_vertices,
+                          vertex_louvain_cluster_weights.view()),
+              cuda::proclaim_return_type<uint8_t>(
+                [resolution, total_edge_weight] __device__(
+                  cuda::std::tuple<weight_t, weight_t, weight_t> wcut_wdeg_and_louvain_volume) {
+                  auto wcut           = cuda::std::get<0>(wcut_wdeg_and_louvain_volume);
+                  auto wdeg           = cuda::std::get<1>(wcut_wdeg_and_louvain_volume);
+                  auto louvain_volume = cuda::std::get<2>(wcut_wdeg_and_louvain_volume);
+                  return static_cast<uint8_t>(
+                    wcut > (resolution * wdeg * (louvain_volume - wdeg) / total_edge_weight));
+                }),
+              singleton_and_connected_flags.mutable_view());
 
   edge_src_property_t<vertex_t, weight_t> src_louvain_cluster_weight_cache(handle);
   edge_src_property_t<vertex_t, weight_t> src_cut_to_louvain_cache(handle);
@@ -260,20 +250,17 @@ refine_clustering(raft::handle_t const& handle,
     src_louvain_cluster_weight_cache = edge_src_property_t<vertex_t, weight_t>(handle, graph_view);
     update_edge_src_property(handle,
                              graph_view,
-                             vertex_louvain_cluster_weights.begin(),
+                             vertex_louvain_cluster_weights.view(),
                              src_louvain_cluster_weight_cache.mutable_view());
 
     src_cut_to_louvain_cache = edge_src_property_t<vertex_t, weight_t>(handle, graph_view);
     update_edge_src_property(handle,
                              graph_view,
-                             weighted_cut_of_vertices_to_louvain.begin(),
+                             weighted_cut_of_vertices_to_louvain.view(),
                              src_cut_to_louvain_cache.mutable_view());
 
-    vertex_louvain_cluster_weights.resize(0, handle.get_stream());
-    vertex_louvain_cluster_weights.shrink_to_fit(handle.get_stream());
-
-    weighted_cut_of_vertices_to_louvain.resize(0, handle.get_stream());
-    weighted_cut_of_vertices_to_louvain.shrink_to_fit(handle.get_stream());
+    vertex_louvain_cluster_weights      = vertex_property_t<vertex_t, weight_t>(handle);
+    weighted_cut_of_vertices_to_louvain = vertex_property_t<vertex_t, weight_t>(handle);
   }
 
   //
@@ -281,44 +268,19 @@ refine_clustering(raft::handle_t const& handle,
   // Each vertex starts as a singleton community in the leiden partition
   //
 
-  rmm::device_uvector<vertex_t> leiden_assignment = rmm::device_uvector<vertex_t>(
-    graph_view.local_vertex_partition_range_size(), handle.get_stream());
-
-  cugraph::sequence(rmm::exec_policy(handle.get_stream()),
-                    leiden_assignment.begin(),
-                    leiden_assignment.begin() + leiden_assignment.size(),
-                    graph_view.local_vertex_partition_range_first());
+  vertex_property_t<vertex_t, vertex_t> leiden_assignment(handle, graph_view);
+  transform_v(handle, graph_view, cuda::std::identity{}, leiden_assignment.mutable_view());
 
   edge_src_property_t<vertex_t, vertex_t> src_leiden_assignment_cache(handle);
   edge_dst_property_t<vertex_t, vertex_t> dst_leiden_assignment_cache(handle);
   edge_src_property_t<vertex_t, uint8_t> src_singleton_and_connected_flag_cache(handle);
 
-  // FIXME:  Why is kvstore used here?  Can't this be accomplished by
-  //  a direct lookup in louvain_assignment_of_vertices using
-  //     leiden - graph_view.local_vertex_partition_range_first() as the
-  //     index?
-  // Changing this would save memory and time
-  kv_store_t<vertex_t, vertex_t, false> leiden_to_louvain_map(
-    leiden_assignment.begin(),
-    leiden_assignment.end(),
-    louvain_assignment_of_vertices.begin(),
-    invalid_vertex_id<vertex_t>::value,
-    invalid_vertex_id<vertex_t>::value,
-    handle.get_stream());
-
   while (true) {
-    vertex_t nr_remaining_active_vertices =
-      thrust::count_if(handle.get_thrust_policy(),
-                       singleton_and_connected_flags.begin(),
-                       singleton_and_connected_flags.end(),
-                       [] __device__(auto flag) { return flag > 0; });
-
-    if constexpr (multi_gpu) {
-      nr_remaining_active_vertices = host_scalar_allreduce(handle.get_comms(),
-                                                           nr_remaining_active_vertices,
-                                                           raft::comms::op_t::SUM,
-                                                           handle.get_stream());
-    }
+    auto nr_remaining_active_vertices = count_if_v(
+      handle,
+      graph_view,
+      singleton_and_connected_flags.view(),
+      cuda::proclaim_return_type<bool>([] __device__(vertex_t, uint8_t flag) { return flag > 0; }));
 
     if (nr_remaining_active_vertices == 0) { break; }
 
@@ -332,36 +294,28 @@ refine_clustering(raft::handle_t const& handle,
         edge_src_property_t<vertex_t, uint8_t>(handle, graph_view);
 
       update_edge_src_property(
-        handle, graph_view, leiden_assignment.begin(), src_leiden_assignment_cache.mutable_view());
+        handle, graph_view, leiden_assignment.view(), src_leiden_assignment_cache.mutable_view());
 
       update_edge_dst_property(
-        handle, graph_view, leiden_assignment.begin(), dst_leiden_assignment_cache.mutable_view());
+        handle, graph_view, leiden_assignment.view(), dst_leiden_assignment_cache.mutable_view());
 
       update_edge_src_property(handle,
                                graph_view,
-                               singleton_and_connected_flags.begin(),
+                               singleton_and_connected_flags.view(),
                                src_singleton_and_connected_flag_cache.mutable_view());
     }
 
     auto src_input_property_values =
       multi_gpu
         ? view_concat(src_louvain_assignment_cache.view(), src_leiden_assignment_cache.view())
-        : view_concat(
-            make_edge_src_property_view<vertex_t, vertex_t>(graph_view,
-                                                            louvain_assignment_of_vertices.begin(),
-                                                            louvain_assignment_of_vertices.size()),
-            make_edge_src_property_view<vertex_t, vertex_t>(
-              graph_view, leiden_assignment.begin(), leiden_assignment.size()));
+        : view_concat(make_edge_src_property_view(graph_view, louvain_assignment_of_vertices),
+                      make_edge_src_property_view(graph_view, leiden_assignment.view()));
 
     auto dst_input_property_values =
       multi_gpu
         ? view_concat(dst_louvain_assignment_cache.view(), dst_leiden_assignment_cache.view())
-        : view_concat(
-            make_edge_dst_property_view<vertex_t, vertex_t>(graph_view,
-                                                            louvain_assignment_of_vertices.begin(),
-                                                            louvain_assignment_of_vertices.size()),
-            make_edge_dst_property_view<vertex_t, vertex_t>(
-              graph_view, leiden_assignment.begin(), leiden_assignment.size()));
+        : view_concat(make_edge_dst_property_view(graph_view, louvain_assignment_of_vertices),
+                      make_edge_dst_property_view(graph_view, leiden_assignment.view()));
 
     rmm::device_uvector<vertex_t> leiden_keys_used_in_edge_reduction(0, handle.get_stream());
     rmm::device_uvector<weight_t> refined_community_volumes(0, handle.get_stream());
@@ -383,8 +337,7 @@ refine_clustering(raft::handle_t const& handle,
         dst_input_property_values,
         *edge_weight_view,
         multi_gpu ? dst_leiden_assignment_cache.view()
-                  : make_edge_dst_property_view<vertex_t, vertex_t>(
-                      graph_view, leiden_assignment.begin(), leiden_assignment.size()),
+                  : make_edge_dst_property_view(graph_view, leiden_assignment.view()),
         [] __device__(auto src,
                       auto dst,
                       cuda::std::tuple<vertex_t, vertex_t> src_louvain_leidn,
@@ -423,42 +376,22 @@ refine_clustering(raft::handle_t const& handle,
       0, handle.get_stream());
 
     if constexpr (multi_gpu) {
-      auto& comm           = handle.get_comms();
-      auto const comm_size = comm.get_size();
-      auto& major_comm     = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-      auto const major_comm_size = major_comm.get_size();
-      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-      auto const minor_comm_size = minor_comm.get_size();
-
-      auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
-      rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
-        vertex_partition_range_lasts.size(), handle.get_stream());
-
-      raft::update_device(d_vertex_partition_range_lasts.data(),
-                          vertex_partition_range_lasts.data(),
-                          vertex_partition_range_lasts.size(),
-                          handle.get_stream());
-
-      cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t> vertex_to_gpu_id_op{
-        raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
-                                          d_vertex_partition_range_lasts.size()),
-        major_comm_size,
-        minor_comm_size};
-
       louvain_of_leiden_keys_used_in_edge_reduction =
-        cugraph::collect_values_for_keys(handle,
-                                         leiden_to_louvain_map.view(),
-                                         leiden_keys_used_in_edge_reduction.begin(),
-                                         leiden_keys_used_in_edge_reduction.end(),
-                                         vertex_to_gpu_id_op);
+        cugraph::collect_values_for_int_vertices(handle,
+                                                 leiden_keys_used_in_edge_reduction.begin(),
+                                                 leiden_keys_used_in_edge_reduction.end(),
+                                                 louvain_assignment_of_vertices.value_first(),
+                                                 graph_view.vertex_partition_range_lasts(),
+                                                 graph_view.local_vertex_partition_range_first());
     } else {
       louvain_of_leiden_keys_used_in_edge_reduction.resize(
         leiden_keys_used_in_edge_reduction.size(), handle.get_stream());
-
-      leiden_to_louvain_map.view().find(leiden_keys_used_in_edge_reduction.begin(),
-                                        leiden_keys_used_in_edge_reduction.end(),
-                                        louvain_of_leiden_keys_used_in_edge_reduction.begin(),
-                                        handle.get_stream());
+      gather_v(handle,
+               graph_view,
+               leiden_keys_used_in_edge_reduction.begin(),
+               leiden_keys_used_in_edge_reduction.end(),
+               louvain_assignment_of_vertices,
+               louvain_of_leiden_keys_used_in_edge_reduction.begin());
     }
 
     // ||Cr|| //f(Cr)
@@ -488,10 +421,8 @@ refine_clustering(raft::handle_t const& handle,
     //
 
     raft::random::DeviceState<raft::random::PCGenerator> device_state(rng_state);
-    auto const n_local_vertices = graph_view.local_vertex_partition_range_size();
-    rmm::device_uvector<weight_t> vertex_best_move_gain(n_local_vertices, handle.get_stream());
-    rmm::device_uvector<vertex_t> vertex_best_move_cluster_id(n_local_vertices,
-                                                              handle.get_stream());
+    vertex_property_t<vertex_t, weight_t> vertex_best_move_gain(handle, graph_view);
+    vertex_property_t<vertex_t, vertex_t> vertex_best_move_cluster_id(handle, graph_view);
 
     if constexpr (multi_gpu) {
       auto zipped_src_device_view = view_concat(src_vertex_weights_cache.view(),
@@ -511,39 +442,29 @@ refine_clustering(raft::handle_t const& handle,
           total_edge_weight, resolution, theta, device_state},
         cuda::std::make_tuple(weight_t{0}, vertex_t{-1}),
         reduce_op::maximum<cuda::std::tuple<weight_t, vertex_t>>(),
-        thrust::make_zip_iterator(vertex_best_move_gain.begin(),
-                                  vertex_best_move_cluster_id.begin()));
+        view_concat(vertex_best_move_gain.mutable_view(),
+                    vertex_best_move_cluster_id.mutable_view()));
     } else {
       auto zipped_src_device_view = view_concat(
-        make_edge_src_property_view<vertex_t, weight_t>(
-          graph_view, weighted_degree_of_vertices.begin(), weighted_degree_of_vertices.size()),
-        make_edge_src_property_view<vertex_t, weight_t>(graph_view,
-                                                        weighted_cut_of_vertices_to_louvain.begin(),
-                                                        weighted_cut_of_vertices_to_louvain.size()),
-        make_edge_src_property_view<vertex_t, weight_t>(graph_view,
-                                                        vertex_louvain_cluster_weights.begin(),
-                                                        vertex_louvain_cluster_weights.size()),
-        make_edge_src_property_view<vertex_t, uint8_t>(
-          graph_view, singleton_and_connected_flags.begin(), singleton_and_connected_flags.size()),
-        make_edge_src_property_view<vertex_t, vertex_t>(
-          graph_view, leiden_assignment.begin(), leiden_assignment.size()),
-        make_edge_src_property_view<vertex_t, vertex_t>(graph_view,
-                                                        louvain_assignment_of_vertices.begin(),
-                                                        louvain_assignment_of_vertices.size()));
+        make_edge_src_property_view(graph_view, weighted_degree_of_vertices),
+        make_edge_src_property_view(graph_view, weighted_cut_of_vertices_to_louvain.view()),
+        make_edge_src_property_view(graph_view, vertex_louvain_cluster_weights.view()),
+        make_edge_src_property_view(graph_view, singleton_and_connected_flags.view()),
+        make_edge_src_property_view(graph_view, leiden_assignment.view()),
+        make_edge_src_property_view(graph_view, louvain_assignment_of_vertices));
       per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         handle,
         graph_view,
         zipped_src_device_view,
         *edge_weight_view,
-        make_edge_dst_property_view<vertex_t, vertex_t>(
-          graph_view, leiden_assignment.begin(), leiden_assignment.size()),
+        make_edge_dst_property_view(graph_view, leiden_assignment.view()),
         leiden_cluster_key_values_map.view(),
         detail::leiden_key_aggregated_edge_op_t<vertex_t, weight_t, value_t>{
           total_edge_weight, resolution, theta, device_state},
         cuda::std::make_tuple(weight_t{0}, vertex_t{-1}),
         reduce_op::maximum<cuda::std::tuple<weight_t, vertex_t>>(),
-        thrust::make_zip_iterator(vertex_best_move_gain.begin(),
-                                  vertex_best_move_cluster_id.begin()));
+        view_concat(vertex_best_move_gain.mutable_view(),
+                    vertex_best_move_cluster_id.mutable_view()));
     }
 
     src_leiden_assignment_cache.clear();
@@ -562,48 +483,33 @@ refine_clustering(raft::handle_t const& handle,
     //
     // Filter out moves with -ve gains
     //
-    auto [keep_count, keep_flags] = mark_entries(
-      static_cast<size_t>(n_local_vertices),
-      cuda::proclaim_return_type<bool>([gain_ptr    = vertex_best_move_gain.data(),
-                                        cluster_ptr = vertex_best_move_cluster_id.data(),
-                                        min_gain    = POSITIVE_GAIN] __device__(size_t i) {
-        return (gain_ptr[i] > min_gain) && (cluster_ptr[i] >= vertex_t{0});
-      }),
-      handle.get_stream());
+    auto [d_srcs, d_dsts] = extract_transform_if_v(
+      handle,
+      graph_view,
+      view_concat(vertex_best_move_gain.view(), vertex_best_move_cluster_id.view()),
+      cuda::proclaim_return_type<cuda::std::tuple<vertex_t, vertex_t>>(
+        [] __device__(vertex_t v, cuda::std::tuple<weight_t, vertex_t> gain_and_cluster) {
+          return cuda::std::make_tuple(v, cuda::std::get<1>(gain_and_cluster));
+        }),
+      cuda::proclaim_return_type<bool>(
+        [min_gain = POSITIVE_GAIN] __device__(
+          vertex_t, cuda::std::tuple<weight_t, vertex_t> gain_and_cluster) {
+          return (cuda::std::get<0>(gain_and_cluster) > min_gain) &&
+                 (cuda::std::get<1>(gain_and_cluster) >= vertex_t{0});
+        }));
 
-    vertex_best_move_gain.resize(0, handle.get_stream());
-    vertex_best_move_gain.shrink_to_fit(handle.get_stream());
+    vertex_best_move_gain = vertex_property_t<vertex_t, weight_t>(handle);
 
-    raft::device_span<uint32_t const> const keep_mask_span{keep_flags.data(), keep_flags.size()};
-
-    vertex_t nr_valid_tuples = static_cast<vertex_t>(keep_count);
-
-    vertex_t total_nr_valid_tuples = nr_valid_tuples;
+    auto total_nr_valid_tuples = static_cast<vertex_t>(d_srcs.size());
     if constexpr (multi_gpu) {
       total_nr_valid_tuples = host_scalar_allreduce(
         handle.get_comms(), total_nr_valid_tuples, raft::comms::op_t::SUM, handle.get_stream());
     }
 
     if (total_nr_valid_tuples == 0) {
-      vertex_best_move_cluster_id.resize(0, handle.get_stream());
-      vertex_best_move_cluster_id.shrink_to_fit(handle.get_stream());
+      vertex_best_move_cluster_id = vertex_property_t<vertex_t, vertex_t>(handle);
       break;
     }
-
-    rmm::device_uvector<vertex_t> d_srcs(n_local_vertices, handle.get_stream());
-    cugraph::sequence(rmm::exec_policy(handle.get_stream()),
-                      d_srcs.data(),
-                      d_srcs.data() + d_srcs.size(),
-                      graph_view.local_vertex_partition_range_first());
-
-    rmm::device_uvector<vertex_t> d_dsts(keep_count, handle.get_stream());
-    cugraph::copy_if_mask_set(handle,
-                              vertex_best_move_cluster_id.begin(),
-                              vertex_best_move_cluster_id.end(),
-                              keep_flags.begin(),
-                              d_dsts.begin());
-
-    d_srcs = keep_marked_entries(handle, std::move(d_srcs), keep_mask_span, keep_count);
 
     auto vertices_in_mis = vertices_in_mis_from_decision_edgelist<vertex_t, multi_gpu>(
       handle,
@@ -619,14 +525,14 @@ refine_clustering(raft::handle_t const& handle,
       handle.get_thrust_policy(),
       vertices_in_mis.begin(),
       vertices_in_mis.end(),
-      [best_move_leiden              = vertex_best_move_cluster_id.data(),
-       leiden_assignment             = leiden_assignment.data(),
-       singleton_and_connected_flags = singleton_and_connected_flags.data(),
+      [best_move_leiden = detail::vertex_property_device_view_t{vertex_best_move_cluster_id.view()},
+       leiden_assignment = detail::vertex_property_device_view_t{leiden_assignment.mutable_view()},
+       singleton_and_connected_flags =
+         detail::vertex_property_device_view_t{singleton_and_connected_flags.mutable_view()},
        v_first = graph_view.local_vertex_partition_range_first()] __device__(vertex_t v) {
-        auto v_offset                           = v - v_first;
-        auto target_leiden                      = best_move_leiden[v_offset];
-        singleton_and_connected_flags[v_offset] = false;
-        leiden_assignment[v_offset]             = target_leiden;
+        auto v_offset = v - v_first;
+        singleton_and_connected_flags.set(v_offset, uint8_t{0});
+        leiden_assignment.set(v_offset, best_move_leiden.get(v_offset));
       });
 
     //
@@ -634,19 +540,14 @@ refine_clustering(raft::handle_t const& handle,
     //
     rmm::device_uvector<vertex_t> dst_vertices(vertices_in_mis.size(), handle.get_stream());
 
-    {
-      auto map_first = cuda::make_transform_iterator(
-        vertices_in_mis.begin(),
-        shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()});
-      cugraph::gather(handle.get_thrust_policy(),
-                      map_first,
-                      map_first + vertices_in_mis.size(),
-                      vertex_best_move_cluster_id.begin(),
-                      dst_vertices.begin());
-    }
+    gather_v(handle,
+             graph_view,
+             vertices_in_mis.begin(),
+             vertices_in_mis.end(),
+             vertex_best_move_cluster_id.view(),
+             dst_vertices.begin());
 
-    vertex_best_move_cluster_id.resize(0, handle.get_stream());
-    vertex_best_move_cluster_id.shrink_to_fit(handle.get_stream());
+    vertex_best_move_cluster_id = vertex_property_t<vertex_t, vertex_t>(handle);
 
     vertices_in_mis.resize(0, handle.get_stream());
     vertices_in_mis.shrink_to_fit(handle.get_stream());
@@ -679,13 +580,12 @@ refine_clustering(raft::handle_t const& handle,
     //
     // Mark all the dest vertices as non-singleton
     //
-    cugraph::scatter(handle.get_thrust_policy(),
-                     cuda::make_constant_iterator(uint8_t{0}),
-                     cuda::make_constant_iterator(uint8_t{0}) + dst_vertices.size(),
-                     cuda::make_transform_iterator(
-                       dst_vertices.begin(),
-                       shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
-                     singleton_and_connected_flags.begin());
+    scatter_v(handle,
+              graph_view,
+              cuda::make_constant_iterator(uint8_t{0}),
+              cuda::make_constant_iterator(uint8_t{0}) + dst_vertices.size(),
+              dst_vertices.begin(),
+              singleton_and_connected_flags.mutable_view());
 
     dst_vertices.resize(0, handle.get_stream());
     dst_vertices.shrink_to_fit(handle.get_stream());
@@ -694,22 +594,19 @@ refine_clustering(raft::handle_t const& handle,
   src_louvain_cluster_weight_cache.clear();
   src_cut_to_louvain_cache.clear();
 
-  singleton_and_connected_flags.resize(0, handle.get_stream());
-  singleton_and_connected_flags.shrink_to_fit(handle.get_stream());
-  vertex_louvain_cluster_weights.resize(0, handle.get_stream());
-  vertex_louvain_cluster_weights.shrink_to_fit(handle.get_stream());
-  weighted_cut_of_vertices_to_louvain.resize(0, handle.get_stream());
-  weighted_cut_of_vertices_to_louvain.shrink_to_fit(handle.get_stream());
+  singleton_and_connected_flags       = vertex_property_t<vertex_t, uint8_t>(handle);
+  vertex_louvain_cluster_weights      = vertex_property_t<vertex_t, weight_t>(handle);
+  weighted_cut_of_vertices_to_louvain = vertex_property_t<vertex_t, weight_t>(handle);
 
   //
   // Re-read Leiden to Louvain map, but for remaining (after moving) Leiden communities
   //
-  rmm::device_uvector<vertex_t> leiden_keys_to_read_louvain(leiden_assignment.size(),
-                                                            handle.get_stream());
+  rmm::device_uvector<vertex_t> leiden_keys_to_read_louvain(
+    graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
   thrust::copy(handle.get_thrust_policy(),
-               leiden_assignment.begin(),
-               leiden_assignment.end(),
+               leiden_assignment.view().value_first(),
+               leiden_assignment.view().value_first() + leiden_assignment.view().range_size(),
                leiden_keys_to_read_louvain.begin());
 
   cugraph::sort(handle.get_thrust_policy(),
@@ -743,47 +640,20 @@ refine_clustering(raft::handle_t const& handle,
                                                               leiden_keys_to_read_louvain.begin(),
                                                               leiden_keys_to_read_louvain.end())));
     leiden_keys_to_read_louvain.resize(nr_unique_leiden_clusters, handle.get_stream());
-
-    auto& comm                 = handle.get_comms();
-    auto const comm_size       = comm.get_size();
-    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-    auto const major_comm_size = major_comm.get_size();
-    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-    auto const minor_comm_size = minor_comm.get_size();
-
-    auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
-    rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
-      vertex_partition_range_lasts.size(), handle.get_stream());
-
-    raft::update_device(d_vertex_partition_range_lasts.data(),
-                        vertex_partition_range_lasts.data(),
-                        vertex_partition_range_lasts.size(),
-                        handle.get_stream());
-
-    cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t> vertex_to_gpu_id_op{
-      raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
-                                        d_vertex_partition_range_lasts.size()),
-      major_comm_size,
-      minor_comm_size};
-
-    louvain_of_leiden_cluster_keys =
-      cugraph::collect_values_for_keys(handle,
-                                       leiden_to_louvain_map.view(),
-                                       leiden_keys_to_read_louvain.begin(),
-                                       leiden_keys_to_read_louvain.end(),
-                                       vertex_to_gpu_id_op);
-  } else {
-    louvain_of_leiden_cluster_keys.resize(leiden_keys_to_read_louvain.size(), handle.get_stream());
-
-    leiden_to_louvain_map.view().find(leiden_keys_to_read_louvain.begin(),
-                                      leiden_keys_to_read_louvain.end(),
-                                      louvain_of_leiden_cluster_keys.begin(),
-                                      handle.get_stream());
   }
+
+  louvain_of_leiden_cluster_keys.resize(leiden_keys_to_read_louvain.size(), handle.get_stream());
+  gather_v(handle,
+           graph_view,
+           leiden_keys_to_read_louvain.begin(),
+           leiden_keys_to_read_louvain.end(),
+           louvain_assignment_of_vertices,
+           louvain_of_leiden_cluster_keys.begin());
 
   return std::make_tuple(std::move(leiden_assignment),
                          std::make_pair(std::move(leiden_keys_to_read_louvain),
                                         std::move(louvain_of_leiden_cluster_keys)));
 }
+
 }  // namespace detail
 }  // namespace cugraph

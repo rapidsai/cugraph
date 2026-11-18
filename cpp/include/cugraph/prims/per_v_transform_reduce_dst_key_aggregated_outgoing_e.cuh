@@ -26,6 +26,8 @@
 #include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/utilities/thrust_wrappers/unique.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
+#include <cugraph/vertex_property.hpp>
+#include <cugraph/vertex_property_device_view.cuh>
 
 #include <raft/core/handle.hpp>
 
@@ -207,7 +209,7 @@ struct reduce_with_init_t {
  * @tparam KeyAggregatedEdgeOp Type of the quinary key-aggregated edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
  * @tparam T Type of the initial value for per-vertex reduction.
- * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
+ * @tparam VertexValueOutputWrapper Type of the wrapper for vertex output property values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
@@ -238,10 +240,8 @@ struct reduce_with_init_t {
  * future) implementations of graph primitives may check whether @p ReduceOp is a known type (or has
  * known member variables) to take a more optimized code path. See the documentation in the
  * reduce_op.cuh file for instructions on writing custom reduction operators.
- * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
- * first (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
- * (exclusive) is deduced as @p vertex_value_output_first + @p
- * graph_view.local_vertex_partition_range_size().
+ * @param vertex_value_output Wrapper used to store output vertex property values (for the vertices
+ * assigned to this process in multi-GPU). Use `vertex_property_t::mutable_view()`.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType,
@@ -252,7 +252,7 @@ template <typename GraphViewType,
           typename KeyAggregatedEdgeOp,
           typename ReduceOp,
           typename T,
-          typename VertexValueOutputIterator>
+          typename VertexValueOutputWrapper>
 void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
@@ -263,7 +263,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
   KeyAggregatedEdgeOp key_aggregated_e_op,
   T init,
   ReduceOp reduce_op,
-  VertexValueOutputIterator vertex_value_output_first,
+  VertexValueOutputWrapper vertex_value_output,
   bool do_expensive_check = false)
 {
   static_assert(!GraphViewType::is_storage_transposed,
@@ -1103,8 +1103,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
   // 2. update final results
 
   cugraph::fill(handle.get_thrust_policy(),
-                vertex_value_output_first,
-                vertex_value_output_first + graph_view.local_vertex_partition_range_size(),
+                vertex_value_output.value_first(),
+                vertex_value_output.value_first() + graph_view.local_vertex_partition_range_size(),
                 init);
 
   auto pair_first =
@@ -1114,14 +1114,14 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       handle.get_thrust_policy(),
       pair_first + rx_offsets[i],
       pair_first + rx_offsets[i + 1],
-      [vertex_value_output_first,
+      [vertex_value_output = detail::vertex_property_device_view_t{vertex_value_output},
        reduce_op,
        major_first = graph_view.local_vertex_partition_range_first()] __device__(auto pair) {
         auto major        = cuda::std::get<0>(pair);
         auto major_offset = major - major_first;
         auto e_op_result  = cuda::std::get<1>(pair);
-        *(vertex_value_output_first + major_offset) =
-          reduce_op(*(vertex_value_output_first + major_offset), e_op_result);
+        vertex_value_output.set(major_offset,
+                                reduce_op(vertex_value_output.get(major_offset), e_op_result));
       });
   }
 }

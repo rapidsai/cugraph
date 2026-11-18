@@ -6,16 +6,22 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/copy_v.cuh>
+#include <cugraph/prims/extract_transform_if_v.cuh>
 #include <cugraph/prims/fill_edge_property.cuh>
 #include <cugraph/prims/fill_edge_src_dst_property.cuh>
 #include <cugraph/prims/make_initialized_edge_property.cuh>
 #include <cugraph/prims/reduce_v.cuh>
 #include <cugraph/prims/transform_e.cuh>
 #include <cugraph/prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh>
+#include <cugraph/prims/transform_v.cuh>
 #include <cugraph/prims/update_v_frontier.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/vertex_property.hpp>
+#include <cugraph/vertex_property_device_view.cuh>
 
 #include <raft/core/handle.hpp>
 
@@ -24,13 +30,10 @@
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
-#include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/partition.h>
 #include <thrust/reduce.h>
 #include <thrust/remove.h>
-#include <thrust/transform.h>
 
 #include <cstddef>
 
@@ -39,12 +42,15 @@ namespace cugraph {
 namespace {
 
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
-template <typename vertex_t, typename edge_t>
+template <typename vertex_t, typename CoreNumberInputWrapper>
 struct v_to_core_number_t {
-  edge_t const* core_numbers{nullptr};
+  CoreNumberInputWrapper core_numbers{};
   vertex_t v_first{0};
 
-  __device__ edge_t operator()(vertex_t v) const { return core_numbers[v - v_first]; }
+  __device__ typename CoreNumberInputWrapper::value_type operator()(vertex_t v) const
+  {
+    return core_numbers.get(v - v_first);
+  }
 };
 
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
@@ -56,13 +62,13 @@ struct mult_degree_by_two_t {
 }  // namespace
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-void core_number(raft::handle_t const& handle,
-                 graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-                 edge_t* core_numbers,
-                 k_core_degree_type_t degree_type,
-                 size_t k_first,
-                 size_t k_last,
-                 bool do_expensive_check)
+vertex_property_t<vertex_t, edge_t> core_number(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  k_core_degree_type_t degree_type,
+  size_t k_first,
+  size_t k_last,
+  bool do_expensive_check)
 {
   // check input arguments.
 
@@ -96,67 +102,50 @@ void core_number(raft::handle_t const& handle,
 
   // initialize core_numbers to degrees (upper-bound)
 
+  vertex_property_t<vertex_t, edge_t> core_numbers(handle);
   if (cur_graph_view.is_symmetric()) {  // in-degree == out-degree
-    auto out_degrees = cur_graph_view.compute_out_degrees(handle);
-    if ((degree_type == k_core_degree_type_t::IN) || (degree_type == k_core_degree_type_t::OUT)) {
-      thrust::copy(
-        handle.get_thrust_policy(), out_degrees.begin(), out_degrees.end(), core_numbers);
-    } else {
-      auto inout_degree_first =
-        cuda::make_transform_iterator(out_degrees.begin(), mult_degree_by_two_t<edge_t>{});
-      thrust::copy(handle.get_thrust_policy(),
-                   inout_degree_first,
-                   inout_degree_first + out_degrees.size(),
-                   core_numbers);
+    core_numbers = compute_out_degrees(handle, cur_graph_view);
+    if (degree_type == k_core_degree_type_t::INOUT) {
+      transform_v(handle,
+                  cur_graph_view,
+                  core_numbers.view(),
+                  mult_degree_by_two_t<edge_t>{},
+                  core_numbers.mutable_view());
     }
   } else {
     if (degree_type == k_core_degree_type_t::IN) {
-      auto in_degrees = cur_graph_view.compute_in_degrees(handle);
-      thrust::copy(handle.get_thrust_policy(), in_degrees.begin(), in_degrees.end(), core_numbers);
+      core_numbers = compute_in_degrees(handle, cur_graph_view);
     } else if (degree_type == k_core_degree_type_t::OUT) {
-      auto out_degrees = cur_graph_view.compute_out_degrees(handle);
-      thrust::copy(
-        handle.get_thrust_policy(), out_degrees.begin(), out_degrees.end(), core_numbers);
+      core_numbers = compute_out_degrees(handle, cur_graph_view);
     } else {
-      auto in_degrees        = cur_graph_view.compute_in_degrees(handle);
-      auto out_degrees       = cur_graph_view.compute_out_degrees(handle);
-      auto degree_pair_first = thrust::make_zip_iterator(in_degrees.begin(), out_degrees.begin());
-      thrust::transform(
-        handle.get_thrust_policy(),
-        degree_pair_first,
-        degree_pair_first + in_degrees.size(),
-        core_numbers,
-        [] __device__(auto p) { return cuda::std::get<0>(p) + cuda::std::get<1>(p); });
+      core_numbers     = compute_in_degrees(handle, cur_graph_view);
+      auto out_degrees = compute_out_degrees(handle, cur_graph_view);
+      transform_v(
+        handle,
+        cur_graph_view,
+        view_concat(core_numbers.view(), out_degrees.view()),
+        [] __device__(auto p) { return cuda::std::get<0>(p) + cuda::std::get<1>(p); },
+        core_numbers.mutable_view());
     }
   }
 
   // remove 0 degree vertices (as they already belong to 0-core and they don't affect core numbers)
   // and clip core numbers of the "less than k_first degree" vertices to 0
 
-  rmm::device_uvector<vertex_t> remaining_vertices(
-    cur_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-  remaining_vertices.resize(
-    cuda::std::distance(
-      remaining_vertices.begin(),
-      thrust::copy_if(
-        handle.get_thrust_policy(),
-        thrust::make_counting_iterator(cur_graph_view.local_vertex_partition_range_first()),
-        thrust::make_counting_iterator(cur_graph_view.local_vertex_partition_range_last()),
-        remaining_vertices.begin(),
-        [core_numbers, v_first = cur_graph_view.local_vertex_partition_range_first()] __device__(
-          auto v) { return core_numbers[v - v_first] > edge_t{0}; })),
-    handle.get_stream());
+  auto remaining_vertices = extract_transform_if_v(
+    handle,
+    cur_graph_view,
+    core_numbers.view(),
+    cuda::proclaim_return_type<vertex_t>([] __device__(vertex_t v, edge_t) { return v; }),
+    cuda::proclaim_return_type<bool>([] __device__(vertex_t, edge_t c) { return c > edge_t{0}; }));
 
   if (k_first > 1) {
-    thrust::for_each(
-      handle.get_thrust_policy(),
-      remaining_vertices.begin(),
-      remaining_vertices.end(),
-      [k_first,
-       core_numbers,
-       v_first = cur_graph_view.local_vertex_partition_range_first()] __device__(auto v) {
-        if (core_numbers[v - v_first] < k_first) { core_numbers[v - v_first] = edge_t{0}; }
-      });
+    transform_v(
+      handle,
+      cur_graph_view,
+      core_numbers.view(),
+      [k_first] __device__(auto c) { return c < k_first ? edge_t{0} : c; },
+      core_numbers.mutable_view());
   }
 
   // start iteration
@@ -172,16 +161,13 @@ void core_number(raft::handle_t const& handle,
   if (!cur_graph_view.is_symmetric() &&
       degree_type != k_core_degree_type_t::INOUT) {  // 0 core number vertex may have non-zero
                                                      // in|out-degrees (so still can be accessed)
-    rmm::device_uvector<vertex_t> zero_degree_vertices(
-      cur_graph_view.local_vertex_partition_range_size() - remaining_vertices.size(),
-      handle.get_stream());
-    thrust::copy_if(
-      handle.get_thrust_policy(),
-      thrust::make_counting_iterator(cur_graph_view.local_vertex_partition_range_first()),
-      thrust::make_counting_iterator(cur_graph_view.local_vertex_partition_range_last()),
-      zero_degree_vertices.begin(),
-      [core_numbers, v_first = cur_graph_view.local_vertex_partition_range_first()] __device__(
-        auto v) { return core_numbers[v - v_first] == edge_t{0}; });
+    auto zero_degree_vertices = extract_transform_if_v(
+      handle,
+      cur_graph_view,
+      core_numbers.view(),
+      cuda::proclaim_return_type<vertex_t>([] __device__(vertex_t v, edge_t) { return v; }),
+      cuda::proclaim_return_type<bool>(
+        [] __device__(vertex_t, edge_t c) { return c == edge_t{0}; }));
     fill_edge_dst_property(handle,
                            cur_graph_view,
                            zero_degree_vertices.begin(),
@@ -221,8 +207,11 @@ void core_number(raft::handle_t const& handle,
       handle.get_thrust_policy(),
       remaining_vertices.begin(),
       remaining_vertices.end(),
-      [core_numbers, k, v_first = cur_graph_view.local_vertex_partition_range_first()] __device__(
-        auto v) { return core_numbers[v - v_first] >= k; });
+      [core_numbers = detail::vertex_property_device_view_t{core_numbers.view()},
+       k,
+       v_first = cur_graph_view.local_vertex_partition_range_first()] __device__(auto v) {
+        return core_numbers.get(v - v_first) >= k;
+      });
     vertex_frontier.bucket(bucket_idx_cur).insert(less_than_k_first, remaining_vertices.end());
     remaining_vertices.resize(cuda::std::distance(remaining_vertices.begin(), less_than_k_first),
                               handle.get_stream());
@@ -270,15 +259,9 @@ void core_number(raft::handle_t const& handle,
             std::move(delta_buffer),
             vertex_frontier,
             raft::host_span<size_t const>(&bucket_idx_next, size_t{1}),
-            core_numbers,
-            core_numbers,
-            [k_first,
-             k,
-             delta,
-             v_first =
-               cur_graph_view.local_vertex_partition_range_first()] __device__(auto v,
-                                                                               auto v_val,
-                                                                               auto pushed_val) {
+            core_numbers.view(),
+            core_numbers.mutable_view(),
+            [k_first, k, delta] __device__(auto v, auto v_val, auto pushed_val) {
               auto new_core_number = v_val >= pushed_val ? v_val - pushed_val : edge_t{0};
               new_core_number      = new_core_number < (k - delta) ? (k - delta) : new_core_number;
               new_core_number      = new_core_number < k_first ? edge_t{0} : new_core_number;
@@ -302,10 +285,10 @@ void core_number(raft::handle_t const& handle,
               handle.get_thrust_policy(),
               vertex_frontier.bucket(bucket_idx_next).begin(),
               vertex_frontier.bucket(bucket_idx_next).end(),
-              [core_numbers,
+              [core_numbers = detail::vertex_property_device_view_t{core_numbers.view()},
                k,
                v_first = cur_graph_view.local_vertex_partition_range_first()] __device__(auto v) {
-                return core_numbers[v - v_first] >= k;
+                return core_numbers.get(v - v_first) >= k;
               }))));
         vertex_frontier.bucket(bucket_idx_next).shrink_to_fit();
 
@@ -326,18 +309,18 @@ void core_number(raft::handle_t const& handle,
             handle.get_thrust_policy(),
             remaining_vertices.begin(),
             remaining_vertices.end(),
-            [core_numbers,
+            [core_numbers = detail::vertex_property_device_view_t{core_numbers.view()},
              k,
              v_first = cur_graph_view.local_vertex_partition_range_first()] __device__(auto v) {
-              return core_numbers[v - v_first] < k;
+              return core_numbers.get(v - v_first) < k;
             })),
         handle.get_stream());
       k += delta;
     } else {
       auto remaining_vertex_core_number_first = cuda::make_transform_iterator(
         remaining_vertices.begin(),
-        v_to_core_number_t<vertex_t, edge_t>{core_numbers,
-                                             cur_graph_view.local_vertex_partition_range_first()});
+        v_to_core_number_t{detail::vertex_property_device_view_t{core_numbers.view()},
+                           cur_graph_view.local_vertex_partition_range_first()});
       auto min_core_number =
         thrust::reduce(handle.get_thrust_policy(),
                        remaining_vertex_core_number_first,
@@ -359,6 +342,25 @@ void core_number(raft::handle_t const& handle,
       k = std::max(k + delta, static_cast<size_t>(min_core_number + edge_t{delta}));
     }
   }
+
+  return core_numbers;
+}
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+void core_number(raft::handle_t const& handle,
+                 graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                 edge_t* core_numbers,
+                 k_core_degree_type_t degree_type,
+                 size_t k_first,
+                 size_t k_last,
+                 bool do_expensive_check)
+{
+  auto core_numbers_prop =
+    cugraph::core_number(handle, graph_view, degree_type, k_first, k_last, do_expensive_check);
+  copy_v(handle,
+         graph_view,
+         core_numbers_prop.view(),
+         vertex_property_view_t{core_numbers, graph_view.local_vertex_partition_range_size()});
 }
 
 }  // namespace cugraph

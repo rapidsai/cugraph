@@ -95,13 +95,12 @@ struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
       //
       // Need to renumber start_vertices
       //
-      cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+      start_vertices = cugraph::renumber_ext_vertices(
         handle_,
-        start_vertices.data(),
-        start_vertices.size(),
-        number_map->data(),
-        graph_view.local_vertex_partition_range_first(),
-        graph_view.local_vertex_partition_range_last(),
+        graph_view,
+        std::move(start_vertices),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         false);
 
       auto [paths, weights] = cugraph::uniform_random_walks(
@@ -115,12 +114,12 @@ struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
       //
       // Need to unrenumber the vertices in the resulting paths
       //
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+      paths = cugraph::unrenumber_int_vertices(
         handle_,
-        paths.data(),
-        paths.size(),
-        number_map->data(),
-        graph_view.vertex_partition_range_lasts(),
+        graph_view,
+        std::move(paths),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         false);
 
       result_ = new cugraph::c_api::cugraph_random_walk_result_t{
@@ -206,13 +205,12 @@ struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
       //
       // Need to renumber start_vertices
       //
-      cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+      start_vertices = cugraph::renumber_ext_vertices(
         handle_,
-        start_vertices.data(),
-        start_vertices.size(),
-        number_map->data(),
-        graph_view.local_vertex_partition_range_first(),
-        graph_view.local_vertex_partition_range_last(),
+        graph_view,
+        std::move(start_vertices),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         false);
 
       auto [paths, weights] = cugraph::biased_random_walks(
@@ -226,12 +224,12 @@ struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
       //
       // Need to unrenumber the vertices in the resulting paths
       //
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+      paths = cugraph::unrenumber_int_vertices(
         handle_,
-        paths.data(),
-        paths.size(),
-        number_map->data(),
-        graph_view.vertex_partition_range_lasts(),
+        graph_view,
+        std::move(paths),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         false);
 
       result_ = new cugraph::c_api::cugraph_random_walk_result_t{
@@ -316,13 +314,12 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
       //
       // Need to renumber start_vertices
       //
-      cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+      start_vertices = cugraph::renumber_ext_vertices(
         handle_,
-        start_vertices.data(),
-        start_vertices.size(),
-        number_map->data(),
-        graph_view.local_vertex_partition_range_first(),
-        graph_view.local_vertex_partition_range_last(),
+        graph_view,
+        std::move(start_vertices),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         false);
 
       auto [paths, weights] = cugraph::node2vec_random_walks(
@@ -342,12 +339,12 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
       //
       // Need to unrenumber the vertices in the resulting paths
       //
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+      paths = cugraph::unrenumber_int_vertices(
         handle_,
-        paths.data(),
-        paths.size(),
-        number_map->data(),
-        graph_view.vertex_partition_range_lasts(),
+        graph_view,
+        std::move(paths),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         false);
 
       result_ = new cugraph::c_api::cugraph_random_walk_result_t{
