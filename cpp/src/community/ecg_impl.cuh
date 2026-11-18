@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -28,13 +28,14 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
+std::tuple<vertex_property_t<vertex_t, vertex_t>, size_t, weight_t> ecg(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   weight_t min_weight,
   size_t ensemble_size,
+  bool compact_cluster_ids,
   size_t max_level,
   weight_t threshold,
   weight_t resolution)
@@ -60,24 +61,24 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
     handle, graph_view, modified_edge_weights.mutable_view(), weight_t{0});
 
   weight_t modularity = -1.0;
-  rmm::device_uvector<vertex_t> cluster_assignments(graph_view.local_vertex_partition_range_size(),
-                                                    handle.get_stream());
+  vertex_property_t<vertex_t, vertex_t> cluster_assignments(handle, graph_view);
 
   for (size_t i = 0; i < ensemble_size; i++) {
-    std::tie(std::ignore, modularity) = cugraph::louvain(
+    auto [dendrogram, this_modularity] = cugraph::louvain_dendrogram(
       handle,
       std::make_optional(std::reference_wrapper<raft::random::RngState>(rng_state)),
       graph_view,
       edge_weight_view,
-      cluster_assignments.data(),
       size_t{1},
       threshold,
       resolution);
+    modularity          = this_modularity;
+    cluster_assignments = cugraph::flatten_dendrogram(handle, graph_view, dendrogram, false);
 
     cugraph::update_edge_src_property(
-      handle, graph_view, cluster_assignments.begin(), src_cluster_assignments.mutable_view());
+      handle, graph_view, cluster_assignments.view(), src_cluster_assignments.mutable_view());
     cugraph::update_edge_dst_property(
-      handle, graph_view, cluster_assignments.begin(), dst_cluster_assignments.mutable_view());
+      handle, graph_view, cluster_assignments.view(), dst_cluster_assignments.mutable_view());
 
     cugraph::transform_e(
       handle,
@@ -105,15 +106,18 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
     },
     modified_edge_weights.mutable_view());
 
-  std::tie(max_level, modularity) =
-    cugraph::louvain(handle,
-                     std::make_optional(std::reference_wrapper<raft::random::RngState>(rng_state)),
-                     graph_view,
-                     std::make_optional(modified_edge_weights.view()),
-                     cluster_assignments.data(),
-                     max_level,
-                     threshold,
-                     resolution);
+  auto [dendrogram, this_modularity] = cugraph::louvain_dendrogram(
+    handle,
+    std::make_optional(std::reference_wrapper<raft::random::RngState>(rng_state)),
+    graph_view,
+    std::make_optional(modified_edge_weights.view()),
+    max_level,
+    threshold,
+    resolution);
+  modularity = this_modularity;
+  max_level  = dendrogram.num_levels();
+  cluster_assignments =
+    cugraph::flatten_dendrogram(handle, graph_view, dendrogram, compact_cluster_ids);
 
   // Compute final modularity using original edge weights
   weight_t total_edge_weight =
@@ -121,20 +125,20 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
 
   if constexpr (multi_gpu) {
     cugraph::update_edge_src_property(
-      handle, graph_view, cluster_assignments.begin(), src_cluster_assignments.mutable_view());
+      handle, graph_view, cluster_assignments.view(), src_cluster_assignments.mutable_view());
     cugraph::update_edge_dst_property(
-      handle, graph_view, cluster_assignments.begin(), dst_cluster_assignments.mutable_view());
+      handle, graph_view, cluster_assignments.view(), dst_cluster_assignments.mutable_view());
   }
 
   auto [cluster_keys, cluster_weights] = cugraph::detail::compute_cluster_keys_and_values(
-    handle, graph_view, edge_weight_view, cluster_assignments, src_cluster_assignments);
+    handle, graph_view, edge_weight_view, cluster_assignments.view(), src_cluster_assignments);
 
   modularity = detail::compute_modularity(handle,
                                           graph_view,
                                           edge_weight_view,
                                           src_cluster_assignments,
                                           dst_cluster_assignments,
-                                          cluster_assignments,
+                                          cluster_assignments.view(),
                                           cluster_weights,
                                           total_edge_weight,
                                           resolution);
@@ -143,6 +147,35 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
 }
 
 }  // namespace detail
+
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<vertex_property_t<vertex_t, vertex_t>, size_t, weight_t> ecg(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  weight_t min_weight,
+  size_t ensemble_size,
+  bool compact_cluster_ids,
+  size_t max_level,
+  weight_t threshold,
+  weight_t resolution,
+  bool do_expensive_check)
+{
+  if (do_expensive_check) { /* currently, nothing to do */
+  }
+
+  return detail::ecg(handle,
+                     rng_state,
+                     graph_view,
+                     edge_weight_view,
+                     min_weight,
+                     ensemble_size,
+                     compact_cluster_ids,
+                     max_level,
+                     threshold,
+                     resolution);
+}
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
@@ -156,15 +189,18 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
   weight_t threshold,
   weight_t resolution)
 {
-  return detail::ecg(handle,
-                     rng_state,
-                     graph_view,
-                     edge_weight_view,
-                     min_weight,
-                     ensemble_size,
-                     max_level,
-                     threshold,
-                     resolution);
+  auto [cluster_assignments, num_levels, modularity] = cugraph::ecg(handle,
+                                                                    rng_state,
+                                                                    graph_view,
+                                                                    edge_weight_view,
+                                                                    min_weight,
+                                                                    ensemble_size,
+                                                                    false,
+                                                                    max_level,
+                                                                    threshold,
+                                                                    resolution);
+
+  return std::make_tuple(cluster_assignments.release_buffer(), num_levels, modularity);
 }
 
 }  // namespace cugraph

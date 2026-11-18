@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -102,13 +102,12 @@ struct induced_subgraph_functor : public cugraph::c_api::abstract_functor {
       //
       // Need to renumber subgraph_vertices
       //
-      cugraph::renumber_local_ext_vertices<vertex_t, multi_gpu>(
+      subgraph_vertices = cugraph::renumber_local_ext_vertices(
         handle_,
-        subgraph_vertices.data(),
-        subgraph_vertices.size(),
-        number_map->data(),
-        graph_view.local_vertex_partition_range_first(),
-        graph_view.local_vertex_partition_range_last(),
+        graph_view,
+        std::move(subgraph_vertices),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         do_expensive_check_);
 
       auto [src, dst, wgt, graph_offsets] = cugraph::extract_induced_subgraphs(
@@ -119,20 +118,20 @@ struct induced_subgraph_functor : public cugraph::c_api::abstract_functor {
         raft::device_span<vertex_t const>{subgraph_vertices.data(), subgraph_vertices.size()},
         do_expensive_check_);
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+      src = cugraph::unrenumber_int_vertices(
         handle_,
-        src.data(),
-        src.size(),
-        number_map->data(),
-        graph_view.vertex_partition_range_lasts(),
+        graph_view,
+        std::move(src),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         do_expensive_check_);
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+      dst = cugraph::unrenumber_int_vertices(
         handle_,
-        dst.data(),
-        dst.size(),
-        number_map->data(),
-        graph_view.vertex_partition_range_lasts(),
+        graph_view,
+        std::move(dst),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
         do_expensive_check_);
 
       // FIXME: Add support for edge_id and edge_type_id.

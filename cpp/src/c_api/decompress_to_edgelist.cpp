@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -74,36 +74,41 @@ struct decompress_to_edgelist_functor : public cugraph::c_api::abstract_functor 
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      auto [result_src, result_dst, result_wgt, result_edge_id, result_edge_type] =
-        cugraph::decompress_to_edgelist<vertex_t,
-                                        edge_t,
-                                        weight_t,
-                                        edge_type_t,
-                                        store_transposed,
-                                        multi_gpu>(
+      std::vector<cugraph::edge_arithmetic_property_view_t<edge_t>> edge_property_views{};
+      if (edge_weights != nullptr) { edge_property_views.push_back(edge_weights->view()); }
+      if (edge_ids != nullptr) { edge_property_views.push_back(edge_ids->view()); }
+      if (edge_types != nullptr) { edge_property_views.push_back(edge_types->view()); }
+
+      auto [result_src, result_dst, edge_property_values] =
+        cugraph::decompress_to_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
           handle_,
           graph_view,
-          (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
-          (edge_ids != nullptr) ? std::make_optional(edge_ids->view()) : std::nullopt,
-          (edge_types != nullptr) ? std::make_optional(edge_types->view()) : std::nullopt,
-          (number_map != nullptr) ? std::make_optional<raft::device_span<vertex_t const>>(
-                                      number_map->data(), number_map->size())
-                                  : std::nullopt,
+          edge_property_views,
+          (number_map != nullptr)
+            ? std::make_optional(cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+                number_map->data(), static_cast<vertex_t>(number_map->size())))
+            : std::nullopt,
           std::nullopt,
           do_expensive_check_);
 
       result_ = new cugraph::c_api::cugraph_edgelist_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(result_src, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(result_dst, graph_->vertex_type_),
-        result_wgt ? new cugraph::c_api::cugraph_type_erased_device_array_t(*result_wgt,
-                                                                            graph_->weight_type_)
-                   : NULL,
-        result_edge_id ? new cugraph::c_api::cugraph_type_erased_device_array_t(*result_edge_id,
-                                                                                graph_->edge_type_)
-                       : NULL,
-        result_edge_type ? new cugraph::c_api::cugraph_type_erased_device_array_t(
-                             *result_edge_type, graph_->edge_type_id_type_)
-                         : NULL,
+        (edge_weights != nullptr)
+          ? new cugraph::c_api::cugraph_type_erased_device_array_t(
+              std::get<rmm::device_uvector<weight_t>>(edge_property_values[0]),
+              graph_->weight_type_)
+          : NULL,
+        (edge_ids != nullptr) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
+                                  std::get<rmm::device_uvector<edge_t>>(
+                                    edge_property_values[(edge_weights != nullptr) ? 1 : 0]),
+                                  graph_->edge_type_)
+                              : NULL,
+        (edge_types != nullptr)
+          ? new cugraph::c_api::cugraph_type_erased_device_array_t(
+              std::get<rmm::device_uvector<edge_type_t>>(edge_property_values.back()),
+              graph_->edge_type_id_type_)
+          : NULL,
         NULL};
     }
   }

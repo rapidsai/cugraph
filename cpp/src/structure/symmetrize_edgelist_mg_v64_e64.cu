@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "structure/symmetrize_edgelist_impl.cuh"
@@ -26,7 +26,8 @@ symmetrize_edgelist<int64_t, int64_t, float, int32_t, int32_t, false, true>(
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_types,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_start_times,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_end_times,
-  bool reciprocal);
+  bool reciprocal,
+  bool do_expensive_check);
 
 template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
                                    rmm::device_uvector<int64_t>,
@@ -44,7 +45,8 @@ symmetrize_edgelist<int64_t, int64_t, float, int32_t, int32_t, true, true>(
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_types,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_start_times,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_end_times,
-  bool reciprocal);
+  bool reciprocal,
+  bool do_expensive_check);
 
 template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
                                    rmm::device_uvector<int64_t>,
@@ -62,7 +64,8 @@ symmetrize_edgelist<int64_t, int64_t, double, int32_t, int32_t, false, true>(
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_types,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_start_times,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_end_times,
-  bool reciprocal);
+  bool reciprocal,
+  bool do_expensive_check);
 
 template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
                                    rmm::device_uvector<int64_t>,
@@ -80,7 +83,8 @@ symmetrize_edgelist<int64_t, int64_t, double, int32_t, int32_t, true, true>(
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_types,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_start_times,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_end_times,
-  bool reciprocal);
+  bool reciprocal,
+  bool do_expensive_check);
 
 template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
                                    rmm::device_uvector<int64_t>,
@@ -98,7 +102,8 @@ symmetrize_edgelist<int64_t, int64_t, float, int32_t, int64_t, false, true>(
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_types,
   std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_start_times,
   std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_end_times,
-  bool reciprocal);
+  bool reciprocal,
+  bool do_expensive_check);
 
 template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
                                    rmm::device_uvector<int64_t>,
@@ -116,7 +121,8 @@ symmetrize_edgelist<int64_t, int64_t, float, int32_t, int64_t, true, true>(
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_types,
   std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_start_times,
   std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_end_times,
-  bool reciprocal);
+  bool reciprocal,
+  bool do_expensive_check);
 
 template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
                                    rmm::device_uvector<int64_t>,
@@ -134,7 +140,8 @@ symmetrize_edgelist<int64_t, int64_t, double, int32_t, int64_t, false, true>(
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_types,
   std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_start_times,
   std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_end_times,
-  bool reciprocal);
+  bool reciprocal,
+  bool do_expensive_check);
 
 template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
                                    rmm::device_uvector<int64_t>,
@@ -152,6 +159,7 @@ symmetrize_edgelist<int64_t, int64_t, double, int32_t, int64_t, true, true>(
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_types,
   std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_start_times,
   std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_end_times,
-  bool reciprocal);
+  bool reciprocal,
+  bool do_expensive_check);
 
 }  // namespace cugraph
