@@ -10,14 +10,14 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/count_if_e.cuh>
-#include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/prims/count_if_v.cuh>
+#include <cugraph/vertex_property.hpp>
 
 #include <raft/core/handle.hpp>
 
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/tuple>
-#include <thrust/count.h>
 
 #include <tuple>
 
@@ -38,23 +38,14 @@ std::tuple<size_t, size_t> check_edge_bias_values(
                edge_bias_view,
                [] __device__(vertex_t, vertex_t, auto, auto, bias_t b) { return b < 0.0; });
 
-  size_t num_overflows{0};
-  {
-    auto bias_sums = compute_out_weight_sums(handle, graph_view, edge_bias_view);
-    num_overflows  = thrust::count_if(
-      handle.get_thrust_policy(), bias_sums.begin(), bias_sums.end(), [] __device__(auto sum) {
-        return sum > std::numeric_limits<bias_t>::max();
-      });
-  }
+  auto bias_sums = compute_out_weight_sums(handle, graph_view, edge_bias_view, false);
+  auto num_overflows =
+    count_if_v(handle, graph_view, bias_sums.view(), [] __device__(vertex_t, auto sum) {
+      return sum > std::numeric_limits<bias_t>::max();
+    });
 
-  if constexpr (multi_gpu) {
-    num_negative_edge_weights = host_scalar_allreduce(
-      handle.get_comms(), num_negative_edge_weights, raft::comms::op_t::SUM, handle.get_stream());
-    num_overflows = host_scalar_allreduce(
-      handle.get_comms(), num_overflows, raft::comms::op_t::SUM, handle.get_stream());
-  }
-
-  return std::make_tuple(num_negative_edge_weights, num_overflows);
+  return std::make_tuple(static_cast<size_t>(num_negative_edge_weights),
+                         static_cast<size_t>(num_overflows));
 }
 
 }  // namespace detail

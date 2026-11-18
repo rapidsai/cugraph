@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -89,13 +89,11 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
       graph_view.attach_edge_mask((*edge_mask).view());
     }
 
-    rmm::device_uvector<vertex_t> d_labels(graph_view.number_of_vertices(), handle.get_stream());
-
     ASSERT_TRUE(graph_view.is_symmetric())
       << "Weakly connected components works only on undirected (symmetric) graphs.";
 
     // Call WCC
-    cugraph::weakly_connected_components(handle, graph_view, d_labels.data());
+    auto d_labels = cugraph::weakly_connected_components(handle, graph_view).release_buffer();
 
     auto d_vertices = cugraph::test::sequence<vertex_t>(
       handle, graph_view.number_of_vertices(), size_t{1}, vertex_t{0});
@@ -120,17 +118,13 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
     raft::random::RngState rng_state(0);
     auto d_sources =
       cugraph::select_random_vertices(handle,
+                                      rng_state,
                                       graph_view,
                                       std::make_optional(raft::device_span<vertex_t const>{
                                         d_first_components.data(), d_first_components.size()}),
-                                      rng_state,
                                       std::min(MsBfs_usecase.max_seeds, num_unique_labels),
                                       false,
                                       true);
-
-    rmm::device_uvector<vertex_t> d_distances(graph_view.number_of_vertices(), handle.get_stream());
-    rmm::device_uvector<vertex_t> d_predecessors(graph_view.number_of_vertices(),
-                                                 handle.get_stream());
 
     bool direction_optimizing = false;
 
@@ -139,14 +133,15 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
       hr_timer.start("MsBfs");
     }
 
-    cugraph::bfs(handle,
-                 graph_view,
-                 d_distances.begin(),
-                 d_predecessors.begin(),
-                 d_sources.data(),
-                 d_sources.size(),
-                 direction_optimizing,
-                 static_cast<vertex_t>(MsBfs_usecase.radius));
+    auto [distance_property, predecessor_property] =
+      cugraph::bfs(handle,
+                   graph_view,
+                   raft::device_span<vertex_t const>(d_sources.data(), d_sources.size()),
+                   direction_optimizing,
+                   static_cast<vertex_t>(MsBfs_usecase.radius),
+                   true);
+    auto d_distances    = distance_property.release_buffer();
+    auto d_predecessors = predecessor_property->release_buffer();
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -164,28 +159,18 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
 
       d_distances_ref.reserve(h_sources.size());
       d_predecessors_ref.reserve(h_sources.size());
-      for (size_t i = 0; i < h_sources.size(); i++) {
-        rmm::device_uvector<vertex_t> tmp_distances(graph_view.number_of_vertices(),
-                                                    handle.get_next_usable_stream(i));
-        rmm::device_uvector<vertex_t> tmp_predecessors(graph_view.number_of_vertices(),
-                                                       handle.get_next_usable_stream(i));
-
-        d_distances_ref.push_back(std::move(tmp_distances));
-        d_predecessors_ref.push_back(std::move(tmp_predecessors));
-      }
 
       // one by one
       for (size_t i = 0; i < h_sources.size(); i++) {
-        auto source = h_sources[i];
-        rmm::device_scalar<vertex_t> const d_source_i(source, handle.get_stream());
-        cugraph::bfs(handle,
-                     graph_view,
-                     d_distances_ref[i].begin(),
-                     d_predecessors_ref[i].begin(),
-                     d_source_i.data(),
-                     size_t{1},
-                     direction_optimizing,
-                     static_cast<vertex_t>(MsBfs_usecase.radius));
+        auto [ref_distance_property, ref_predecessor_property] =
+          cugraph::bfs(handle,
+                       graph_view,
+                       raft::device_span<vertex_t const>(d_sources.data() + i, size_t{1}),
+                       direction_optimizing,
+                       static_cast<vertex_t>(MsBfs_usecase.radius),
+                       true);
+        d_distances_ref.push_back(ref_distance_property.release_buffer());
+        d_predecessors_ref.push_back(ref_predecessor_property->release_buffer());
       }
 
       // checksum
@@ -206,7 +191,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
 
       vertex_t ms_sum = cugraph::test::reduce(handle, d_distances, static_cast<vertex_t>(0));
 
-      auto d_vertex_degree = graph_view.compute_out_degrees(handle);
+      auto d_vertex_degree = cugraph::compute_out_degrees(handle, graph_view).release_buffer();
 
       d_sources = cugraph::test::sort<vertex_t>(handle, std::move(d_sources));
 

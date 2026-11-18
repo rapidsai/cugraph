@@ -64,7 +64,8 @@ class Tests_StronglyConnectedComponent
     }
 
     cugraph::graph_t<vertex_t, edge_t, false, false> graph(handle);
-    std::optional<rmm::device_uvector<vertex_t>> d_renumber_map_labels{std::nullopt};
+    std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>> d_renumber_map_labels{
+      std::nullopt};
     std::tie(graph, std::ignore, d_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, false, renumber);
@@ -107,9 +108,7 @@ class Tests_StronglyConnectedComponent
           handle,
           graph_view,
           std::nullopt,
-          d_renumber_map_labels ? std::make_optional<raft::device_span<vertex_t const>>(
-                                    d_renumber_map_labels->data(), d_renumber_map_labels->size())
-                                : std::nullopt);
+          d_renumber_map_labels ? std::make_optional(d_renumber_map_labels->view()) : std::nullopt);
 
       auto h_reference_components = strongly_connected_components_reference(
         std::span<edge_t const>(h_offsets.data(), h_offsets.size()),
@@ -120,7 +119,7 @@ class Tests_StronglyConnectedComponent
         rmm::device_uvector<vertex_t> d_unrenumbered_components(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_components) =
           cugraph::test::sort_by_key<vertex_t, vertex_t>(
-            handle, *d_renumber_map_labels, d_components);
+            handle, d_renumber_map_labels->release_buffer(), d_components);
         h_cugraph_components = cugraph::test::to_host(handle, d_unrenumbered_components);
       } else {
         h_cugraph_components = cugraph::test::to_host(handle, d_components);

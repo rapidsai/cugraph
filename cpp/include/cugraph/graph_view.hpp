@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -650,7 +650,15 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
 
   edge_t compute_number_of_edges(raft::handle_t const& handle) const;
 
+  /**
+   * @deprecated This API is deprecated and replaced by the `cugraph::compute_in_degrees` free
+   * function returning a `vertex_property_t`.
+   */
   rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
+  /**
+   * @deprecated This API is deprecated and replaced by the `cugraph::compute_out_degrees` free
+   * function returning a `vertex_property_t`.
+   */
   rmm::device_uvector<edge_t> compute_out_degrees(raft::handle_t const& handle) const;
 
   edge_t compute_max_in_degree(raft::handle_t const& handle) const;
@@ -983,7 +991,15 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
 
   edge_t compute_number_of_edges(raft::handle_t const& handle) const;
 
+  /**
+   * @deprecated This API is deprecated and replaced by the `cugraph::compute_in_degrees` free
+   * function returning a `vertex_property_t`.
+   */
   rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
+  /**
+   * @deprecated This API is deprecated and replaced by the `cugraph::compute_out_degrees` free
+   * function returning a `vertex_property_t`.
+   */
   rmm::device_uvector<edge_t> compute_out_degrees(raft::handle_t const& handle) const;
 
   edge_t compute_max_in_degree(raft::handle_t const& handle) const;

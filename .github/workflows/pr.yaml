@@ -240,6 +240,9 @@ jobs:
     uses: rapidsai/shared-workflows/.github/workflows/checks.yaml@main
     with:
       enable_check_generated_files: false
+      # Main builds seed this cache. PR merge refs can restore it but should not create
+      # duplicate archives that are inaccessible to other PRs.
+      pre-commit-cache-read-only: true
     permissions:
       contents: read
   conda-cpp-build:
@@ -251,7 +254,7 @@ jobs:
       build-datetime: ${{ needs.build-details.outputs.build-datetime }}
       node_type: cpu16
       script: ci/build_cpp.sh
-      matrix_type: cuda-13-4-pr
+      matrix_type: pull-request
     permissions:
       actions: read
       contents: read
@@ -266,7 +269,7 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_cpp.sh
-      matrix_type: cuda-13-4-pr,pull-request
+      matrix_type: pull-request
     permissions:
       actions: read
       contents: read
@@ -296,7 +299,7 @@ jobs:
       script: ci/build_python.sh
       # Build a conda package for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
-      matrix_type: cuda-13-4-pr
+      matrix_type: pull-request
     permissions:
       actions: read
       contents: read
@@ -311,7 +314,7 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_python.sh
-      matrix_type: cuda-13-4-pr,pull-request
+      matrix_type: pull-request
     permissions:
       actions: read
       contents: read
@@ -327,7 +330,7 @@ jobs:
       build_type: pull-request
       node_type: "gpu-rtxpro6000-latest-1"
       arch: "amd64"
-      container_image: "rapidsai/ci-conda:26.12-latest"
+      container_image: "rapidsai/ci-conda:27.02-latest"
       script: "ci/test_notebooks.sh"
     permissions:
       actions: read
@@ -342,7 +345,7 @@ jobs:
     with:
       build_type: pull-request
       matrix_name: docs-build
-      matrix_type: cuda-13-4-pr
+      matrix_type: pull-request
   docs-build:
     needs: [docs-build-matrix, conda-python-build, changed-files]
     secrets: inherit # zizmor: ignore[secrets-inherit]
@@ -355,7 +358,7 @@ jobs:
       build_type: pull-request
       node_type: "gpu-${{ matrix.GPU }}-${{ matrix.DRIVER }}-1"
       arch: "${{ matrix.arch }}"
-      container_image: "rapidsai/ci-conda:26.12-cuda${{ matrix.CUDA_VER }}-${{ matrix.LINUX_VER }}-py${{ matrix.PY_VER }}"
+      container_image: "rapidsai/ci-conda:27.02-cuda${{ matrix.CUDA_VER }}-${{ matrix.LINUX_VER }}-py${{ matrix.PY_VER }}"
       script: "ci/build_docs.sh"
     permissions:
       actions: read
@@ -376,7 +379,7 @@ jobs:
       script: ci/build_wheel_libcugraph.sh
       package-name: libcugraph
       package-type: cpp
-      matrix_type: cuda-13-4-pr
+      matrix_type: pull-request
     permissions:
       actions: read
       contents: read
@@ -396,7 +399,7 @@ jobs:
       package-type: python
       # Build a wheel for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
-      matrix_type: cuda-13-4-pr
+      matrix_type: pull-request
     permissions:
       actions: read
       contents: read
@@ -411,7 +414,7 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_wheel_pylibcugraph.sh
-      matrix_type: cuda-13-4-pr,pull-request
+      matrix_type: pull-request
     permissions:
       actions: read
       contents: read
@@ -431,7 +434,7 @@ jobs:
       package-type: python
       # Build a wheel for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
-      matrix_type: cuda-13-4-pr
+      matrix_type: pull-request
     permissions:
       actions: read
       contents: read
@@ -446,7 +449,7 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_wheel_cugraph.sh
-      matrix_type: cuda-13-4-pr,pull-request
+      matrix_type: pull-request
     permissions:
       actions: read
       contents: read

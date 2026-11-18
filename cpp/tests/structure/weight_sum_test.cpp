@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -108,7 +108,8 @@ class Tests_WeightSum
       hr_timer.start("Compute in-weight sums");
     }
 
-    auto d_in_weight_sums = cugraph::compute_in_weight_sums(handle, graph_view, *edge_weight_view);
+    auto d_in_weight_sums =
+      cugraph::compute_in_weight_sums(handle, graph_view, *edge_weight_view, false);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -122,7 +123,7 @@ class Tests_WeightSum
     }
 
     auto d_out_weight_sums =
-      cugraph::compute_out_weight_sums(handle, graph_view, *edge_weight_view);
+      cugraph::compute_out_weight_sums(handle, graph_view, *edge_weight_view, false);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -135,7 +136,7 @@ class Tests_WeightSum
         handle,
         graph_view,
         edge_weight_view,
-        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+        std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
 
       std::vector<weight_t> h_reference_in_weight_sums(graph_view.number_of_vertices());
       std::vector<weight_t> h_reference_out_weight_sums(graph_view.number_of_vertices());
@@ -154,8 +155,8 @@ class Tests_WeightSum
                            graph_view.number_of_vertices(),
                            true);
 
-      auto h_cugraph_in_weight_sums  = cugraph::test::to_host(handle, d_in_weight_sums);
-      auto h_cugraph_out_weight_sums = cugraph::test::to_host(handle, d_out_weight_sums);
+      auto h_cugraph_in_weight_sums  = cugraph::test::to_host(handle, d_in_weight_sums.view());
+      auto h_cugraph_out_weight_sums = cugraph::test::to_host(handle, d_out_weight_sums.view());
 
       auto threshold_ratio     = weight_t{2.0 * 1e-4};
       auto threshold_magnitude = std::numeric_limits<weight_t>::min();

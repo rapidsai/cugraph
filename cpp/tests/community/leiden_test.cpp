@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.  All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "utilities/base_fixture.hpp"
@@ -83,7 +83,6 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
 
     leiden(graph_view,
            edge_weight_view,
-           graph_view.local_vertex_partition_range_size(),
            leiden_usecase.max_level_,
            leiden_usecase.resolution_,
            leiden_usecase.check_correctness_,
@@ -101,7 +100,6 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
   void leiden(
     cugraph::graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
     std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-    vertex_t num_vertices,
     size_t max_level,
     float resolution,
     bool check_correctness,
@@ -110,14 +108,12 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
   {
     raft::handle_t handle{};
 
-    rmm::device_uvector<vertex_t> clustering_v(num_vertices, handle.get_stream());
-    size_t level;
-    weight_t modularity;
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     raft::random::RngState rng_state(seed);
 
-    std::tie(level, modularity) = cugraph::leiden(
-      handle, rng_state, graph_view, edge_weight_view, clustering_v.data(), max_level, resolution);
+    auto [clustering_prop, level, modularity] =
+      cugraph::leiden(handle, rng_state, graph_view, edge_weight_view, true, max_level, resolution);
+    auto clustering_v = clustering_prop.release_buffer();
 
     float compare_modularity = static_cast<float>(modularity);
 
