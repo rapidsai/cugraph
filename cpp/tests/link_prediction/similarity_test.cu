@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "link_prediction/similarity_compare.hpp"
@@ -13,6 +13,7 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
 #include <cugraph/utilities/thrust_wrappers/sequence.hpp>
 
 #include <gtest/gtest.h>
@@ -85,9 +86,9 @@ class Tests_Similarity
     if (similarity_usecase.max_seeds) {
       sources = cugraph::select_random_vertices(
         handle,
+        rng_state,
         graph_view,
         std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-        rng_state,
         std::min(*similarity_usecase.max_seeds,
                  static_cast<size_t>(graph_view.number_of_vertices())),
         false,
@@ -118,18 +119,16 @@ class Tests_Similarity
 
       std::tie(offsets, v2) = k_hop_nbrs(handle, graph_view, *sources_span, 2, true);
 
-      v1 = cugraph::detail::expand_sparse_offsets(
+      auto v1_seed_indices = cugraph::detail::expand_sparse_offsets(
         raft::device_span<size_t const>{offsets.data(), offsets.size()},
         vertex_t{0},
         handle.get_stream());
-
-      cugraph::unrenumber_local_int_vertices(handle,
-                                             v1.data(),
-                                             v1.size(),
-                                             sources.data(),
-                                             vertex_t{0},
-                                             static_cast<vertex_t>(sources.size()),
-                                             true);
+      v1.resize(v1_seed_indices.size(), handle.get_stream());
+      cugraph::gather(handle.get_thrust_policy(),
+                      v1_seed_indices.begin(),
+                      v1_seed_indices.end(),
+                      sources_span->begin(),
+                      v1.begin());
 
       std::tie(v1, v2) = cugraph::test::remove_self_loops(handle, std::move(v1), std::move(v2));
 
@@ -157,7 +156,7 @@ class Tests_Similarity
         handle,
         graph_view,
         edge_weight_view,
-        std::optional<raft::device_span<vertex_t const>>(std::nullopt));
+        std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt});
 
       size_t check_size = similarity_usecase.max_vertex_pairs_to_check
                             ? std::min(v1.size(), *similarity_usecase.max_vertex_pairs_to_check)

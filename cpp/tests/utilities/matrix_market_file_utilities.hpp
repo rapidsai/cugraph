@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -7,6 +7,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/legacy/graph.hpp>
+#include <cugraph/vertex_property.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -95,7 +96,7 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
            std::optional<cugraph::edge_property_t<edge_t, weight_t>>,
-           std::optional<rmm::device_uvector<vertex_t>>>
+           std::optional<cugraph::vertex_property_t<vertex_t, vertex_t>>>
 read_graph_from_matrix_market_file(
   raft::handle_t const& handle,
   std::string const& graph_file_full_path,

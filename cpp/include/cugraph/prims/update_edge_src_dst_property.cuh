@@ -21,6 +21,7 @@
 #include <cugraph/utilities/thrust_wrappers/gather.hpp>
 #include <cugraph/utilities/thrust_wrappers/scatter.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
+#include <cugraph/vertex_property.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -103,17 +104,36 @@ void pack_unaligned_bools(raft::handle_t const& handle,
              output_first + (num_first_word_bools > 0 ? 1 : 0));
 }
 
+template <bool input_is_packed, typename InputIterator, typename PackedBoolOutputIterator>
+void copy_or_pack_bools(raft::handle_t const& handle,
+                        InputIterator input_first,
+                        size_t num_bools,
+                        PackedBoolOutputIterator output_first)
+{
+  if constexpr (input_is_packed) {
+    auto packed_size = packed_bool_size(num_bools);
+    thrust::copy(handle.get_thrust_policy(), input_first, input_first + packed_size, output_first);
+  } else {
+    pack_bools(handle, input_first, input_first + num_bools, output_first);
+  }
+}
+
 template <typename GraphViewType,
-          typename VertexPropertyInputIterator,
+          typename VertexValueInputWrapper,
           typename EdgeMajorPropertyOutputWrapper>
 void update_edge_major_property(raft::handle_t const& handle,
                                 GraphViewType const& graph_view,
-                                VertexPropertyInputIterator vertex_property_input_first,
+                                VertexValueInputWrapper vertex_value_input,
                                 EdgeMajorPropertyOutputWrapper edge_major_property_output)
 {
+  auto vertex_property_input_first = vertex_value_input.value_first();
+
   constexpr bool contains_packed_bool_element =
     cugraph::has_packed_bool_element<typename EdgeMajorPropertyOutputWrapper::value_iterator,
                                      typename EdgeMajorPropertyOutputWrapper::value_type>();
+  constexpr bool input_is_packed_bool =
+    cugraph::is_packed_bool<typename VertexValueInputWrapper::value_iterator,
+                            typename VertexValueInputWrapper::value_type>();
   static_assert(!contains_packed_bool_element ||
                   std::is_arithmetic_v<typename EdgeMajorPropertyOutputWrapper::value_type>,
                 "unimplemented for cuda::std::tuple types with a packed bool element.");
@@ -154,11 +174,12 @@ void update_edge_major_property(raft::handle_t const& handle,
             major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
         if constexpr (contains_packed_bool_element) {
           if (i == minor_comm_rank) {
-            pack_bools(handle,
-                       vertex_property_input_first,
-                       vertex_property_input_first +
-                         graph_view.vertex_partition_range_size(major_range_vertex_partition_id),
-                       rx_value_first);
+            copy_or_pack_bools<input_is_packed_bool>(
+              handle,
+              vertex_property_input_first,
+              static_cast<size_t>(
+                graph_view.vertex_partition_range_size(major_range_vertex_partition_id)),
+              rx_value_first);
           }
           device_bcast(minor_comm,
                        rx_value_first,
@@ -207,11 +228,12 @@ void update_edge_major_property(raft::handle_t const& handle,
             major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
         if constexpr (contains_packed_bool_element) {
           if (i == minor_comm_rank) {
-            pack_bools(handle,
-                       vertex_property_input_first,
-                       vertex_property_input_first +
-                         graph_view.vertex_partition_range_size(major_range_vertex_partition_id),
-                       edge_partition_value_firsts[i]);
+            copy_or_pack_bools<input_is_packed_bool>(
+              handle,
+              vertex_property_input_first,
+              static_cast<size_t>(
+                graph_view.vertex_partition_range_size(major_range_vertex_partition_id)),
+              edge_partition_value_firsts[i]);
           }
           device_bcast(minor_comm,
                        edge_partition_value_firsts[i],
@@ -236,10 +258,11 @@ void update_edge_major_property(raft::handle_t const& handle,
              : graph_view.local_edge_partition_src_range_size());
     assert(edge_partition_value_firsts.size() == size_t{1});
     if constexpr (contains_packed_bool_element) {
-      pack_bools(handle,
-                 vertex_property_input_first,
-                 vertex_property_input_first + graph_view.local_vertex_partition_range_size(),
-                 edge_partition_value_firsts[0]);
+      copy_or_pack_bools<input_is_packed_bool>(
+        handle,
+        vertex_property_input_first,
+        static_cast<size_t>(graph_view.local_vertex_partition_range_size()),
+        edge_partition_value_firsts[0]);
     } else {
       thrust::copy(handle.get_thrust_policy(),
                    vertex_property_input_first,
@@ -424,16 +447,21 @@ void update_edge_major_property(
 }
 
 template <typename GraphViewType,
-          typename VertexPropertyInputIterator,
+          typename VertexValueInputWrapper,
           typename EdgeMinorPropertyOutputWrapper>
 void update_edge_minor_property(raft::handle_t const& handle,
                                 GraphViewType const& graph_view,
-                                VertexPropertyInputIterator vertex_property_input_first,
+                                VertexValueInputWrapper vertex_value_input,
                                 EdgeMinorPropertyOutputWrapper edge_minor_property_output)
 {
+  auto vertex_property_input_first = vertex_value_input.value_first();
+
   constexpr bool contains_packed_bool_element =
     cugraph::has_packed_bool_element<typename EdgeMinorPropertyOutputWrapper::value_iterator,
                                      typename EdgeMinorPropertyOutputWrapper::value_type>();
+  constexpr bool input_is_packed_bool =
+    cugraph::is_packed_bool<typename VertexValueInputWrapper::value_iterator,
+                            typename VertexValueInputWrapper::value_type>();
   static_assert(!contains_packed_bool_element ||
                   std::is_arithmetic_v<typename EdgeMinorPropertyOutputWrapper::value_type>,
                 "unimplemented for cuda::std::tuple types with a packed bool element.");
@@ -538,11 +566,12 @@ void update_edge_minor_property(raft::handle_t const& handle,
               compute_local_edge_partition_minor_range_vertex_partition_id_t{
                 major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(j);
             auto rx_value_first = get_dataframe_buffer_begin((*rx_value_buffers)[i]);
-            pack_bools(handle,
-                       vertex_property_input_first,
-                       vertex_property_input_first +
-                         graph_view.vertex_partition_range_size(minor_range_vertex_partition_id),
-                       rx_value_first);
+            copy_or_pack_bools<input_is_packed_bool>(
+              handle,
+              vertex_property_input_first,
+              static_cast<size_t>(
+                graph_view.vertex_partition_range_size(minor_range_vertex_partition_id)),
+              rx_value_first);
           }
         }
       }
@@ -648,10 +677,11 @@ void update_edge_minor_property(raft::handle_t const& handle,
              ? graph_view.local_edge_partition_src_range_size()
              : graph_view.local_edge_partition_dst_range_size());
     if constexpr (contains_packed_bool_element) {
-      pack_bools(handle,
-                 vertex_property_input_first,
-                 vertex_property_input_first + graph_view.local_vertex_partition_range_size(),
-                 edge_partition_value_first);
+      copy_or_pack_bools<input_is_packed_bool>(
+        handle,
+        vertex_property_input_first,
+        static_cast<size_t>(graph_view.local_vertex_partition_range_size()),
+        edge_partition_value_first);
     } else {
       thrust::copy(handle.get_thrust_policy(),
                    vertex_property_input_first,
@@ -898,25 +928,23 @@ void update_edge_minor_property(
  * (assigned to this process in multi-GPU).
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam VertexPropertyInputIterator Type of the iterator for vertex property values.
+ * @tparam VertexValueInputWrapper Type of the wrapper for input vertex property values.
  * @tparam EdgeSrcValueOutputWrapper Type of the wrapper for output edge source property values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param vertex_property_input_first Iterator pointing to the vertex property value for the first
- * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
- * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
- * graph_view.local_vertex_partition_range_size().
+ * @param vertex_value_input Wrapper used to access input vertex property values (for the vertices
+ * assigned to this process in multi-GPU). Use `vertex_property_t::view()`.
  * @param edge_partition_src_property_output edge_src_property_view_t class object to store source
  * property values (for the edge sources assigned to this process in multi-GPU).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType,
-          typename VertexPropertyInputIterator,
+          typename VertexValueInputWrapper,
           typename EdgeSrcValueOutputWrapper>
 void update_edge_src_property(raft::handle_t const& handle,
                               GraphViewType const& graph_view,
-                              VertexPropertyInputIterator vertex_property_input_first,
+                              VertexValueInputWrapper vertex_value_input,
                               EdgeSrcValueOutputWrapper edge_src_property_output,
                               bool do_expensive_check = false)
 {
@@ -926,10 +954,10 @@ void update_edge_src_property(raft::handle_t const& handle,
 
   if constexpr (GraphViewType::is_storage_transposed) {
     detail::update_edge_minor_property(
-      handle, graph_view, vertex_property_input_first, edge_src_property_output);
+      handle, graph_view, vertex_value_input, edge_src_property_output);
   } else {
     detail::update_edge_major_property(
-      handle, graph_view, vertex_property_input_first, edge_src_property_output);
+      handle, graph_view, vertex_value_input, edge_src_property_output);
   }
 }
 
@@ -1025,26 +1053,24 @@ void update_edge_src_property(raft::handle_t const& handle,
  * ranges (assigned to this process in multi-GPU).
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam VertexPropertyInputIterator Type of the iterator for vertex property values.
+ * @tparam VertexValueInputWrapper Type of the wrapper for input vertex property values.
  * @tparam EdgeDstValueOutputWrapper Type of the wrapper for output edge destination property
  * values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param vertex_property_input_first Iterator pointing to the vertex property value for the first
- * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
- * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
- * graph_view.local_vertex_partition_range_size().
+ * @param vertex_value_input Wrapper used to access input vertex property values (for the vertices
+ * assigned to this process in multi-GPU). Use `vertex_property_t::view()`.
  * @param edge_partition_dst_property_output edge_dst_property_view_t class object to store
  * destination property values (for the edge destinations assigned to this process in multi-GPU).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType,
-          typename VertexPropertyInputIterator,
+          typename VertexValueInputWrapper,
           typename EdgeDstValueOutputWrapper>
 void update_edge_dst_property(raft::handle_t const& handle,
                               GraphViewType const& graph_view,
-                              VertexPropertyInputIterator vertex_property_input_first,
+                              VertexValueInputWrapper vertex_value_input,
                               EdgeDstValueOutputWrapper edge_dst_property_output,
                               bool do_expensive_check = false)
 {
@@ -1054,10 +1080,10 @@ void update_edge_dst_property(raft::handle_t const& handle,
 
   if constexpr (GraphViewType::is_storage_transposed) {
     detail::update_edge_major_property(
-      handle, graph_view, vertex_property_input_first, edge_dst_property_output);
+      handle, graph_view, vertex_value_input, edge_dst_property_output);
   } else {
     detail::update_edge_minor_property(
-      handle, graph_view, vertex_property_input_first, edge_dst_property_output);
+      handle, graph_view, vertex_value_input, edge_dst_property_output);
   }
 }
 

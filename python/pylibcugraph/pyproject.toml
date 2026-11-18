@@ -39,6 +39,7 @@ classifiers = [
 
 [project.optional-dependencies]
 test = [
+    "cuda-core[cu13]>=1.0.0,<2.0.0",
     "cudf==27.2.*,>=0.0.0a0",
     "numpy>=2.0,<3.0",
     "pandas",
@@ -72,7 +73,7 @@ regex = "(?P<value>.*)"
 build-backend = "scikit_build_core.build"
 dependencies-file = "../../dependencies.yaml"
 requires = [
-    "cmake>=4.0",
+    "cmake>=4.3,<4.5",
     "cython>=3.2.2",
     "libcugraph==27.2.*,>=0.0.0a0",
     "libraft==27.2.*,>=0.0.0a0",
@@ -88,5 +89,5 @@ select = [
     "distro-too-large-compressed",
 ]
 
-# PyPI hard limit is 1GiB, but try to keep this as small as possible
-max_allowed_size_compressed = '15Mi'
+# PyPI hard limit is 1GiB, but try to keep this as small as possible.
+max_allowed_size_compressed = '2.5Mi'
