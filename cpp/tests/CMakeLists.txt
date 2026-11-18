@@ -465,7 +465,8 @@ ConfigureTest(EIGENVECTOR_CENTRALITY_TEST centrality/eigenvector_centrality_test
 
 ###################################################################################################
 # - BETWEENNESS_CENTRALITY tests ------------------------------------------------------------------
-ConfigureTest(BETWEENNESS_CENTRALITY_TEST centrality/betweenness_centrality_test.cpp)
+ConfigureTest(BETWEENNESS_CENTRALITY_TEST centrality/betweenness_centrality_test.cpp
+    GPUS 1 PERCENT 100)
 ConfigureTest(EDGE_BETWEENNESS_CENTRALITY_TEST centrality/edge_betweenness_centrality_test.cpp)
 
 ###################################################################################################
