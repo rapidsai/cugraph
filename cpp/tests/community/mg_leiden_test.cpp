@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -64,7 +64,7 @@ class Tests_MGLeiden
     raft::random::RngState& rng_state,
     cugraph::graph_view_t<vertex_t, edge_t, false, true> const& mg_graph_view,
     std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> mg_edge_weight_view,
-    cugraph::Dendrogram<vertex_t> const& mg_dendrogram,
+    cugraph::dendrogram_t<vertex_t> const& mg_dendrogram,
     weight_t resolution,
     weight_t theta,
     weight_t mg_modularity)
@@ -83,7 +83,7 @@ class Tests_MGLeiden
         mg_edge_weight_view,
         std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
         std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+        std::optional<cugraph::vertex_property_view_t<vertex_t, vertex_t const*>>{std::nullopt},
         false);  // crate an SG graph with MG graph vertex IDs
 
     // FIXME: We need to figure out how to test each iteration of
@@ -96,7 +96,7 @@ class Tests_MGLeiden
       sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
 
     if (comm_rank == 0) {
-      std::tie(std::ignore, sg_modularity) = cugraph::leiden(
+      std::tie(std::ignore, sg_modularity) = cugraph::leiden_dendrogram(
         handle, rng_state, sg_graph_view, sg_edge_weight_view, 100, resolution, theta);
     }
     if (comm_rank == 0) {
@@ -147,13 +147,13 @@ class Tests_MGLeiden
     raft::random::RngState rng_state(seed);
 
     auto [dendrogram, mg_modularity] =
-      cugraph::leiden<vertex_t, edge_t, weight_t, true>(*handle_,
-                                                        rng_state,
-                                                        mg_graph_view,
-                                                        mg_edge_weight_view,
-                                                        leiden_usecase.max_level_,
-                                                        leiden_usecase.resolution_,
-                                                        leiden_usecase.theta_);
+      cugraph::leiden_dendrogram<vertex_t, edge_t, weight_t, true>(*handle_,
+                                                                   rng_state,
+                                                                   mg_graph_view,
+                                                                   mg_edge_weight_view,
+                                                                   leiden_usecase.max_level_,
+                                                                   leiden_usecase.resolution_,
+                                                                   leiden_usecase.theta_);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -170,22 +170,24 @@ class Tests_MGLeiden
                                                      rng_state,
                                                      mg_graph_view,
                                                      mg_edge_weight_view,
-                                                     *dendrogram,
+                                                     dendrogram,
                                                      leiden_usecase.resolution_,
                                                      leiden_usecase.theta_,
                                                      mg_modularity);
     }
 
     // Check numbering
-    vertex_t num_vertices = mg_graph_view.local_vertex_partition_range_size();
-    rmm::device_uvector<vertex_t> clustering_v(num_vertices, handle_->get_stream());
-    cugraph::leiden<vertex_t, edge_t, weight_t, true>(*handle_,
-                                                      rng_state,
-                                                      mg_graph_view,
-                                                      mg_edge_weight_view,
-                                                      clustering_v.data(),
-                                                      leiden_usecase.max_level_,
-                                                      leiden_usecase.resolution_);
+    auto [clustering_prop, num_levels, leiden_modularity] =
+      cugraph::leiden<vertex_t, edge_t, weight_t, true>(*handle_,
+                                                        rng_state,
+                                                        mg_graph_view,
+                                                        mg_edge_weight_view,
+                                                        true,
+                                                        leiden_usecase.max_level_,
+                                                        leiden_usecase.resolution_);
+    (void)num_levels;
+    (void)leiden_modularity;
+    auto clustering_v = clustering_prop.release_buffer();
 
     auto unique_clustering_v = cugraph::test::sort<vertex_t>(*handle_, clustering_v);
 

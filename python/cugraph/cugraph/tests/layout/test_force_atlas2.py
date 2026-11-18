@@ -8,7 +8,6 @@ import random
 import cudf
 import cugraph
 from cugraph.structure import number_map
-from cugraph.internals import GraphBasedDimRedCallback
 import scipy.io
 from cugraph.datasets import (
     karate,
@@ -180,30 +179,13 @@ BARNES_HUT_OPTIMIZE = [False, True]
 MOBILITY_FIXED_CNT = [5, 12]
 
 
-class ExampleCallback(GraphBasedDimRedCallback):
-    def __init__(self):
-        super().__init__()
-        self.on_preprocess_end_called_count = 0
-        self.on_epoch_end_called_count = 0
-        self.on_train_end_called_count = 0
-
-    def on_preprocess_end(self, positions):
-        self.on_preprocess_end_called_count += 1
-
-    def on_epoch_end(self, positions):
-        self.on_epoch_end_called_count += 1
-
-    def on_train_end(self, positions):
-        self.on_train_end_called_count += 1
-
-
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file, score", DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("barnes_hut_optimize", BARNES_HUT_OPTIMIZE)
 def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
     cu_M = graph_file.get_edgelist(download=True)
-    test_callback = ExampleCallback()
+    test_callback = object()
     with pytest.raises(RuntimeError, match="callback argument was removed"):
         cugraph_call(
             cu_M,

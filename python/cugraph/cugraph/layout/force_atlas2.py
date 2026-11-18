@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import warnings
@@ -157,7 +157,7 @@ def force_atlas2(
     verbose: bool, optional (default=False)
         Output convergence info at each interation.
 
-    callback: GraphBasedDimRedCallback, optional (default=None)
+    callback: optional (default=None)
         .. versionremoved:: 25.10
             Support for the callback argument was removed in version 25.10.
             The last version of cugraph that supports it is 25.08.

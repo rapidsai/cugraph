@@ -11,6 +11,7 @@
 
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/thrust_wrappers/gather.hpp>
 
 #include <raft/core/span.hpp>
 #include <raft/util/cudart_utils.hpp>
@@ -732,31 +733,25 @@ extern "C" int validate_sample_result(const cugraph_resource_handle_t* handle,
         if (h_result_label_type_hop_offsets[i] < result_size) {
           int32_t label_id = h_result_labels[h_result_label_type_hop_offsets[i]];
 
-          cugraph::unrenumber_local_int_vertices(
-            raft_handle,
-            renumbered_srcs.data() + h_result_label_type_hop_offsets[i],
-            h_result_label_type_hop_offsets[i + 1] - h_result_label_type_hop_offsets[i],
+          cugraph::gather(
+            raft_handle.get_thrust_policy(),
+            result_srcs_span.data() + h_result_label_type_hop_offsets[i],
+            result_srcs_span.data() + h_result_label_type_hop_offsets[i + 1],
             reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
               result_renumber_map)
                 ->as_type<vertex_t const>() +
               h_result_renumber_map_offsets[label_id],
-            vertex_t{0},
-            static_cast<vertex_t>(h_result_renumber_map_offsets[label_id + 1] -
-                                  h_result_renumber_map_offsets[label_id]),
-            false);
+            renumbered_srcs.data() + h_result_label_type_hop_offsets[i]);
 
-          cugraph::unrenumber_local_int_vertices(
-            raft_handle,
-            renumbered_dsts.data() + h_result_label_type_hop_offsets[i],
-            h_result_label_type_hop_offsets[i + 1] - h_result_label_type_hop_offsets[i],
+          cugraph::gather(
+            raft_handle.get_thrust_policy(),
+            result_dsts_span.data() + h_result_label_type_hop_offsets[i],
+            result_dsts_span.data() + h_result_label_type_hop_offsets[i + 1],
             reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
               result_renumber_map)
                 ->as_type<vertex_t const>() +
               h_result_renumber_map_offsets[label_id],
-            vertex_t{0},
-            static_cast<vertex_t>(h_result_renumber_map_offsets[label_id + 1] -
-                                  h_result_renumber_map_offsets[label_id]),
-            false);
+            renumbered_dsts.data() + h_result_label_type_hop_offsets[i]);
         }
       }
     } else if (result_label_hop_offsets_span) {
@@ -770,31 +765,25 @@ extern "C" int validate_sample_result(const cugraph_resource_handle_t* handle,
         if (h_result_label_hop_offsets[i] < result_size) {
           int32_t label_id = h_result_labels[h_result_label_hop_offsets[i]];
 
-          cugraph::unrenumber_local_int_vertices(
-            raft_handle,
-            renumbered_srcs.data() + h_result_label_hop_offsets[i],
-            h_result_label_hop_offsets[i + 1] - h_result_label_hop_offsets[i],
+          cugraph::gather(
+            raft_handle.get_thrust_policy(),
+            result_srcs_span.data() + h_result_label_hop_offsets[i],
+            result_srcs_span.data() + h_result_label_hop_offsets[i + 1],
             reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
               result_renumber_map)
                 ->as_type<vertex_t const>() +
               h_result_renumber_map_offsets[label_id],
-            vertex_t{0},
-            static_cast<vertex_t>(h_result_renumber_map_offsets[label_id + 1] -
-                                  h_result_renumber_map_offsets[label_id]),
-            false);
+            renumbered_srcs.data() + h_result_label_hop_offsets[i]);
 
-          cugraph::unrenumber_local_int_vertices(
-            raft_handle,
-            renumbered_dsts.data() + h_result_label_hop_offsets[i],
-            h_result_label_hop_offsets[i + 1] - h_result_label_hop_offsets[i],
+          cugraph::gather(
+            raft_handle.get_thrust_policy(),
+            result_dsts_span.data() + h_result_label_hop_offsets[i],
+            result_dsts_span.data() + h_result_label_hop_offsets[i + 1],
             reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
               result_renumber_map)
                 ->as_type<vertex_t const>() +
               h_result_renumber_map_offsets[label_id],
-            vertex_t{0},
-            static_cast<vertex_t>(h_result_renumber_map_offsets[label_id + 1] -
-                                  h_result_renumber_map_offsets[label_id]),
-            false);
+            renumbered_dsts.data() + h_result_label_hop_offsets[i]);
         }
       }
     }
