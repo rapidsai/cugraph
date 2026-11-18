@@ -102,7 +102,6 @@ requirements:
     - scikit-build-core>=0.11.0
   run:
     - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
-    - aiohttp
     - cudf =${{ minor_version }}
     - cupy >=14.0.1,!=14.1.0
     - dask-cuda =${{ minor_version }}
@@ -110,8 +109,6 @@ requirements:
     - fsspec>=0.6.0
     - libcugraph =${{ version }}
     - librmm =${{ minor_version }}
-    - numba >=0.60.0,<0.65.0
-    - numba-cuda >=0.22.2
     - pylibcudf =${{ minor_version }}
     - pylibcugraph =${{ version }}
     - pylibraft =${{ minor_version }}

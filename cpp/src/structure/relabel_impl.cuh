@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -8,13 +8,17 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/kv_store.cuh>
+#include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/utilities/thrust_wrappers/sort.hpp>
 #include <cugraph/utilities/thrust_wrappers/unique.hpp>
 
+#include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
+#include <raft/core/host_span.hpp>
+#include <raft/util/cudart_utils.hpp>
 
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/per_device_resource.hpp>
@@ -34,10 +38,36 @@
 #include <algorithm>
 #include <iterator>
 #include <numeric>
+#include <optional>
 #include <tuple>
 #include <utility>
 
 namespace cugraph {
+
+namespace detail {
+
+template <typename vertex_t, typename KVStoreViewType, typename KeyToGPUIdOp>
+rmm::device_uvector<vertex_t> collect_new_labels(raft::handle_t const& handle,
+                                                 KVStoreViewType relabel_map_view,
+                                                 raft::device_span<vertex_t const> old_labels,
+                                                 rmm::device_uvector<vertex_t> const& labels,
+                                                 KeyToGPUIdOp key_to_gpu_id_op,
+                                                 bool do_expensive_check)
+{
+  if (do_expensive_check) {
+    CUGRAPH_EXPECTS(
+      thrust::count_if(handle.get_thrust_policy(),
+                       old_labels.begin(),
+                       old_labels.end(),
+                       [key_to_gpu_id_op, comm_rank = handle.get_comms().get_rank()] __device__(
+                         auto key) { return key_to_gpu_id_op(key) != comm_rank; }) == 0,
+      "Invalid input argument: old_labels are not properly partitioned.");
+  }
+  return cugraph::collect_values_for_keys(
+    handle, relabel_map_view, labels.begin(), labels.end(), key_to_gpu_id_op);
+}
+
+}  // namespace detail
 
 // FIXME: think about requiring old_new_label_pairs to be pre-shuffled
 template <typename vertex_t, bool multi_gpu>
@@ -207,6 +237,88 @@ void relabel(raft::handle_t const& handle,
   }
 
   return;
+}
+
+template <typename vertex_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> relabel(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> old_labels,
+  raft::device_span<vertex_t const> new_labels,
+  rmm::device_uvector<vertex_t>&& labels,
+  std::optional<raft::host_span<vertex_t const>> vertex_partition_range_lasts,
+  bool skip_missing_labels,
+  bool do_expensive_check)
+{
+  CUGRAPH_EXPECTS(old_labels.size() == new_labels.size(),
+                  "Invalid input arguments: old_labels and new_labels should have the same size.");
+
+  kv_store_t<vertex_t, vertex_t, false> relabel_map(old_labels.begin(),
+                                                    old_labels.end(),
+                                                    new_labels.begin(),
+                                                    invalid_vertex_id<vertex_t>::value,
+                                                    invalid_vertex_id<vertex_t>::value,
+                                                    handle.get_stream());
+
+  rmm::device_uvector<vertex_t> relabeled(0, handle.get_stream());
+  if constexpr (multi_gpu) {
+    auto const comm_size = handle.get_comms().get_size();
+    auto const major_comm_size =
+      handle.get_subcomm(cugraph::partition_manager::major_comm_name()).get_size();
+    auto const minor_comm_size =
+      handle.get_subcomm(cugraph::partition_manager::minor_comm_name()).get_size();
+
+    if (vertex_partition_range_lasts) {
+      rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
+        vertex_partition_range_lasts->size(), handle.get_stream());
+      raft::update_device(d_vertex_partition_range_lasts.data(),
+                          vertex_partition_range_lasts->data(),
+                          vertex_partition_range_lasts->size(),
+                          handle.get_stream());
+      relabeled = detail::collect_new_labels(
+        handle,
+        relabel_map.view(),
+        old_labels,
+        labels,
+        detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
+          raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                            d_vertex_partition_range_lasts.size()),
+          major_comm_size,
+          minor_comm_size},
+        do_expensive_check);
+    } else {
+      relabeled = detail::collect_new_labels(handle,
+                                             relabel_map.view(),
+                                             old_labels,
+                                             labels,
+                                             detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+                                               comm_size, major_comm_size, minor_comm_size},
+                                             do_expensive_check);
+    }
+  } else {
+    relabeled.resize(labels.size(), handle.get_stream());
+    relabel_map.view().find(labels.begin(), labels.end(), relabeled.begin(), handle.get_stream());
+  }
+
+  if (skip_missing_labels) {
+    thrust::transform(handle.get_thrust_policy(),
+                      relabeled.begin(),
+                      relabeled.end(),
+                      labels.begin(),
+                      relabeled.begin(),
+                      [invalid_label = invalid_vertex_id<vertex_t>::value] __device__(
+                        auto new_label, auto old_label) {
+                        return new_label != invalid_label ? new_label : old_label;
+                      });
+  } else if (do_expensive_check) {
+    CUGRAPH_EXPECTS(
+      thrust::count(handle.get_thrust_policy(),
+                    relabeled.begin(),
+                    relabeled.end(),
+                    invalid_vertex_id<vertex_t>::value) == 0,
+      "Invalid input argument: labels include old label values missing in old_labels.");
+  }
+
+  return relabeled;
 }
 
 }  // namespace cugraph

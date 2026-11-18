@@ -9,6 +9,7 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
+#include <cugraph/vertex_property.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -17,6 +18,7 @@
 #include <cuda/stream>
 
 #include <tuple>
+#include <utility>
 #include <vector>
 
 namespace cugraph {
@@ -32,6 +34,9 @@ struct generate {
   using property_buffer_type =
     std::decay_t<decltype(allocate_dataframe_buffer<property_t>(size_t{0}, cuda::stream_ref{}))>;
 
+  using vertex_property_view_type =
+    decltype(std::declval<cugraph::vertex_property_t<vertex_type, property_t> const&>().view());
+
  public:
   static property_t initial_value(int32_t init);
 
@@ -39,20 +44,24 @@ struct generate {
                                               rmm::device_uvector<vertex_type> const& labels,
                                               int32_t hash_bin_count);
 
-  static property_buffer_type vertex_property(raft::handle_t const& handle,
-                                              vertex_type local_vertex_partition_range_first,
-                                              vertex_type local_vertex_partition_range_last,
-                                              int32_t hash_bin_count);
+  static cugraph::vertex_property_t<vertex_type, property_t> vertex_property(
+    raft::handle_t const& handle,
+    GraphViewType const& graph_view,
+    cugraph::vertex_property_view_t<vertex_type, vertex_type const*> labels,
+    int32_t hash_bin_count);
+
+  static cugraph::vertex_property_t<vertex_type, property_t> vertex_property(
+    raft::handle_t const& handle, GraphViewType const& graph_view, int32_t hash_bin_count);
 
   static cugraph::edge_src_property_t<vertex_type, property_t> src_property(
     raft::handle_t const& handle,
     GraphViewType const& graph_view,
-    property_buffer_type const& property);
+    vertex_property_view_type property);
 
   static cugraph::edge_dst_property_t<vertex_type, property_t> dst_property(
     raft::handle_t const& handle,
     GraphViewType const& graph_view,
-    property_buffer_type const& property);
+    vertex_property_view_type property);
 
   static cugraph::edge_property_t<edge_type, property_t> edge_property(
     raft::handle_t const& handle, GraphViewType const& graph_view, int32_t hash_bin_count);

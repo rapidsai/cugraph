@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -72,7 +72,7 @@ class Tests_SGMaximalIndependentSet
 
     raft::random::RngState rng_state(0);
     auto d_mis = cugraph::maximal_independent_set<vertex_t, edge_t, multi_gpu>(
-      handle, sg_graph_view, rng_state);
+      handle, rng_state, sg_graph_view);
 
     // Test MIS
     if (mis_usecase.check_correctness) {
@@ -116,17 +116,18 @@ class Tests_SGMaximalIndependentSet
       per_v_transform_reduce_outgoing_e(
         handle,
         sg_graph_view,
-        cugraph::make_edge_src_property_view<vertex_t, vertex_t>(
-          sg_graph_view, inclusiong_flags.data(), 1),
-        cugraph::make_edge_dst_property_view<vertex_t, vertex_t>(
-          sg_graph_view, inclusiong_flags.data(), 1),
+        cugraph::make_edge_src_property_view(
+          sg_graph_view, cugraph::vertex_property_view_t{inclusiong_flags.data(), vertex_t{1}}),
+        cugraph::make_edge_dst_property_view(
+          sg_graph_view, cugraph::vertex_property_view_t{inclusiong_flags.data(), vertex_t{1}}),
         cugraph::edge_dummy_property_t{}.view(),
         [] __device__(auto src, auto dst, auto src_included, auto dst_included, auto wt) {
           return (src == dst) ? 0 : dst_included;
         },
         vertex_t{0},
         cugraph::reduce_op::plus<vertex_t>{},
-        d_total_outgoing_nbrs_included_mis.begin());
+        cugraph::vertex_property_view_t{d_total_outgoing_nbrs_included_mis.begin(),
+                                        sg_graph_view.local_vertex_partition_range_size()});
 
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
 

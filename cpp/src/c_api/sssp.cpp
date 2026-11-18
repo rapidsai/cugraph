@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -75,13 +75,6 @@ struct sssp_functor : public abstract_functor {
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
       rmm::device_uvector<vertex_t> source_ids(1, handle_.get_stream());
-      rmm::device_uvector<weight_t> distances(graph_view.local_vertex_partition_range_size(),
-                                              handle_.get_stream());
-      rmm::device_uvector<vertex_t> predecessors(0, handle_.get_stream());
-
-      if (compute_predecessors_) {
-        predecessors.resize(graph_view.local_vertex_partition_range_size(), handle_.get_stream());
-      }
 
       vertex_t src = static_cast<vertex_t>(source_);
       raft::update_device(source_ids.data(), &src, 1, handle_.get_stream());
@@ -89,37 +82,50 @@ struct sssp_functor : public abstract_functor {
       //
       // Need to renumber sources
       //
-      renumber_ext_vertices<vertex_t, multi_gpu>(handle_,
-                                                 source_ids.data(),
-                                                 source_ids.size(),
-                                                 number_map->data(),
-                                                 graph_view.local_vertex_partition_range_first(),
-                                                 graph_view.local_vertex_partition_range_last(),
-                                                 do_expensive_check_);
+      source_ids = cugraph::renumber_ext_vertices(
+        handle_,
+        graph_view,
+        std::move(source_ids),
+        cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+          number_map->data(), static_cast<vertex_t>(number_map->size())),
+        do_expensive_check_);
 
       raft::update_host(&src, source_ids.data(), 1, handle_.get_stream());
 
-      cugraph::sssp<vertex_t, edge_t, weight_t, multi_gpu>(
-        handle_,
-        graph_view,
-        edge_weights->view(),
-        distances.data(),
-        compute_predecessors_ ? predecessors.data() : nullptr,
-        src,
-        static_cast<weight_t>(cutoff_),
-        do_expensive_check_);
+      rmm::device_uvector<vertex_t> frontier_vertices(
+        graph_view.in_local_vertex_partition_range_nocheck(src) ? size_t{1} : size_t{0},
+        handle_.get_stream());
+      if (frontier_vertices.size() > 0) {
+        raft::update_device(frontier_vertices.data(), &src, size_t{1}, handle_.get_stream());
+      }
+
+      auto [distance_property, predecessor_property] =
+        cugraph::shortest_path<vertex_t, edge_t, weight_t, multi_gpu>(
+          handle_,
+          graph_view,
+          edge_weights->view(),
+          raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size()),
+          static_cast<weight_t>(cutoff_),
+          compute_predecessors_,
+          do_expensive_check_);
 
       rmm::device_uvector<vertex_t> vertex_ids(graph_view.local_vertex_partition_range_size(),
                                                handle_.get_stream());
       raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
 
-      if (compute_predecessors_) {
-        unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
-                                                     predecessors.data(),
-                                                     predecessors.size(),
-                                                     number_map->data(),
-                                                     graph_view.vertex_partition_range_lasts(),
-                                                     do_expensive_check_);
+      auto distances    = distance_property.release_buffer();
+      auto predecessors = predecessor_property
+                            ? predecessor_property->release_buffer()
+                            : rmm::device_uvector<vertex_t>(0, handle_.get_stream());
+
+      if (predecessor_property) {
+        predecessors = cugraph::unrenumber_int_vertices(
+          handle_,
+          graph_view,
+          std::move(predecessors),
+          cugraph::vertex_property_view_t<vertex_t, vertex_t const*>(
+            number_map->data(), static_cast<vertex_t>(number_map->size())),
+          do_expensive_check_);
       }
 
       result_ = new cugraph_paths_result_t{
