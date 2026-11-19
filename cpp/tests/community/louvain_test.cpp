@@ -109,7 +109,6 @@ class Tests_Louvain
     float expected_modularity)
   {
     raft::handle_t handle{};
-    (void)num_vertices;
 
     cugraph::dendrogram_t<vertex_t> dendrogram;
     weight_t modularity;

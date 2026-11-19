@@ -107,7 +107,6 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
     float expected_modularity)
   {
     raft::handle_t handle{};
-    (void)num_vertices;
 
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     raft::random::RngState rng_state(seed);
