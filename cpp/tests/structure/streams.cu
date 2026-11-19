@@ -13,6 +13,7 @@
 #include <rmm/mr/cuda_memory_resource.hpp>
 
 #include <cuda/stream>
+#include <thrust/functional.h>
 #include <thrust/transform.h>
 
 struct StreamTest : public ::testing::Test {};
