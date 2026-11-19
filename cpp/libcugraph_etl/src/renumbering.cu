@@ -16,6 +16,7 @@
 #include <rmm/mr/pinned_host_memory_resource.hpp>
 
 #include <cub/device/device_radix_sort.cuh>
+#include <cub/device/device_scan.cuh>
 #include <cuda/std/utility>
 #include <thrust/sort.h>
 
