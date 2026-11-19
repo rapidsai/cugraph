@@ -5,7 +5,7 @@
 # cmake-format: on
 # =============================================================================
 
-cmake_minimum_required(VERSION 4.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 4.3 FATAL_ERROR)
 
 include(../../cmake/rapids_config.cmake)
 
@@ -30,7 +30,6 @@ include(rapids-cython-core)
 rapids_cython_init()
 
 add_subdirectory(cugraph/dask/structure)
-add_subdirectory(cugraph/internals)
 add_subdirectory(cugraph/linear_assignment)
 add_subdirectory(cugraph/structure)
 add_subdirectory(cugraph/tree)

@@ -83,7 +83,6 @@ class Tests_Louvain
 
     louvain(graph_view,
             edge_weight_view,
-            graph_view.local_vertex_partition_range_size(),
             louvain_usecase.max_level_,
             louvain_usecase.threshold_,
             louvain_usecase.resolution_,
@@ -102,7 +101,6 @@ class Tests_Louvain
   void louvain(
     cugraph::graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
     std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-    vertex_t num_vertices,
     std::optional<size_t> max_level,
     std::optional<double> threshold,
     std::optional<double> resolution,
