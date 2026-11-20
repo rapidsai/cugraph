@@ -533,37 +533,38 @@ compute_edge_indices_and_edge_partition_offsets(
 
 }  // namespace
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
-  graph_view_t(std::vector<raft::device_span<edge_t const>> const& edge_partition_offsets,
-               std::vector<raft::device_span<vertex_t const>> const& edge_partition_indices,
-               std::optional<std::vector<raft::device_span<vertex_t const>>> const&
-                 edge_partition_dcs_nzd_vertices,
-               std::optional<std::vector<raft::device_span<uint32_t const>>> const&
-                 edge_partition_dcs_nzd_range_bitmaps,
-               graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu> meta)
+template <typename vertex_t, typename edge_t, bool store_transposed, bool dynamic>
+graph_view_t<vertex_t, edge_t, store_transposed, true, dynamic>::graph_view_t(
+  std::vector<raft::device_span<edge_t const>> const& edge_partition_offsets,
+  std::vector<raft::device_span<vertex_t const>> const& edge_partition_indices,
+  std::optional<std::vector<raft::device_span<vertex_t const>>> const&
+    edge_partition_dcs_nzd_vertices,
+  std::optional<std::vector<raft::device_span<uint32_t const>>> const&
+    edge_partition_dcs_nzd_range_bitmaps,
+  graph_view_meta_t<vertex_t, edge_t, store_transposed, true> meta) requires(!dynamic)
   : detail::graph_base_t<vertex_t, edge_t>(
-      meta.number_of_vertices, meta.number_of_edges, meta.properties),
-    edge_partition_offsets_(edge_partition_offsets),
-    edge_partition_indices_(edge_partition_indices),
-    edge_partition_dcs_nzd_vertices_(edge_partition_dcs_nzd_vertices),
-    edge_partition_dcs_nzd_range_bitmaps_(edge_partition_dcs_nzd_range_bitmaps),
-    partition_(meta.partition),
-    edge_partition_segment_offsets_(meta.edge_partition_segment_offsets),
-    edge_partition_hypersparse_degree_offsets_(meta.edge_partition_hypersparse_degree_offsets),
-    local_sorted_unique_edge_srcs_(meta.local_sorted_unique_edge_srcs),
-    local_sorted_unique_edge_src_chunk_start_offsets_(
-      meta.local_sorted_unique_edge_src_chunk_start_offsets),
-    local_sorted_unique_edge_src_chunk_size_(meta.local_sorted_unique_edge_src_chunk_size),
-    local_sorted_unique_edge_src_vertex_partition_offsets_(
-      meta.local_sorted_unique_edge_src_vertex_partition_offsets),
-    local_sorted_unique_edge_dsts_(meta.local_sorted_unique_edge_dsts),
-    local_sorted_unique_edge_dst_chunk_start_offsets_(
-      meta.local_sorted_unique_edge_dst_chunk_start_offsets),
-    local_sorted_unique_edge_dst_chunk_size_(meta.local_sorted_unique_edge_dst_chunk_size),
-    local_sorted_unique_edge_dst_vertex_partition_offsets_(
-      meta.local_sorted_unique_edge_dst_vertex_partition_offsets)
+      meta.number_of_vertices, meta.number_of_edges, meta.properties)
 {
+  graph_.edge_partition_offsets                    = edge_partition_offsets;
+  graph_.edge_partition_indices                    = edge_partition_indices;
+  graph_.edge_partition_dcs_nzd_vertices           = edge_partition_dcs_nzd_vertices;
+  graph_.edge_partition_dcs_nzd_range_bitmaps      = edge_partition_dcs_nzd_range_bitmaps;
+  graph_.partition                                 = meta.partition;
+  graph_.edge_partition_segment_offsets            = meta.edge_partition_segment_offsets;
+  graph_.edge_partition_hypersparse_degree_offsets = meta.edge_partition_hypersparse_degree_offsets;
+  graph_.local_sorted_unique_edge_srcs             = meta.local_sorted_unique_edge_srcs;
+  graph_.local_sorted_unique_edge_src_chunk_start_offsets =
+    meta.local_sorted_unique_edge_src_chunk_start_offsets;
+  graph_.local_sorted_unique_edge_src_chunk_size = meta.local_sorted_unique_edge_src_chunk_size;
+  graph_.local_sorted_unique_edge_src_vertex_partition_offsets =
+    meta.local_sorted_unique_edge_src_vertex_partition_offsets;
+  graph_.local_sorted_unique_edge_dsts = meta.local_sorted_unique_edge_dsts;
+  graph_.local_sorted_unique_edge_dst_chunk_start_offsets =
+    meta.local_sorted_unique_edge_dst_chunk_start_offsets;
+  graph_.local_sorted_unique_edge_dst_chunk_size = meta.local_sorted_unique_edge_dst_chunk_size;
+  graph_.local_sorted_unique_edge_dst_vertex_partition_offsets =
+    meta.local_sorted_unique_edge_dst_vertex_partition_offsets;
+
   // cheap error checks
 
   auto use_dcs = edge_partition_dcs_nzd_vertices.has_value();
@@ -584,19 +585,20 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
   // skip expensive error checks as this function is only called by graph_t
 }
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
-  graph_view_t(raft::device_span<edge_t const> offsets,
-               raft::device_span<vertex_t const> indices,
-               graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu> meta)
+template <typename vertex_t, typename edge_t, bool store_transposed, bool dynamic>
+graph_view_t<vertex_t, edge_t, store_transposed, false, dynamic>::graph_view_t(
+  raft::device_span<edge_t const> offsets,
+  raft::device_span<vertex_t const> indices,
+  graph_view_meta_t<vertex_t, edge_t, store_transposed, false> meta) requires(!dynamic)
   : detail::graph_base_t<vertex_t, edge_t>(
-      meta.number_of_vertices, meta.number_of_edges, meta.properties),
-    vertex_partition_range_offsets_(std::vector<vertex_t>{vertex_t{0}, meta.number_of_vertices}),
-    offsets_(offsets),
-    indices_(indices),
-    segment_offsets_(meta.segment_offsets),
-    hypersparse_degree_offsets_(meta.hypersparse_degree_offsets)
+      meta.number_of_vertices, meta.number_of_edges, meta.properties)
 {
+  graph_.vertex_partition_range_offsets =
+    std::vector<vertex_t>{vertex_t{0}, meta.number_of_vertices};
+  graph_.offsets         = offsets;
+  graph_.indices         = indices;
+  graph_.segment_offsets = meta.segment_offsets;
+
   // cheap error checks
 
   CUGRAPH_EXPECTS(offsets.size() == static_cast<size_t>(meta.number_of_vertices + 1),
@@ -612,9 +614,9 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
   // skip expensive error checks as this function is only called by graph_t
 }
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
-  compute_number_of_edges(raft::handle_t const& handle) const
+template <typename vertex_t, typename edge_t, bool store_transposed, bool dynamic>
+edge_t graph_view_t<vertex_t, edge_t, store_transposed, true, dynamic>::compute_number_of_edges(
+  raft::handle_t const& handle) const
 {
   if (this->has_edge_mask()) {
     edge_t ret{};
@@ -637,9 +639,9 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
   }
 }
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
-  compute_number_of_edges(raft::handle_t const& handle) const
+template <typename vertex_t, typename edge_t, bool store_transposed, bool dynamic>
+edge_t graph_view_t<vertex_t, edge_t, store_transposed, false, dynamic>::compute_number_of_edges(
+  raft::handle_t const& handle) const
 {
   if (this->has_edge_mask()) {
     auto value_firsts = (*(this->edge_mask_view())).value_firsts();
@@ -653,17 +655,17 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
   }
 }
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool store_transposed, bool dynamic>
 rmm::device_uvector<edge_t>
-graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
-  compute_in_degrees(raft::handle_t const& handle) const
+graph_view_t<vertex_t, edge_t, store_transposed, true, dynamic>::compute_in_degrees(
+  raft::handle_t const& handle) const
 {
   if (store_transposed) {
     std::optional<std::vector<raft::device_span<uint32_t const>>> edge_partition_masks{
       std::nullopt};
     if (this->has_edge_mask()) {
       edge_partition_masks =
-        std::vector<raft::device_span<uint32_t const>>(this->edge_partition_offsets_.size());
+        std::vector<raft::device_span<uint32_t const>>(this->graph_.edge_partition_offsets.size());
       auto value_firsts = (*(this->edge_mask_view())).value_firsts();
       auto edge_counts  = (*(this->edge_mask_view())).edge_counts();
       for (size_t i = 0; i < (*edge_partition_masks).size(); ++i) {
@@ -672,24 +674,24 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
       }
     }
     return compute_major_degrees(handle,
-                                 this->edge_partition_offsets_,
-                                 this->edge_partition_dcs_nzd_vertices_,
+                                 this->graph_.edge_partition_offsets,
+                                 this->graph_.edge_partition_dcs_nzd_vertices,
                                  edge_partition_masks,
-                                 this->partition_,
-                                 this->edge_partition_segment_offsets_);
+                                 this->graph_.partition,
+                                 this->graph_.edge_partition_segment_offsets);
   } else {
     return compute_minor_degrees(handle, *this);
   }
 }
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool store_transposed, bool dynamic>
 rmm::device_uvector<edge_t>
-graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
-  compute_in_degrees(raft::handle_t const& handle) const
+graph_view_t<vertex_t, edge_t, store_transposed, false, dynamic>::compute_in_degrees(
+  raft::handle_t const& handle) const
 {
   if (store_transposed) {
     return compute_major_degrees(handle,
-                                 this->offsets_,
+                                 this->graph_.offsets,
                                  this->has_edge_mask()
                                    ? std::make_optional(raft::device_span<uint32_t const>(
                                        (*(this->edge_mask_view())).value_firsts()[0],
@@ -701,10 +703,10 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
   }
 }
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool store_transposed, bool dynamic>
 rmm::device_uvector<edge_t>
-graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
-  compute_out_degrees(raft::handle_t const& handle) const
+graph_view_t<vertex_t, edge_t, store_transposed, true, dynamic>::compute_out_degrees(
+  raft::handle_t const& handle) const
 {
   if (store_transposed) {
     return compute_minor_degrees(handle, *this);
@@ -713,7 +715,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
       std::nullopt};
     if (this->has_edge_mask()) {
       edge_partition_masks =
-        std::vector<raft::device_span<uint32_t const>>(this->edge_partition_offsets_.size());
+        std::vector<raft::device_span<uint32_t const>>(this->graph_.edge_partition_offsets.size());
       auto value_firsts = (*(this->edge_mask_view())).value_firsts();
       auto edge_counts  = (*(this->edge_mask_view())).edge_counts();
       for (size_t i = 0; i < (*edge_partition_masks).size(); ++i) {
@@ -722,24 +724,24 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
       }
     }
     return compute_major_degrees(handle,
-                                 this->edge_partition_offsets_,
-                                 this->edge_partition_dcs_nzd_vertices_,
+                                 this->graph_.edge_partition_offsets,
+                                 this->graph_.edge_partition_dcs_nzd_vertices,
                                  edge_partition_masks,
-                                 this->partition_,
-                                 this->edge_partition_segment_offsets_);
+                                 this->graph_.partition,
+                                 this->graph_.edge_partition_segment_offsets);
   }
 }
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool store_transposed, bool dynamic>
 rmm::device_uvector<edge_t>
-graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
-  compute_out_degrees(raft::handle_t const& handle) const
+graph_view_t<vertex_t, edge_t, store_transposed, false, dynamic>::compute_out_degrees(
+  raft::handle_t const& handle) const
 {
   if (store_transposed) {
     return compute_minor_degrees(handle, *this);
   } else {
     return compute_major_degrees(handle,
-                                 this->offsets_,
+                                 this->graph_.offsets,
                                  this->has_edge_mask()
                                    ? std::make_optional(raft::device_span<uint32_t const>(
                                        (*(this->edge_mask_view())).value_firsts()[0],
@@ -749,9 +751,9 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
   }
 }
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
-  compute_max_in_degree(raft::handle_t const& handle) const
+template <typename vertex_t, typename edge_t, bool store_transposed, bool dynamic>
+edge_t graph_view_t<vertex_t, edge_t, store_transposed, true, dynamic>::compute_max_in_degree(
+  raft::handle_t const& handle) const
 {
   auto in_degrees = compute_in_degrees(handle);
   auto it = thrust::max_element(handle.get_thrust_policy(), in_degrees.begin(), in_degrees.end());
@@ -766,9 +768,9 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
   return ret.value(handle.get_stream());
 }
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
-  compute_max_in_degree(raft::handle_t const& handle) const
+template <typename vertex_t, typename edge_t, bool store_transposed, bool dynamic>
+edge_t graph_view_t<vertex_t, edge_t, store_transposed, false, dynamic>::compute_max_in_degree(
+  raft::handle_t const& handle) const
 {
   auto in_degrees = compute_in_degrees(handle);
   auto it = thrust::max_element(handle.get_thrust_policy(), in_degrees.begin(), in_degrees.end());
@@ -778,9 +780,9 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
   return ret;
 }
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
-  compute_max_out_degree(raft::handle_t const& handle) const
+template <typename vertex_t, typename edge_t, bool store_transposed, bool dynamic>
+edge_t graph_view_t<vertex_t, edge_t, store_transposed, true, dynamic>::compute_max_out_degree(
+  raft::handle_t const& handle) const
 {
   auto out_degrees = compute_out_degrees(handle);
   auto it = thrust::max_element(handle.get_thrust_policy(), out_degrees.begin(), out_degrees.end());
@@ -795,9 +797,9 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
   return ret.value(handle.get_stream());
 }
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
-  compute_max_out_degree(raft::handle_t const& handle) const
+template <typename vertex_t, typename edge_t, bool store_transposed, bool dynamic>
+edge_t graph_view_t<vertex_t, edge_t, store_transposed, false, dynamic>::compute_max_out_degree(
+  raft::handle_t const& handle) const
 {
   auto out_degrees = compute_out_degrees(handle);
   auto it = thrust::max_element(handle.get_thrust_policy(), out_degrees.begin(), out_degrees.end());
@@ -807,9 +809,9 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
   return ret;
 }
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
-  count_self_loops(raft::handle_t const& handle) const
+template <typename vertex_t, typename edge_t, bool store_transposed, bool dynamic>
+edge_t graph_view_t<vertex_t, edge_t, store_transposed, true, dynamic>::count_self_loops(
+  raft::handle_t const& handle) const
 {
   return count_if_e(
     handle,
@@ -820,9 +822,9 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
     [] __device__(vertex_t src, vertex_t dst, auto, auto, auto) { return src == dst; });
 }
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
-  count_self_loops(raft::handle_t const& handle) const
+template <typename vertex_t, typename edge_t, bool store_transposed, bool dynamic>
+edge_t graph_view_t<vertex_t, edge_t, store_transposed, false, dynamic>::count_self_loops(
+  raft::handle_t const& handle) const
 {
   return count_if_e(
     handle,
@@ -833,9 +835,9 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
     [] __device__(vertex_t src, vertex_t dst, auto, auto, auto) { return src == dst; });
 }
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
-  count_multi_edges(raft::handle_t const& handle) const
+template <typename vertex_t, typename edge_t, bool store_transposed, bool dynamic>
+edge_t graph_view_t<vertex_t, edge_t, store_transposed, true, dynamic>::count_multi_edges(
+  raft::handle_t const& handle) const
 {
   if (!this->is_multigraph()) { return edge_t{0}; }
 
@@ -843,7 +845,7 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
   for (size_t i = 0; i < this->number_of_local_edge_partitions(); ++i) {
     count += count_edge_partition_multi_edges(
       handle,
-      edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(this->local_edge_partition_view(i)),
+      edge_partition_device_view_t<vertex_t, edge_t, true>(this->local_edge_partition_view(i)),
       this->local_edge_partition_segment_offsets(i));
   }
 
@@ -857,21 +859,20 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
   return count;
 }
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
-  count_multi_edges(raft::handle_t const& handle) const
+template <typename vertex_t, typename edge_t, bool store_transposed, bool dynamic>
+edge_t graph_view_t<vertex_t, edge_t, store_transposed, false, dynamic>::count_multi_edges(
+  raft::handle_t const& handle) const
 {
   if (!this->is_multigraph()) { return edge_t{0}; }
 
   return count_edge_partition_multi_edges(
     handle,
-    edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(this->local_edge_partition_view()),
+    edge_partition_device_view_t<vertex_t, edge_t, false>(this->local_edge_partition_view()),
     this->local_edge_partition_segment_offsets());
 }
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-rmm::device_uvector<bool>
-graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::has_edge(
+template <typename vertex_t, typename edge_t, bool store_transposed, bool dynamic>
+rmm::device_uvector<bool> graph_view_t<vertex_t, edge_t, store_transposed, true, dynamic>::has_edge(
   raft::handle_t const& handle,
   raft::device_span<vertex_t const> edge_srcs,
   raft::device_span<vertex_t const> edge_dsts,
@@ -906,7 +907,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
 
   for (size_t i = 0; i < this->number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
-      edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(this->local_edge_partition_view(i));
+      edge_partition_device_view_t<vertex_t, edge_t, true>(this->local_edge_partition_view(i));
     auto edge_partition_e_mask =
       edge_mask_view
         ? cuda::std::make_optional<
@@ -921,7 +922,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
                                         edge_indices.begin() + edge_partition_offsets[i]),
       has_edge_op_t<vertex_t,
                     edge_t,
-                    multi_gpu,
+                    true,
                     decltype(edge_partition),
                     decltype(edge_partition_e_mask)>{edge_partition, edge_partition_e_mask});
   }
@@ -929,9 +930,9 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
   return ret;
 }
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool store_transposed, bool dynamic>
 rmm::device_uvector<bool>
-graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::has_edge(
+graph_view_t<vertex_t, edge_t, store_transposed, false, dynamic>::has_edge(
   raft::handle_t const& handle,
   raft::device_span<vertex_t const> edge_srcs,
   raft::device_span<vertex_t const> edge_dsts,
@@ -957,7 +958,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
   rmm::device_uvector<bool> ret(edge_srcs.size(), handle.get_stream());
 
   auto edge_partition =
-    edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(this->local_edge_partition_view());
+    edge_partition_device_view_t<vertex_t, edge_t, false>(this->local_edge_partition_view());
   auto edge_partition_e_mask =
     edge_mask_view
       ? cuda::std::make_optional<
@@ -971,20 +972,20 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
     ret.begin(),
     has_edge_op_t<vertex_t,
                   edge_t,
-                  multi_gpu,
+                  false,
                   decltype(edge_partition),
                   decltype(edge_partition_e_mask)>{edge_partition, edge_partition_e_mask});
 
   return ret;
 }
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool store_transposed, bool dynamic>
 rmm::device_uvector<edge_t>
-graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
-  compute_multiplicity(raft::handle_t const& handle,
-                       raft::device_span<vertex_t const> edge_srcs,
-                       raft::device_span<vertex_t const> edge_dsts,
-                       bool do_expensive_check)
+graph_view_t<vertex_t, edge_t, store_transposed, true, dynamic>::compute_multiplicity(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> edge_srcs,
+  raft::device_span<vertex_t const> edge_dsts,
+  bool do_expensive_check)
 {
   CUGRAPH_EXPECTS(this->is_multigraph(), "Use has_edge() instead for non-multigraphs.");
   CUGRAPH_EXPECTS(
@@ -1016,7 +1017,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
 
   for (size_t i = 0; i < this->number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
-      edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(this->local_edge_partition_view(i));
+      edge_partition_device_view_t<vertex_t, edge_t, true>(this->local_edge_partition_view(i));
     auto edge_partition_e_mask =
       edge_mask_view
         ? cuda::std::make_optional<
@@ -1058,13 +1059,13 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
   return ret;
 }
 
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool store_transposed, bool dynamic>
 rmm::device_uvector<edge_t>
-graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>::
-  compute_multiplicity(raft::handle_t const& handle,
-                       raft::device_span<vertex_t const> edge_srcs,
-                       raft::device_span<vertex_t const> edge_dsts,
-                       bool do_expensive_check)
+graph_view_t<vertex_t, edge_t, store_transposed, false, dynamic>::compute_multiplicity(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> edge_srcs,
+  raft::device_span<vertex_t const> edge_dsts,
+  bool do_expensive_check)
 {
   CUGRAPH_EXPECTS(this->is_multigraph(), "Use has_edge() instead for non-multigraphs.");
   CUGRAPH_EXPECTS(
@@ -1087,7 +1088,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
   rmm::device_uvector<edge_t> ret(edge_srcs.size(), handle.get_stream());
 
   auto edge_partition =
-    edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(this->local_edge_partition_view());
+    edge_partition_device_view_t<vertex_t, edge_t, false>(this->local_edge_partition_view());
   auto edge_partition_e_mask =
     edge_mask_view
       ? cuda::std::make_optional<
