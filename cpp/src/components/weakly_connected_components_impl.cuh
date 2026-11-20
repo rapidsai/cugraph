@@ -43,6 +43,7 @@
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
+#include <thrust/extrema.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
