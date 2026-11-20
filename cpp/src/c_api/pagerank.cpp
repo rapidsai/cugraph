@@ -302,6 +302,7 @@ extern "C" cugraph_error_code_t cugraph_pagerank(
                            do_expensive_check);
 
   auto return_value = cugraph::c_api::run_algorithm(graph, functor, result, error);
+  if (return_value != CUGRAPH_SUCCESS) return return_value;
 
   CAPI_EXPECTS(cugraph_centrality_result_converged(*result) == bool_t::TRUE,
                CUGRAPH_UNKNOWN_ERROR,
@@ -452,6 +453,7 @@ extern "C" cugraph_error_code_t cugraph_personalized_pagerank(
                            do_expensive_check);
 
   auto return_value = cugraph::c_api::run_algorithm(graph, functor, result, error);
+  if (return_value != CUGRAPH_SUCCESS) return return_value;
 
   CAPI_EXPECTS(cugraph_centrality_result_converged(*result) == bool_t::TRUE,
                CUGRAPH_UNKNOWN_ERROR,
