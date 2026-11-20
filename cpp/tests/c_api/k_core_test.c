@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -26,6 +26,8 @@ int generic_k_core_test(vertex_t* h_src,
                         size_t num_edges,
                         size_t num_result_edges,
                         size_t k,
+                        cugraph_k_core_degree_type_t degree_type,
+                        bool_t use_core_result,
                         bool_t store_transposed)
 {
   int test_ret_value = 0;
@@ -72,19 +74,17 @@ int generic_k_core_test(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  ret_code = cugraph_core_number(
-    resource_handle, graph, K_CORE_DEGREE_TYPE_IN, FALSE, &core_result, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_core_number failed.");
-  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+  if (use_core_result) {
+    ret_code =
+      cugraph_core_number(resource_handle, graph, degree_type, FALSE, &core_result, &ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_core_number failed.");
+    TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+  }
 
-  ret_code = cugraph_k_core(resource_handle,
-                            graph,
-                            k,
-                            K_CORE_DEGREE_TYPE_IN,
-                            core_result,
-                            FALSE,
-                            &k_core_result,
-                            &ret_error);
+  ret_code = cugraph_k_core(
+    resource_handle, graph, k, degree_type, core_result, FALSE, &k_core_result, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_k_core failed.");
+  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
   cugraph_type_erased_device_array_view_t* src_vertices;
   cugraph_type_erased_device_array_view_t* dst_vertices;
@@ -134,7 +134,7 @@ int generic_k_core_test(vertex_t* h_src,
   }
 
   cugraph_k_core_result_free(k_core_result);
-  cugraph_core_result_free(core_result);
+  if (core_result != NULL) cugraph_core_result_free(core_result);
   cugraph_graph_free(graph);
   cugraph_free_resource_handle(resource_handle);
   cugraph_error_free(ret_error);
@@ -167,6 +167,8 @@ int test_k_core()
                              num_edges,
                              num_result_edges,
                              k,
+                             K_CORE_DEGREE_TYPE_IN,
+                             TRUE,
                              FALSE);
 }
 
@@ -192,6 +194,68 @@ int test_k_core_no_weights()
                              num_edges,
                              num_result_edges,
                              k,
+                             K_CORE_DEGREE_TYPE_IN,
+                             TRUE,
+                             FALSE);
+}
+
+int test_k_core_without_core_result()
+{
+  size_t num_edges        = 22;
+  size_t num_vertices     = 7;
+  size_t num_result_edges = 12;
+  size_t k                = 3;
+
+  vertex_t h_src[]        = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5, 3, 1, 4, 5, 5, 6};
+  vertex_t h_dst[]        = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4, 4, 5, 3, 1, 6, 5};
+  weight_t h_wgt[]        = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                             1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+  vertex_t h_result_src[] = {1, 1, 3, 4, 3, 4, 3, 4, 5, 5, 1, 5};
+  vertex_t h_result_dst[] = {3, 4, 5, 5, 1, 3, 4, 1, 3, 4, 5, 1};
+  weight_t h_result_wgt[] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+
+  return generic_k_core_test(h_src,
+                             h_dst,
+                             h_wgt,
+                             h_result_src,
+                             h_result_dst,
+                             h_result_wgt,
+                             num_vertices,
+                             num_edges,
+                             num_result_edges,
+                             k,
+                             K_CORE_DEGREE_TYPE_IN,
+                             FALSE,
+                             FALSE);
+}
+
+int test_k_core_inout_without_core_result()
+{
+  size_t num_edges        = 22;
+  size_t num_vertices     = 7;
+  size_t num_result_edges = 12;
+  size_t k                = 6;
+
+  vertex_t h_src[]        = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5, 3, 1, 4, 5, 5, 6};
+  vertex_t h_dst[]        = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4, 4, 5, 3, 1, 6, 5};
+  weight_t h_wgt[]        = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                             1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+  vertex_t h_result_src[] = {1, 1, 3, 4, 3, 4, 3, 4, 5, 5, 1, 5};
+  vertex_t h_result_dst[] = {3, 4, 5, 5, 1, 3, 4, 1, 3, 4, 5, 1};
+  weight_t h_result_wgt[] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+
+  return generic_k_core_test(h_src,
+                             h_dst,
+                             h_wgt,
+                             h_result_src,
+                             h_result_dst,
+                             h_result_wgt,
+                             num_vertices,
+                             num_edges,
+                             num_result_edges,
+                             k,
+                             K_CORE_DEGREE_TYPE_INOUT,
+                             FALSE,
                              FALSE);
 }
 
@@ -202,5 +266,7 @@ int main(int argc, char** argv)
   int result = 0;
   result |= RUN_TEST(test_k_core);
   result |= RUN_TEST(test_k_core_no_weights);
+  result |= RUN_TEST(test_k_core_without_core_result);
+  result |= RUN_TEST(test_k_core_inout_without_core_result);
   return result;
 }
