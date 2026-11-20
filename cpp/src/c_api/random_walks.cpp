@@ -171,6 +171,13 @@ struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else {
+      if (graph_->edge_weights_ == nullptr) {
+        mark_error(CUGRAPH_INVALID_INPUT,
+                   "Invalid input arguments: biased random walks require a weighted graph; use "
+                   "uniform random walks instead.");
+        return;
+      }
+
       // random walks expects store_transposed == false
       if constexpr (store_transposed) {
         error_code_ = cugraph::c_api::
