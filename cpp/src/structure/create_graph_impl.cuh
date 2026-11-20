@@ -1668,8 +1668,7 @@ create_graph_impl(raft::handle_t const& handle,
       cugraph::detail::graph_meta_t<vertex_t, edge_t, multi_gpu>{
         num_vertices,
         graph_properties,
-        renumber ? std::optional<std::vector<vertex_t>>{meta.segment_offsets} : std::nullopt,
-        meta.hypersparse_degree_offsets}),
+        renumber ? std::optional<std::vector<vertex_t>>{meta.segment_offsets} : std::nullopt}),
     std::move(new_edge_properties),
     renumber ? std::make_optional(vertex_property_t<vertex_t, vertex_t>(
                  std::move(*renumber_map_labels), num_vertices))

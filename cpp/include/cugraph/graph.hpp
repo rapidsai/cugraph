@@ -54,7 +54,6 @@ struct graph_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>> {
 
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
   std::optional<std::vector<vertex_t>> segment_offsets{std::nullopt};
-  std::optional<std::vector<vertex_t>> hypersparse_degree_offsets{std::nullopt};
 };
 
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
@@ -124,7 +123,6 @@ struct static_graph_t<vertex_t, edge_t, store_transposed, false> {
 
   // segment offsets based on vertex degree, relevant only if sorted_by_global_degree is true
   std::optional<std::vector<vertex_t>> segment_offsets{};
-  std::optional<std::vector<vertex_t>> hypersparse_degree_offsets{};
 };
 
 // placeholder, dynamic graphs are not supported yet
@@ -351,12 +349,10 @@ class graph_t<vertex_t, edge_t, store_transposed, false, dynamic>
     return graph_view_t<vertex_t, edge_t, store_transposed, false>(
       raft::device_span<edge_t const>(graph_.offsets.data(), graph_.offsets.size()),
       raft::device_span<vertex_t const>(graph_.indices.data(), graph_.indices.size()),
-      graph_view_meta_t<vertex_t, edge_t, store_transposed, false>{
-        this->number_of_vertices(),
-        this->number_of_edges(),
-        this->properties_,
-        graph_.segment_offsets,
-        graph_.hypersparse_degree_offsets});
+      graph_view_meta_t<vertex_t, edge_t, store_transposed, false>{this->number_of_vertices(),
+                                                                   this->number_of_edges(),
+                                                                   this->properties_,
+                                                                   graph_.segment_offsets});
   }
 
  private:

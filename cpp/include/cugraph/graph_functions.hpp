@@ -44,7 +44,6 @@ struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>>
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>> {
   std::vector<vertex_t> segment_offsets{};
-  std::optional<std::vector<vertex_t>> hypersparse_degree_offsets{};
 };
 
 /**

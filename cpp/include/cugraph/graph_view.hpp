@@ -357,7 +357,6 @@ struct graph_view_meta_t<vertex_t,
 
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
   std::optional<std::vector<vertex_t>> segment_offsets{std::nullopt};
-  std::optional<std::vector<vertex_t>> hypersparse_degree_offsets{std::nullopt};
 };
 
 namespace detail {
@@ -424,7 +423,6 @@ struct static_graph_view_t<vertex_t, edge_t, store_transposed, false> {
 
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
   std::optional<std::vector<vertex_t>> segment_offsets{std::nullopt};
-  std::optional<std::vector<vertex_t>> hypersparse_degree_offsets{std::nullopt};
 };
 
 // placeholder, dynamic graphs are not supported yet
@@ -1020,7 +1018,7 @@ class graph_view_t<vertex_t, edge_t, store_transposed, false, dynamic>
     size_t partition_idx = 0) const
   {
     assert(partition_idx == 0);
-    return graph_.hypersparse_degree_offsets;
+    return std::nullopt;
   }
 
   vertex_partition_view_t<vertex_t, false> local_vertex_partition_view() const

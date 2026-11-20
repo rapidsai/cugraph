@@ -517,10 +517,9 @@ graph_t<vertex_t, edge_t, store_transposed, false, dynamic>::graph_t(
       meta.number_of_vertices, static_cast<edge_t>(indices.size()), meta.properties),
     graph_(handle)
 {
-  graph_.offsets                    = std::move(offsets);
-  graph_.indices                    = std::move(indices);
-  graph_.segment_offsets            = meta.segment_offsets;
-  graph_.hypersparse_degree_offsets = meta.hypersparse_degree_offsets;
+  graph_.offsets         = std::move(offsets);
+  graph_.indices         = std::move(indices);
+  graph_.segment_offsets = meta.segment_offsets;
 }
 
 }  // namespace cugraph

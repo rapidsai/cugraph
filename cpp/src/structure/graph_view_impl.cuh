@@ -595,10 +595,9 @@ graph_view_t<vertex_t, edge_t, store_transposed, false, dynamic>::graph_view_t(
 {
   graph_.vertex_partition_range_offsets =
     std::vector<vertex_t>{vertex_t{0}, meta.number_of_vertices};
-  graph_.offsets                    = offsets;
-  graph_.indices                    = indices;
-  graph_.segment_offsets            = meta.segment_offsets;
-  graph_.hypersparse_degree_offsets = meta.hypersparse_degree_offsets;
+  graph_.offsets         = offsets;
+  graph_.indices         = indices;
+  graph_.segment_offsets = meta.segment_offsets;
 
   // cheap error checks
 
