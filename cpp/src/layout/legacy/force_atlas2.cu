@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -32,8 +32,7 @@ void force_atlas2(raft::handle_t const& handle,
                   const float gravity,
                   float* vertex_mobility,
                   float* vertex_mass,
-                  bool verbose,
-                  internals::GraphBasedDimRedCallback* callback)
+                  bool verbose)
 {
   CUGRAPH_EXPECTS(pos != nullptr, "Invalid input argument: pos array should be of size 2 * V");
   CUGRAPH_EXPECTS(graph.number_of_vertices != 0, "Invalid input: Graph is empty");
@@ -58,8 +57,7 @@ void force_atlas2(raft::handle_t const& handle,
                                                            gravity,
                                                            vertex_mobility,
                                                            vertex_mass,
-                                                           verbose,
-                                                           callback);
+                                                           verbose);
   } else {
     cugraph::detail::barnes_hut<vertex_t, edge_t, weight_t>(handle,
                                                             rng_state,
@@ -81,8 +79,7 @@ void force_atlas2(raft::handle_t const& handle,
                                                             gravity,
                                                             vertex_mobility,
                                                             vertex_mass,
-                                                            verbose,
-                                                            callback);
+                                                            verbose);
   }
 }
 
@@ -108,8 +105,7 @@ template CUGRAPH_EXPORT void force_atlas2<int32_t, int32_t, float>(
   const float gravity,
   float* vertex_mobility,
   float* vertex_mass,
-  bool verbose,
-  internals::GraphBasedDimRedCallback* callback);
+  bool verbose);
 
 template CUGRAPH_EXPORT void force_atlas2<int32_t, int32_t, double>(
   raft::handle_t const& handle,
@@ -133,8 +129,7 @@ template CUGRAPH_EXPORT void force_atlas2<int32_t, int32_t, double>(
   const float gravity,
   float* vertex_mobility,
   float* vertex_mass,
-  bool verbose,
-  internals::GraphBasedDimRedCallback* callback);
+  bool verbose);
 
 template CUGRAPH_EXPORT void force_atlas2<int64_t, int64_t, float>(
   raft::handle_t const& handle,
@@ -158,8 +153,7 @@ template CUGRAPH_EXPORT void force_atlas2<int64_t, int64_t, float>(
   const float gravity,
   float* vertex_mobility,
   float* vertex_mass,
-  bool verbose,
-  internals::GraphBasedDimRedCallback* callback);
+  bool verbose);
 
 template CUGRAPH_EXPORT void force_atlas2<int64_t, int64_t, double>(
   raft::handle_t const& handle,
@@ -183,7 +177,6 @@ template CUGRAPH_EXPORT void force_atlas2<int64_t, int64_t, double>(
   const float gravity,
   float* vertex_mobility,
   float* vertex_mass,
-  bool verbose,
-  internals::GraphBasedDimRedCallback* callback);
+  bool verbose);
 
 }  // namespace cugraph

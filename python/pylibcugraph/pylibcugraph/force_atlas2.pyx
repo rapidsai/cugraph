@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -174,9 +174,6 @@ def force_atlas2(ResourceHandle resource_handle,
 
     do_expensive_check : bool_t
         A flag to run expensive checks for input arguments (if set to true)
-
-    callback: # FIXME: NOT IMPLEMENTED YET
-        intercept the internal state of positions while they are being trained.
 
     Returns
     -------

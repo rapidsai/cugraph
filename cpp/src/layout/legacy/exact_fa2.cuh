@@ -12,7 +12,6 @@
 
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/legacy/graph.hpp>
-#include <cugraph/legacy/internals.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/thrust_wrappers/fill.hpp>
 
@@ -31,23 +30,22 @@ void exact_fa2(raft::handle_t const& handle,
                raft::random::RngState& rng_state,
                legacy::GraphCOOView<vertex_t, edge_t, weight_t>& graph,
                float* pos,
-               const int max_iter                            = 500,
-               float* x_start                                = nullptr,
-               float* y_start                                = nullptr,
-               bool outbound_attraction_distribution         = true,
-               bool lin_log_mode                             = false,
-               bool prevent_overlapping                      = false,
-               float* vertex_radius                          = nullptr,
-               const float overlap_scaling_ratio             = 100.0,
-               const float edge_weight_influence             = 1.0,
-               const float jitter_tolerance                  = 1.0,
-               const float scaling_ratio                     = 2.0,
-               bool strong_gravity_mode                      = false,
-               const float gravity                           = 1.0,
-               float* vertex_mobility                        = nullptr,
-               float* vertex_mass                            = nullptr,
-               bool verbose                                  = false,
-               internals::GraphBasedDimRedCallback* callback = nullptr)
+               const int max_iter                    = 500,
+               float* x_start                        = nullptr,
+               float* y_start                        = nullptr,
+               bool outbound_attraction_distribution = true,
+               bool lin_log_mode                     = false,
+               bool prevent_overlapping              = false,
+               float* vertex_radius                  = nullptr,
+               const float overlap_scaling_ratio     = 100.0,
+               const float edge_weight_influence     = 1.0,
+               const float jitter_tolerance          = 1.0,
+               const float scaling_ratio             = 2.0,
+               bool strong_gravity_mode              = false,
+               const float gravity                   = 1.0,
+               float* vertex_mobility                = nullptr,
+               float* vertex_mass                    = nullptr,
+               bool verbose                          = false)
 {
   auto stream_view = handle.get_stream();
   const edge_t e   = graph.number_of_edges;
@@ -121,11 +119,6 @@ void exact_fa2(raft::handle_t const& handle,
   if (outbound_attraction_distribution) {
     float sum = thrust::reduce(handle.get_thrust_policy(), mass.begin(), mass.end());
     outbound_att_compensation = sum / (float)n;
-  }
-
-  if (callback) {
-    callback->setup<float>(n, 2);
-    callback->on_preprocess_end(pos);
   }
 
   for (int iter = 0; iter < max_iter; ++iter) {
@@ -209,16 +202,12 @@ void exact_fa2(raft::handle_t const& handle,
                            n,
                            stream_view.get());
 
-    if (callback) callback->on_epoch_end(pos);
-
     if (verbose) {
       std::cout << "iteration: " << iter + 1 << ", speed: " << speed
                 << ", speed_efficiency: " << speed_efficiency << ", jt: " << jt
                 << ", swinging: " << s << ", traction: " << t << "\n";
     }
   }
-
-  if (callback) callback->on_train_end(pos);
 }
 
 }  // namespace detail
