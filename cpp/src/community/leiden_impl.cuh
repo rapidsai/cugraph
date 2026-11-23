@@ -374,24 +374,45 @@ std::pair<dendrogram_t<vertex_t>, weight_t> leiden(
       rmm::device_uvector<vertex_t>(0, handle.get_stream()),
       rmm::device_uvector<vertex_t>(0, handle.get_stream())};
 
+    // The loop above exits on an update it rejects, so louvain_assignment_for_vertices and
+    // cluster_weights describe that rejected assignment, not the one kept in level_clusters.
+    // Recompute them from level_clusters so that both the modularity we report and the input to
+    // refine_clustering() (which also consumes cluster_weights) match the returned clustering.
+    copy_v(handle,
+           current_graph_view,
+           level_clusters.view(),
+           louvain_assignment_for_vertices.mutable_view());
+
+    if constexpr (graph_view_t::is_multi_gpu) {
+      update_edge_src_property(handle,
+                               current_graph_view,
+                               louvain_assignment_for_vertices.view(),
+                               src_louvain_assignment_cache.mutable_view());
+      update_edge_dst_property(handle,
+                               current_graph_view,
+                               louvain_assignment_for_vertices.view(),
+                               dst_louvain_assignment_cache.mutable_view());
+    }
+
+    std::tie(cluster_keys, cluster_weights) =
+      detail::compute_cluster_keys_and_values(handle,
+                                              current_graph_view,
+                                              current_edge_weight_view,
+                                              louvain_assignment_for_vertices.view(),
+                                              src_louvain_assignment_cache);
+
+    final_Q = detail::compute_modularity(handle,
+                                         current_graph_view,
+                                         current_edge_weight_view,
+                                         src_louvain_assignment_cache,
+                                         dst_louvain_assignment_cache,
+                                         louvain_assignment_for_vertices.view(),
+                                         cluster_weights,
+                                         total_edge_weight,
+                                         resolution);
+
     if (!terminate) {
       // Refine the current partition
-      copy_v(handle,
-             current_graph_view,
-             level_clusters.view(),
-             louvain_assignment_for_vertices.mutable_view());
-
-      if constexpr (graph_view_t::is_multi_gpu) {
-        update_edge_src_property(handle,
-                                 current_graph_view,
-                                 louvain_assignment_for_vertices.view(),
-                                 src_louvain_assignment_cache.mutable_view());
-        update_edge_dst_property(handle,
-                                 current_graph_view,
-                                 louvain_assignment_for_vertices.view(),
-                                 dst_louvain_assignment_cache.mutable_view());
-      }
-
       std::tie(refined_leiden_partition, leiden_to_louvain_map) =
         detail::refine_clustering(handle,
                                   rng_state,
@@ -410,16 +431,6 @@ std::pair<dendrogram_t<vertex_t>, weight_t> leiden(
     }
 
     // Clear buffer and contract the graph
-    final_Q = detail::compute_modularity(handle,
-                                         current_graph_view,
-                                         current_edge_weight_view,
-                                         src_louvain_assignment_cache,
-                                         dst_louvain_assignment_cache,
-                                         louvain_assignment_for_vertices.view(),
-                                         cluster_weights,
-                                         total_edge_weight,
-                                         resolution);
-
     cluster_keys.resize(0, handle.get_stream());
     cluster_weights.resize(0, handle.get_stream());
     cluster_keys.shrink_to_fit(handle.get_stream());
