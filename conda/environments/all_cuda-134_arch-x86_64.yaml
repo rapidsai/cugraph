@@ -34,6 +34,7 @@ dependencies:
 - libcuvs==27.2.*,>=0.0.0a0
 - libraft==27.2.*,>=0.0.0a0
 - librmm==27.2.*,>=0.0.0a0
+- nanobind>=3.1.0
 - nbsphinx
 - nccl>=2.19
 - networkx>=2.5.1

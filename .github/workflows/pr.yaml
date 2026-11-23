@@ -26,6 +26,8 @@ jobs:
       - wheel-build-libcugraph
       - wheel-build-pylibcugraph
       - wheel-tests-pylibcugraph
+      - wheel-build-cugraph-python
+      - wheel-tests-cugraph-python
       - wheel-build-cugraph
       - wheel-tests-cugraph
       - devcontainer
@@ -414,6 +416,41 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_wheel_pylibcugraph.sh
+      matrix_type: pull-request
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
+  wheel-build-cugraph-python:
+    needs: [build-details, wheel-build-libcugraph]
+    secrets: inherit # zizmor: ignore[secrets-inherit]
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
+    with:
+      build_type: pull-request
+      build-datetime: ${{ needs.build-details.outputs.build-datetime }}
+      node_type: cpu8
+      script: ci/build_wheel_cugraph_python.sh
+      package-name: cugraph_python
+      package-type: python
+      # Build a wheel for each CUDA x ARCH x minimum supported Python version
+      matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
+      matrix_type: pull-request
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
+  wheel-tests-cugraph-python:
+    needs: [wheel-build-cugraph-python, changed-files]
+    secrets: inherit # zizmor: ignore[secrets-inherit]
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
+    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_wheels
+    with:
+      build_type: pull-request
+      script: ci/test_wheel_cugraph_python.sh
       matrix_type: pull-request
     permissions:
       actions: read

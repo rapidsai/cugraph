@@ -79,6 +79,11 @@ if hasArg "--run-cpp-tests"; then
 fi
 
 if hasArg "--run-python-tests"; then
+    echo "Python pytest for cugraph_python..."
+    cd "${CUGRAPH_ROOT}"/python/cugraph_python/cugraph_python
+    pytest -sv --cache-clear --junitxml="${CUGRAPH_ROOT}"/junit-cugraph-python-pytests.xml --cov-config=../../.coveragerc --cov=cugraph_python --cov-report=xml:"{WORKSPACE}"/python/cugraph_python/cugraph_python-coverage.xml --cov-report term --benchmark-disable
+    echo "Ran Python pytest for cugraph_python : return code was: $?, test script exit code is now: $EXITCODE"
+
     echo "Python pytest for pylibcugraph..."
     cd "${CUGRAPH_ROOT}"/python/pylibcugraph/pylibcugraph
     pytest -sv --cache-clear --junitxml="${CUGRAPH_ROOT}"/junit-pylibcugraph-pytests.xml --cov-config=.coveragerc --cov=pylibcugraph --cov-report=xml:"{WORKSPACE}"/python/pylibcugraph/pylibcugraph-coverage.xml --cov-report term --ignore=raft --benchmark-disable

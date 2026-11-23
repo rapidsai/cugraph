@@ -39,6 +39,15 @@ rattler-build build --recipe conda/recipes/pylibcugraph \
 sccache --show-adv-stats
 sccache --stop-server >/dev/null 2>&1 || true
 
+rapids-logger "Building cugraph_python"
+
+rattler-build build --recipe conda/recipes/cugraph_python \
+                    "${RATTLER_ARGS[@]}" \
+                    "${RATTLER_CHANNELS[@]}"
+
+sccache --show-adv-stats
+sccache --stop-server >/dev/null 2>&1 || true
+
 rapids-logger "Building cugraph"
 
 rattler-build build --recipe conda/recipes/cugraph \
