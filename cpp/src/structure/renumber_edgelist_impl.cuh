@@ -1376,9 +1376,8 @@ renumber_edgelist(raft::handle_t const& handle,
   renumber_map_view.find(
     edgelist_minors.begin(), edgelist_minors.end(), edgelist_minors.begin(), handle.get_stream());
 
-  return std::make_tuple(
-    std::move(renumber_map_labels),
-    renumber_meta_t<vertex_t, edge_t, multi_gpu>{segment_offsets, hypersparse_degree_offsets});
+  return std::make_tuple(std::move(renumber_map_labels),
+                         renumber_meta_t<vertex_t, edge_t, multi_gpu>{segment_offsets});
 }
 
 }  // namespace detail

@@ -740,7 +740,7 @@ create_graph_from_partitioned_edgelist(
       std::move(edge_partition_offsets),
       std::move(edge_partition_indices),
       std::move(edge_partition_dcs_nzd_vertices),
-      cugraph::graph_meta_t<vertex_t, edge_t, true>{
+      cugraph::detail::graph_meta_t<vertex_t, edge_t, true>{
         meta.number_of_vertices,
         meta.number_of_edges,
         graph_properties,
@@ -1665,11 +1665,10 @@ create_graph_impl(raft::handle_t const& handle,
       handle,
       std::move(offsets),
       std::move(indices),
-      cugraph::graph_meta_t<vertex_t, edge_t, multi_gpu>{
+      cugraph::detail::graph_meta_t<vertex_t, edge_t, multi_gpu>{
         num_vertices,
         graph_properties,
-        renumber ? std::optional<std::vector<vertex_t>>{meta.segment_offsets} : std::nullopt,
-        meta.hypersparse_degree_offsets}),
+        renumber ? std::optional<std::vector<vertex_t>>{meta.segment_offsets} : std::nullopt}),
     std::move(new_edge_properties),
     renumber ? std::make_optional(vertex_property_t<vertex_t, vertex_t>(
                  std::move(*renumber_map_labels), num_vertices))
