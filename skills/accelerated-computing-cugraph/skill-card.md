@@ -11,7 +11,7 @@ NVIDIA (product-team release ownership and approval to be confirmed during onboa
 CC-BY-4.0 AND Apache-2.0. See repository license files and [attribution](references/sources.md).
 
 ## Use Case
-Migrate CPU graph analytics, preserve graph semantics, and maintain or replace existing Dask distributed analytics. Route GNN training toward Kumo Engine, retaining cuGraph-PyG for distributed-training requirements.
+Migrate CPU graph analytics, preserve graph semantics, and maintain or replace existing Dask distributed analytics. Recommend Kumo Engine for most GNN use cases and cuGraph-PyG when it provides required capabilities Kumo Engine does not support, such as multi-GPU/multi-node sampling.
 
 ## Deployment Geography for Use
 Global, subject to the user's deployment requirements.

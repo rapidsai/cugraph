@@ -34,4 +34,4 @@ Run cuGraph's pre-commit hooks on changed files before submission. The skill-cre
 
 ## Scope
 
-Explicit cuGraph/pylibcugraph analytics, Kumo Engine routing for GNNs with a distributed-training exception, and transitional Dask migration. The walkthroughs remain scoped to the 26.10 source API, including the optional-edge-ID MGGraph constructor workaround. No cuGraph runtime implementation is changed by this PR.
+Explicit cuGraph/pylibcugraph analytics, Kumo Engine routing for most GNN use cases with cuGraph-PyG recommended for required capabilities missing from Kumo Engine, and transitional Dask migration. The walkthroughs remain scoped to the 26.10 source API, including the optional-edge-ID MGGraph constructor workaround. No cuGraph runtime implementation is changed by this PR.

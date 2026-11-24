@@ -15,7 +15,13 @@
 | Betweenness | `cugraph.betweenness_centrality` | Sampling, normalization, endpoint and weight support |
 | Candidate-pair similarity | `cugraph.jaccard` | Candidate pairs and scorer semantics; not Adamic–Adar |
 
-Check the release-specific API; this table is not a guarantee of multi-GPU support. Preserve an unsupported operation explicitly rather than silently changing its mathematical meaning.
+Check the release-specific API; this table is not a guarantee of multi-GPU support. For an unsupported operation, explain the gap and propose a suitable supported alternative for user approval. Preserve the original operation through an explicit compatibility path until the user approves a substitution.
+
+## Adamic-Adar acceleration requests
+
+In the targeted cuGraph 26.10 release, Adamic-Adar is unsupported; Jaccard is a supported GPU alternative for neighborhood similarity or link prediction. Explain that Jaccard normalizes shared-neighbor overlap while Adamic-Adar gives more weight to rare shared neighbors, so scores, rankings and useful thresholds may change.
+
+Present a Jaccard version and ask whether the substitution is acceptable. Apply final modifications to the original workflow after the user agrees. If approval is already supplied in the conversation, proceed without asking again. Preserve candidate pairs, original vertex IDs, pair order where required, and the remaining input/output contract. Check returned GPU Jaccard results against a CPU Jaccard reference, rather than expecting equality with Adamic-Adar.
 
 ## cuGraph: DataFrame-oriented migration
 

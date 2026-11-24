@@ -17,7 +17,7 @@ API examples inspected against cuGraph **v26.10.00**, commit `8ff922fabf4521cf54
 
 Recheck the helper's dependencies, constructor keywords, output ID semantics, algorithm SG/MG support, optional vertex arrays, and cleanup behavior when upgrading. In particular, PyTorch's NCCL process group cannot be substituted as a cuGraph ResourceHandle.
 
-The nx-cuGraph / Dask / cuGraph-PyG roadmap direction comes from the commissioning product guidance dated 2026-11-06. No public removal date has been verified for this draft. Kumo Engine routing follows that direction and its [public overview](https://docs.nvidia.com/sdgm/kumo-engine/get-started-with-kumo-engine/overview); it is not evidence that every custom PyG model has an equivalent Kumo API.
+The nx-cuGraph / Dask roadmap direction comes from the commissioning product guidance dated 2026-11-06. No public removal date has been verified for this draft. Kumo Engine is the recommended solution for most GNN use cases; recommend cuGraph-PyG when it provides required capabilities missing from Kumo Engine, such as multi-GPU/multi-node sampling. Verify current support using the [Kumo Engine overview](https://docs.nvidia.com/sdgm/kumo-engine/get-started-with-kumo-engine/overview) and the cuGraph-PyG release documentation; do not assume every custom PyG model has an equivalent Kumo API.
 
 ## Attribution
 
