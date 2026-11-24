@@ -508,7 +508,7 @@ void transform_reduce_minor_nbr_intersection_of_e_endpoints_by_v(
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam IntersectionOp Type of the quinary per intersection operator.
  * @tparam T Type of the initial value for per-vertex reduction.
- * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
+ * @tparam VertexValueOutputWrapper Type of the wrapper for output vertex property values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
@@ -529,10 +529,8 @@ void transform_reduce_minor_nbr_intersection_of_e_endpoints_by_v(
  * vertex in the intersection.
  * @param init Initial value to be added to the reduced @p intersection_op return values for each
  * vertex.
- * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
- * first (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
- * (exclusive) is deduced as @p vertex_value_output_first + @p
- * graph_view.local_vertex_partition_range_size().
+ * @param vertex_value_output Wrapper used to store output vertex property values (for the vertices
+ * assigned to this process in multi-GPU). Use `vertex_property_t::mutable_view()`.
  * @param A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType,
@@ -540,7 +538,7 @@ template <typename GraphViewType,
           typename EdgeDstValueInputWrapper,
           typename IntersectionOp,
           typename T,
-          typename VertexValueOutputIterator>
+          typename VertexValueOutputWrapper>
 void transform_reduce_src_nbr_intersection_of_e_endpoints_by_v(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
@@ -548,19 +546,21 @@ void transform_reduce_src_nbr_intersection_of_e_endpoints_by_v(
   EdgeDstValueInputWrapper edge_dst_value_input,
   IntersectionOp intersection_op,
   T init,
-  VertexValueOutputIterator vertex_value_output_first,
+  VertexValueOutputWrapper vertex_value_output,
   bool do_expensive_check = false)
 {
   static_assert(GraphViewType::is_storage_transposed);
+  static_assert(std::is_same_v<T, typename VertexValueOutputWrapper::value_type>);
 
-  detail::transform_reduce_minor_nbr_intersection_of_e_endpoints_by_v(handle,
-                                                                      graph_view,
-                                                                      edge_src_value_input,
-                                                                      edge_dst_value_input,
-                                                                      intersection_op,
-                                                                      init,
-                                                                      vertex_value_output_first,
-                                                                      do_expensive_check);
+  detail::transform_reduce_minor_nbr_intersection_of_e_endpoints_by_v(
+    handle,
+    graph_view,
+    edge_src_value_input,
+    edge_dst_value_input,
+    intersection_op,
+    init,
+    vertex_value_output.value_first(),
+    do_expensive_check);
 }
 
 /**
@@ -580,7 +580,7 @@ void transform_reduce_src_nbr_intersection_of_e_endpoints_by_v(
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam IntersectionOp Type of the quinary per intersection operator.
  * @tparam T Type of the initial value for per-vertex reduction.
- * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
+ * @tparam VertexValueOutputWrapper Type of the wrapper for output vertex property values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
@@ -601,10 +601,8 @@ void transform_reduce_src_nbr_intersection_of_e_endpoints_by_v(
  * vertex in the intersection.
  * @param init Initial value to be added to the reduced @p intersection_op return values for each
  * vertex.
- * @param vertex_value_output_first Iterator pointing to the vertex property variables for the
- * first (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
- * (exclusive) is deduced as @p vertex_value_output_first + @p
- * graph_view.local_vertex_partition_range_size().
+ * @param vertex_value_output Wrapper used to store output vertex property values (for the vertices
+ * assigned to this process in multi-GPU). Use `vertex_property_t::mutable_view()`.
  * @param A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType,
@@ -612,7 +610,7 @@ template <typename GraphViewType,
           typename EdgeDstValueInputWrapper,
           typename IntersectionOp,
           typename T,
-          typename VertexValueOutputIterator>
+          typename VertexValueOutputWrapper>
 void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
@@ -620,19 +618,21 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
   EdgeDstValueInputWrapper edge_dst_value_input,
   IntersectionOp intersection_op,
   T init,
-  VertexValueOutputIterator vertex_value_output_first,
+  VertexValueOutputWrapper vertex_value_output,
   bool do_expensive_check = false)
 {
   static_assert(!GraphViewType::is_storage_transposed);
+  static_assert(std::is_same_v<T, typename VertexValueOutputWrapper::value_type>);
 
-  detail::transform_reduce_minor_nbr_intersection_of_e_endpoints_by_v(handle,
-                                                                      graph_view,
-                                                                      edge_src_value_input,
-                                                                      edge_dst_value_input,
-                                                                      intersection_op,
-                                                                      init,
-                                                                      vertex_value_output_first,
-                                                                      do_expensive_check);
+  detail::transform_reduce_minor_nbr_intersection_of_e_endpoints_by_v(
+    handle,
+    graph_view,
+    edge_src_value_input,
+    edge_dst_value_input,
+    intersection_op,
+    init,
+    vertex_value_output.value_first(),
+    do_expensive_check);
 }
 
 }  // namespace CUGRAPH_EXPORT cugraph

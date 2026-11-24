@@ -24,6 +24,7 @@
 #include <cugraph/utilities/thrust_wrappers/fill.hpp>
 #include <cugraph/utilities/thrust_wrappers/gather.hpp>
 #include <cugraph/utilities/thrust_wrappers/sequence.hpp>
+#include <cugraph/vertex_property.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -230,11 +231,11 @@ void propagate_frontier(raft::handle_t const& handle,
       update_edge_src_property(
         handle,
         graph_view,
-        source_values,
+        vertex_property_view_t{source_values, count},
         view_concat(cache.source_colors.mutable_view(), cache.source_partitions.mutable_view()));
       update_edge_dst_property(handle,
                                graph_view,
-                               destination_values,
+                               vertex_property_view_t{destination_values, count},
                                view_concat(cache.destination_metadata.mutable_view(),
                                            cache.destination_colors.mutable_view()));
       cache.initialized = true;
@@ -264,15 +265,15 @@ void propagate_frontier(raft::handle_t const& handle,
     if constexpr (GraphViewType::is_multi_gpu) {
       return view_concat(cache.source_colors.view(), cache.source_partitions.view());
     } else {
-      return make_edge_src_property_view<vertex_t, property_t>(graph_view, source_values, count);
+      return make_edge_src_property_view(graph_view, vertex_property_view_t{source_values, count});
     }
   }();
   auto destination_view = [&] {
     if constexpr (GraphViewType::is_multi_gpu) {
       return view_concat(cache.destination_metadata.view(), cache.destination_colors.view());
     } else {
-      return make_edge_dst_property_view<vertex_t, destination_t>(
-        graph_view, destination_values, count);
+      return make_edge_dst_property_view(graph_view,
+                                         vertex_property_view_t{destination_values, count});
     }
   }();
   auto [vertices, values] = cugraph::transform_reduce_if_v_frontier_outgoing_e_by_dst(
@@ -301,8 +302,8 @@ void propagate_frontier(raft::handle_t const& handle,
     std::move(values),
     frontier,
     raft::host_span<size_t const>(next_buckets.data(), next_buckets.size()),
-    signatures,
-    signatures,
+    vertex_property_view_t{static_cast<vertex_t const*>(signatures), count},
+    vertex_property_view_t{signatures, count},
     accept_owner_max_t<vertex_t>{});
   frontier.bucket(0).clear();
   frontier.swap_buckets(0, 1);
@@ -340,7 +341,7 @@ void strongly_connected_components_impl(
   // Native reverse construction retains the map to forward-graph IDs.
   // MG additionally redistributes vertices and reversed edges before building.
   graph_t<vertex_t, edge_t, false, multi_gpu> reverse(handle);
-  std::optional<rmm::device_uvector<vertex_t>> reverse_number_map;
+  std::optional<vertex_property_t<vertex_t, vertex_t>> reverse_number_map;
   {
     rmm::device_uvector<vertex_t> vertices(graph_view.local_vertex_partition_range_size(), stream);
     cugraph::sequence(
@@ -349,9 +350,9 @@ void strongly_connected_components_impl(
       std::tie(vertices, std::ignore) = shuffle_ext_vertices(
         handle, std::move(vertices), std::vector<arithmetic_device_uvector_t>{});
     }
-    auto [sources, destinations, weights, ids, types] =
-      decompress_to_edgelist<vertex_t, edge_t, float, int32_t, false, multi_gpu>(
-        handle, graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
+    auto [sources, destinations, properties] =
+      decompress_to_edgelist<vertex_t, edge_t, false, multi_gpu>(
+        handle, graph_view, {}, std::nullopt);
     std::swap(sources, destinations);
     if constexpr (multi_gpu) {
       std::tie(sources, destinations, std::ignore) =
@@ -362,7 +363,7 @@ void strongly_connected_components_impl(
                           false);
     }
     std::tie(reverse, std::ignore, reverse_number_map) =
-      create_graph_from_edgelist<vertex_t, edge_t, false, multi_gpu>(
+      create_graph<vertex_t, edge_t, false, multi_gpu>(
         handle,
         std::move(vertices),
         std::move(sources),
@@ -375,10 +376,9 @@ void strongly_connected_components_impl(
         do_expensive_check);
   }
   auto reverse_view = reverse.view();
-  CUGRAPH_EXPECTS(
-    reverse_number_map && reverse_number_map->size() ==
-                            static_cast<size_t>(reverse_view.local_vertex_partition_range_size()),
-    "Invalid reverse vertex map size.");
+  CUGRAPH_EXPECTS(reverse_number_map && reverse_number_map->view().range_size() ==
+                                          reverse_view.local_vertex_partition_range_size(),
+                  "Invalid reverse vertex map size.");
   auto first         = graph_view.local_vertex_partition_range_first();
   auto reverse_first = reverse_view.local_vertex_partition_range_first();
   auto local_n       = graph_view.local_vertex_partition_range_size();
@@ -387,7 +387,7 @@ void strongly_connected_components_impl(
   CUGRAPH_EXPECTS(reverse_view.number_of_vertices() == n, "Reverse graph vertex count differs.");
 
   rmm::device_uvector<vertex_t> forward_to_reverse(local_n, stream);
-  auto canonical_reverse = reverse_number_map->data();
+  auto canonical_reverse = reverse_number_map->view().value_first();
   rmm::device_uvector<vertex_t> partition_in(local_n, stream), partition_out(local_n, stream);
   rmm::device_uvector<vertex_t> incoming(local_n, stream), outgoing(reverse_n, stream);
   rmm::device_uvector<vertex_t> reverse_labels(reverse_n, stream);
@@ -400,8 +400,8 @@ void strongly_connected_components_impl(
   auto first_vertex = thrust::make_counting_iterator(first);
   vertex_t seed{};
   {
-    auto out_degrees     = graph_view.compute_out_degrees(handle);
-    auto reverse_degrees = reverse_view.compute_out_degrees(handle);
+    auto out_degrees     = compute_out_degrees(handle, graph_view).release_buffer();
+    auto reverse_degrees = compute_out_degrees(handle, reverse_view).release_buffer();
     rmm::device_uvector<edge_t> in_degrees(local_n, stream);
     {
       // Route reverse IDs and reverse out-degrees to the corresponding forward
@@ -442,7 +442,7 @@ void strongly_connected_components_impl(
     seed = cuda::std::get<1>(cugraph::reduce_v(
       handle,
       graph_view,
-      candidates,
+      vertex_property_view_t{candidates, local_n},
       seed_t{std::numeric_limits<double>::max(), std::numeric_limits<vertex_t>::max()},
       reduce_op::minimum<seed_t>{}));
 

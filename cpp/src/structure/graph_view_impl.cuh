@@ -277,7 +277,7 @@ rmm::device_uvector<edge_t> compute_minor_degrees(
       [] __device__(vertex_t, vertex_t, auto, auto, auto) { return edge_t{1}; },
       edge_t{0},
       reduce_op::plus<edge_t>{},
-      minor_degrees.data());
+      vertex_property_view_t{minor_degrees.data(), graph_view.local_vertex_partition_range_size()});
   } else {
     per_v_transform_reduce_incoming_e(
       handle,
@@ -288,7 +288,7 @@ rmm::device_uvector<edge_t> compute_minor_degrees(
       [] __device__(vertex_t, vertex_t, auto, auto, auto) { return edge_t{1}; },
       edge_t{0},
       reduce_op::plus<edge_t>{},
-      minor_degrees.data());
+      vertex_property_view_t{minor_degrees.data(), graph_view.local_vertex_partition_range_size()});
   }
 
   return minor_degrees;

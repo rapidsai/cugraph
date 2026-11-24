@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import pandas as pd
@@ -194,3 +194,12 @@ def sg_transposed_graph_objs(valid_graph_data, request):
     )
 
     return (g, resource_handle, ds_name)
+
+
+def pytest_collection_modifyitems(items):
+
+    # TODO: remove when updating to a 'pytest-benchmark' with support for 'pytest>=9.2'
+    #  ref: https://github.com/ionelmc/pytest-benchmark/issues/321
+    for item in items:
+        if not hasattr(item, "_nodeid"):
+            item._nodeid = item.nodeid

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -122,7 +122,9 @@ def input_and_expected_output(request):
         # Create graph from csr
         offsets = src_or_offset_array
         indices = dst_or_index_array
-        G.from_cudf_adjlist(offsets, indices, weight, renumber=False)
+        # These golden results were generated with renumbering enabled, before
+        # from_cudf_adjlist forwarded its renumber argument.
+        G.from_cudf_adjlist(offsets, indices, weight, renumber=True)
 
     parts, mod = cugraph.leiden(G, max_level, resolution)
 

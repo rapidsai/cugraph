@@ -441,7 +441,7 @@ ConfigureTest(MSBFS_TEST traversal/ms_bfs_test.cpp)
 
 ###################################################################################################
 # - SSSP tests ------------------------------------------------------------------------------------
-ConfigureTest(SSSP_TEST traversal/sssp_test.cpp)
+ConfigureTest(SHORTEST_PATH_TEST traversal/shortest_path_test.cpp)
 
 ###################################################################################################
 # - OD_SHORTEST_DISTANCES tests -------------------------------------------------------------------
@@ -465,7 +465,8 @@ ConfigureTest(EIGENVECTOR_CENTRALITY_TEST centrality/eigenvector_centrality_test
 
 ###################################################################################################
 # - BETWEENNESS_CENTRALITY tests ------------------------------------------------------------------
-ConfigureTest(BETWEENNESS_CENTRALITY_TEST centrality/betweenness_centrality_test.cpp)
+ConfigureTest(BETWEENNESS_CENTRALITY_TEST centrality/betweenness_centrality_test.cpp
+    GPUS 1 PERCENT 100)
 ConfigureTest(EDGE_BETWEENNESS_CENTRALITY_TEST centrality/edge_betweenness_centrality_test.cpp)
 
 ###################################################################################################
@@ -588,13 +589,11 @@ ConfigureTest(LOOKUP_SRC_DST_TEST lookup/lookup_src_dst_test.cpp)
 ConfigureTest(K_HOP_NBRS_TEST traversal/k_hop_nbrs_test.cpp)
 
 ###################################################################################################
-# - Dynamic graph memory manager tests ------------------------------------------------------------
-ConfigureTest(DYNAMIC_BIT_TREE_TEST dynamic/memory_manager/bit_tree_test.cpp)
-
-ConfigureTest(DYNAMIC_BLOCK_ARRAY_TEST dynamic/memory_manager/block_array_test.cpp)
-
-ConfigureTest(DYNAMIC_BLOCK_ARRAY_MANAGER_TEST
-              dynamic/memory_manager/block_array_manager_test.cpp)
+# - Dynamic graph allocator tests -----------------------------------------------------------------
+ConfigureTest(DYNAMIC_BIT_TREE_TEST dynamic/allocator/bit_tree_test.cpp)
+ConfigureTest(DYNAMIC_BLOCK_ARRAY_TEST dynamic/allocator/block_array_test.cpp)
+ConfigureTest(DYNAMIC_BLOCK_ALLOCATOR_TEST dynamic/allocator/block_allocator_test.cpp)
+ConfigureTest(DYNAMIC_BLOCK_STORAGE_TEST dynamic/allocator/block_storage_test.cpp)
 
 
 ###################################################################################################
@@ -669,13 +668,17 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_GRAPH500_BFS_TEST traversal/mg_graph500_bfs_test.cu)
 
     ###############################################################################################
+    # - MG GRAPH500 SSSP tests --------------------------------------------------------------------
+    ConfigureTestMG(MG_GRAPH500_SSSP_TEST traversal/mg_graph500_sssp_test.cu)
+
+    ###############################################################################################
     # - Extract BFS Paths tests -------------------------------------------------------------------
     ConfigureTestMG(MG_EXTRACT_BFS_PATHS_TEST
                     traversal/mg_extract_bfs_paths_test.cu)
 
     ###############################################################################################
     # - MG SSSP tests -----------------------------------------------------------------------------
-    ConfigureTestMG(MG_SSSP_TEST traversal/mg_sssp_test.cpp)
+    ConfigureTestMG(MG_SHORTEST_PATH_TEST traversal/mg_shortest_path_test.cpp)
 
     ###############################################################################################
     # - MG LOUVAIN tests --------------------------------------------------------------------------

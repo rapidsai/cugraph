@@ -609,7 +609,7 @@ __global__ static void compute_valid_local_nbr_count_inclusive_sums_mid_local_de
     auto rounded_up_num_inclusive_sums =
       ((num_inclusive_sums + raft::warp_size() - 1) / raft::warp_size()) * raft::warp_size();
     edge_t sum{0};
-    for (size_t j = lane_id; j <= rounded_up_num_inclusive_sums; j += raft::warp_size()) {
+    for (size_t j = lane_id; j < rounded_up_num_inclusive_sums; j += raft::warp_size()) {
       auto inc =
         (j < num_inclusive_sums)
           ? static_cast<edge_t>(count_set_bits(
@@ -618,7 +618,7 @@ __global__ static void compute_valid_local_nbr_count_inclusive_sums_mid_local_de
               cuda::std::min(packed_bools_per_word(), local_degree - packed_bools_per_word() * j)))
           : edge_t{0};
       WarpScan(temp_storage).InclusiveSum(inc, inc);
-      inclusive_sums[start_offset + j] = sum + inc;
+      if (j < num_inclusive_sums) { inclusive_sums[start_offset + j] = sum + inc; }
       sum += __shfl_sync(raft::warp_full_mask(), inc, raft::warp_size() - 1);
     }
 
@@ -664,7 +664,7 @@ __global__ static void compute_valid_local_nbr_count_inclusive_sums_high_local_d
        sample_and_compute_local_nbr_indices_block_size) *
       sample_and_compute_local_nbr_indices_block_size;
     if (threadIdx.x == sample_and_compute_local_nbr_indices_block_size - 1) { sum = 0; }
-    for (size_t j = threadIdx.x; j <= rounded_up_num_inclusive_sums; j += blockDim.x) {
+    for (size_t j = threadIdx.x; j < rounded_up_num_inclusive_sums; j += blockDim.x) {
       auto inc =
         (j < num_inclusive_sums)
           ? static_cast<edge_t>(count_set_bits(
@@ -673,7 +673,7 @@ __global__ static void compute_valid_local_nbr_count_inclusive_sums_high_local_d
               cuda::std::min(packed_bools_per_word(), local_degree - packed_bools_per_word() * j)))
           : edge_t{0};
       BlockScan(temp_storage).InclusiveSum(inc, inc);
-      inclusive_sums[start_offset + j] = sum + inc;
+      if (j < num_inclusive_sums) { inclusive_sums[start_offset + j] = sum + inc; }
       __syncthreads();
       if (threadIdx.x == sample_and_compute_local_nbr_indices_block_size - 1) { sum += inc; }
     }
@@ -774,7 +774,7 @@ compute_frontier_value_sums_and_partitioned_local_value_sum_displacements(
       num_values_per_key,
     handle.get_stream());
   rmm::device_uvector<value_t> frontier_partitioned_local_value_sum_displacements(
-    frontier_value_sums.size() * minor_comm_size * num_values_per_key, handle.get_stream());
+    frontier_value_sums.size() * minor_comm_size, handle.get_stream());
 
   thrust::for_each(
     handle.get_thrust_policy(),
@@ -1527,7 +1527,7 @@ rmm::device_uvector<edge_t> compute_homogeneous_uniform_sampling_index_without_r
             handle.get_thrust_policy(),
             (*retry_segment_indices).begin(),
             (*retry_segment_indices).end(),
-            indirection_and_is_greater_than_or_equal_t<edge_t>{
+            indirection_and_is_greater_than_or_equal_to_t<edge_t>{
               raft::device_span<edge_t const>(unique_counts.data(), unique_counts.size()),
               static_cast<edge_t>(K)});
           auto num_retry_segments = cuda::std::distance((*retry_segment_indices).begin(), last);
@@ -1541,7 +1541,7 @@ rmm::device_uvector<edge_t> compute_homogeneous_uniform_sampling_index_without_r
             thrust::count_if(handle.get_thrust_policy(),
                              unique_counts.begin(),
                              unique_counts.end(),
-                             is_less_than_to_t<edge_t>{static_cast<edge_t>(K)});
+                             is_less_than_t<edge_t>{static_cast<edge_t>(K)});
           if (num_retry_segments > 0) {
             retry_segment_indices =
               rmm::device_uvector<size_t>(num_retry_segments, handle.get_stream());

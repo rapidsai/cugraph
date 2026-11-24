@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -96,9 +96,9 @@ class Tests_MGPageRank
 
       d_mg_personalization_vertices = cugraph::select_random_vertices(
         *handle_,
+        rng_state,
         mg_graph_view,
         std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-        rng_state,
         std::max(
           static_cast<size_t>(mg_graph_view.number_of_vertices() *
                               pagerank_usecase.personalization_ratio),
@@ -142,7 +142,7 @@ class Tests_MGPageRank
             raft::device_span<result_t const>{d_mg_personalization_values->data(),
                                               d_mg_personalization_values->size()}))
         : std::nullopt,
-      std::optional<raft::device_span<result_t const>>{std::nullopt},
+      std::optional<cugraph::vertex_property_t<vertex_t, result_t>>{std::nullopt},
       alpha,
       epsilon,
       std::numeric_limits<size_t>::max(),
@@ -168,26 +168,26 @@ class Tests_MGPageRank
         std::tie(d_mg_aggregate_personalization_vertices, d_mg_aggregate_personalization_values) =
           cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
             *handle_,
-            std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map).data(),
-                                                                  (*d_mg_renumber_map).size()),
-            mg_graph_view.local_vertex_partition_range(),
-            std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+            mg_graph_view,
+            std::make_optional(d_mg_renumber_map->view()),
+            std::nullopt,
             std::make_optional<raft::device_span<vertex_t const>>(
               (*d_mg_personalization_vertices).data(), (*d_mg_personalization_vertices).size()),
             raft::device_span<result_t const>((*d_mg_personalization_values).data(),
                                               (*d_mg_personalization_values).size()));
       }
 
+      auto d_mg_pagerank_values = d_mg_pageranks.release_buffer();
       rmm::device_uvector<result_t> d_mg_aggregate_pageranks(0, handle_->get_stream());
       std::tie(std::ignore, d_mg_aggregate_pageranks) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
-          std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map).data(),
-                                                                (*d_mg_renumber_map).size()),
-          mg_graph_view.local_vertex_partition_range(),
+          mg_graph_view,
+          std::make_optional(d_mg_renumber_map->view()),
+          std::nullopt,
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-          raft::device_span<result_t const>(d_mg_pageranks.data(), d_mg_pageranks.size()));
+          raft::device_span<result_t const>(d_mg_pagerank_values.data(),
+                                            d_mg_pagerank_values.size()));
 
       cugraph::graph_t<vertex_t, edge_t, true, false> sg_graph(*handle_);
       std::optional<cugraph::edge_property_t<edge_t, weight_t>> sg_edge_weights{std::nullopt};
@@ -198,8 +198,7 @@ class Tests_MGPageRank
           mg_edge_weight_view,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map).data(),
-                                                                (*d_mg_renumber_map).size()),
+          std::make_optional(d_mg_renumber_map->view()),
           false);
 
       if (handle_->get_comms().get_rank() == int{0}) {
@@ -223,7 +222,7 @@ class Tests_MGPageRank
                 raft::device_span<result_t const>{d_mg_aggregate_personalization_values->data(),
                                                   d_mg_aggregate_personalization_values->size()}))
             : std::nullopt,
-          std::optional<raft::device_span<result_t const>>{std::nullopt},
+          std::optional<cugraph::vertex_property_t<vertex_t, result_t>>{std::nullopt},
           alpha,
           epsilon,
           std::numeric_limits<size_t>::max(),  // max_iterations
@@ -231,8 +230,9 @@ class Tests_MGPageRank
 
         // 4-3. compare
 
+        auto d_sg_pagerank_values     = d_sg_pageranks.release_buffer();
         auto h_mg_aggregate_pageranks = cugraph::test::to_host(*handle_, d_mg_aggregate_pageranks);
-        auto h_sg_pageranks           = cugraph::test::to_host(*handle_, d_sg_pageranks);
+        auto h_sg_pageranks           = cugraph::test::to_host(*handle_, d_sg_pagerank_values);
 
         auto threshold_ratio = 1e-3;
         auto threshold_magnitude =
