@@ -12,7 +12,6 @@
 
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/legacy/graph.hpp>
-#include <cugraph/legacy/internals.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/thrust_wrappers/fill.hpp>
 
@@ -32,24 +31,23 @@ void barnes_hut(raft::handle_t const& handle,
                 raft::random::RngState& rng_state,
                 legacy::GraphCOOView<vertex_t, edge_t, weight_t>& graph,
                 float* pos,
-                const int max_iter                            = 500,
-                float* x_start                                = nullptr,
-                float* y_start                                = nullptr,
-                bool outbound_attraction_distribution         = true,
-                bool lin_log_mode                             = false,
-                bool prevent_overlapping                      = false,
-                float* vertex_radius                          = nullptr,
-                const float overlap_scaling_ratio             = 100.0,
-                const float edge_weight_influence             = 1.0,
-                const float jitter_tolerance                  = 1.0,
-                const float theta                             = 0.5,
-                const float scaling_ratio                     = 2.0,
-                bool strong_gravity_mode                      = false,
-                const float gravity                           = 1.0,
-                float* vertex_mobility                        = nullptr,
-                float* vertex_mass                            = nullptr,
-                bool verbose                                  = false,
-                internals::GraphBasedDimRedCallback* callback = nullptr)
+                const int max_iter                    = 500,
+                float* x_start                        = nullptr,
+                float* y_start                        = nullptr,
+                bool outbound_attraction_distribution = true,
+                bool lin_log_mode                     = false,
+                bool prevent_overlapping              = false,
+                float* vertex_radius                  = nullptr,
+                const float overlap_scaling_ratio     = 100.0,
+                const float edge_weight_influence     = 1.0,
+                const float jitter_tolerance          = 1.0,
+                const float theta                     = 0.5,
+                const float scaling_ratio             = 2.0,
+                bool strong_gravity_mode              = false,
+                const float gravity                   = 1.0,
+                float* vertex_mobility                = nullptr,
+                float* vertex_mass                    = nullptr,
+                bool verbose                          = false)
 {
   cuda::stream_ref stream_view(handle.get_stream());
   const edge_t e   = graph.number_of_edges;
@@ -205,11 +203,6 @@ void barnes_hut(raft::handle_t const& handle,
   cudaFuncSetCacheConfig(RepulsionKernel, cudaFuncCachePreferL1);
   cudaFuncSetCacheConfig(apply_forces_bh, cudaFuncCachePreferL1);
 
-  if (callback) {
-    callback->setup<float>(nnodes + 1, 2);
-    callback->on_preprocess_end(nodes_pos);
-  }
-
   for (int iter = 0; iter < max_iter; ++iter) {
     // Reset force values
     cugraph::fill(handle.get_thrust_policy(), d_rep_forces.begin(), d_rep_forces.end(), 0.f);
@@ -342,8 +335,6 @@ void barnes_hut(raft::handle_t const& handle,
                                                                           speed,
                                                                           n);
 
-    if (callback) callback->on_epoch_end(nodes_pos);
-
     if (verbose) {
       std::cout << "iteration: " << iter + 1 << ", speed: " << speed
                 << ", speed_efficiency: " << speed_efficiency << ", jt: " << jt
@@ -354,8 +345,6 @@ void barnes_hut(raft::handle_t const& handle,
   // Copy nodes positions into final output pos
   raft::copy(pos, nodes_pos, n, stream_view.get());
   raft::copy(pos + n, nodes_pos + nnodes + 1, n, stream_view.get());
-
-  if (callback) callback->on_train_end(nodes_pos);
 }
 
 }  // namespace detail
