@@ -1,11 +1,13 @@
 # SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
+exclude: |
+  (?x)^(
+    skills/.*/skill\.oms\.sig|
+    skills/.*/skill-card\.md|
+    skills/.*/BENCHMARK\.md|
+    thirdparty/.*
+  )$
 
-## https://pre-commit.com/
-#
-# Before first use: `pre-commit install`
-# To run: `pre-commit run --all-files`
-exclude: '^thirdparty'
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
