@@ -778,11 +778,9 @@ create_graph_impl(raft::handle_t const& handle,
   std::for_each(edgelist_edge_properties.begin(),
                 edgelist_edge_properties.end(),
                 [sz = edgelist_srcs.size()](auto const& edge_property) {
-                  variant_type_dispatch(edge_property, [&sz](auto const& edge_property) {
-                    CUGRAPH_EXPECTS(
-                      sz == edge_property.size(),
-                      "Invalid input arguments: edgelist_srcs.size() != edge_property.size().");
-                  });
+                  CUGRAPH_EXPECTS(
+                    sz == arithmetic_device_uvector_size(edge_property),
+                    "Invalid input arguments: edgelist_srcs.size() != edge_property.size().");
                 });
   CUGRAPH_EXPECTS(renumber,
                   "Invalid input arguments: renumber should be true if multi_gpu is true.");
@@ -982,11 +980,9 @@ create_graph_impl(raft::handle_t const& handle,
       edgelist_edge_properties.begin(),
       edgelist_edge_properties.end(),
       [i, sz = edgelist_srcs[i].size()](auto&& edge_property) {
-        variant_type_dispatch(edge_property[i], [&sz](auto&& edge_property) {
-          CUGRAPH_EXPECTS(
-            sz == edge_property.size(),
-            "Invalid input arguments: edgelist_srcs[i].size() != edge_property[i].size().");
-        });
+        CUGRAPH_EXPECTS(
+          sz == arithmetic_device_uvector_size(edge_property[i]),
+          "Invalid input arguments: edgelist_srcs[i].size() != edge_property[i].size().");
       });
   }
   CUGRAPH_EXPECTS(renumber,
@@ -1442,11 +1438,9 @@ create_graph_impl(raft::handle_t const& handle,
   std::for_each(edgelist_edge_properties.begin(),
                 edgelist_edge_properties.end(),
                 [sz = edgelist_srcs.size()](auto&& edge_property) {
-                  variant_type_dispatch(edge_property, [&sz](auto&& edge_property) {
-                    CUGRAPH_EXPECTS(
-                      sz == edge_property.size(),
-                      "Invalid input arguments: edgelist_srcs.size() != edge_property.size().");
-                  });
+                  CUGRAPH_EXPECTS(
+                    sz == arithmetic_device_uvector_size(edge_property),
+                    "Invalid input arguments: edgelist_srcs.size() != edge_property.size().");
                 });
 
   CUGRAPH_EXPECTS((!large_vertex_buffer_type && !large_edge_buffer_type) ||
@@ -1708,11 +1702,9 @@ create_graph_impl(raft::handle_t const& handle,
       edgelist_edge_properties.begin(),
       edgelist_edge_properties.end(),
       [i, sz = edgelist_srcs[i].size()](auto&& edge_property) {
-        variant_type_dispatch(edge_property[i], [&sz](auto&& edge_property) {
-          CUGRAPH_EXPECTS(
-            sz == edge_property.size(),
-            "Invalid input arguments: edgelist_srcs[i].size() != edge_property[i].size().");
-        });
+        CUGRAPH_EXPECTS(
+          sz == arithmetic_device_uvector_size(edge_property[i]),
+          "Invalid input arguments: edgelist_srcs[i].size() != edge_property[i].size().");
       });
   }
 

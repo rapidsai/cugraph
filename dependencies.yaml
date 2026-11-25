@@ -30,6 +30,7 @@ files:
       - depends_on_ucxx
       - docs
       - python_build_cythonize
+      - python_build_nanobind
       - python_build_skbuild
       - python_build_rapids
       - python_build_wheel
@@ -94,6 +95,7 @@ files:
       - depends_on_libcugraph
       - depends_on_pylibcugraph
       - depends_on_cugraph
+      - depends_on_cugraph_python
   py_build_cugraph:
     output: pyproject
     pyproject_dir: python/cugraph
@@ -236,6 +238,49 @@ files:
     includes:
       - depends_on_cuda_core
       - depends_on_cudf
+      - test_python_common
+      - test_python_pylibcugraph
+  py_build_cugraph_python:
+    output: pyproject
+    pyproject_dir: python/cugraph_python
+    extras:
+      table: build-system
+    includes:
+      - python_build_rapids
+      - python_build_skbuild
+  py_rapids_build_cugraph_python:
+    output: pyproject
+    pyproject_dir: python/cugraph_python
+    matrix:
+      cuda_suffixed: ["false"]
+      use_cuda_wheels: ["true"]
+    extras:
+      table: tool.rapids-build-backend
+      key: requires
+    includes:
+      - common_build
+      - depends_on_libcugraph
+      - depends_on_libraft
+      - depends_on_librmm
+      - python_build_nanobind
+  py_run_cugraph_python:
+    output: pyproject
+    pyproject_dir: python/cugraph_python
+    matrix:
+      cuda_suffixed: ["false"]
+      use_cuda_wheels: ["true"]
+    extras:
+      table: project
+    includes:
+      - depends_on_cupy
+      - depends_on_libcugraph
+  py_test_cugraph_python:
+    output: pyproject
+    pyproject_dir: python/cugraph_python
+    extras:
+      table: project.optional-dependencies
+      key: test
+    includes:
       - test_python_common
       - test_python_pylibcugraph
 channels:
@@ -494,6 +539,11 @@ dependencies:
       - output_types: [conda, pyproject, requirements, constraints]
         packages:
           - cython>=3.2.2
+  python_build_nanobind:
+    common:
+      - output_types: [conda, pyproject, requirements, constraints]
+        packages:
+          - nanobind>=3.1.0
   python_run_cugraph:
     common:
       - output_types: [conda, pyproject, requirements, constraints]
@@ -605,6 +655,28 @@ dependencies:
               cuda_suffixed: "false"
             packages:
               - *cugraph_unsuffixed
+  depends_on_cugraph_python:
+    common:
+      - output_types: conda
+        packages:
+          - &cugraph_python_unsuffixed cugraph_python==27.2.*,>=0.0.0a0
+    specific:
+      - output_types: [requirements, pyproject, constraints]
+        matrices:
+          - matrix:
+              cuda: "12.*"
+              cuda_suffixed: "true"
+            packages:
+              - cugraph_python-cu12==27.2.*,>=0.0.0a0
+          - matrix:
+              cuda: "13.*"
+              cuda_suffixed: "true"
+            packages:
+              - cugraph_python-cu13==27.2.*,>=0.0.0a0
+          - matrix:
+              cuda_suffixed: "false"
+            packages:
+              - *cugraph_python_unsuffixed
   depends_on_libcugraph_etl:
     common:
       - output_types: conda

@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 set -euo pipefail
@@ -50,6 +50,17 @@ export RAPIDS_DATASET_ROOT_DIR
 EXITCODE=0
 trap "EXITCODE=1" ERR
 set +e
+
+rapids-logger "pytest cugraph_python"
+./ci/run_cugraph_python_pytests.sh \
+  --verbose \
+  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-python.xml" \
+  --numprocesses=8 \
+  --dist=worksteal \
+  --cov-config=../../.coveragerc \
+  --cov=cugraph_python \
+  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph_python-coverage.xml" \
+  --cov-report=term
 
 rapids-logger "pytest pylibcugraph"
 ./ci/run_pylibcugraph_pytests.sh \

@@ -14,6 +14,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cstdint>
+#include <type_traits>
 #include <variant>
 #include <vector>
 
@@ -85,20 +86,30 @@ using edge_arithmetic_property_mutable_view_t =
                cugraph::edge_property_view_t<edge_t, int64_t*>,
                cugraph::edge_property_view_t<edge_t, size_t*>>;
 
+/**
+ * @brief Call @p func with the alternative held by @p property.
+ *
+ * The result type is the decayed return type of @p func for alternative 1. Every other
+ * alternative must return that same type; a mismatch fails to compile.
+ *
+ * @throws cugraph::logic_error if @p property holds std::monostate.
+ */
 template <typename dispatched_type_t, typename func_t>
 auto variant_type_dispatch(dispatched_type_t& property, func_t func)
 {
-  switch (property.index()) {
-    case 1: return func(std::get<1>(property));
-    case 2: return func(std::get<2>(property));
-    case 3: return func(std::get<3>(property));
-    case 4: return func(std::get<4>(property));
-    case 5: return func(std::get<5>(property));
-    case 6: return func(std::get<6>(property));
-    case 7: return func(std::get<7>(property));
-    case 8: return func(std::get<8>(property));
-    default: CUGRAPH_FAIL("Variant not initialized");
-  }
+  using result_t = std::decay_t<decltype(func(std::get<1>(property)))>;
+  return std::visit(
+    [&func](auto& value) -> result_t {
+      using value_t = std::decay_t<decltype(value)>;
+      if constexpr (std::is_same_v<value_t, std::monostate>) {
+        CUGRAPH_FAIL("Variant not initialized");
+      } else {
+        static_assert(std::is_same_v<std::decay_t<decltype(func(value))>, result_t>,
+                      "variant_type_dispatch: every alternative must produce the same result type");
+        return func(value);
+      }
+    },
+    property);
 }
 
 struct sizeof_arithmetic_element {
@@ -118,6 +129,19 @@ struct sizeof_arithmetic_element {
     return sizeof(T);
   }
 };
+
+/**
+ * @brief Number of elements in an arithmetic device vector.
+ *
+ * @throws cugraph::logic_error if @p v holds std::monostate.
+ *
+ * @param v Device vector to measure.
+ * @return The number of elements in the held vector.
+ */
+inline size_t arithmetic_device_uvector_size(arithmetic_device_uvector_t const& v)
+{
+  return variant_type_dispatch(v, [](auto const& buffer) { return buffer.size(); });
+}
 
 inline arithmetic_device_span_t make_arithmetic_device_span(arithmetic_device_uvector_t& v)
 {

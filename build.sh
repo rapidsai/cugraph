@@ -26,6 +26,7 @@ VALIDARGS="
    libcugraph
    libcugraph_etl
    pylibcugraph
+   cugraph_python
    cugraph
    cpp-mgtests
    cpp-mtmgtests
@@ -50,6 +51,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    libcugraph                 - build libcugraph.so and SG test binaries
    libcugraph_etl             - build libcugraph_etl.so and SG test binaries
    pylibcugraph               - build the pylibcugraph Python package
+   cugraph_python             - build the cugraph_python Python package
    cugraph                    - build the cugraph Python package
    cpp-mgtests                - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
    cpp-mtmgtests              - build libcugraph MTMG tests. Adds UCX as a dependency (temporary).
@@ -304,6 +306,16 @@ if buildDefault || hasArg pylibcugraph || hasArg all; then
     else
         SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS}" \
             python -m pip install "${PYTHON_ARGS_FOR_INSTALL[@]}" "${REPODIR}/python/pylibcugraph"
+    fi
+fi
+
+# Build and install the cugraph_python package. Not part of the default build.
+if hasArg cugraph_python || hasArg all; then
+    if hasArg --clean; then
+        cleanPythonDir "${REPODIR}/python/cugraph_python"
+    else
+        SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS}" \
+            python -m pip install "${PYTHON_ARGS_FOR_INSTALL[@]}" "${REPODIR}/python/cugraph_python"
     fi
 fi
 

@@ -30,7 +30,8 @@ if [[ "${package_dir}" == "python/libcugraph" ]]; then
         )
     fi
 elif [[ "${package_dir}" != "python/cugraph" ]] && \
-     [[ "${package_dir}" != "python/pylibcugraph" ]]; then
+     [[ "${package_dir}" != "python/pylibcugraph" ]] && \
+     [[ "${package_dir}" != "python/cugraph_python" ]]; then
     rapids-echo-stderr "unrecognized package_dir: '${package_dir}'"
     exit 1
 fi

@@ -175,10 +175,8 @@ void check_input_edges(raft::handle_t const& handle,
     "Invalid input arguments: edgelist_srcs.size() and edgelist_dsts.size() should coincide.");
 
   for (size_t i = 0; i < edgelist_edge_properties.size(); ++i) {
-    CUGRAPH_EXPECTS(cugraph::variant_type_dispatch(edgelist_edge_properties[i],
-                                                   [](auto const& edgelist_edge_property) {
-                                                     return edgelist_edge_property.size();
-                                                   }) == edgelist_majors.size(),
+    CUGRAPH_EXPECTS(cugraph::arithmetic_device_uvector_size(edgelist_edge_properties[i]) ==
+                      edgelist_majors.size(),
                     "Invalid input arguments: edgelist_edge_properties[%lu].size() and "
                     "edgelist_(srcs|dsts).size() should coincide.",
                     i);
