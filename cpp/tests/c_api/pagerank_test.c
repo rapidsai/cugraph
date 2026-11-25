@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -479,6 +479,95 @@ int test_pagerank_non_convergence()
     h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, TRUE, alpha, epsilon, max_iterations);
 }
 
+int test_pagerank_invalid_precomputed_vertices()
+{
+  int test_ret_value = 0;
+
+  size_t num_edges = 3;
+  size_t num_sums  = 1;
+
+  vertex_t h_src[]                  = {0, 1, 2};
+  vertex_t h_dst[]                  = {1, 2, 0};
+  weight_t h_wgt[]                  = {1.f, 1.f, 1.f};
+  vertex_t h_precomputed_vertices[] = {999};
+  weight_t h_precomputed_sums[]     = {1.f};
+
+  double alpha          = 0.85;
+  double epsilon        = 1.0e-6;
+  size_t max_iterations = 500;
+
+  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
+  cugraph_error_t* ret_error    = NULL;
+
+  cugraph_resource_handle_t* p_handle                                = NULL;
+  cugraph_graph_t* p_graph                                           = NULL;
+  cugraph_centrality_result_t* p_result                              = NULL;
+  cugraph_type_erased_device_array_t* precomputed_vertices           = NULL;
+  cugraph_type_erased_device_array_t* precomputed_sums               = NULL;
+  cugraph_type_erased_device_array_view_t* precomputed_vertices_view = NULL;
+  cugraph_type_erased_device_array_view_t* precomputed_sums_view     = NULL;
+
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT32;
+
+  p_handle = cugraph_create_resource_handle(NULL);
+  TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
+
+  ret_code = create_test_graph(
+    p_handle, h_src, h_dst, h_wgt, num_edges, TRUE, FALSE, FALSE, &p_graph, &ret_error);
+
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
+  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+
+  ret_code = cugraph_type_erased_device_array_create(
+    p_handle, num_sums, vertex_tid, &precomputed_vertices, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "precomputed_vertices create failed.");
+
+  ret_code = cugraph_type_erased_device_array_create(
+    p_handle, num_sums, weight_tid, &precomputed_sums, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "precomputed_sums create failed.");
+
+  precomputed_vertices_view = cugraph_type_erased_device_array_view(precomputed_vertices);
+  precomputed_sums_view     = cugraph_type_erased_device_array_view(precomputed_sums);
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    p_handle, precomputed_vertices_view, (byte_t*)h_precomputed_vertices, &ret_error);
+  TEST_ASSERT(
+    test_ret_value, ret_code == CUGRAPH_SUCCESS, "precomputed_vertices copy_from_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    p_handle, precomputed_sums_view, (byte_t*)h_precomputed_sums, &ret_error);
+  TEST_ASSERT(
+    test_ret_value, ret_code == CUGRAPH_SUCCESS, "precomputed_sums copy_from_host failed.");
+
+  ret_code = cugraph_pagerank(p_handle,
+                              p_graph,
+                              precomputed_vertices_view,
+                              precomputed_sums_view,
+                              NULL,
+                              NULL,
+                              alpha,
+                              epsilon,
+                              max_iterations,
+                              TRUE,
+                              &p_result,
+                              &ret_error);
+  TEST_ASSERT(test_ret_value,
+              ret_code != CUGRAPH_SUCCESS,
+              "cugraph_pagerank accepted an invalid precomputed vertex.");
+  TEST_ASSERT(test_ret_value, p_result == NULL, "cugraph_pagerank returned a result on failure.");
+
+  cugraph_type_erased_device_array_view_free(precomputed_sums_view);
+  cugraph_type_erased_device_array_view_free(precomputed_vertices_view);
+  cugraph_type_erased_device_array_free(precomputed_sums);
+  cugraph_type_erased_device_array_free(precomputed_vertices);
+  cugraph_graph_free(p_graph);
+  cugraph_free_resource_handle(p_handle);
+  cugraph_error_free(ret_error);
+
+  return test_ret_value;
+}
+
 int test_personalized_pagerank()
 {
   size_t num_edges    = 3;
@@ -543,6 +632,100 @@ int test_personalized_pagerank_non_convergence()
                                                           max_iterations);
 }
 
+int test_personalized_pagerank_invalid_personalization_vertices()
+{
+  int test_ret_value = 0;
+
+  size_t num_edges                    = 3;
+  size_t num_personalization_vertices = 1;
+
+  vertex_t h_src[]                      = {0, 1, 2};
+  vertex_t h_dst[]                      = {1, 2, 0};
+  weight_t h_wgt[]                      = {1.f, 1.f, 1.f};
+  vertex_t h_personalization_vertices[] = {999};
+  weight_t h_personalization_values[]   = {1.f};
+
+  double alpha          = 0.85;
+  double epsilon        = 1.0e-6;
+  size_t max_iterations = 500;
+
+  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
+  cugraph_error_t* ret_error    = NULL;
+
+  cugraph_resource_handle_t* p_handle                                    = NULL;
+  cugraph_graph_t* p_graph                                               = NULL;
+  cugraph_centrality_result_t* p_result                                  = NULL;
+  cugraph_type_erased_device_array_t* personalization_vertices           = NULL;
+  cugraph_type_erased_device_array_t* personalization_values             = NULL;
+  cugraph_type_erased_device_array_view_t* personalization_vertices_view = NULL;
+  cugraph_type_erased_device_array_view_t* personalization_values_view   = NULL;
+
+  cugraph_data_type_id_t vertex_tid = INT32;
+  cugraph_data_type_id_t weight_tid = FLOAT32;
+
+  p_handle = cugraph_create_resource_handle(NULL);
+  TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
+
+  ret_code = create_test_graph(
+    p_handle, h_src, h_dst, h_wgt, num_edges, TRUE, FALSE, FALSE, &p_graph, &ret_error);
+
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
+  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+
+  ret_code = cugraph_type_erased_device_array_create(
+    p_handle, num_personalization_vertices, vertex_tid, &personalization_vertices, &ret_error);
+  TEST_ASSERT(
+    test_ret_value, ret_code == CUGRAPH_SUCCESS, "personalization_vertices create failed.");
+
+  ret_code = cugraph_type_erased_device_array_create(
+    p_handle, num_personalization_vertices, weight_tid, &personalization_values, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "personalization_values create failed.");
+
+  personalization_vertices_view = cugraph_type_erased_device_array_view(personalization_vertices);
+  personalization_values_view   = cugraph_type_erased_device_array_view(personalization_values);
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    p_handle, personalization_vertices_view, (byte_t*)h_personalization_vertices, &ret_error);
+  TEST_ASSERT(
+    test_ret_value, ret_code == CUGRAPH_SUCCESS, "personalization_vertices copy_from_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    p_handle, personalization_values_view, (byte_t*)h_personalization_values, &ret_error);
+  TEST_ASSERT(
+    test_ret_value, ret_code == CUGRAPH_SUCCESS, "personalization_values copy_from_host failed.");
+
+  ret_code = cugraph_personalized_pagerank(p_handle,
+                                           p_graph,
+                                           NULL,
+                                           NULL,
+                                           NULL,
+                                           NULL,
+                                           personalization_vertices_view,
+                                           personalization_values_view,
+                                           alpha,
+                                           epsilon,
+                                           max_iterations,
+                                           TRUE,
+                                           &p_result,
+                                           &ret_error);
+  TEST_ASSERT(test_ret_value,
+              ret_code != CUGRAPH_SUCCESS,
+              "cugraph_personalized_pagerank accepted an invalid personalization vertex.");
+  TEST_ASSERT(test_ret_value,
+              p_result == NULL,
+              "cugraph_personalized_pagerank returned a result on failure.");
+
+  cugraph_type_erased_device_array_view_free(personalization_values_view);
+  cugraph_type_erased_device_array_view_free(personalization_vertices_view);
+  cugraph_type_erased_device_array_free(personalization_values);
+  cugraph_type_erased_device_array_free(personalization_vertices);
+  cugraph_graph_free(p_graph);
+  cugraph_free_resource_handle(p_handle);
+  cugraph_error_free(ret_error);
+
+  return test_ret_value;
+}
+
 /******************************************************************************/
 
 int main(int argc, char** argv)
@@ -553,7 +736,9 @@ int main(int argc, char** argv)
   result |= RUN_TEST(test_pagerank_4);
   result |= RUN_TEST(test_pagerank_4_with_transpose);
   result |= RUN_TEST(test_pagerank_non_convergence);
+  result |= RUN_TEST(test_pagerank_invalid_precomputed_vertices);
   result |= RUN_TEST(test_personalized_pagerank);
   result |= RUN_TEST(test_personalized_pagerank_non_convergence);
+  result |= RUN_TEST(test_personalized_pagerank_invalid_personalization_vertices);
   return result;
 }
