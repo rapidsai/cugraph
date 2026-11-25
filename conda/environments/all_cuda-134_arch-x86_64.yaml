@@ -67,5 +67,4 @@ dependencies:
 - sphinx-markdown-tables
 - sphinxcontrib-websupport
 - ucxx==0.54.*,>=0.0.0a0
-- wheel
 name: all_cuda-134_arch-x86_64
