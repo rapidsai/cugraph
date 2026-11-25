@@ -28,4 +28,10 @@ rapids-pip-retry install \
     "${LIBCUGRAPH_WHEELHOUSE}"/libcugraph*.whl \
     "${PIP_INSTALL_ARGS[@]}"
 
+# pytorch/pytorch#192330: WSL drivers before R615 advertise GPUDirect RDMA with CUDA VMM,
+# but cuMemSetAccess fails with CUDA error 999 on such allocations, breaking NCCL init.
+if grep -qi microsoft /proc/version; then
+    export NCCL_CUMEM_ENABLE=0
+fi
+
 ./ci/test_wheel.sh cugraph
