@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -415,6 +415,88 @@ int test_biased_random_walks()
     src, dst, wgt, num_vertices, num_edges, start, num_starts, 3, FALSE, FALSE);
 }
 
+int test_biased_random_walks_unweighted()
+{
+  int test_ret_value = 0;
+
+  size_t num_edges  = 8;
+  size_t num_starts = 2;
+  size_t max_depth  = 3;
+
+  vertex_t src[]   = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t dst[]   = {1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t start[] = {2, 2};
+
+  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
+  cugraph_error_t* ret_error    = NULL;
+
+  cugraph_resource_handle_t* handle    = NULL;
+  cugraph_graph_t* graph               = NULL;
+  cugraph_rng_state_t* rng_state       = NULL;
+  cugraph_random_walk_result_t* result = NULL;
+
+  cugraph_type_erased_device_array_t* d_start           = NULL;
+  cugraph_type_erased_device_array_view_t* d_start_view = NULL;
+
+  handle = cugraph_create_resource_handle(NULL);
+  TEST_ASSERT(test_ret_value, handle != NULL, "resource handle creation failed.");
+
+  ret_code = create_sg_test_graph(handle,
+                                  INT32,
+                                  INT32,
+                                  src,
+                                  dst,
+                                  FLOAT32,
+                                  NULL,
+                                  INT32,
+                                  NULL,
+                                  INT32,
+                                  NULL,
+                                  INT32,
+                                  NULL,
+                                  NULL,
+                                  num_edges,
+                                  FALSE,
+                                  FALSE,
+                                  FALSE,
+                                  FALSE,
+                                  &graph,
+                                  &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
+
+  ret_code =
+    cugraph_type_erased_device_array_create(handle, num_starts, INT32, &d_start, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start create failed.");
+
+  d_start_view = cugraph_type_erased_device_array_view(d_start);
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, d_start_view, (byte_t*)start, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "start copy_from_host failed.");
+
+  ret_code = cugraph_rng_state_create(handle, 0, &rng_state, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
+
+  ret_code = cugraph_biased_random_walks(
+    handle, rng_state, graph, d_start_view, max_depth, &result, &ret_error);
+  TEST_ASSERT(test_ret_value,
+              ret_code == CUGRAPH_INVALID_INPUT,
+              "biased_random_walks expected to fail on an unweighted graph");
+  TEST_ASSERT(test_ret_value, result == NULL, "biased_random_walks returned a result on failure");
+  TEST_ASSERT(test_ret_value,
+              (ret_error != NULL) && (cugraph_error_message(ret_error)[0] != '\0'),
+              "biased_random_walks did not report an error message");
+
+  cugraph_type_erased_device_array_view_free(d_start_view);
+  cugraph_type_erased_device_array_free(d_start);
+  cugraph_rng_state_free(rng_state);
+  cugraph_graph_free(graph);
+  cugraph_free_resource_handle(handle);
+  cugraph_error_free(ret_error);
+
+  return test_ret_value;
+}
+
 int test_node2vec_random_walks()
 {
   size_t num_edges    = 8;
@@ -453,6 +535,7 @@ int main(int argc, char** argv)
   int result = 0;
   result |= RUN_TEST(test_uniform_random_walks);
   result |= RUN_TEST(test_biased_random_walks);
+  result |= RUN_TEST(test_biased_random_walks_unweighted);
   result |= RUN_TEST(test_node2vec_random_walks);
   result |= RUN_TEST(test_uniform_random_walks_oob);
   return result;
