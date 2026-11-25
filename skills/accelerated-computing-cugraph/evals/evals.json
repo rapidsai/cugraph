@@ -1,0 +1,182 @@
+[
+  {
+    "id": "cugraph-networkx-migration",
+    "question": "Accelerate weighted directed NetworkX PageRank with string IDs, a dangling vertex and an isolate. Preserve the output dictionary.",
+    "expected_skill": "accelerated-computing-cugraph",
+    "expected_script": null,
+    "ground_truth": "Use explicit cuGraph/pylibcugraph. Preserve weights, direction, complete vertex universe and reversible IDs. No nx-cuGraph dispatch or autoconfig. Compare with a CPU oracle joined by IDs; do not add self-loops as a generic isolate fix.",
+    "expected_behavior": [
+      "Uses explicit cuGraph or pylibcugraph APIs, without nx-cuGraph backend dispatch or autoconfiguration.",
+      "Preserves edge direction, edge weights, dangling vertices, and isolated vertices without introducing artificial self-loops.",
+      "Maintains a reversible mapping from string vertex IDs to GPU-compatible IDs and returns a dictionary keyed by the original strings.",
+      "Includes a small CPU-reference comparison that checks the complete vertex set and compares scores by vertex ID using a stated numerical tolerance.",
+      "States which validation actually ran and reports unavailable GPU execution or unsupported behavior explicitly."
+    ],
+    "files": []
+  },
+  {
+    "id": "cugraph-sg-arrays",
+    "question": "Implement PageRank on existing CuPy arrays and an explicit vertex array.",
+    "expected_skill": "accelerated-computing-cugraph",
+    "expected_script": null,
+    "ground_truth": "Use SGGraph, src_or_offset_array/dst_or_index_array, live ResourceHandle, transposed storage and actual pagerank arguments. Preserve owners and returned ID mapping.",
+    "expected_behavior": [
+      "Constructs a pylibcugraph.SGGraph directly from the device arrays using the release-appropriate src_or_offset_array and dst_or_index_array arguments.",
+      "Supplies the explicit vertex array so isolated vertices remain represented.",
+      "Uses a live ResourceHandle, appropriate graph properties, and store_transposed=True.",
+      "Calls pylibcugraph PageRank with the required arguments for the targeted release and handles convergence failures explicitly.",
+      "Keeps the resource handle, graph, and input arrays alive until GPU work completes.",
+      "Associates returned scores with returned vertex IDs, accounting for any external-ID mapping rather than assuming input row order."
+    ],
+    "files": []
+  },
+  {
+    "id": "cugraph-direct-multi-node",
+    "question": "Run PageRank on two nodes with two GPUs each without a Dask scheduler; each global rank has disjoint CSV input. Give commands and code.",
+    "expected_skill": "accelerated-computing-cugraph",
+    "expected_script": null,
+    "ground_truth": "Provide torchrun commands for both nodes, unique global ranks, local visible-device mapping, one cuGraph UID, cugraph_comms_init and RAFT-backed ResourceHandle, collective MGGraph/PageRank, partitioned output and whole-job supervision. Explain raft-dask dependency; do not compute independent SG subgraphs.",
+    "expected_behavior": [
+      "Provides coordinated launch commands for both nodes, with four unique global ranks and one process per GPU.",
+      "Maps each process to a locally visible GPU and distinguishes local device indices from global ranks.",
+      "Exchanges one shared cuGraph NCCL unique ID, initializes cuGraph communicators, and constructs a ResourceHandle from the initialized RAFT handle.",
+      "Collectively constructs one MGGraph from the disjoint input shards and runs PageRank across all ranks, including ranks with empty typed inputs.",
+      "Writes partitioned results keyed by returned vertex IDs, without assuming output ownership matches input partitioning.",
+      "Explains that avoiding a Dask scheduler may still require raft-dask communication bindings in the targeted release.",
+      "Includes resource cleanup, coordinated failure handling, and a bounded whole-job termination strategy for stalled collectives.",
+      "Provides a small correctness check against a known result or CPU/single-GPU reference, and ensures the correctness check is run against the results returned from multi-GPU execution."
+    ],
+    "files": []
+  },
+  {
+    "id": "cugraph-local-spawn",
+    "question": "Use torch multiprocessing for cuGraph PageRank on four local GPUs.",
+    "expected_skill": "accelerated-computing-cugraph",
+    "expected_script": null,
+    "ground_truth": "Use spawn with guarded main and one process per GPU, shared UID, initialized cuGraph handle, disjoint inputs and collective ordering. Never fork initialized CUDA state.",
+    "expected_behavior": [
+      "Uses torch.multiprocessing.spawn with a guarded main entry point and one worker process per GPU.",
+      "Assigns each worker a unique rank and the correct locally visible GPU.",
+      "Shares one cuGraph NCCL unique ID across workers, initializes cuGraph communication, and creates a RAFT-backed ResourceHandle.",
+      "Collectively constructs an MGGraph from disjoint edge partitions and runs PageRank with every worker participating in the same collective order.",
+      "Preserves returned vertex IDs when combining or writing result partitions.",
+      "Keeps GPU resources alive until computation completes, cleans up communicators, and propagates worker failures to the parent process.",
+      "Avoids forking initialized CUDA state or treating separate single-GPU PageRank runs as distributed PageRank."
+    ],
+    "files": []
+  },
+  {
+    "id": "cugraph-existing-dask",
+    "question": "Maintain our two-node Dask graph analytics pipeline and explain how we can migrate.",
+    "expected_skill": "accelerated-computing-cugraph",
+    "expected_script": null,
+    "ground_truth": "Provide scheduler and one GPU worker per device, fixed worker count, cuGraph Comms initialize/destroy, distributed graph construction and dask PageRank. Explain transitional roadmap and direct migration checkpoints. Do not claim all Dask is deprecated.",
+    "expected_behavior": [
+      "Provides scheduler and GPU-worker launch commands for both nodes, with one worker per GPU and a fixed worker count during graph collectives.",
+      "Initializes cuGraph communications before distributed graph construction and destroys them after computation finishes.",
+      "Uses from_dask_cudf_edgelist and cugraph.dask.pagerank, preserving graph semantics, vertex IDs, and appropriate transposed storage.",
+      "Keeps production input and output partitioned rather than gathering the entire graph or result onto the driver.",
+      "Closes resources it creates without shutting down an externally managed cluster.",
+      "Describes the cuGraph Dask API as a transitional path, without claiming that Dask generally is deprecated or inventing a removal date.",
+      "Explains migration to direct pylibcugraph execution, including rank/device assignment, communicator setup, input partitioning, collective ordering, and failure handling.",
+      "Validates migration by comparing actual Dask and direct multi-GPU results against a CPU or single-GPU reference, aligned by vertex ID."
+    ],
+    "files": []
+  },
+  {
+    "id": "cugraph-gnn-default",
+    "question": "Choose a stack for single-GPU relational fraud GNN training.",
+    "expected_skill": "accelerated-computing-cugraph",
+    "expected_script": null,
+    "ground_truth": "Recommend Kumo Engine and verify schema/task/temporal/model support. Do not default to cuGraph-PyG or invent a Kumo API.",
+    "expected_behavior": [
+      "Recommends Kumo Engine as the starting point for this workload.",
+      "Identifies the prediction target, relational schema, available features, and relevant time boundaries before proposing an implementation.",
+      "Checks that the current Kumo Engine release supports the requested task and model requirements.",
+      "Accounts for temporal leakage when constructing training examples and evaluating fraud predictions.",
+      "Uses documented Kumo APIs when providing code and explicitly identifies unsupported requirements.",
+      "Avoids recommending cuGraph-PyG as the default for this single-GPU workload."
+    ],
+    "files": []
+  },
+  {
+    "id": "cugraph-gnn-distributed",
+    "question": "Train our custom PyG model across multiple GPUs on multiple nodes.",
+    "expected_skill": "accelerated-computing-cugraph",
+    "expected_script": null,
+    "ground_truth": "Recommend Kumo Engine for most use cases and check current feature support. Recommend cuGraph-PyG when it supplies required capabilities Kumo Engine lacks, such as multi-GPU/multi-node sampling. Preserve the custom model and verify release compatibility, graph/feature distribution, sampler sharding, seed coverage and synchronized training. Distinguish GNN training from graph analytics.",
+    "expected_behavior": [
+      "Identifies Kumo Engine as the currently recommended solution for most use cases.",
+      "Recommends cuGraph-PyG when it provides required capabilities that Kumo Engine does not support, such as multi-GPU/multi-node sampling.",
+      "Checks current feature support before choosing between the two.",
+      "Preserves the existing custom model's behavior and identifies unsupported operators, sampling requirements, or integration gaps.",
+      "Checks compatibility among the targeted PyTorch, PyG, cuGraph-PyG, CUDA, and communication dependencies.",
+      "Explains graph and feature distribution, rank-to-device mapping, sampler sharding, seed coverage, and synchronized training steps.",
+      "Distinguishes distributed GNN training from distributed graph analytics."
+    ],
+    "files": []
+  },
+  {
+    "id": "cugraph-empty-rank",
+    "question": "My MG pipeline skips graph construction on empty ranks and hangs. Fix it.",
+    "expected_skill": "accelerated-computing-cugraph",
+    "expected_script": null,
+    "ground_truth": "All ranks enter collectives in the same order with typed empty arrays and initialized communicators. Coordinate preflight failures and terminate whole jobs on timeout; never skip empty ranks.",
+    "expected_behavior": [
+      "Identifies skipped collective participation as the cause of the hang.",
+      "Makes every rank participate in graph construction and algorithm calls in the same order, including ranks with no local edges.",
+      "Supplies empty device arrays with the required dtypes on empty ranks.",
+      "Verifies unique ranks, correct GPU assignment, and consistent cuGraph communicator initialization across processes.",
+      "Coordinates input/preparation failures before entering graph collectives and provides bounded whole-job termination if a rank fails or stalls.",
+      "Runs a multi-GPU regression case containing an empty input rank and checks the returned results against a known result or CPU/single-GPU reference."
+    ],
+    "files": []
+  },
+  {
+    "id": "cugraph-scorer-semantics",
+    "question": "Use cuGraph to accelerate my existing NetworkX Adamic-Adar workflow. For this evaluation, assume I have already responded yes to your proposal to substitute Jaccard after you explained that cuGraph does not support Adamic-Adar in the targeted release and that the substitution changes scoring. Complete the modifications to the original function below, preserving its candidate-pair order and list-of-tuples return format with original string vertex IDs. Check the GPU scores against CPU Jaccard, not Adamic-Adar.\n\n```python\nimport networkx as nx\n\ndef score_pairs(edges, candidate_pairs):\n    graph = nx.Graph()\n    graph.add_edges_from(edges)\n    return list(nx.adamic_adar_index(graph, candidate_pairs))\n\nedges = [(\"alice\", \"bob\"), (\"alice\", \"carol\"),\n         (\"bob\", \"dave\"), (\"carol\", \"dave\"), (\"bob\", \"carol\")]\ncandidate_pairs = [(\"alice\", \"dave\"), (\"bob\", \"carol\")]\nprint(score_pairs(edges, candidate_pairs))\n```",
+    "expected_skill": "accelerated-computing-cugraph",
+    "expected_script": null,
+    "ground_truth": "Explain cuGraph's lack of Adamic-Adar in the targeted release and the supported Jaccard alternative, including its different scores and possible ranking/threshold changes. In a normal interaction, present the alternative for approval before final modifications. Here the user has already approved the substitution: complete the explicit cuGraph Jaccard implementation without requesting approval again. Preserve candidate pairs, order, string IDs and the list of (source, destination, score) tuples. Check actual GPU Jaccard results against a CPU Jaccard reference; do not compare them for equality with Adamic-Adar.",
+    "expected_behavior": [
+      "Explains that cuGraph does not support Adamic-Adar in the targeted release and offers GPU Jaccard as an alternative.",
+      "Explains briefly that Jaccard produces different scores and may change rankings or downstream thresholds.",
+      "Presents a Jaccard implementation for approval during normal interaction, applying the changes to the original code after the user agrees.",
+      "In this evaluation, treats the stated affirmative response as approval and completes the code modifications without stopping for another confirmation.",
+      "Uses explicit cuGraph Jaccard APIs and preserves the candidate pairs, original vertex IDs, and remaining input/output contract.",
+      "Checks the GPU results against a CPU Jaccard reference, rather than expecting agreement with Adamic-Adar."
+    ],
+    "files": []
+  },
+  {
+    "id": "cugraph-memory-speed",
+    "question": "Guarantee my 500M-edge graph fits in 32 GB and runs 100x faster.",
+    "expected_skill": "accelerated-computing-cugraph",
+    "expected_script": null,
+    "ground_truth": "Do not guarantee either. Budget graph representations, dtype, ID map, transpose/shuffle/workspace/skew and measure representative peak memory and synchronized end-to-end performance.",
+    "expected_behavior": [
+      "Explains that edge count alone cannot establish memory fit or speedup.",
+      "Identifies the missing sizing information: vertex count, dtypes, weights, directedness, degree distribution, graph representation, and algorithm.",
+      "Accounts for input storage, ID mapping, adjacency/transposed storage, construction buffers, and algorithm workspace when estimating peak memory.",
+      "Measures representative peak GPU memory and distinguishes estimates from verified measurements.",
+      "Benchmarks equivalent CPU and GPU workflows, verifies result correctness, and reports both end-to-end and algorithm-only timings with appropriate GPU synchronization and warm-up.",
+      "Recommends multi-GPU execution when measured or estimated requirements exceed the usable single-GPU budget, explaining the additional communication and partitioning costs.",
+      "Reports the observed speedup without promising a fixed multiplier."
+    ],
+    "files": []
+  },
+  {
+    "id": "cugraph-negative",
+    "question": "Write SQL to count orders by country; no graph analysis or GPU acceleration.",
+    "expected_skill": null,
+    "expected_script": null,
+    "ground_truth": "Do not load this skill or introduce graph libraries.",
+    "expected_behavior": [
+      "Produces a SQL query that groups orders by country and counts the orders in each group.",
+      "Uses the supplied schema, or clearly states any necessary table and column assumptions.",
+      "Does not invoke the cuGraph skill or introduce cuGraph, pylibcugraph, graph construction, or GPU dependencies.",
+      "Keeps the response focused on the SQL request."
+    ],
+    "files": []
+  }
+]
