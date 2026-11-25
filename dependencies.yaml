@@ -32,7 +32,6 @@ files:
       - python_build_cythonize
       - python_build_skbuild
       - python_build_rapids
-      - python_build_wheel
       - python_run_cugraph
       - test_notebook
       - test_python_common
@@ -483,12 +482,6 @@ dependencies:
       - output_types: constraints
         packages:
           - scikit-build-core>=0.11.0
-  python_build_wheel:
-    common:
-      - output_types: [conda, pyproject, requirements, constraints]
-        packages:
-          - setuptools>=77.0.0
-          - wheel
   python_build_cythonize:
     common:
       - output_types: [conda, pyproject, requirements, constraints]
