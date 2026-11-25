@@ -4,6 +4,7 @@
 #doc code owners
 datasets/          @rapidsai/cugraph-doc-codeowners
 notebooks/         @rapidsai/cugraph-doc-codeowners
+skills/            @rapidsai/cugraph-doc-codeowners
 docs/              @rapidsai/cugraph-doc-codeowners
 **/*.txt           @rapidsai/cugraph-doc-codeowners
 **/*.md            @rapidsai/cugraph-doc-codeowners
