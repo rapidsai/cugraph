@@ -108,7 +108,7 @@ struct k_core_functor : public cugraph::c_api::abstract_functor {
           do_expensive_check_);
       }
 
-      auto degree_type = reinterpret_cast<cugraph::k_core_degree_type_t>(degree_type);
+      auto degree_type = static_cast<cugraph::k_core_degree_type_t>(degree_type_);
 
       using core_numbers_or_degree_type_t =
         std::variant<cugraph::vertex_property_view_t<vertex_t, edge_t const*>,
