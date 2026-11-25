@@ -502,7 +502,6 @@ dependencies:
           - &numpy numpy>=2.0,<3.0
       - output_types: conda
         packages:
-          - requests
           - nccl>=2.19
     specific:
       - output_types: [conda, requirements, pyproject, constraints]
