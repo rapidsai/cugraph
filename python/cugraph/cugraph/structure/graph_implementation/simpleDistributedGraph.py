@@ -231,7 +231,7 @@ class simpleDistributedGraphImpl:
         # make npartitions=0 and raise ZeroDivisionError in dask's repartition.
         input_ddf = input_ddf.repartition(npartitions=Comms.get_n_workers() * 2)
         # The dataframe will be symmetrized iff the graph is undirected
-        # otherwise, the inital dataframe will be returned
+        # otherwise, the initial dataframe will be returned
         if edge_attr is not None:
             if weight is not None or edge_id is not None or edge_type is not None:
                 raise ValueError(

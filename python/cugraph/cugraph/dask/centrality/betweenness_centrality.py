@@ -418,7 +418,7 @@ def edge_betweenness_centrality(
 
     if input_graph.is_directed() is False:
         # swap the src and dst vertices for the lower triangle only. Because
-        # this is a symmeterized graph, this operation results in a df with
+        # this is a symmetrized graph, this operation results in a df with
         # multiple src/dst entries.
         ddf["src"], ddf["dst"] = (
             ddf[["src", "dst"]].min(axis=1),
@@ -426,7 +426,7 @@ def edge_betweenness_centrality(
         )
         # overwrite the df with the sum of the values for all alike src/dst
         # vertex pairs, resulting in half the edges of the original df from the
-        # symmeterized graph.
+        # symmetrized graph.
         ddf = ddf.groupby(by=["src", "dst"]).sum().reset_index()
 
     return ddf

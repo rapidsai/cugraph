@@ -35,7 +35,7 @@ the tools here.
  Additional options can be specified for using different communication
  mechanisms:
  ```
-   --tcp                   - initalize a TCP cluster (default)
+   --tcp                   - initialize a TCP cluster (default)
    --ucx                   - initialize a UCX cluster with NVLink
    --ucxib | --ucx-ib      - initialize a UCX cluster with InfiniBand+NVLink
  ```

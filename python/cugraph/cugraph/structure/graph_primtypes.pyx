@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # cython: profile=False
@@ -23,7 +23,7 @@ cdef move_device_buffer_to_column(
     Transfers ownership of device_buffer_unique_ptr to a cuDF buffer which is
     used to construct a cudf column object, which is then returned. If the
     intermediate buffer is empty, the device_buffer_unique_ptr is still
-    transfered but None is returned.
+    transferred but None is returned.
     """
     cdef size_t buff_size = device_buffer_unique_ptr.get().size()
     cdef DeviceBuffer buff = DeviceBuffer.c_from_unique_ptr(move(device_buffer_unique_ptr))
@@ -49,7 +49,7 @@ cdef move_device_buffer_to_series(
     Transfers ownership of device_buffer_unique_ptr to a cuDF buffer which is
     used to construct a cudf.Series object with name series_name, which is then
     returned. If the intermediate buffer is empty, the device_buffer_unique_ptr
-    is still transfered but None is returned.
+    is still transferred but None is returned.
     """
     column = move_device_buffer_to_column(
         move(device_buffer_unique_ptr),

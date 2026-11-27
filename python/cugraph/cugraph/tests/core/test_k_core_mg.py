@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -50,7 +50,7 @@ def get_sg_results(dataset, core_number, degree_type):
         G, core_number=core_number, degree_type=degree_type
     )
     res = sg_k_core_graph.view_edge_list()
-    # FIXME: The result will come asymetric. Symmetrize the results
+    # FIXME: The result will come asymmetric. Symmetrize the results
     srcCol = sg_k_core_graph.source_columns
     dstCol = sg_k_core_graph.destination_columns
     wgtCol = sg_k_core_graph.weight_column

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -80,7 +80,7 @@ def cugraph_call(benchmark_callable, graph_file, input_df=None, use_weight=False
     # If no vertex_pair is passed as input, 'cugraph.sorensen' will
     # compute the 'sorensen_similarity' with the two_hop_neighbor of the
     # entire graph while nx compute with the one_hop_neighbor. For better
-    # comparaison, get the one_hop_neighbor of the entire graph for 'cugraph.sorensen'
+    # comparison, get the one_hop_neighbor of the entire graph for 'cugraph.sorensen'
     # and pass it as vertex_pair
     if isinstance(input_df, cudf.DataFrame):
         vertex_pair = input_df.rename(

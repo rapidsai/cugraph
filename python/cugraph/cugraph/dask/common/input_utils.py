@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 
@@ -65,7 +65,7 @@ class DistributedDataHandler:
     def get_client(cls, client=None):
         return default_client() if client is None else client
 
-    """ Class methods for initalization """
+    """ Class methods for initialization """
 
     @classmethod
     def create(cls, data, client=None, batch_enabled=False):

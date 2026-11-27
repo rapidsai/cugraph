@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # FIXME: Can we use global variables for column names instead of hardcoded ones?
@@ -78,7 +78,7 @@ def cugraph_call(benchmark_callable, graph_file, input_df=None, use_weight=False
     # If no vertex_pair is passed as input, 'cugraph.jaccard' will
     # compute the 'jaccard_similarity' with the two_hop_neighbor of the
     # entire graph while nx compute with the one_hop_neighbor. For better
-    # comparaison, get the one_hop_neighbor of the entire graph for 'cugraph.jaccard'
+    # comparison, get the one_hop_neighbor of the entire graph for 'cugraph.jaccard'
     # and pass it as vertex_pair
     if isinstance(input_df, cudf.DataFrame):
         vertex_pair = input_df.rename(

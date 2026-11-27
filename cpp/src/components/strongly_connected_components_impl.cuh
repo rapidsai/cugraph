@@ -132,7 +132,7 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
 
   rmm::device_uvector<uint32_t> bitmap(
     packed_bool_size(graph_view.local_vertex_partition_range_size()),
-    handle.get_stream());  // to enusre candidate vertices enter frontier only once.
+    handle.get_stream());  // to ensure candidate vertices enter frontier only once.
   cugraph::fill(handle.get_thrust_policy(), bitmap.begin(), bitmap.end(), packed_bool_empty_mask());
 
   auto cur_in_degrees  = std::move(in_degrees);

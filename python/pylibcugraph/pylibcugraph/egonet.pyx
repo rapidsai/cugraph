@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -140,7 +140,7 @@ def ego_graph(ResourceHandle resource_handle,
         cugraph_induced_subgraph_get_subgraph_offsets(result_ptr)
 
     # FIXME: Get ownership of the result data instead of performing a copy
-    # for perfomance improvement
+    # for performance improvement
     cupy_sources = copy_to_cupy_array(
         c_resource_handle_ptr, sources_ptr)
 

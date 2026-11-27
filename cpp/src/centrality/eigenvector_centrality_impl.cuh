@@ -69,7 +69,7 @@ eigenvector_centrality(
                    *edge_weight_view,
                    [] __device__(vertex_t, vertex_t, auto, auto, weight_t w) { return w <= 0.0; });
       CUGRAPH_EXPECTS(num_nonpositive_edge_weights == 0,
-                      "Invalid input argument: input edge weights should have postive values.");
+                      "Invalid input argument: input edge weights should have positive values.");
     }
   }
 

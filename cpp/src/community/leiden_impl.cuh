@@ -277,7 +277,7 @@ std::pair<dendrogram_t<vertex_t>, weight_t> leiden(
 
       //
       // Keep a copy of detail::update_clustering_by_delta_modularity if we want to
-      // resue detail::update_clustering_by_delta_modularity without changing
+      // reuse detail::update_clustering_by_delta_modularity without changing
       //
 
       //
@@ -286,7 +286,7 @@ std::pair<dendrogram_t<vertex_t>, weight_t> leiden(
       // vertices that have moved. And then 2) for all the vertices that have moved,
       // check if their neighbors belong to the same community.
       // If the neighbors belong to different communities, the collect them in a queue/list
-      // In the next iteration, only conside vertices in the queue/list, until there the
+      // In the next iteration, only consider vertices in the queue/list, until there the
       // queue/list is empty.
       //
       // IMPORTANT NOTE: Need to think which vertices are considered first

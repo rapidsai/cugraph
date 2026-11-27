@@ -682,7 +682,7 @@ bfs(raft::handle_t const& handle,
         next_frontier     = key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(handle);
         cur_frontier_view = key_bucket_view_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
           handle, raft::device_span<vertex_t const>(cur_frontier->begin(), cur_frontier->size()));
-      } else {  // swithcing to bottom-up
+      } else {  // switching to bottom-up
         cur_frontier      = std::nullopt;
         next_frontier     = key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(handle);
         cur_frontier_view = key_bucket_view_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
@@ -867,7 +867,7 @@ bfs(raft::handle_t const& handle,
         topdown = true;
       }
 
-      if (topdown) {  // swithcing to top-down
+      if (topdown) {  // switching to top-down
         cur_frontier = key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
           handle, std::move(new_frontier_vertex_buffer));
         next_frontier     = key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(handle);

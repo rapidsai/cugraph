@@ -421,7 +421,7 @@ weakly_connected_components_impl(raft::handle_t const& handle,
           static_cast<edge_t>(sqrt(comm_size)),
           edge_t{
             1});  // graph size often grows proportional to comm_size but maximum degree may grow
-                  // slower than graph size for many practial graphs; use sqrt() to consider this.
+                  // slower than graph size for many practical graphs; use sqrt() to consider this.
       }
       if (max_degree > threshold) { bfs_start_vertex = max_v; }
     }

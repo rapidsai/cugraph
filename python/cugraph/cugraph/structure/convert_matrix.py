@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # this file is pure python and no need to be a cython file. Once cugraph's
@@ -26,7 +26,7 @@ def from_edgelist(
     renumber=True,
 ):
     """
-    Return a new graph created from the edge list representaion.
+    Return a new graph created from the edge list representation.
 
     Parameters
     ----------
@@ -193,7 +193,7 @@ def from_cudf_edgelist(
     renumber=True,
 ):
     """
-    Return a new graph created from the edge list representaion. This function
+    Return a new graph created from the edge list representation. This function
     is added for NetworkX compatibility (this function is a RAPIDS version of
     NetworkX's from_pandas_edge_list()).  This function does not support
     multiple source or destination columns.  But does support renumbering

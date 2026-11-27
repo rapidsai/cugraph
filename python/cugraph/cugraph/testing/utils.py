@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -341,7 +341,7 @@ def random_edgelist(
     Examples
     --------
     >>> from cugraph.testing import utils
-    >>> # genrates 20 df with 100M edges each and write to disk
+    >>> # generates 20 df with 100M edges each and write to disk
     >>> for x in range(20):
     >>>    df = utils.random_edgelist(e=100000000, ef=64,
     >>>                               dtypes={'src':np.int32, 'dst':np.int32},

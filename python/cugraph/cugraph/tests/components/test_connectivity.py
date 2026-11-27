@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -308,7 +308,7 @@ def test_weak_cc(benchmark, dataset_nxresults_weak, cugraph_input_type):
     # while cugraph returns a component label for each vertex;
     cg_n_components = len(cugraph_labels)
 
-    # Comapre number of components
+    # Compare number of components
     assert nx_n_components == cg_n_components
 
     lst_nx_components_lens = [len(c) for c in lst_nx_components]
@@ -371,7 +371,7 @@ def test_strong_cc(benchmark, dataset_nxresults_strong, cugraph_input_type):
     # while cugraph returns a component label for each vertex;
     cg_n_components = len(cugraph_labels)
 
-    # Comapre number of components found
+    # Compare number of components found
     assert nx_n_components == cg_n_components
 
     lst_nx_components_lens = [len(c) for c in lst_nx_components]

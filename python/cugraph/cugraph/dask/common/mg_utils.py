@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -24,7 +24,7 @@ except ImportError as err:
 # FIXME: We currently look for the default client from dask, as such is the
 # if there is a dask client running without any GPU we will still try
 # to run MG using this client, it also implies that more  work will be
-# required  in order to run an MG Batch in Combination with mutli-GPU Graph
+# required  in order to run an MG Batch in Combination with multi-GPU Graph
 def get_client():
     try:
         client = default_client()

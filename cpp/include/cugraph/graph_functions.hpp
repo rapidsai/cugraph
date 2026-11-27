@@ -24,7 +24,7 @@
 #include <tuple>
 #include <vector>
 
-/** @defgroup graph_functions_cpp C++ Graph Funtions
+/** @defgroup graph_functions_cpp C++ Graph Functions
  */
 
 namespace CUGRAPH_EXPORT cugraph {
@@ -55,7 +55,7 @@ struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>
  * edgelist_edge_counts) and returning the renumbered edge sources and destinations.
  *
  * This function assumes that vertices are pre-shuffled to their target processes and edges are
- * pre-shuffled to their target processess and edge partitions using compute_gpu_id_from_vertex_t
+ * pre-shuffled to their target processes and edge partitions using compute_gpu_id_from_vertex_t
  * and compute_gpu_id_from_ext_edge_endpoints_t & compute_partition_id_from_ext_edge_endpoints_t
  * functors, respectively.
  *
@@ -127,7 +127,7 @@ renumber_edgelist(
  * @brief renumber edgelist (multi-GPU)
  *
  * This function assumes that vertices are pre-shuffled to their target processes and edges are
- * pre-shuffled to their target processess and edge partitions using compute_gpu_id_from_vertex_t
+ * pre-shuffled to their target processes and edge partitions using compute_gpu_id_from_vertex_t
  * and compute_gpu_id_from_ext_edge_endpoints_t & compute_partition_id_from_ext_edge_endpoints_t
  * functors, respectively.
  *
@@ -2115,9 +2115,9 @@ remove_multi_edges(raft::handle_t const& handle,
  * memory resource is used). The returned edge list will also be stored in the buffer type dictated
  * by this parameter.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return Tuple of std::vector objects holding rmm::device_uvector objects (# device_uvector objets
- * per std::vector = # edge chunks) storing edge sources, destinations, optional weights, optional
- * edge ids, optional edge types, optional edge start times and optional edge end times.
+ * @return Tuple of std::vector objects holding rmm::device_uvector objects (# device_uvector
+ * objects per std::vector = # edge chunks) storing edge sources, destinations, optional weights,
+ * optional edge ids, optional edge types, optional edge start times and optional edge end times.
  */
 template <typename vertex_t,
           typename edge_t,

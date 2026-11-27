@@ -813,7 +813,8 @@ class vertex_frontier_t {
         return static_cast<uint8_t>(split_op_result ? *split_op_result : kInvalidBucketIdx);
       });
 
-    // 2. separte the elements to stay in this bucket from the elements to be moved to other buckets
+    // 2. separate the elements to stay in this bucket from the elements to be moved to other
+    // buckets
 
     auto pair_first = thrust::make_zip_iterator(bucket_indices.begin(), this_bucket.begin());
     auto new_this_bucket_size = static_cast<size_t>(cuda::std::distance(

@@ -247,7 +247,7 @@ def pagerank(
     Returns
     -------
     The return value varies based on the value of the fail_on_nonconvergence
-    paramter.  If fail_on_nonconvergence is True:
+    parameter.  If fail_on_nonconvergence is True:
 
     PageRank : dask_cudf.DataFrame
         GPU data frame containing two dask_cudf.Series of size V: the

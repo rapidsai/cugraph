@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -92,7 +92,7 @@ typedef struct {
  *                               Mass of each vertex, which controls the attraction to other
  *                               vertices. If not provided, the mass of each vertex will be its
  *                               degree plus one.
- * @param [in]   verbose         Output convergence info at each interation.
+ * @param [in]   verbose         Output convergence info at each iteration.
  * @param [in]   do_expensive_check
  *                               A flag to run expensive checks for input arguments (if set to true)
  * @param [out]  result          Opaque object containing the layout result

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -148,7 +148,7 @@ def generate_rmat_edgelists(ResourceHandle resource_handle,
 
     max_edge_type_value : int
         Maximum edge type to generate if 'include_edge_types' is 'true'
-        otherwise, this paramter is ignored.
+        otherwise, this parameter is ignored.
 
 
     Returns

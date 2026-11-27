@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Import needed libraries
@@ -104,7 +104,7 @@ def EXPERIMENTAL__find_bicliques(
             # now from those machines, hop out to the list of all the features
             feature_list = get_all_feature(src_by_dst, machines, num_parts)
 
-            # summarize occurances
+            # summarize occurrences
             ic = _count_features(feature_list, True)
 
             goal = int(degree * support)  # NOQA

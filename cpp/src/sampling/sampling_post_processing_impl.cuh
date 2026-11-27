@@ -231,7 +231,7 @@ void check_input_edges(raft::handle_t const& handle,
   CUGRAPH_EXPECTS((!seed_vertices.has_value() && !seed_vertex_label_offsets.has_value()) ||
                     (seed_vertices.has_value() &&
                      (edgelist_label_offsets.has_value() == seed_vertex_label_offsets.has_value())),
-                  "Invaild input arguments: if seed_vertices.has_value() is false, "
+                  "Invalid input arguments: if seed_vertices.has_value() is false, "
                   "seed_vertex_label_offsets.has_value() should be false as well. If "
                   "seed_vertices.has_value( ) is true, seed_vertex_label_offsets.has_value() "
                   "should coincide with edgelist_label_offsets.has_value().");
@@ -566,7 +566,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
       cugraph::sequence(
         handle.get_thrust_policy(), tmp_indices.begin(), tmp_indices.end(), size_t{0});
 
-      // cub::DeviceSegmentedSort currently does not suuport cuda::std::tuple type keys, sorting in
+      // cub::DeviceSegmentedSort currently does not support cuda::std::tuple type keys, sorting in
       // chunks still helps in limiting the binary search range and improving memory locality
       for (size_t i = 0; i < num_chunks; ++i) {
         cugraph::sort(
@@ -1469,7 +1469,7 @@ compute_edge_id_renumber_map(
     cugraph::sequence(
       handle.get_thrust_policy(), tmp_indices.begin(), tmp_indices.end(), size_t{0});
 
-    // cub::DeviceSegmentedSort currently does not suuport cuda::std::tuple type keys, sorting in
+    // cub::DeviceSegmentedSort currently does not support cuda::std::tuple type keys, sorting in
     // chunks still helps in limiting the binary search range and improving memory locality
     for (size_t i = 0; i < num_chunks; ++i) {
       // sort by (label, (type), id, (hop))

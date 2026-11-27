@@ -155,7 +155,7 @@ def force_atlas2(
         Must contain two columns 'vertex' and 'mass'.
 
     verbose: bool, optional (default=False)
-        Output convergence info at each interation.
+        Output convergence info at each iteration.
 
     callback: optional (default=None)
         .. versionremoved:: 25.10

@@ -3,7 +3,7 @@
 
 <img src="../../img/zachary_black_lines.png" width="35%"/>
 
-cuGraph Structure notebooks contain Jupyter Notebooks that demonstrate graph manipulations which support other cuGraph algorithms. Many cuGraph algorithms expect vertices ids formated as a contiguous list of integers. Some only support a directed graph. CuGraph structure algorithms encapsulate that functionality and make all those relying on them more efficient and independent of this aspect graph standardizing.
+cuGraph Structure notebooks contain Jupyter Notebooks that demonstrate graph manipulations which support other cuGraph algorithms. Many cuGraph algorithms expect vertices ids formatted as a contiguous list of integers. Some only support a directed graph. CuGraph structure algorithms encapsulate that functionality and make all those relying on them more efficient and independent of this aspect graph standardizing.
 
 ## Summary
 

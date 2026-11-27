@@ -954,7 +954,7 @@ extern "C" int validate_sample_result(const cugraph_resource_handle_t* handle,
                       if (h_result_srcs[i] == h_result_srcs[j]) {
                         TEST_ASSERT(test_ret_value,
                                     h_result_hops[i] == h_result_hops[j],
-                                    "source vertex should not have been used in diferent hops");
+                                    "source vertex should not have been used in different hops");
                       }
                     }
                   }

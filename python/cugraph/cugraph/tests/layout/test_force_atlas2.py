@@ -32,7 +32,7 @@ def renumbered_edgelist(df):
     return new_df
 
 
-# This method converts a dataframe to a sparce matrix that is required by
+# This method converts a dataframe to a sparse matrix that is required by
 # scipy Trustworthiness to verify the layout
 def get_coo_array(edgelist):
     coo = edgelist
@@ -215,7 +215,7 @@ def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
         dimension. The results of force atlas 2 corresponds to the layout in
         a 2d space. Here we check that nodes belonging to the same community
         or neighbors are close to each other in the final embedding.
-        Thresholds are based on the best score that is achived after 500
+        Thresholds are based on the best score that is achieved after 500
         iterations on a given graph.
     """
     # Uncomment the below if the callback becomes supported again

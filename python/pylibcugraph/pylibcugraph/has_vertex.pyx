@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -61,7 +61,7 @@ def has_vertex(ResourceHandle resource_handle,
 
         Returns
         -------
-        Return a device array of bool where 'True' is indicative of a vertex existance
+        Return a device array of bool where 'True' is indicative of a vertex existence
         and 'False' otherwise.
 
         Examples

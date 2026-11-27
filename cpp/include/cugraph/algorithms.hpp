@@ -123,7 +123,7 @@ namespace CUGRAPH_EXPORT cugraph {
  * @param[in] vertex_mobility_values           Device array containing mobility of each vertex
  * (scaling factor for the displacement at each iteration).
  * @param[in] vertex_mass_values               Device array containing mass of each vertex
- * @param[in] verbose                          Output convergence info at each interation.
+ * @param[in] verbose                          Output convergence info at each iteration.
  * @param[in] callback                         An instance of GraphBasedDimRedCallback class to
  * intercept the internal state of positions while they are being trained.
  *
@@ -251,7 +251,7 @@ vertex_property_t<vertex_t, weight_t> vertex_betweenness_centrality(
  * @brief     Compute edge betweenness centrality for a graph
  *
  * Betweenness centrality of an edge is the sum of the fraction of all-pairs shortest paths that
- * pass through this edge. The weight parameter is currenlty not supported
+ * pass through this edge. The weight parameter is currently not supported
  *
  * @p seeds is optional.  If it is not specified the algorithm will compute exact betweenness
  * (compute betweenness using a traversal from all vertices).
@@ -291,7 +291,7 @@ edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
  * @ingroup linear_cpp
  * @brief      Compute Hungarian algorithm on a weighted bipartite graph
  *
- * The Hungarian algorithm computes an assigment of "jobs" to "workers".  This function accepts
+ * The Hungarian algorithm computes an assignment of "jobs" to "workers".  This function accepts
  * a weighted graph and a vertex list identifying the "workers".  The weights in the weighted
  * graph identify the cost of assigning a particular job to a worker.  The algorithm computes
  * a minimum cost assignment and returns the cost as well as a vector identifying the assignment.
@@ -324,7 +324,7 @@ weight_t hungarian(raft::handle_t const& handle,
  * @ingroup linear_cpp
  * @brief      Compute Hungarian algorithm on a weighted bipartite graph
  *
- * The Hungarian algorithm computes an assigment of "jobs" to "workers".  This function accepts
+ * The Hungarian algorithm computes an assignment of "jobs" to "workers".  This function accepts
  * a weighted graph and a vertex list identifying the "workers".  The weights in the weighted
  * graph identify the cost of assigning a particular job to a worker.  The algorithm computes
  * a minimum cost assignment and returns the cost as well as a vector identifying the assignment.
@@ -1149,7 +1149,7 @@ namespace dense {
  * @ingroup linear_cpp
  * @brief      Compute Hungarian algorithm on a weighted bipartite graph
  *
- * The Hungarian algorithm computes an assigment of "jobs" to "workers".  This function accepts
+ * The Hungarian algorithm computes an assignment of "jobs" to "workers".  This function accepts
  * a weighted graph and a vertex list identifying the "workers".  The weights in the weighted
  * graph identify the cost of assigning a particular job to a worker.  The algorithm computes
  * a minimum cost assignment and returns the cost as well as a vector identifying the assignment.
@@ -1179,7 +1179,7 @@ weight_t hungarian(raft::handle_t const& handle,
  * @ingroup linear_cpp
  * @brief      Compute Hungarian algorithm on a weighted bipartite graph
  *
- * The Hungarian algorithm computes an assigment of "jobs" to "workers".  This function accepts
+ * The Hungarian algorithm computes an assignment of "jobs" to "workers".  This function accepts
  * a weighted graph and a vertex list identifying the "workers".  The weights in the weighted
  * graph identify the cost of assigning a particular job to a worker.  The algorithm computes
  * a minimum cost assignment and returns the cost as well as a vector identifying the assignment.
@@ -2199,7 +2199,7 @@ vertex_property_t<vertex_t, vertex_t> weakly_connected_components(
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object. Must be directed (asymmetric).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return Device vector of stronlgy connected component IDs
+ * @return Device vector of strongly connected component IDs
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> strongly_connected_components(
@@ -2685,7 +2685,7 @@ rmm::device_uvector<weight_t> overlap_coefficients(
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return tuple containing three device vectors (v1, v2, score) of the same length.  Corresponding
  * elements in the vectors identify a result, v1 identifying a vertex in the graph, v2 identifying
- * one of v1's two hop neighors, and the score identifying the similarity score between v1 and v2.
+ * one of v1's two hop neighbors, and the score identifying the similarity score between v1 and v2.
  * If @p topk was specified then the vectors will be no longer than @p topk elements.  In a
  * multi-gpu context, if @p topk is specified all results will return on GPU rank 0, otherwise they
  * will be returned on the local GPU for vertex v1.
@@ -2742,7 +2742,7 @@ std::
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return tuple containing three device vectors (v1, v2, score) of the same length.  Corresponding
  * elements in the vectors identify a result, v1 identifying a vertex in the graph, v2 identifying
- * one of v1's two hop neighors, and the score identifying the similarity score between v1 and v2.
+ * one of v1's two hop neighbors, and the score identifying the similarity score between v1 and v2.
  * If @p topk was specified then the vectors will be no longer than @p topk elements.  In a
  * multi-gpu context, if @p topk is specified all results will return on GPU rank 0, otherwise they
  * will be returned on the local GPU for vertex v1.
@@ -2798,7 +2798,7 @@ std::
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return tuple containing three device vectors (v1, v2, score) of the same length.  Corresponding
  * elements in the vectors identify a result, v1 identifying a vertex in the graph, v2 identifying
- * one of v1's two hop neighors, and the score identifying the similarity score between v1 and v2.
+ * one of v1's two hop neighbors, and the score identifying the similarity score between v1 and v2.
  * If @p topk was specified then the vectors will be no longer than @p topk elements.  In a
  * multi-gpu context, if @p topk is specified all results will return on GPU rank 0, otherwise they
  * will be returned on the local GPU for vertex v1.
@@ -2854,7 +2854,7 @@ std::
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return tuple containing three device vectors (v1, v2, score) of the same length.  Corresponding
  * elements in the vectors identify a result, v1 identifying a vertex in the graph, v2 identifying
- * one of v1's two hop neighors, and the score identifying the similarity score between v1 and v2.
+ * one of v1's two hop neighbors, and the score identifying the similarity score between v1 and v2.
  * If @p topk was specified then the vectors will be no longer than @p topk elements.  In a
  * multi-gpu context, if @p topk is specified all results will return on GPU rank 0, otherwise they
  * will be returned on the local GPU for vertex v1.

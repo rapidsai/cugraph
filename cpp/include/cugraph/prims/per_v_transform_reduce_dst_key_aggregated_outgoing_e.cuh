@@ -608,7 +608,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         nullptr};  // relevant only when GraphViewType::is_multi_gpu &&
                    // edge_src_value_input.major_keys().has_value() == true (in this case,
                    // edge_src_value_input does not store value if local degree is 0, so no
-                   // gaurantee that we can retrieve this value after shuffle)
+                   // guarantee that we can retrieve this value after shuffle)
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& comm           = handle.get_comms();
       auto const comm_size = comm.get_size();
@@ -1054,7 +1054,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       // FIXME: additional optimization is possible if reduce_op is a pure function (and reduce_op
       // can be mapped to ncclRedOp_t).
       // FIXME: Memory footprint can grow proportional to minor_comm_size in the worst case. If
-      // reduce_op can be mapped to ncclRedOp_t, we can use ncclReduce to sovle this probelm. If
+      // reduce_op can be mapped to ncclRedOp_t, we can use ncclReduce to solve this problem. If
       // reduce_op cannot be mapped to ncclRedOp_t, we need to implement our own multi-GPU reduce
       // function.
 

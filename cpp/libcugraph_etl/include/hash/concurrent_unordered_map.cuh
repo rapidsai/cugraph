@@ -4,7 +4,7 @@
  */
 
 /*
- * FIXME: This file is copied from cudf because CuCollections doesnt support concurrent
+ * FIXME: This file is copied from cudf because CuCollections doesn't support concurrent
  *     insert/find for 8 byte key-value pair size. The plan is to migrate to
  *     using the cuco when the feature is supported. At that point this file can be deleted.
  */

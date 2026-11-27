@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -36,7 +36,7 @@ void validate_bipartite_rmat_distribution(
   double b,
   double c,
   size_t min_edges /* stop recursion if # edges < min_edges */,
-  double error_tolerance /* (computed a|b|c - input a|b|c) shoud be smaller than error_tolerance*/)
+  double error_tolerance /* (computed a|b|c - input a|b|c) should be smaller than error_tolerance*/)
 {
   // we cannot expect the ratios of the edges in the four quadrants of the graph adjacency matrix to
   // converge close to a, b, c, d if num_edges is not large enough.

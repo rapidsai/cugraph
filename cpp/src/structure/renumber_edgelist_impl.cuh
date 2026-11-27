@@ -233,7 +233,7 @@ std::optional<vertex_t> find_locally_unused_ext_vertex_id(
       vertex_t v = std::numeric_limits<vertex_t>::lowest();
       auto vertex_partition_id_op =
         compute_vertex_partition_id_from_ext_vertex_t<vertex_t>{comm_size};
-      while (true) {  // the acutal loop count should be smaller than or comparable to comm_size
+      while (true) {  // the actual loop count should be smaller than or comparable to comm_size
         if (!locally_used[vertex_partition_id_op(v)]) {
           ret = v;
           break;

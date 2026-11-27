@@ -10,7 +10,7 @@ This directory contains utilities for writing and running benchmarks for cuGraph
   `runtime` or `devel` Docker container.
   * NOTE: A RAPIDS `runtime` container contains the complete set of packages to
     satisfy every RAPIDS component, installed in a conda environment named
-    `rapids`.  A `devel` continer also contains the packages needed for RAPIDS
+    `rapids`.  A `devel` container also contains the packages needed for RAPIDS
     in a `rapids` conda environment, but also the complete toolchain used to
     build RAPIDS from source, the source files, and the intermediate build
     artifacts. `devel` containers are ideal for developers working on RAPIDS,
@@ -34,7 +34,7 @@ invocations of the script are required.  The current implementation of the
 script creates a single graph object from the dataset passed in and runs one or
 more benchmarks on that - different datasets require new graphs to be created,
 and the script currently only creates a single graph upfront.  The script also
-treates the dataset read and graph creation as individual benchmarks and reports
+treats the dataset read and graph creation as individual benchmarks and reports
 results for those steps too.
 
 There are two scripts to be aware of when running benchmarks; a python script

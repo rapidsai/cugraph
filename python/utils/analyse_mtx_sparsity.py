@@ -33,7 +33,7 @@ def count_consecutive(v):
 
 
 def consecutive_entries_per_row(M):
-    # count the number of consecutive column indicies
+    # count the number of consecutive column indices
     # for each row of a saprse CSR matrix sparse CSR.
     # not to be mixed with the longest sequence or the number of sequences
     v = [0] * M.shape[0]
@@ -131,7 +131,7 @@ print(
 
 # historgam
 plt.xlabel("Row lengths")
-plt.ylabel("Occurences")
+plt.ylabel("Occurrences")
 plt.hist(nnz_per_row, log=True)
 plt.savefig(str(mmFile) + "_transposed_row_lengths_histogram.png")
 plt.clf()

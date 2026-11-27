@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 from dask.distributed import default_client, wait
@@ -494,7 +494,7 @@ def rmat(
 
     max_edge_type_value : int
         Maximum edge type to generate if 'include_edge_types' is True
-        otherwise, this paramter is ignored.
+        otherwise, this parameter is ignored.
 
     create_using : cugraph Graph type or None The graph type to construct
         containing the generated edges and vertices.  If None is specified, the
@@ -653,7 +653,7 @@ def multi_rmat(
 
     scramble_vertex_ids : bool
         Flag controlling whether to scramble vertex ID bits (if set to True)
-        or not (if set to False); scrambling vertx ID bits breaks correlation
+        or not (if set to False); scrambling vertex ID bits breaks correlation
         between vertex ID values and vertex degrees.
 
     include_edge_weights : bool, optional (default=False)
@@ -682,7 +682,7 @@ def multi_rmat(
 
     max_edge_type_value : int
         Maximum edge type to generate if 'include_edge_types' is True
-        otherwise, this paramter is ignored.
+        otherwise, this parameter is ignored.
 
     dtype : numpy.float32, numpy.float64, cupy.float32, cupy.float64,
     "float32", "float64"

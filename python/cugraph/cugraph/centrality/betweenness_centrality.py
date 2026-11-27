@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 from pylibcugraph import (
@@ -131,7 +131,7 @@ def betweenness_centrality(
         )
         warnings.warn(warning_msg, UserWarning)
 
-    # FIXME: Should we now remove this paramter?
+    # FIXME: Should we now remove this parameter?
     if result_dtype not in [np.float32, np.float64]:
         raise TypeError("result type can only be np.float32 or np.float64")
     else:
@@ -318,7 +318,7 @@ def edge_betweenness_centrality(
         # select the lower triangle of the df based on src/dst vertex value
         lower_triangle = df["src"] >= df["dst"]
         # swap the src and dst vertices for the lower triangle only. Because
-        # this is a symmeterized graph, this operation results in a df with
+        # this is a symmetrized graph, this operation results in a df with
         # multiple src/dst entries.
         df["src"][lower_triangle], df["dst"][lower_triangle] = (
             df["dst"][lower_triangle],
@@ -326,7 +326,7 @@ def edge_betweenness_centrality(
         )
         # overwrite the df with the sum of the values for all alike src/dst
         # vertex pairs, resulting in half the edges of the original df from the
-        # symmeterized graph.
+        # symmetrized graph.
         df = df.groupby(by=["src", "dst"]).sum().reset_index()
 
     return df

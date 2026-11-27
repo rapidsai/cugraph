@@ -155,7 +155,7 @@ extract(raft::handle_t const& handle,
   // wait on every one to identify their neighbors before proceeding to concatenation
   handle.sync_stream_pool();
 
-  // Construct neighbors offsets (just a scan on neighborhod vector sizes)
+  // Construct neighbors offsets (just a scan on neighborhood vector sizes)
   h_neighbors_offsets[0] = 0;
   for (size_t i = 0; i < num_sources; i++) {
     h_neighbors_offsets[i + 1] = h_neighbors_offsets[i] + reached[i].size();

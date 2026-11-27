@@ -43,7 +43,7 @@ namespace CUGRAPH_EXPORT cugraph {
 // If sorted_unique is true, stores unique keys in the sorted (non-descending) order. If false,
 // there can be duplicates and the keys may not be sorted. Use source as the primary key and
 // destination as the secondary key for sorting if src_major is true. Use destination as the primary
-// key and source as the secondary key if src_major is false. Multi-edge indices (if releveant) are
+// key and source as the secondary key if src_major is false. Multi-edge indices (if relevant) are
 // used as the tertiary keys.
 template <typename vertex_t,
           typename edge_t,

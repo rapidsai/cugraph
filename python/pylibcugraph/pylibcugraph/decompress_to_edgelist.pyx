@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -129,7 +129,7 @@ def decompress_to_edgelist(ResourceHandle resource_handle,
     """
 
     # FIXME: Get ownership of the result data instead of performing a copy
-    # for perfomance improvement
+    # for performance improvement
     cupy_edge_weights = None
     cupy_edge_ids = None
     cupy_edge_type_ids = None

@@ -470,7 +470,7 @@ def homogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle,
             'edge_end_time': cupy_edge_end_time,
             'batch_id': cupy_batch_ids,
             'label_hop_offsets': cupy_label_hop_offsets,
-            'hop_id': None, # FIXME: Needs to be remove as 'label_hop_offsets' contains informations about the hop_id
+            'hop_id': None, # FIXME: Needs to be remove as 'label_hop_offsets' contains information about the hop_id
             'renumber_map': cupy_renumber_map,
             'renumber_map_offsets': cupy_renumber_map_offsets
         }

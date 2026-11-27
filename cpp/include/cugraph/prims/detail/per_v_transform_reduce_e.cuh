@@ -179,7 +179,7 @@ __device__ void update_result_value_output(
   result_t init,
   ReduceOp const& reduce_op,
   PredOp const& pred_op,
-  size_t output_idx /* relevent only when update_major === true */,
+  size_t output_idx /* relevant only when update_major === true */,
   ResultValueOutputIteratorOrWrapper& result_value_output)
 {
   if constexpr (update_major) {
