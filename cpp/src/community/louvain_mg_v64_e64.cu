@@ -9,7 +9,7 @@
 
 namespace cugraph {
 
-// Explicit template instantations
+// Explicit template instantiations
 
 template CUGRAPH_EXPORT std::pair<std::unique_ptr<dendrogram_t<int64_t>>, float> louvain(
   raft::handle_t const&,

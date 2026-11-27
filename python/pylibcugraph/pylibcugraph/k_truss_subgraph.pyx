@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -130,7 +130,7 @@ def k_truss_subgraph(ResourceHandle resource_handle,
 
 
     # FIXME: Get ownership of the result data instead of performing a copy
-    # for perfomance improvement
+    # for performance improvement
     cupy_sources = copy_to_cupy_array(
         c_resource_handle_ptr, sources_ptr)
 

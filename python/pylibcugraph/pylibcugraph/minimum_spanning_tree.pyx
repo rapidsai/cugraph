@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -125,7 +125,7 @@ def minimum_spanning_tree(ResourceHandle resource_handle,
 
 
     # FIXME: Get ownership of the result data instead of performing a copy
-    # for perfomance improvement
+    # for performance improvement
     cupy_sources = copy_to_cupy_array(
         c_resource_handle_ptr, sources_ptr)
 

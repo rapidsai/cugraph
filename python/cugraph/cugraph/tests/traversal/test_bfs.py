@@ -102,7 +102,7 @@ def convert_output_to_cudf(input_G_or_matrix, cugraph_result):
             if len(cugraph_result) == 3:
                 assert type(cugraph_result[2]) is np.ndarray
 
-        # Get unique verts from input since they are not incuded in output
+        # Get unique verts from input since they are not included in output
         if type(input_G_or_matrix) in [
             cp_csr_matrix,
             cp_csc_matrix,
@@ -177,7 +177,7 @@ def compare_bfs(benchmark_callable, G, golden_values, start_vertex, depth_limit)
 def _compare_bfs(cugraph_df, golden_distances, source):
     # This call should only contain 3 columns:
     # 'vertex', 'distance', 'predecessor'
-    # It also confirms wether or not 'sp_counter' has been created by the call
+    # It also confirms whether or not 'sp_counter' has been created by the call
     # 'sp_counter' triggers atomic operations in BFS, thus we want to make
     # sure that it was not the case
     # NOTE: 'predecessor' is always returned while the C++ function allows to
@@ -284,7 +284,7 @@ DATASETS = [pytest.param(d) for d in DEFAULT_DATASETS]
 SMALL_DATASETS = [pytest.param(d) for d in SMALL_DATASETS]
 DEPTH_LIMIT = [pytest.param(d) for d in DEPTH_LIMITS]
 
-# Call gen_fixture_params_product() to caluculate the cartesian product of
+# Call gen_fixture_params_product() to calculate the cartesian product of
 # multiple lists of params. This is required since parameterized fixtures do
 # not do this automatically (unlike multiply-parameterized tests). The 2nd
 # item in the tuple is a label for the param value used when displaying the

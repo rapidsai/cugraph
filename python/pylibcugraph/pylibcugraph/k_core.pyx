@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -90,7 +90,7 @@ def k_core(ResourceHandle resource_handle,
 
     Returns
     -------
-    A tuple of device arrays contaning the sources, destinations vertices
+    A tuple of device arrays containing the sources, destinations vertices
     and the weights.
 
     Examples

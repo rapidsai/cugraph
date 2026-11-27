@@ -89,7 +89,7 @@ You can run and edit cugraph notebooks at url http://127.0.0.1:8888/lab/tree/cug
 
 ## Additional Notebooks
 
-The following notebooks are not tested as part of the standard cuGraph continuous integration process.  There is a plan to start testing these notebooks weekly, but until then there is no guarantee that they will work with the nightly release.  The following table list the notebook funtion, where to find the notebook, and the environment used to test the notebook.
+The following notebooks are not tested as part of the standard cuGraph continuous integration process.  There is a plan to start testing these notebooks weekly, but until then there is no guarantee that they will work with the nightly release.  The following table list the notebook function, where to find the notebook, and the environment used to test the notebook.
 
 If any notebook doesn't run as detailed here, please file an issue in [cuGraph](https://github.com/rapidsai/cugraph/issues)
 

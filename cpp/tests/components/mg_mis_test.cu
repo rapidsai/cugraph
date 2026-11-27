@@ -180,7 +180,7 @@ class Tests_MGMaximalIndependentSet
                       h_mis.end(),
                       [vertex_first, vertex_last, &h_total_outgoing_nbrs_included_mis](vertex_t v) {
                         ASSERT_TRUE((v >= vertex_first) && (v < vertex_last))
-                          << v << " is not within vertex parition range" << std::endl;
+                          << v << " is not within vertex partition range" << std::endl;
 
                         ASSERT_TRUE(h_total_outgoing_nbrs_included_mis[v - vertex_first] == 0)
                           << v << "'s neighbor is included in MIS" << std::endl;

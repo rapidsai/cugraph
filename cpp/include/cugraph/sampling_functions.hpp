@@ -1514,7 +1514,7 @@ lookup_endpoints_from_edge_ids_and_types(
  * Negative sampling is done by generating a random graph according to the specified
  * parameters and optionally removing samples that represent actual edges in the graph
  *
- * Sampling occurs by creating a list of source vertex ids from biased samping
+ * Sampling occurs by creating a list of source vertex ids from biased sampling
  * of the source vertex space, and destination vertex ids from biased sampling of the
  * destination vertex space, and using this as the putative list of edges.  We
  * then can optionally remove duplicates and remove actual edges in the graph to generate
@@ -1575,7 +1575,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
  * Negative sampling is done by generating a random graph according to the specified
  * parameters and optionally removing samples that represent actual edges in the graph
  *
- * Sampling occurs by creating a list of source vertex ids from biased samping
+ * Sampling occurs by creating a list of source vertex ids from biased sampling
  * of the source vertex space, and destination vertex ids from biased sampling of the
  * destination vertex space, and using this as the putative list of edges.  We
  * then can optionally remove duplicates and remove actual edges in the graph to generate

@@ -63,7 +63,7 @@ body:
     attributes:
       label: Describe any alternatives you have considered
       description: List any other libraries, or approaches you have looked at or tried.
-      placeholder: I have looked at library xyz and qrs, but they do not offer GPU accleration
+      placeholder: I have looked at library xyz and qrs, but they do not offer GPU acceleration
 
   - type: textarea
     id: misc

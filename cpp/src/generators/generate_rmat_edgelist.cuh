@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -160,7 +160,7 @@ generate_rmat_edgelists(raft::handle_t const& handle,
 
   raft::update_host(scale.data(), d_scale.data(), d_scale.size(), handle.get_stream());
 
-  // intialized to standard powerlaw values
+  // initialized to standard powerlaw values
   double a = 0.57, b = 0.19, c = 0.19;
   if (edge_distribution == generator_distribution_t::UNIFORM) {
     a = 0.25;

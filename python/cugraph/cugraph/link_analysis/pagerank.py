@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import warnings
@@ -80,7 +80,7 @@ def pagerank(
     """Find the PageRank score for every vertex in a graph. cuGraph computes an
     approximation of the Pagerank eigenvector using the power method. The
     number of iterations depends on the properties of the network itself; it
-    increases when the tolerance descreases and/or alpha increases toward the
+    increases when the tolerance decreases and/or alpha increases toward the
     limiting value of 1. The user is free to use default values or to provide
     inputs for the initial guess, tolerance and maximum number of iterations.
     All edges will have an edge_attr value of 1.0 if not provided.
@@ -157,7 +157,7 @@ def pagerank(
     Returns
     -------
     The return value varies based on the value of the fail_on_nonconvergence
-    paramter.  If fail_on_nonconvergence is True:
+    parameter.  If fail_on_nonconvergence is True:
 
     PageRank : cudf.DataFrame
         GPU data frame containing two cudf.Series of size V: the vertex

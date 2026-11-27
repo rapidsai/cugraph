@@ -254,7 +254,7 @@ class simpleGraphImpl:
             )
             source = renumber_map.renumbered_src_col_name
             destination = renumber_map.renumbered_dst_col_name
-            # Use renumber_map to figure out if the python renumbering occured
+            # Use renumber_map to figure out if the python renumbering occurred
             self.properties.renumbered = renumber_map.is_renumbered
             self.renumber_map = renumber_map
             self.renumber_map.implementation.src_col_names = simpleGraphImpl.srcCol
@@ -275,7 +275,7 @@ class simpleGraphImpl:
                 raise ValueError("set renumber to True for non integer columns ids")
 
         # The dataframe will be symmetrized iff the graph is undirected with the
-        # symmetrize flag set to None or True otherwise, the inital dataframe will
+        # symmetrize flag set to None or True otherwise, the initial dataframe will
         # be returned. If set to False, the API will assume that the edges are already
         # symmetric. Duplicated edges will be dropped unless the graph is a
         # MultiGraph(Not Implemented yet)
@@ -555,7 +555,7 @@ class simpleGraphImpl:
                     )
 
         # FIXME: When renumbered, the MG API uses renumbered col names which
-        # is not consistant with the SG API.
+        # is not consistent with the SG API.
 
         self.properties.edge_count = len(edgelist_df)
 

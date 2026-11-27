@@ -216,7 +216,7 @@ template <typename bias_t>
 struct gumbel_transform_positive_bias_op_t {
   __device__ bias_t operator()(bias_t r, bias_t b) const
   {
-    assert(b > 0.0);  // 0 bias neighbors shold be pre-filtered before invoking this function
+    assert(b > 0.0);  // 0 bias neighbors should be pre-filtered before invoking this function
     return cuda::std::min(-cuda::std::log(r) / b, std::numeric_limits<bias_t>::max());
   }
 };

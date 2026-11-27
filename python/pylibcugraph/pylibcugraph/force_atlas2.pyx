@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -170,7 +170,7 @@ def force_atlas2(ResourceHandle resource_handle,
         If not provided, the mass of each vertex will be its degree plus one.
 
     verbose : bool_t
-        Output convergence info at each interation.
+        Output convergence info at each iteration.
 
     do_expensive_check : bool_t
         A flag to run expensive checks for input arguments (if set to true)

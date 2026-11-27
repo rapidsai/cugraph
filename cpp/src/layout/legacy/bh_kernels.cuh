@@ -29,7 +29,7 @@ namespace cugraph {
 namespace detail {
 
 /**
- * Intializes the states of objects. This speeds the overall kernel up.
+ * Initializes the states of objects. This speeds the overall kernel up.
  */
 __global__ static void InitializationKernel(unsigned* restrict limiter,
                                             int* restrict maxdepthd,

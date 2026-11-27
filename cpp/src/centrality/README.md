@@ -27,7 +27,7 @@ result_t constexpr epsilon{1e-6};
 rmm::device_uvector<result_t> pageranks_v(graph_view.number_of_vertices(), handle.get_stream());
 
 // pagerank optionally supports three additional parameters:
-//     max_iterations     - maximum number of iterations, if pagerank doesn't coverge by
+//     max_iterations     - maximum number of iterations, if pagerank doesn't converge by
 //                          then we abort
 //     has_initial_guess  - if true, values in the pagerank array when the call is initiated
 //                          will be used as the initial pagerank values.  These values will
@@ -65,7 +65,7 @@ rmm::device_uvector<result_t> personalization_values(number_of_personalization_v
 //  Populate personalization_vertices, personalization_values with user provided data
 
 // pagerank optionally supports three additional parameters:
-//     max_iterations     - maximum number of iterations, if pagerank doesn't coverge by
+//     max_iterations     - maximum number of iterations, if pagerank doesn't converge by
 //                          then we abort
 //     has_initial_guess  - if true, values in the pagerank array when the call is initiated
 //                          will be used as the initial pagerank values.  These values will

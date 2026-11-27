@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -149,7 +149,7 @@ inline std::tuple<T, File_Usecase> override_File_Usecase_with_cmd_line_arguments
  * @brief Parses the cuGraph test command line options.
  *
  * Currently supports 'rmm_mode', 'perf', 'rmat_scale', and 'rmat_edge_factor'.
- * 'rmm_mode` string paramater sets the rmm allocation mode. The default value of the parameter is
+ * 'rmm_mode` string parameter sets the rmm allocation mode. The default value of the parameter is
  * 'pool'.
  * `perf` boolean parameter enables performance measurements. The default value of the
  * parameter is 'false' (if this option is not provided).
@@ -173,7 +173,7 @@ inline auto parse_test_options(int argc, char** argv)
     cxxopts::Options options(argv[0], " - cuGraph tests command line options");
     options.allow_unrecognised_options().add_options()(
       "rmm_mode", "RMM allocation mode", cxxopts::value<std::string>()->default_value("pool"))(
-      "perf", "enalbe performance measurements", cxxopts::value<bool>()->default_value("false"))(
+      "perf", "enable performance measurements", cxxopts::value<bool>()->default_value("false"))(
       "rmat_scale", "override the hardcoded R-mat scale", cxxopts::value<size_t>())(
       "rmat_edge_factor", "override the hardcoded R-mat edge factor", cxxopts::value<size_t>())(
       "test_file_name", "override the hardcoded test filename", cxxopts::value<std::string>());

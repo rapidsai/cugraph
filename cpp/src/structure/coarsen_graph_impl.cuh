@@ -272,7 +272,7 @@ coarsen_graph(raft::handle_t const& handle,
 
   // 1. construct coarsened edge lists from each local partition (if the input graph is symmetric,
   // start with only the lower triangular edges after relabeling, this is to prevent edge weights in
-  // the coarsened graph becoming asymmmetric due to limited floatping point resolution)
+  // the coarsened graph becoming asymmetric due to limited floatping point resolution)
 
   bool lower_triangular_only = graph_view.is_symmetric();
 
@@ -595,9 +595,10 @@ coarsen_graph(raft::handle_t const& handle,
              0, std::numeric_limits<vertex_t>::max()}] __device__(vertex_t, vertex_t label) {
             return check(label);
           }));
-      CUGRAPH_EXPECTS(num_invalids == 0,
-                      "Invalid input aguments: if renumber is false, labels should be non-negative "
-                      "integers smaller than std::numeric_limits<vertex_t>::max().");
+      CUGRAPH_EXPECTS(
+        num_invalids == 0,
+        "Invalid input arguments: if renumber is false, labels should be non-negative "
+        "integers smaller than std::numeric_limits<vertex_t>::max().");
     }
   }
 

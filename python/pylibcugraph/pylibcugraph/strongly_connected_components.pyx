@@ -70,7 +70,7 @@ def _ensure_args(graph, offsets, indices, weights, labels):
     """
     i = 0
     if graph is not None:
-        # ensure the remaining parametes are None
+        # ensure the remaining parameters are None
         invalid_input = [i for p in [offsets, indices, weights] if p is not None]
         input_type = "graph"
     else:

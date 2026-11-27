@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 
@@ -8,7 +8,7 @@ import numpy as np
 
 
 # TRIM Process:
-#   - removed single vertex componenets
+#   - removed single vertex components
 #   - select vertex with highest out degree
 #   - forwards BFS
 #   - backward BFS

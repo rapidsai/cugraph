@@ -87,7 +87,7 @@ if __name__ == "__main__":
         type=str,
         default="tcp",
         required=False,
-        help="Initiliaze dask_cuda based on the cluster communication type."
+        help="Initialize dask_cuda based on the cluster communication type."
         "Supported values are tcp(default), ucx, ucxib, ucx-ib.",
     )
     ap.add_argument(

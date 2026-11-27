@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import warnings
@@ -138,7 +138,7 @@ def jaccard_coefficient(
     ebunch: cudf.DataFrame = None,
 ) -> cudf.DataFrame:
     """
-    For NetworkX Compatability.  See `jaccard`
+    For NetworkX Compatibility.  See `jaccard`
 
     Parameters
     ----------

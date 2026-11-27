@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -29,7 +29,7 @@ struct logic_error : public raft::exception {
  *
  * @param[in] cond Expression that evaluates to true or false
  * @param[in] fmt String literal description of the reason that cond is expected to be true with
- * optinal format tagas
+ * optional format tagas
  * @throw cugraph::logic_error if the condition evaluates to false.
  */
 #define CUGRAPH_EXPECTS(cond, fmt, ...)                              \
@@ -45,7 +45,7 @@ struct logic_error : public raft::exception {
  * @brief Indicates that an erroneous code path has been taken.
  *
  * @param[in] fmt String literal description of the reason that this code path is erroneous with
- * optinal format tagas
+ * optional format tagas
  * @throw always throws cugraph::logic_error
  */
 #define CUGRAPH_FAIL(fmt, ...)                                     \

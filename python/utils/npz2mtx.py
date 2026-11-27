@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2018-2020, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2018-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 import os
 import time
@@ -10,7 +10,7 @@ import argparse
 parser = argparse.ArgumentParser(
     description="Convert the sparsity pattern \
                                  of a NPZ file into a MatrixMarket file. \
-                                 Each directed edge is explicitely stored, \
+                                 Each directed edge is explicitly stored, \
                                  edges are unsorted, IDs are 0-based."
 )
 parser.add_argument(

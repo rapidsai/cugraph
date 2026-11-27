@@ -578,7 +578,7 @@ class Graph:
         -------
         df : cudf.DataFrame or dask_cudf.DataFrame
             The original DataFrame columns exist unmodified.  The external
-            vertex dentifiers are added to the DataFrame, the internal
+            vertex identifiers are added to the DataFrame, the internal
             vertex identifier column is removed from the dataframe.
         """
         return self.renumber_map.unrenumber(

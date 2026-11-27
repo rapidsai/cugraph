@@ -1106,7 +1106,7 @@ create_graph_impl(raft::handle_t const& handle,
   if (compressed_v_size < sizeof(vertex_t)) {
     if (!large_edge_buffer_type &&
         cugraph::large_buffer_manager::
-          memory_buffer_initialized()) {  // use the large memory buffer to store temporary splitted
+          memory_buffer_initialized()) {  // use the large memory buffer to store temporary split
                                           // data (right before decompression) if we compress vertex
                                           // IDs (i.e. we expect device memory allocation will fail
                                           // without compression)

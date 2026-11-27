@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # This file is source'd from script-env.sh to add functions to the
@@ -32,7 +32,7 @@ function setTee {
     # Create a named pipe.
     pipeName=$(mktemp -u)
     mkfifo "$pipeName"
-    # Close the currnet 1 and 2 and restore to original (3, 4) in the
+    # Close the current 1 and 2 and restore to original (3, 4) in the
     # event this function is called repeatedly.
     exec 1>&- 2>&-
     exec 1>&3 2>&4

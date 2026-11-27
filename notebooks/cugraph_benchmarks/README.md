@@ -86,7 +86,7 @@ rm -rf tmp
 
 
 
-### Dataset Acknowlegments
+### Dataset Acknowledgments
 
 The dataset are downloaded from the Texas A&M SuiteSparse Matrix Collection
 

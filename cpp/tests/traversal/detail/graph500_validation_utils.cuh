@@ -471,7 +471,7 @@ bool check_edge_endpoint_distances(
                                                       : mg_graph_to_isolated_trees_map.begin(),
                                 mg_distances.begin());
     for (vertex_t level = 0; level <= max_distance;
-         ++level) {  // validate in multple rounds to cut peak memory usage (to store
+         ++level) {  // validate in multiple rounds to cut peak memory usage (to store
                      // source|destination vertex properties using 1 bit per vertex)
       rmm::device_uvector<vertex_t> subgraph_level_v_offsets(
         mg_subgraph_view.local_vertex_partition_range_size(),
@@ -638,7 +638,7 @@ bool check_edge_endpoint_distances(
     }
   }
 
-  // thrid, validate the edges in the pruned forest (if reachble_from_2cores is true)
+  // third, validate the edges in the pruned forest (if reachble_from_2cores is true)
 
   if (reachable_from_2cores) {
     rmm::device_uvector<vertex_t> forest_edge_parents(mg_distances.size(), handle.get_stream());

@@ -411,7 +411,7 @@ k_truss(raft::handle_t const& handle,
                                                                         handle.get_stream());
 
       // The order no longer matters since duplicated triangles have been removed
-      // Flatten the endpoints to a list of egdes.
+      // Flatten the endpoints to a list of edges.
       thrust::transform(
         handle.get_thrust_policy(),
         thrust::make_counting_iterator<edge_t>(0),
@@ -564,7 +564,7 @@ k_truss(raft::handle_t const& handle,
                                       std::optional<edge_t const*>{std::nullopt});
 
       cur_graph_view.clear_edge_mask();
-      // Check for edge existance on the directed graph view
+      // Check for edge existence on the directed graph view
       cur_graph_view.attach_edge_mask(dodg_mask.view());
 
       // Update count of weak edges from the DODG view

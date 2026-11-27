@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 THIS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -8,7 +8,7 @@ THIS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # will be set only if they were previously unset. The project config
 # is loaded first, which gives it the opportunity to override anything
 # in this file that uses that syntax.  If there are variables in this
-# file that should not be overridded by a project, then they will
+# file that should not be overridden by a project, then they will
 # simply not use that syntax and override, since these variables are
 # read last.
 WORKSPACE=$THIS_DIR

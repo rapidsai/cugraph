@@ -232,7 +232,7 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
         auto rank_of_v         = ranks.get(v_offset);
 
         if (max_neighbor_rank >= std::numeric_limits<vertex_t>::max()) {
-          // Maximum rank neighbor is alreay in MIS
+          // Maximum rank neighbor is already in MIS
           // Discard current vertex by setting its rank to
           // std::numeric_limits<vertex_t>::lowest()
           ranks.set(v_offset, std::numeric_limits<vertex_t>::lowest());

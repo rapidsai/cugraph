@@ -560,7 +560,7 @@ refine_clustering(raft::handle_t const& handle,
         cugraph::unique(handle.get_thrust_policy(), dst_vertices.begin(), dst_vertices.end()))),
       handle.get_stream());
 
-    // Shuffle dst vertices to owner GPU, according to vetex partitioning
+    // Shuffle dst vertices to owner GPU, according to vertex partitioning
     if constexpr (multi_gpu) {
       std::tie(dst_vertices, std::ignore) =
         cugraph::shuffle_int_vertices(handle,

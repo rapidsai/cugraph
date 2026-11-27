@@ -1093,7 +1093,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
     weight_t{0.0});
   {
     // the above transform_reduce_e output can vary in each run due to floating point round-off
-    // errro, we reduce the precision of the significand here to reduce the non-determinicity due to
+    // error, we reduce the precision of the significand here to reduce the non-determinicity due to
     // the difference in delta in each run (this still does not guarantee that we will get the same
     // delta in every run for every graph)
     assert(average_edge_weight >= 0.0);

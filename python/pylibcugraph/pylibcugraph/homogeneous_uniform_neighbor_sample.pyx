@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -387,7 +387,7 @@ def homogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
             'edge_type': cupy_edge_types,
             'batch_id': cupy_batch_ids,
             'label_hop_offsets': cupy_label_hop_offsets,
-            'hop_id': None, # FIXME: Needs to be remove as 'label_hop_offsets' contains informations about the hop_id
+            'hop_id': None, # FIXME: Needs to be remove as 'label_hop_offsets' contains information about the hop_id
             'renumber_map': cupy_renumber_map,
             'renumber_map_offsets': cupy_renumber_map_offsets
         }

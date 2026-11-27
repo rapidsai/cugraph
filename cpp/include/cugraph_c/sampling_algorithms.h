@@ -305,7 +305,7 @@ CUGRAPH_EXPORT void cugraph_sampling_set_return_hops(cugraph_sampling_options_t*
  * @brief   Set compression type
  *
  * @param options - opaque pointer to the sampling options
- * @param value - Enum defining the compresion type
+ * @param value - Enum defining the compression type
  */
 CUGRAPH_EXPORT void cugraph_sampling_set_compression_type(cugraph_sampling_options_t* options,
                                                           cugraph_compression_type_t value);
@@ -1195,7 +1195,7 @@ CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_sample_result_ge
 
 /**
  * @ingroup samplingC
- * @brief     Get the edge renumber map offets
+ * @brief     Get the edge renumber map offsets
  *
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the renumber map

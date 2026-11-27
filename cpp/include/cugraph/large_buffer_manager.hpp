@@ -37,7 +37,7 @@ class large_memory_buffer_resource_t {
             // different memory resources.
 };
 
-// storage buffer does not support pointer based load & store operations and requries special
+// storage buffer does not support pointer based load & store operations and requires special
 // accessors to read/write
 class large_storage_buffer_resource_t {  // placeholder for future use
 };

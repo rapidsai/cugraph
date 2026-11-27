@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -61,7 +61,7 @@ def pagerank(ResourceHandle resource_handle,
     Find the PageRank score for every vertex in a graph by computing an
     approximation of the Pagerank eigenvector using the power method. The
     number of iterations depends on the properties of the network itself; it
-    increases when the tolerance descreases and/or alpha increases toward the
+    increases when the tolerance decreases and/or alpha increases toward the
     limiting value of 1.
 
     Parameters
@@ -125,7 +125,7 @@ def pagerank(ResourceHandle resource_handle,
     Returns
     -------
     The return value varies based on the value of the fail_on_nonconvergence
-    paramter.  If fail_on_nonconvergence is True:
+    parameter.  If fail_on_nonconvergence is True:
 
        A tuple of device arrays, where the first item in the tuple is a device
        array containing the vertex identifiers, and the second item is a device

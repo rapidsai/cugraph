@@ -362,7 +362,7 @@ auto shuffle_and_unique_segment_sorted_values(
   raft::comms::comms_t const& comm,
   TxValueIterator
     segment_sorted_tx_value_first,  // sorted within each segment (segment sizes:
-                                    // tx_value_counts[i], where i = [0, comm_size); and bettter be
+                                    // tx_value_counts[i], where i = [0, comm_size); and better be
                                     // unique to reduce communication volume
   raft::host_span<size_t const> tx_value_counts,
   cuda::stream_ref stream_view,

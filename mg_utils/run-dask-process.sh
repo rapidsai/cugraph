@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 THIS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -23,7 +23,7 @@ HELP="$0 [<app> ...] [<flag> ...]
    scheduler               - start dask scheduler
    workers                 - start dask workers
  and <flag> is:
-   --tcp                   - initalize a tcp cluster (default)
+   --tcp                   - initialize a tcp cluster (default)
    --ucx                   - initialize a ucx cluster with NVLink
    --ucxib | --ucx-ib      - initialize a ucx cluster with IB+NVLink
    -h | --help             - print this text
@@ -159,13 +159,13 @@ function buildUCXwithoutInfinibandArgs {
 }
 
 if [[ "$CLUSTER_CONFIG_TYPE" == "UCX" ]]; then
-    logger "Using cluster configurtion for UCX"
+    logger "Using cluster configuration for UCX"
     buildUCXwithoutInfinibandArgs
 elif [[ "$CLUSTER_CONFIG_TYPE" == "UCXIB" ]]; then
-    logger "Using cluster configurtion for UCX with Infiniband"
+    logger "Using cluster configuration for UCX with Infiniband"
     buildUCXWithInfinibandArgs
 else
-    logger "Using cluster configurtion for TCP"
+    logger "Using cluster configuration for TCP"
     buildTcpArgs
 fi
 

@@ -13,7 +13,7 @@ class NumberMap:
     class SingleGPU:
         def __init__(self, df, src_col_names, dst_col_names, id_type, store_transposed):
             self.col_names = NumberMap.compute_vals(src_col_names)
-            # FIXME: rename the next two attributes to its singular conterpart as there
+            # FIXME: rename the next two attributes to its singular counterpart as there
             # is only one 'src' and 'dst' col name
             self.src_col_names = src_col_names
             self.dst_col_names = dst_col_names
@@ -451,7 +451,7 @@ class NumberMap:
             are added to the DataFrame to identify the external vertex
             identifiers. If external_columns is specified, these names
             are used as the names of the output columns.  If external_columns
-            is not specifed the columns are labeled '0', ... 'n-1' based on
+            is not specified the columns are labeled '0', ... 'n-1' based on
             the number of columns identifying the external vertex identifiers.
         """
         tmp_df = None
@@ -482,7 +482,7 @@ class NumberMap:
     ):
         """
         Given an input dataframe with its column names, this function returns the
-        renumbered dataframe(if renumbering occured) along with a mapping from internal
+        renumbered dataframe(if renumbering occurred) along with a mapping from internal
         to external vertex IDs. the parameter 'preserve_order' ensures that the order
         of the edges is preserved during renumbering.
         """

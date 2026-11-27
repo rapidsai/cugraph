@@ -650,7 +650,7 @@ struct gatherv_indices_t {
 // Calling this function in multiple groups can reduce the peak memory usage when the caller wants
 // to compute neighbor intersections for a large number of vertex pairs. This is especially true if
 // one can limit the number of unique vertices (aggregated over column communicator in multi-GPU) to
-// build neighbor list; we need to bulid neighbor lists for the first element of every input vertex
+// build neighbor list; we need to build neighbor lists for the first element of every input vertex
 // pair if intersect_dst_nbr[0] == GraphViewType::is_storage_transposed and build neighbor lists for
 // the second element of every input vertex pair if single-GPU and intersect_dst_nbr[1] ==
 // GraphViewType::is_storage_transposed or multi-GPU. For load balancing,

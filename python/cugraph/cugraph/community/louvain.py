@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Union, Tuple
@@ -89,7 +89,7 @@ def louvain(
 
     """
 
-    # FIXME: Onece the graph construction calls support isolated vertices through
+    # FIXME: Once the graph construction calls support isolated vertices through
     #  the C API (the C++ interface already supports this) then there will be
     # no need to compute isolated vertices here.
 

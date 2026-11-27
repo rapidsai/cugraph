@@ -220,7 +220,7 @@ void barnes_hut(raft::handle_t const& handle,
     ResetKernel<<<1, 1, 0, stream_view.get()>>>(radiusd_squared, bottomd, NNODES, radiusd);
     RAFT_CHECK_CUDA(stream_view.get());
 
-    // Compute bounding box arround all bodies
+    // Compute bounding box around all bodies
     BoundingBoxKernel<<<blocks * FACTOR1, THREADS1, 0, stream_view.get()>>>(startl,
                                                                             childl,
                                                                             massl,
@@ -324,7 +324,7 @@ void barnes_hut(raft::handle_t const& handle,
     const float t =
       thrust::reduce(handle.get_thrust_policy(), d_traction.begin(), d_traction.end());
 
-    // Compute global speed based on gloab and local swinging and traction.
+    // Compute global speed based on globe and local swinging and traction.
     adapt_speed<vertex_t>(jitter_tolerance, &jt, &speed, &speed_efficiency, s, t, n);
 
     // Update positions

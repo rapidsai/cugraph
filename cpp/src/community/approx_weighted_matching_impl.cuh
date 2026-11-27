@@ -258,13 +258,13 @@ std::tuple<vertex_property_t<vertex_t, vertex_t>, weight_t> approximate_weighted
          current_graph_view.local_vertex_partition_range_first()] __device__(auto msrc_tgt) {
         auto candidate_of_candidate = cuda::std::get<0>(msrc_tgt);
         auto tgt                    = cuda::std::get<1>(msrc_tgt);
-        auto candiate               = cuda::std::get<2>(msrc_tgt);
+        auto candidate              = cuda::std::get<2>(msrc_tgt);
         auto offer_value            = cuda::std::get<3>(msrc_tgt);
 
         if (candidate_of_candidate != invalid_partner && candidate_of_candidate == tgt) {
           auto tgt_offset = tgt - v_first;
           is_vertex_matched.set(tgt_offset, true);
-          partners.set(tgt_offset, candiate);
+          partners.set(tgt_offset, candidate);
           offers_from_partners.set(tgt_offset, offer_value);
         }
       });

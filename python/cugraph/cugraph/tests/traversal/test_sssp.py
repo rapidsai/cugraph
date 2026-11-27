@@ -95,7 +95,7 @@ def cugraph_call(gpu_benchmark_callable, input_G_or_matrix, source, edgevals=Tru
         else:
             max_val = np.finfo(result[0].dtype).max
 
-        # Get unique verts from input since they are not incuded in output
+        # Get unique verts from input since they are not included in output
         if type(input_G_or_matrix) in [
             cp_csr_matrix,
             cp_csc_matrix,

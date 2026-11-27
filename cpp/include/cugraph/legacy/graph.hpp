@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -431,7 +431,7 @@ struct GraphSparseContents {
 
 /**
  * @ingroup legacy_graph_cpp
- * @brief       Base class for constructted graphs stored in CSR (Compressed
+ * @brief       Base class for constructed graphs stored in CSR (Compressed
  * Sparse Row) format or
  * CSC (Compressed Sparse Column) format
  *

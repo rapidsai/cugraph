@@ -850,7 +850,7 @@ struct renumber_functor {
 
     // can release original histogram memory here
 
-    // FIXME: cub doesnt have custom comparator sort
+    // FIXME: cub doesn't have custom comparator sort
     // new cub release will have sort with custom comparator
     thrust::sort_by_key(rmm::exec_policy(exec_strm),
                         sort_key.begin(),
@@ -915,7 +915,7 @@ struct renumber_functor {
 
     // reduce to get size of column allocations
     // just reusing exscan output instead of using cub::Reduce::Sum() again
-    // also sets last value of offset buffer that exscan didnt set
+    // also sets last value of offset buffer that exscan didn't set
     offset_buffer_size_comp<<<1, 32, 0, exec_strm>>>(out_col1_length.data(),
                                                      out_col2_length.data(),
                                                      out_col1_offsets.data(),
