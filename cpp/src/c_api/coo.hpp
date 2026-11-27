@@ -5,6 +5,7 @@
 
 #include "c_api/array.hpp"
 
+#include <memory>
 #include <vector>
 
 namespace cugraph {

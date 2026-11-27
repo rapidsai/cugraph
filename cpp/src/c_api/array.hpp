@@ -11,6 +11,7 @@
 
 #include <cuda/stream>
 
+#include <memory>
 #include <vector>
 
 namespace cugraph {
